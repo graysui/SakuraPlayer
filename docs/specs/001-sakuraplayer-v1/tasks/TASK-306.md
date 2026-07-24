@@ -28,7 +28,7 @@ provides: [HarmonyOS actress listing detail gallery cache]
 
 - [ ] 列表支持姓名/权威别名搜索；对应 AC-075。
 - [ ] 详情显示头像、中日文名、别名、简介、写真、关联影片和收藏；对应 AC-076。
-- [ ] 单一收藏，无自定义播放列表；对应 AC-077。
+- [ ] 女优列表可用 `favorite=true` 分页查看单一收藏集合，无自定义播放列表；对应 AC-077。
 - [ ] GFriends 只缓存后端唯一匹配 URL，临时图库与永久目录图片生命周期分开；对应 AC-051 至 AC-053。
 
 ## Definition of Ready

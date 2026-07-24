@@ -34,12 +34,13 @@ provides: [AVdb release adapter, decrypt pipeline, sync run persistence]
 ## Definition of Ready
 
 - [ ] TASK-001 迁移和 scheduler 入口可运行。
-- [ ] `AVDB-DATABASE-GUIDE.md` 的固定密钥材料只存在测试 fixture/运行时配置，不进入日志。
+- [ ] 已读取 `contracts/avdb-source.md`；上游固定密钥材料作为公开格式常量，不与 SakuraPlayer 启动级 secret 混用。
 - [ ] 主备仓库、资产名和 Release ID 规则冻结。
 
 ## 技术上下文
 
 - `resources` 上下文拥有 `avdb_sync_run`、asset manifest 和 provider cache。
+- 主备仓库、资产白名单、解密限制和 13 字段边界只使用 `contracts/avdb-source.md`，不依赖未跟踪原始指南。
 - 解密采用流式/分批 CSV 读取，单批失败不回滚其他已提交批次。
 - 使用 `Asia/Shanghai` 调度，scheduler 只入队，worker 执行导入。
 

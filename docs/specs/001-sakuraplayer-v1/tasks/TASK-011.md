@@ -24,7 +24,7 @@ provides: [catalog REST API, global search, movie actor detail, favorites]
 - [ ] 搜索支持番号、标题、演员姓名/别名并分组；命中 raw source 时入最高优先级任务并返回补全状态；对应 AC-065、AC-066。
 - [ ] 只有 core_ready 影片有正式卡片/详情，响应包含影片级进度或已看完状态；对应 AC-067、AC-068。
 - [ ] 影片详情和女优详情包含规格字段、多来源、写真与关联影片；对应 AC-074 至 AC-076。
-- [ ] 影片和女优只有单一收藏，不提供多个播放列表或观看历史 API；对应 AC-077、AC-078。
+- [ ] 影片和女优只有单一收藏，并可分别用 `favorite=true` 分页查看；不提供多个播放列表或观看历史 API；对应 AC-077、AC-078。
 
 ## Definition of Ready
 
@@ -55,7 +55,7 @@ provides: [catalog REST API, global search, movie actor detail, favorites]
 **单元测试**:
 
 - 验证分类/标签组合、默认排序、编号精确优先和别名搜索规范化。
-- 验证 core_ready 过滤、无图片占位、多来源大小字段与单一收藏幂等。
+- 验证 core_ready 过滤、无图片占位、多来源大小字段、单一收藏幂等和收藏集合分页。
 
 **集成测试**:
 

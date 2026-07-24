@@ -19,7 +19,7 @@
 |---|---|---|---|---|
 | [TASK-301](tasks/TASK-301.md) | API 24 Stage 工程与签名侧载基线 | DevEco/Hvigor/ohpm、GPLv3 | TASK-213,TASK-214 | 是 |
 | [TASK-312](tasks/TASK-312.md) | HarmonyOS API 24 真机前置门禁 | 固定 UA、302、Range、HLS、MKV、ASS | TASK-301,TASK-213,TASK-214 | 是 |
-| [TASK-302](tasks/TASK-302.md) | Asset Store 认证、HTTP、WebSocket 与快照 | ArkTS typed DTO、Network Kit | TASK-301,TASK-312,TASK-013 | 否 |
+| [TASK-302](tasks/TASK-302.md) | Asset Store 认证、HTTP、WebSocket 与快照 | 后端地址、bootstrap、ArkTS typed DTO | TASK-301,TASK-312,TASK-013 | 否 |
 | [TASK-303](tasks/TASK-303.md) | Navigation、底部 Tab、主题与搜索 | ArkUI V2、三入口、角标 | TASK-302 | 否 |
 | [TASK-304](tasks/TASK-304.md) | 媒体库网格、筛选与进度 | LazyForEach/Grid、六分类 | TASK-303 | 否 |
 | [TASK-305](tasks/TASK-305.md) | 日/周/月/TOP250 排行榜 | 年份、快照、分页 | TASK-303 | 否 |

@@ -14,7 +14,7 @@ provides: [AES-GCM secret repository, redaction, test secret provider]
 
 # TASK-003: 秘密加密与脱敏基础设施
 
-**功能描述**: 为 Cookie、JavDB 密码、AI key 等可恢复秘密提供 AES-256-GCM 加密、Docker Secret/环境变量主密钥读取、版本 CAS 和统一脱敏。
+**功能描述**: 为 Cookie、JavDB 密码、AI key 等可恢复秘密提供 AES-256-GCM 加密、独立设置密钥读取、版本 CAS 和统一脱敏；该密钥不得用于 JWT 或播放签名。
 
 **规格映射**: AC-014、AC-015、AC-017、AC-120、AC-128
 
@@ -34,6 +34,7 @@ provides: [AES-GCM secret repository, redaction, test secret provider]
 ## 技术上下文
 
 - 使用 cryptography 45.0.4，随机 96-bit nonce，每次写入重新加密。
+- 密钥名、格式和 `_FILE` 优先级以 `contracts/runtime-configuration.md` 为准；检测到用途复用时启动失败。
 - `encrypted_setting` 只由 identity 配置仓储管理，业务模块不直接访问数据库密文。
 - 日志过滤器以字段名和 URL query 双重脱敏，错误详情只允许稳定 code。
 

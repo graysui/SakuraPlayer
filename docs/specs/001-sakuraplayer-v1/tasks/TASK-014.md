@@ -5,8 +5,8 @@ spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
 status: pending
 dependencies: [TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007, TASK-008, TASK-009, TASK-010, TASK-011, TASK-012, TASK-013]
-ac-mapping: [AC-001..AC-078, AC-115, AC-116, AC-119..AC-129, AC-023, AC-058, AC-132]
-imp-requirements: [REQ-001..REQ-015, REQ-021..REQ-024]
+ac-mapping: [AC-001..AC-078, AC-115, AC-116, AC-119..AC-129, AC-133, AC-134, AC-023, AC-058, AC-132]
+imp-requirements: [REQ-001..REQ-015, REQ-021..REQ-025]
 cross-boundary: false
 external-dependency-risk: true
 provides: [backend metadata e2e suite]
@@ -24,6 +24,7 @@ provides: [backend metadata e2e suite]
 - [ ] 同一 Release/来源重复执行不产生重复记录；对应 `[SEF]` AC-023。
 - [ ] AI 不可用时 core_ready 影片仍可浏览；对应 `[SEF]` AC-058。
 - [ ] JavDB 以外的单个元数据源、AI 或 GFriends 故障不会清空已入库影片或排行榜快照；对应 `[SEF]` AC-132。
+- [ ] 缺失/错误 bootstrap token 被拒绝，正确 token 仅创建一次管理员；Compose 默认 loopback 且四类密钥不复用；对应 AC-133、AC-134。
 
 ## Definition of Ready
 

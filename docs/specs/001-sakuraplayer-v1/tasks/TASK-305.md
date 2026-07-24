@@ -5,8 +5,8 @@ spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
 dependencies: [TASK-303]
-ac-mapping: [AC-069, AC-070, AC-071, AC-072, AC-073]
-imp-requirements: [REQ-014]
+ac-mapping: [AC-046, AC-069, AC-070, AC-071, AC-072, AC-073]
+imp-requirements: [REQ-009, REQ-014]
 cross-boundary: false
 external-dependency-risk: false
 provides: [HarmonyOS rankings page]
@@ -16,7 +16,7 @@ provides: [HarmonyOS rankings page]
 
 **功能描述**: 实现移动友好的四类榜单、年份筛选、本地快照时间、下拉刷新和游标加载。
 
-**规格映射**: AC-069 至 AC-073
+**规格映射**: AC-046、AC-069 至 AC-073
 
 ## 验收条件
 
@@ -24,6 +24,7 @@ provides: [HarmonyOS rankings page]
 - [ ] 日/周/月/TOP250 与适用年份筛选可用；对应 AC-070。
 - [ ] 只显示有来源且 core_ready 影片；对应 AC-071。
 - [ ] 缺元数据/同步失败时保留已有快照并显示安全状态；对应 AC-072、AC-073。
+- [ ] TOP250 从未有快照且凭据未配置时显示可操作的不可用状态，不影响其他榜单；对应 AC-046。
 
 ## Definition of Ready
 
@@ -48,7 +49,7 @@ provides: [HarmonyOS rankings page]
 ## 测试说明
 
 - 四榜单、年份可见性、rank 间隙、synced_at 和分页。
-- 下拉刷新失败保留当前列表；raw-only 不显示但后端可排队。
+- 下拉刷新失败保留当前列表；区分真实空态和 `ranking_snapshot_unavailable`；raw-only 不显示但后端可排队。
 - 直屏/横屏和长标题无重叠。
 
 ## Definition of Done

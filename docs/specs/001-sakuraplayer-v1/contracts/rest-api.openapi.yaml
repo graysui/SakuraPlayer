@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SakuraPlayer API
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Private single-administrator API for the SakuraPlayer v1 backend. Video bytes
     are never proxied by this API; signed stream endpoints return 302 redirects.
@@ -36,6 +36,8 @@ paths:
       tags: [Auth]
       operationId: createAdministrator
       security: []
+      parameters:
+        - $ref: '#/components/parameters/BootstrapToken'
       requestBody:
         required: true
         content:
@@ -49,6 +51,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenPair'
+        '401':
+          description: Missing or invalid one-time bootstrap token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -152,6 +160,11 @@ paths:
             type: string
             enum: [publish_date_desc, publish_date_asc, number_asc]
             default: publish_date_desc
+        - name: favorite
+          in: query
+          description: When true, return the single movie favorite collection.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Only core-ready movies are returned.
@@ -301,6 +314,12 @@ paths:
                 $ref: '#/components/schemas/RankingPage'
         '422':
           $ref: '#/components/responses/ValidationError'
+        '503':
+          description: No successful snapshot exists for this board/year.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /actors:
     get:
       tags: [Catalog]
@@ -313,6 +332,11 @@ paths:
             maxLength: 200
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
+        - name: favorite
+          in: query
+          description: When true, return the single actor favorite collection.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Actress/actor page.
@@ -804,6 +828,73 @@ paths:
                 $ref: '#/components/schemas/MetadataJob'
         '409':
           $ref: '#/components/responses/Conflict'
+  /admin/metadata-jobs/{metadata_job_id}/retry-enrichment:
+    post:
+      tags: [Admin]
+      operationId: retryMetadataEnrichment
+      description: >-
+        Creates a new job that runs only explicitly selected failed or missing
+        optional stages. It never reruns javdb_core and never retries automatically.
+      parameters:
+        - name: metadata_job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stages]
+              properties:
+                stages:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items:
+                    $ref: '#/components/schemas/MetadataEnrichmentStage'
+      responses:
+        '201':
+          description: New queued enrichment-only attempt created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataJob'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/resources:
+    get:
+      tags: [Admin]
+      operationId: listResourceSourcesForIdentification
+      description: >-
+        Lists resource-source identification records without magnet, upstream
+        response bodies or other submission secrets.
+      parameters:
+        - name: identification_status
+          in: query
+          schema:
+            type: string
+            enum: [pending, manual]
+            default: pending
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Safe paginated identification queue.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingResourceSourcePage'
   /admin/resources/{source_id}/identification:
     put:
       tags: [Admin]
@@ -907,8 +998,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/Diagnostics'
 
 components:
   securitySchemes:
@@ -917,6 +1007,15 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    BootstrapToken:
+      name: X-Bootstrap-Token
+      in: header
+      required: true
+      description: One-time startup secret; ignored after the administrator exists.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 512
     Cursor:
       name: cursor
       in: query
@@ -999,10 +1098,13 @@ components:
   schemas:
     BootstrapStatus:
       type: object
-      required: [initialized]
+      required: [initialized, api_version]
       properties:
         initialized:
           type: boolean
+        api_version:
+          type: integer
+          const: 1
     CredentialsInput:
       type: object
       required: [username, password, client_instance_id]
@@ -1147,6 +1249,46 @@ components:
         availability:
           type: string
           enum: [available, queued, running, ready, failed, rejected]
+    PendingResourceSource:
+      type: object
+      required:
+        [id, website, external_post_id, title, section, identification_status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        website:
+          type: string
+        external_post_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        raw_number:
+          type: [string, 'null']
+        publish_date:
+          type: [string, 'null']
+          format: date
+        section:
+          $ref: '#/components/schemas/AvdbCategory'
+        category:
+          type: [string, 'null']
+        resource_size_mb:
+          type: [integer, 'null']
+          minimum: 0
+        identification_status:
+          type: string
+          enum: [pending, manual]
+    PendingResourceSourcePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingResourceSource'
+        next_cursor:
+          type: [string, 'null']
     ActorSummary:
       type: object
       required: [id, display_name, aliases, favorite]
@@ -1514,10 +1656,13 @@ components:
           $ref: '#/components/schemas/ProgressUpdate'
         playing:
           type: boolean
+    MetadataEnrichmentStage:
+      type: string
+      enum: [images, dmm, actor_map, gfriends, translation]
     MetadataJob:
       type: object
       required:
-        [id, number, priority, reason, status, attempt_no, created_at]
+        [id, number, priority, reason, retry_mode, requested_stages, status, attempt_no, created_at]
       properties:
         id:
           type: string
@@ -1532,6 +1677,16 @@ components:
         reason:
           type: string
           enum: [manual_or_search, ranking, daily, initial, history]
+        retry_mode:
+          type: string
+          enum: [full, missing_enrichment]
+        requested_stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataEnrichmentStage'
+        parent_job_id:
+          type: [string, 'null']
+          format: uuid
         status:
           type: string
           enum: [queued, running, completed, completed_with_warnings, failed]
@@ -1548,9 +1703,82 @@ components:
         created_at:
           type: string
           format: date-time
+    ProviderState:
+      type: object
+      required: [configured, status]
+      properties:
+        configured:
+          type: boolean
+        status:
+          type: string
+          enum: [unknown, available, unavailable, credentials_invalid]
+        last_checked_at:
+          type: [string, 'null']
+          format: date-time
+        last_error_code:
+          type: [string, 'null']
+    JavdbSettings:
+      allOf:
+        - $ref: '#/components/schemas/ProviderState'
+        - type: object
+          required: [password_configured]
+          properties:
+            username:
+              type: [string, 'null']
+            password_configured:
+              type: boolean
+    AiSettings:
+      allOf:
+        - $ref: '#/components/schemas/ProviderState'
+        - type: object
+          required: [api_key_configured]
+          properties:
+            base_url:
+              type: [string, 'null']
+              format: uri
+            model:
+              type: [string, 'null']
+            timeout_seconds:
+              type: [integer, 'null']
+              minimum: 1
+              maximum: 600
+            api_key_configured:
+              type: boolean
+    SyncRunState:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [never, running, succeeded, failed]
+        release_id:
+          type: [string, 'null']
+        started_at:
+          type: [string, 'null']
+          format: date-time
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+        last_successful_at:
+          type: [string, 'null']
+          format: date-time
+        next_scheduled_at:
+          type: [string, 'null']
+          format: date-time
+        last_error_code:
+          type: [string, 'null']
+    AvdbSyncStatus:
+      type: object
+      required: [incremental_30d, full_reconcile]
+      properties:
+        incremental_30d:
+          $ref: '#/components/schemas/SyncRunState'
+        full_reconcile:
+          $ref: '#/components/schemas/SyncRunState'
     Settings:
       type: object
-      required: [cache_ttl_hours, ready_cache_limit, metadata_concurrency, metadata_timeout_seconds, providers]
+      required:
+        [cache_ttl_hours, ready_cache_limit, metadata_concurrency, metadata_timeout_seconds, javdb, ai, providers, avdb_sync]
       properties:
         cache_ttl_hours:
           type: integer
@@ -1566,17 +1794,16 @@ components:
         metadata_timeout_seconds:
           type: integer
           const: 600
+        javdb:
+          $ref: '#/components/schemas/JavdbSettings'
+        ai:
+          $ref: '#/components/schemas/AiSettings'
         providers:
           type: object
           additionalProperties:
-            type: object
-            required: [configured, status]
-            properties:
-              configured:
-                type: boolean
-              status:
-                type: string
-                enum: [unknown, available, unavailable, credentials_invalid]
+            $ref: '#/components/schemas/ProviderState'
+        avdb_sync:
+          $ref: '#/components/schemas/AvdbSyncStatus'
     SettingsPatch:
       type: object
       properties:
@@ -1616,6 +1843,108 @@ components:
         checked_at:
           type: string
           format: date-time
+    ComponentDiagnostic:
+      type: object
+      required: [component, status, checked_at]
+      properties:
+        component:
+          type: string
+          enum: [api, scheduler, worker, postgres, avdb, javdb, dmm, gfriends, ai, cloud115]
+        status:
+          type: string
+          enum: [healthy, degraded, unavailable, credentials_invalid]
+        error_code:
+          type: [string, 'null']
+        checked_at:
+          type: string
+          format: date-time
+    QueueDiagnostic:
+      type: object
+      required: [metadata_queued, metadata_running, cache_queued, cache_running, cache_ready]
+      properties:
+        metadata_queued:
+          type: integer
+          minimum: 0
+        metadata_running:
+          type: integer
+          minimum: 0
+          maximum: 3
+        cache_queued:
+          type: integer
+          minimum: 0
+          maximum: 10
+        cache_running:
+          type: integer
+          minimum: 0
+          maximum: 2
+        cache_ready:
+          type: integer
+          minimum: 0
+    FailureDiagnostic:
+      type: object
+      required: [task_type, task_id, error_code, attempt_no, occurred_at]
+      properties:
+        task_type:
+          type: string
+          enum: [metadata, cache, sync, credential]
+        task_id:
+          type: string
+          format: uuid
+        stage:
+          type: [string, 'null']
+        error_code:
+          type: string
+        elapsed_ms:
+          type: [integer, 'null']
+          format: int64
+        attempt_no:
+          type: integer
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+    Diagnostics:
+      type: object
+      required: [generated_at, components, queues, recent_failures, connection_tests]
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentDiagnostic'
+        queues:
+          $ref: '#/components/schemas/QueueDiagnostic'
+        recent_failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/FailureDiagnostic'
+        connection_tests:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConnectionTest'
+    Notification:
+      type: object
+      required: [id, type, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [cache_started, cache_ready, cache_failed, credential_expired]
+        resource_id:
+          type: [string, 'null']
+          format: uuid
+        error_code:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type: [string, 'null']
+          format: date-time
     EventSnapshot:
       type: object
       required: [snapshot_version, cache_jobs, metadata_jobs, cloud115_binding, notifications]
@@ -1639,5 +1968,4 @@ components:
         notifications:
           type: array
           items:
-            type: object
-            additionalProperties: true
+            $ref: '#/components/schemas/Notification'

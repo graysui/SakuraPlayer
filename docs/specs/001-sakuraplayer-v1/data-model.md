@@ -70,7 +70,7 @@ Domain aggregate 1 --- N DomainEvent
 | `created_at` | timestamptz | 非空 | `(derived)` |
 | `updated_at` | timestamptz | 非空 | `(derived)` |
 
-**不变量**: 数据库检查或引导事务保证全表最多一行；不存在注册列表和角色表。
+**不变量**: 数据库检查或引导事务保证全表最多一行；不存在注册列表和角色表。AC-133 的 bootstrap token 只从启动 secret 读取并在事务前常量时间校验，不建立数据库字段或哈希记录。
 
 ### 3.2 `refresh_session`
 
@@ -97,6 +97,8 @@ Domain aggregate 1 --- N DomainEvent
 | `ciphertext` | bytea | AES-256-GCM 密文和 tag | AC-014 |
 | `version` | bigint | 乐观并发 CAS | AC-015 |
 | `updated_at` | timestamptz | 非空 | `(derived)` |
+
+**客户端本机配置**: AC-135 的 `api_base_url` 不进入后端数据库。Windows 使用普通本机配置存储，HarmonyOS 使用 Preferences 等非秘密存储；令牌仍使用各平台安全存储。更换地址先尝试撤销旧服务端会话，并始终丢弃本机令牌、字幕和内存快照。
 
 ### 3.4 `cloud115_binding`
 
@@ -287,6 +289,8 @@ Domain aggregate 1 --- N DomainEvent
 | `normalized_number` | varchar(128) | 任务稳定输入 | AC-037 |
 | `priority` | smallint | 10/20/30/40/50 | AC-041 |
 | `reason` | enum | `manual_or_search/ranking/daily/initial/history` | AC-041 |
+| `retry_mode` | enum | `full/missing_enrichment`；默认 `full` | AC-122 |
+| `requested_stages` | jsonb | 富化重试只允许 `images/dmm/actor_map/gfriends/translation`；完整任务为空 | AC-122 |
 | `status` | enum | `queued/running/completed/completed_with_warnings/failed` | AC-037/040 |
 | `attempt_no` | integer | 手动重试递增 | AC-040/043 |
 | `parent_job_id` | UUID | 可空，指向被手动重试任务 | `(derived)` |
@@ -299,7 +303,7 @@ Domain aggregate 1 --- N DomainEvent
 | `failure_detail` | text | 可空、脱敏 | AC-043 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 
-部分唯一索引保证同一 `normalized_number` 最多一条 `queued/running`。失败行永不由 worker 改回 queued；重试插入新行。
+部分唯一索引保证同一 `normalized_number` 最多一条 `queued/running`。失败或 warning 行永不由 worker 改回 queued；重试插入带 `parent_job_id` 的新行。`missing_enrichment` 的 `requested_stages` 必须非空且禁止 `javdb_core`，未列出的 stage 直接记为 `skipped`。
 
 `metadata_stage`:
 
@@ -550,10 +554,11 @@ queued -> running -> completed
 
 合法规则：
 
-- 只有管理员手动重试能从失败事实派生新的 `queued` 行。
+- 只有管理员手动重试能从失败或 warning 事实派生新的 `queued` 行。
 - `running` 超过 600 秒必须进入 `failed(metadata_timeout)`。
 - worker 崩溃且 claim 过期后可恢复同一 `running` 行进行对账 `(derived)`，但不得把已明确失败行自动重跑。
 - `completed_with_warnings` 表示核心成功、至少一个可选 stage 失败。
+- `completed_with_warnings` 的富化重试只运行明确失败或缺失的可选 stage，原 job/stage 事实保持不可变。
 
 ### 10.2 缓存任务
 
@@ -594,7 +599,7 @@ completed -> in_progress (下次从头播放且产生新进度)
 | 不变量 | 实现建议 | 来源 |
 |---|---|---|
 | 全局只有一个管理员 | 单例约束/引导锁 | AC-001 |
-| 全局只有一个活动 115 绑定 | 部分唯一索引 | AC-001 |
+| 全局只有一个活动 115 绑定 | 部分唯一索引 | REQ-001/AC-013 |
 | 来源帖子幂等 | 唯一 `(website, external_post_id)` | AC-023/031 |
 | 影片按番号唯一 | 唯一 `normalized_number` | AC-030 |
 | 拒绝来源不可重建 | 同来源唯一拒绝 + 导入前 anti-join | AC-036 |

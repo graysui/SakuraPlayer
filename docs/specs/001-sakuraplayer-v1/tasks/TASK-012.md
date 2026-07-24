@@ -5,8 +5,8 @@ spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
 status: pending
 dependencies: [TASK-007, TASK-008]
-ac-mapping: [AC-069, AC-070, AC-071, AC-072, AC-073]
-imp-requirements: [REQ-014]
+ac-mapping: [AC-046, AC-069, AC-070, AC-071, AC-072, AC-073]
+imp-requirements: [REQ-009, REQ-014]
 cross-boundary: false
 external-dependency-risk: true
 provides: [ranking snapshot sync, ranking query API]
@@ -16,7 +16,7 @@ provides: [ranking snapshot sync, ranking query API]
 
 **功能描述**: 定时同步 JavDB 日榜、周榜、月榜、TOP250 和适用年份为本地快照，缺元数据时排高优先级任务，失败保留最近成功快照。
 
-**规格映射**: AC-069 至 AC-073
+**规格映射**: AC-046、AC-069 至 AC-073
 
 ## 外部依赖风险
 
@@ -31,6 +31,7 @@ provides: [ranking snapshot sync, ranking query API]
 - [ ] 只展示有 AVdb 来源且 core_ready 的影片；对应 AC-071。
 - [ ] 有来源但未完成元数据时创建优先级 20 任务；对应 AC-072。
 - [ ] 同步失败保留最近成功快照；对应 AC-073。
+- [ ] TOP250 未配置凭据或目标榜单从未成功同步时返回 `ranking_snapshot_unavailable`，不伪造空成功快照；对应 AC-046、AC-073。
 
 ## Definition of Ready
 
@@ -42,7 +43,7 @@ provides: [ranking snapshot sync, ranking query API]
 
 - building 快照完整后原子切换 current；失败快照不影响 current。
 - 条目可先只保存番号，查询时按 source/core_ready 过滤并保留原始 rank。
-- TOP250 未配置账号时跳过需要登录目标，不影响其他榜单。
+- TOP250 未配置账号时跳过需要登录目标；已有快照继续返回，从未有快照时返回稳定不可用错误，不影响其他榜单。
 
 ## 实现文件（仅文件名）
 
@@ -60,7 +61,7 @@ provides: [ranking snapshot sync, ranking query API]
 **单元测试**:
 
 - 日/周/月/TOP250/年份参数与原始 rank 顺序。
-- 无凭据跳过 TOP250、同步失败/空响应时不误切 current。
+- 无凭据跳过 TOP250、无快照错误、同步失败/空响应时不误切 current。
 
 **集成测试**:
 

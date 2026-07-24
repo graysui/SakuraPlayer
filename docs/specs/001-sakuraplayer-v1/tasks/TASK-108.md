@@ -34,7 +34,7 @@ provides: [playback session signing, original resolver, 302 stream endpoint]
 ## Definition of Ready
 
 - [ ] TASK-105 有 ready media/pickcode，TASK-107 ownership/lease 可用。
-- [ ] 签名 secret 来自启动级秘密，stream endpoint 能在无 Bearer header 时验证会话能力。
+- [ ] 播放 HMAC 使用 `contracts/runtime-configuration.md` 中独立的 playback key，不复用设置或 JWT key；stream endpoint 能在无 Bearer header 时验证会话能力。
 - [ ] Windows/HarmonyOS UA 常量已冻结。
 
 ## 技术上下文

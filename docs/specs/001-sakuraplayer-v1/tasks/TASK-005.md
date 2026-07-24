@@ -22,7 +22,7 @@ provides: [source importer, number normalizer, initial metadata selector, pendin
 
 - [ ] 只导入亚洲有码、亚洲无码、中文字幕、4K原版、素人有码、FC2 的全部历史来源；对应 AC-025。
 - [ ] 首批队列只取最近 90 天且最多 5000 个唯一番号，之后继续无总量上限的历史补齐；对应 AC-026、AC-027。
-- [ ] 无番号或无法规范化的来源进入待识别，不进入正式媒体库和自动元数据队列；管理员可手动关联；对应 AC-028、AC-029。
+- [ ] 无番号或无法规范化的来源进入可搜索、可分页的待识别列表，不进入正式媒体库和自动元数据队列；管理员可手动关联；对应 AC-028、AC-029。
 - [ ] 同一规范化番号只有一部影片骨架，并保留原始番号和别名；对应 AC-030。
 
 ## Definition of Ready
@@ -45,6 +45,7 @@ provides: [source importer, number normalizer, initial metadata selector, pendin
 - `backend/src/sakuraplayer/resources/source_importer.py` - 六分类流式 upsert。
 - `backend/src/sakuraplayer/resources/initial_scope.py` - 90 天/5000 与历史补齐选择器。
 - `backend/src/sakuraplayer/resources/identification_api.py` - 待识别查询和手动关联。
+- `backend/tests/integration/resources/test_identification_api.py` - 安全字段、分页、搜索和关联。
 - `backend/tests/unit/resources/test_number_normalizer.py` - 番号/FC2/空值样本。
 - `backend/tests/integration/resources/test_source_importer.py` - 分类、范围、待识别和唯一性。
 
@@ -59,6 +60,7 @@ provides: [source importer, number normalizer, initial metadata selector, pendin
 
 - 混合六目标和非目标分类导入，验证只保留目标来源且全部历史来源可持续补齐。
 - 并发导入相同番号/帖子，验证电影和来源唯一约束；手动关联后进入影片关系。
+- 查询待识别列表时确认响应不含磁力、上游正文或预览原始载荷。
 
 **边界条件**:
 

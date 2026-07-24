@@ -48,7 +48,7 @@
 
 | type | 触发 | resource 最小字段 |
 |---|---|---|
-| `metadata.job.queued.v1` | 新任务入队 | `id,movie_id,number,priority,status,attempt_no` |
+| `metadata.job.queued.v1` | 新任务入队 | `id,movie_id,number,priority,status,attempt_no,retry_mode,requested_stages,parent_job_id` |
 | `metadata.job.started.v1` | worker 领取 | 上述字段 + `stage,started_at` |
 | `metadata.job.stage_changed.v1` | stage 变化 | `id,status,stage,stage_status,elapsed_ms` |
 | `metadata.job.completed.v1` | 完成或带 warning 完成 | `id,movie_id,status,warnings,finished_at` |

@@ -5,8 +5,8 @@ spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
 dependencies: [TASK-201, TASK-013]
-ac-mapping: [AC-002, AC-011, AC-012, AC-115, AC-116, AC-117]
-imp-requirements: [REQ-001, REQ-003, REQ-021]
+ac-mapping: [AC-002, AC-011, AC-012, AC-115, AC-116, AC-117, AC-133, AC-135]
+imp-requirements: [REQ-001, REQ-003, REQ-021, REQ-025]
 cross-boundary: false
 external-dependency-risk: false
 provides: [Dio API client, secure token store, WebSocket client, snapshot recovery]
@@ -14,9 +14,9 @@ provides: [Dio API client, secure token store, WebSocket client, snapshot recove
 
 # TASK-202: API、令牌、事件与快照基础
 
-**功能描述**: 实现 OpenAPI DTO、Dio 认证/refresh、安全存储、WebSocket 去重/版本检测、REST snapshot 恢复和前后台生命周期。
+**功能描述**: 实现后端基址配置/测试、OpenAPI DTO、Dio 认证/refresh、安全存储、WebSocket 去重/版本检测、REST snapshot 恢复和前后台生命周期。
 
-**规格映射**: AC-002、AC-011、AC-012、AC-115 至 AC-117
+**规格映射**: AC-002、AC-011、AC-012、AC-115 至 AC-117、AC-133、AC-135
 
 ## 验收条件
 
@@ -24,6 +24,8 @@ provides: [Dio API client, secure token store, WebSocket client, snapshot recove
 - [ ] 不保存明文密码；logout 删除 token 和本地字幕缓存；对应 AC-011、AC-012。
 - [ ] 事件按 event_id 去重、stream_version 跳号后拉 REST snapshot；对应 AC-115、AC-116。
 - [ ] 应用后台可处理系统通知，完全退出不常驻且下次启动补拉；对应 AC-117。
+- [ ] 登录前配置并测试后端基址；拒绝 userinfo/query/fragment 和公网明文 HTTP，更换地址先注销并清除旧状态；对应 AC-135。
+- [ ] 未初始化服务端的管理员创建表单临时接收 bootstrap token 并通过 header 发送，提交后立即清空且不持久化；对应 AC-133。
 
 ## Definition of Ready
 
@@ -42,6 +44,9 @@ provides: [Dio API client, secure token store, WebSocket client, snapshot recove
 **创建**:
 
 - `windows/lib/core/api/api_client.dart` - Dio JSON/bytes 和错误映射。
+- `windows/lib/core/api/server_profile.dart` - 后端基址规范化、持久化和连接测试。
+- `windows/lib/features/auth/presentation/server_setup_page.dart` - 地址、连接测试与初始化/登录入口。
+- `windows/lib/features/auth/presentation/auth_controller.dart` - bootstrap token 生命周期和登录状态。
 - `windows/lib/core/auth/session_store.dart` - token rotation/logout。
 - `windows/lib/core/storage/secure_store.dart` - refresh/client ID。
 - `windows/lib/core/events/event_client.dart` - WebSocket/游标/重连。
@@ -54,6 +59,8 @@ provides: [Dio API client, secure token store, WebSocket client, snapshot recove
 **单元测试**:
 
 - access 过期只 refresh 一次、logout 后旧 token 不重放、错误 code 映射。
+- URL scheme/私网判断/TLS 错误/远程 HTTP 风险确认，以及换地址后的会话清理。
+- bootstrap token 缺失/错误/成功/已完成，Widget/controller 树和日志中无残留 token。
 - event 重复/跳号/未知版本/4409，snapshot 替换本地状态。
 
 **集成测试**:

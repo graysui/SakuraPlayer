@@ -59,6 +59,8 @@ Windows Flutter                         HarmonyOS ArkTS
 | `ErrorCode` | 后端与两端客户端 | 稳定英文小写蛇形码，文案由客户端本地化 |
 | `PageCursor` | 目录、发现、诊断 | 不暴露数据库偏移实现 |
 | `PlatformUserAgent` | 播放、Windows、HarmonyOS | 每个平台固定且参与播放签名验证 |
+| `BootstrapToken` | 身份、部署 | 只在无管理员时验证，不持久化 |
+| `ApiBaseUrl` | Windows、HarmonyOS | 本机非敏感设置，更换时清空当前会话 |
 
 ### 1.4 上下文映射
 
@@ -82,7 +84,7 @@ Windows Flutter                         HarmonyOS ArkTS
   +-- Windows 客户端
   +-- HarmonyOS 客户端
   |
-  +-- HTTPS/HTTP(private) --> api:8000
+  +-- HTTPS / trusted VPN --> api:8000
                               |
                +--------------+--------------+
                |                             |
@@ -123,7 +125,7 @@ Windows Flutter                         HarmonyOS ArkTS
 
 | 区域 | 可访问方 | 规则 |
 |---|---|---|
-| 客户端入口 | 家庭 LAN 或 VPN 客户端 | 只暴露 API 端口；不提供公网部署向导 |
+| 客户端入口 | 家庭 LAN 或 VPN 客户端 | 默认只发布 loopback；远程使用 HTTPS 或可信加密 VPN，不提供公网部署向导 |
 | 应用网络 | `api`、`worker`、`scheduler` | 可访问 PostgreSQL 和所需外部 HTTPS 站点 |
 | 数据网络 | 仅后端容器 | PostgreSQL 不映射到宿主公网 |
 | 115/CDN | 两端播放器 | 仅通过后端签名入口产生的 `302` 到达 |
@@ -159,7 +161,7 @@ v1 是单机单管理员产品，不做水平自动扩展。所有上限由数�
 |---|---|---|
 | `test` | 自动单元和集成测试 | 默认禁止真实 115、JavDB 写操作和付费 AI |
 | `development` | 本地 Docker 与客户端调试 | 可用固定样本或显式开发凭据 |
-| `production-private` | 家庭 LAN/VPN | 真实外部依赖；秘密从 Docker Secret/环境变量注入 |
+| `production-private` | loopback、家庭私网或 VPN | 真实外部依赖；秘密从 Docker Secret/环境变量注入；远程访问使用 HTTPS/VPN |
 | `acceptance-real115` | 发布门禁 | 显式标记运行，使用专用测试目录和人工确认 |
 
 ## 3. 软件架构
@@ -283,6 +285,7 @@ contracts/
 8. Windows 和 HarmonyOS 不共享 UI 源码，只共享 OpenAPI、事件、错误码和固定 User-Agent 约定。
 9. 客户端状态以 REST 快照为准，WebSocket 事件只用于降低刷新延迟。
 10. 新增外部依赖、限界上下文或公共契约必须先更新架构文档并写 ADR。
+11. 运行环境变量、启动级 secret、发布地址和客户端后端基址必须遵循 `contracts/runtime-configuration.md`，不得在任务内另起名称。
 
 ### 3.6 设计模式
 
@@ -310,6 +313,9 @@ contracts/
 | 时间 | RFC 3339 UTC；计划调度显式使用 `Asia/Shanghai` |
 | 事件 | `{version,event_id,stream_version,type,occurred_at,resource}` |
 | 播放 | 每次点击重新创建 12 小时签名会话；响应 `Cache-Control: no-store` |
+| 首次初始化 | `POST /auth/bootstrap` 额外要求 `X-Bootstrap-Token`；管理员存在后永久拒绝 |
+| 运行配置 | [runtime-configuration.md](001-sakuraplayer-v1/contracts/runtime-configuration.md) |
+| AVdb 输入 | [avdb-source.md](001-sakuraplayer-v1/contracts/avdb-source.md) |
 
 ### 3.8 已批准的参考代码接口
 
@@ -340,6 +346,7 @@ contracts/
 | 规则 | 依据 | 验证 |
 |---|---|---|
 | 密码使用 Argon2id，禁止明文/可逆密码 | CWE-916 | 密码模型与登录测试 |
+| 首次管理员创建要求一次性 bootstrap token | CWE-306 | 缺失/错误/并发/已完成 bootstrap 测试 |
 | Cookie/AI/JavDB 秘密使用 AES-256-GCM，主密钥不入库 | CWE-312 | 数据库扫描与密钥轮换测试 |
 | 所有业务、管理、WebSocket 和签发端点需要身份 | CWE-306 | OpenAPI 安全扫描与 API 测试 |
 | 签名播放 URL 校验资源 owner、会话 epoch、UA、模式和过期时间 | CWE-345 | 篡改/过期/撤销测试 |
@@ -349,13 +356,15 @@ contracts/
 | 文件路径只接受服务端生成的相对路径 | CWE-22 | 路径穿越测试 |
 | 115 删除必须通过目录归属证明 | CWE-862 | 移动目录、伪造 CID、跨账号测试 |
 | 日志不得出现完整秘密或能力 URL | CWE-532 | 日志捕获回归测试 |
+| 远程客户端使用 HTTPS 或可信加密 VPN | CWE-319 | Compose 发布地址与部署配置测试 |
 
 ### 4.2 令牌与加密
 
 - 访问令牌默认 15 分钟；刷新会话默认 30 天，并保存哈希而不是明文刷新令牌。
 - 退出登录递增用户 `session_epoch` 并撤销对应刷新会话，旧播放签名随之失效。
 - 加密记录保存 `key_id`、随机 96-bit nonce、ciphertext 和认证 tag；相同明文每次密文不同。
-- Docker Secret 优先于环境变量。缺少主密钥时生产模式拒绝启动。
+- 设置加密、JWT、播放 HMAC 和 bootstrap 使用不同 secret；Docker Secret 文件优先于环境变量。缺少任一必需密钥、格式错误或复用密钥时生产模式拒绝启动。
+- bootstrap token 不入库，管理员创建后即使运行环境仍保留 token 也不能再次创建或替换管理员。
 - 普通诊断只显示凭据状态和最后验证时间，不返回密文、摘要前缀或可复原值。
 
 ### 4.3 外部内容安全
@@ -378,3 +387,4 @@ contracts/
 8. 不得为了测试而增加规格未要求的产品行为；补充测试只能列为非阻断验证。
 9. 任何播放代码必须保留固定 UA、`302 no-store`、seek 合并和不代理视频字节四项约束。
 10. HarmonyOS 功能实现必须等待 Windows 与真实 115 门禁完成；在此之前只允许契约探针和工程脚手架。
+11. 不得让客户端在更换后端基址后继续使用旧服务端令牌、字幕或内存快照。

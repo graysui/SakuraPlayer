@@ -29,7 +29,7 @@ provides: [JavDB core provider, DMM enrichment, permanent image store]
 - [ ] JavDB 是影片和演员关系主来源，核心事务成功后影片 `core_ready`；对应 AC-042、AC-044。
 - [ ] DMM 只补简介，失败保留核心；对应 AC-045。
 - [ ] JavDB 账号密码可选且加密，未配置只跳过需登录 TOP250；对应 AC-046。
-- [ ] 封面/剧照等写永久卷，不随 115 缓存删除；失败使用占位并可重试；对应 AC-047、AC-048。
+- [ ] 封面/剧照等写永久卷，不随 115 缓存删除；失败使用占位并可通过富化阶段重试补齐；对应 AC-047、AC-048。
 
 ## Definition of Ready
 
@@ -60,7 +60,7 @@ provides: [JavDB core provider, DMM enrichment, permanent image store]
 **单元测试**:
 
 - JavDB 编号精确匹配、详情字段、演员关系和未找到；DMM 文本/空描述/结构变化。
-- 图片成功、类型错误、过大、半写入和占位重试状态。
+- 图片成功、类型错误、过大、半写入、占位状态和 `retry-enrichment(images)`。
 
 **集成测试**:
 

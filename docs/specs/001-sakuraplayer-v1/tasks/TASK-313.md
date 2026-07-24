@@ -5,8 +5,8 @@ spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
 dependencies: [TASK-302, TASK-303, TASK-304, TASK-305, TASK-306, TASK-307, TASK-308, TASK-309, TASK-310, TASK-311, TASK-312, TASK-213]
-ac-mapping: [AC-003, AC-059..AC-122, AC-128, AC-129, AC-132]
-imp-requirements: [REQ-001, REQ-012..REQ-024]
+ac-mapping: [AC-003, AC-059..AC-122, AC-128, AC-129, AC-132, AC-133..AC-135]
+imp-requirements: [REQ-001, REQ-012..REQ-025]
 cross-boundary: false
 external-dependency-risk: true
 provides: [HarmonyOS E2E suite, cross-platform state evidence]
@@ -30,6 +30,7 @@ provides: [HarmonyOS E2E suite, cross-platform state evidence]
 - [ ] Windows 与 HarmonyOS 使用同一账号时目录、收藏、任务和播放进度一致；对应 `[SEF]` AC-003。
 - [ ] 单个可选元数据源、AI 或 GFriends 故障不影响已有目录、排行榜快照和 115 播放；对应 `[SEF]` AC-132。
 - [ ] TASK-312 的 AC-131 门禁仍为 passed；若 SDK、设备或播放实现改变，必须重新执行前置探针。
+- [ ] 首次连接覆盖后端地址测试、bootstrap token、登录以及换地址后的 Asset Store/字幕/快照清理；对应 AC-133 至 AC-135。
 
 ## Definition of Ready
 

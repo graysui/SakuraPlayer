@@ -21,8 +21,8 @@ provides: [domain event log, websocket gateway, REST snapshot, settings diagnost
 ## 验收条件
 
 - [ ] 元数据、缓存、凭据状态可通过版本化 WebSocket 推送，客户端重连可用 REST 快照恢复；对应 AC-115、AC-116。
-- [ ] 设置 API 管理 115/JavDB/AI/TTL/同步和连接测试，但启动级主密钥不可由客户端修改；对应 AC-119、AC-120。
-- [ ] 诊断显示脱敏 stage、稳定错误码、耗时、尝试和连接结果；管理员可手动重试元数据任务；对应 AC-121、AC-122。
+- [ ] 设置 API 管理 115/JavDB/AI/TTL/同步和连接测试，回显非敏感现值与全量/增量同步状态，但启动级主密钥不可由客户端修改；对应 AC-119、AC-120。
+- [ ] 诊断使用严格 DTO 显示脱敏 stage、稳定错误码、耗时、尝试和连接结果；管理员可完整重试 failed 任务或显式重试 warning 富化阶段；对应 AC-121、AC-122。
 - [ ] 健康/恢复状态可观察，默认测试使用替身并覆盖规格列出的后端关键算法；对应 AC-127 至 AC-129。
 
 ## Definition of Ready
@@ -48,6 +48,7 @@ provides: [domain event log, websocket gateway, REST snapshot, settings diagnost
 - `backend/src/sakuraplayer/api/diagnostics.py` - 诊断与任务管理 API。
 - `backend/tests/integration/events/test_reconnect_snapshot.py` - 事件丢失/重连。
 - `backend/tests/integration/api/test_settings_diagnostics.py` - secret 和任务操作。
+- `backend/tests/integration/api/test_enrichment_retry.py` - warning 阶段白名单与新 attempt。
 
 ## 测试说明
 
@@ -59,7 +60,7 @@ provides: [domain event log, websocket gateway, REST snapshot, settings diagnost
 **集成测试**:
 
 - 事务回滚时无事件；提交后 WebSocket 收到，断线/游标跳号后 REST 快照恢复。
-- 手动重试失败元数据任务、连接测试和诊断响应不包含任何秘密。
+- 手动重试失败元数据任务、只重试指定富化阶段、连接测试和诊断响应不包含任何秘密。
 
 **边界条件**:
 

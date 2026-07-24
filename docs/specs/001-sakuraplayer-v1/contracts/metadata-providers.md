@@ -71,7 +71,9 @@ HTTP 边界固定为兼容 `POST {base_url}/v1/chat/completions` 的适配器 `(
 - 单影片元数据任务的全局硬截止是 600 秒，由父进程执行。
 - provider 单个 HTTP 请求可以对网络异常、408、429、500、502、503、504做有上限的瞬时重试 `(derived)`，但不得越过全局截止。
 - 影片任务最终 `failed` 后不得由 scheduler/worker 自动创建新尝试。
-- DMM/GFriends/AI 失败在核心成功后形成 warning；管理员可手动重试富化。
+- DMM/GFriends/AI/图片失败在核心成功后形成 warning；管理员可通过 `retry-enrichment` 显式选择失败或缺失的可选阶段创建新尝试。
+- 富化重试不得包含 `javdb_core`，不得自动创建，也不得在未选择 `translation` 时再次调用付费 AI。
+- 原 `completed_with_warnings` job 和 stage 保持不可变，新尝试保存 `parent_job_id`、`retry_mode=missing_enrichment` 和阶段白名单。
 
 ## 7. 可观察性
 

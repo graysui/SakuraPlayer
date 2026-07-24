@@ -28,7 +28,7 @@ provides: [Windows actress listing detail gallery cache]
 
 - [ ] 列表按姓名和权威别名搜索；对应 AC-075。
 - [ ] 详情显示头像、中日文名、别名、简介、写真、关联影片和收藏；对应 AC-076。
-- [ ] 只有单一女优收藏，不提供自定义列表；对应 AC-077。
+- [ ] 女优列表可用 `favorite=true` 分页查看单一收藏集合，不提供自定义列表；对应 AC-077。
 - [ ] 客户端只缓存后端已唯一匹配的 GFriends URL，永久目录图片和 GFriends 临时缓存分开；对应 AC-051 至 AC-053。
 
 ## Definition of Ready

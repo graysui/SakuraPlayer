@@ -17,7 +17,7 @@
 | ID | 标题 | 主要焦点 | 依赖 | 外部风险 |
 |---|---|---|---|---|
 | [TASK-201](tasks/TASK-201.md) | Flutter Windows 脚手架、主题与认证壳 | 工具链、Riverpod、路由、GPLv3 | TASK-014 | 否 |
-| [TASK-202](tasks/TASK-202.md) | API、令牌、事件与快照基础 | Dio、refresh、安全存储、WS | TASK-201,TASK-013 | 否 |
+| [TASK-202](tasks/TASK-202.md) | API、令牌、事件与快照基础 | 后端地址、bootstrap、Dio、WS | TASK-201,TASK-013 | 否 |
 | [TASK-203](tasks/TASK-203.md) | 桌面 Shell、全局搜索与缓存角标 | 左栏、顶部工具、路由 | TASK-202 | 否 |
 | [TASK-204](tasks/TASK-204.md) | 媒体库网格、筛选与进度卡片 | 六分类、标签、大小、分页 | TASK-203 | 否 |
 | [TASK-205](tasks/TASK-205.md) | 日/周/月/TOP250 排行榜 | 本地快照、年份筛选 | TASK-203 | 否 |

@@ -29,7 +29,8 @@ provides: [Windows QR binding UI, cache page, settings diagnostics]
 - [ ] 客户端显示 QR waiting/scanned/confirmed/expired/canceled 和绑定状态；expired 明确提示重扫；对应 AC-013、AC-016。
 - [ ] 缓存页显示 queued/running/ready 数量/任务并可取消、清理；对应 AC-118、AC-122。
 - [ ] TTL 可设 1 至 168 小时、默认 24；对应 AC-094。
-- [ ] 设置管理 115/JavDB/AI/同步/连接测试，诊断只显示脱敏 stage/error/time/attempt；主密钥不可编辑；对应 AC-119 至 AC-121。
+- [ ] 设置回显非敏感 JavDB/AI 现值、增量/全量同步状态和连接测试；诊断只显示严格 DTO 中的脱敏 stage/error/time/attempt，主密钥不可编辑；对应 AC-119 至 AC-121。
+- [ ] 管理员可对 warning 元数据任务选择失败/缺失富化阶段重试，不能选择 JavDB 核心或隐式重跑 AI；对应 AC-122。
 
 ## Definition of Ready
 
@@ -58,7 +59,7 @@ provides: [Windows QR binding UI, cache page, settings diagnostics]
 
 - QR 全状态、expired/unavailable 文案区别、重绑有活动任务错误。
 - TTL 0/1/24/168/169 边界；固定并发/超时无可编辑控件。
-- 取消二次确认、active lease 清理拒绝、元数据失败手动重试；Widget tree 无 secret 文本。
+- 取消二次确认、active lease 清理拒绝、元数据失败完整重试、warning 富化阶段重试；Widget tree 无 secret 文本。
 
 ## Definition of Done
 

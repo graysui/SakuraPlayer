@@ -29,7 +29,8 @@ provides: [HarmonyOS QR binding, cache page, settings diagnostics notifications]
 - [ ] QR 全状态和 credentials expired 重扫提示；对应 AC-013、AC-016。
 - [ ] 缓存任务/容量/角标、取消/清理/元数据手动重试；对应 AC-118、AC-122。
 - [ ] TTL 1 至 168 小时，默认 24；对应 AC-094。
-- [ ] 设置/连接测试/诊断脱敏，主密钥不可编辑；对应 AC-119 至 AC-121。
+- [ ] 设置回显非敏感 JavDB/AI 现值、增量/全量同步状态，连接测试/严格诊断 DTO 脱敏，主密钥不可编辑；对应 AC-119 至 AC-121。
+- [ ] 管理员可对 warning 元数据任务选择失败/缺失富化阶段重试，不能选择 JavDB 核心或隐式重跑 AI；对应 AC-122。
 
 ## Definition of Ready
 

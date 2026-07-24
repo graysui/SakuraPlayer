@@ -1,6 +1,6 @@
 # SakuraPlayer v1 稳定错误码
 
-**版本**: 1.0.0
+**版本**: 1.1.0
 
 **适用契约**: REST、WebSocket、Windows、HarmonyOS
 
@@ -36,10 +36,18 @@
 | 500 | `internal_error` | 显示 request ID，不暴露异常 |
 | 503 | `service_unavailable` | 保留现有页面数据并允许重试 |
 
-## 3. AVdb 与元数据
+## 3. 初始化与运行配置
 
-| HTTP | code | 语义 |
-|---:|---|---|
+| HTTP/位置 | code | 语义/客户端行为 |
+|---|---|---|
+| 401 | `bootstrap_token_invalid` | 初始化口令缺失或错误，不创建管理员；不得提示哪一部分错误 |
+| 409 | `bootstrap_already_completed` | 管理员已存在，初始化入口永久关闭 |
+| 启动 | `startup_configuration_invalid` | 必需配置或 secret 缺失、格式错误或密钥复用；进程拒绝启动 |
+
+## 4. AVdb、发现与元数据
+
+| HTTP/位置 | code | 语义 |
+|---|---|---|
 | 409 | `avdb_release_already_imported` | 同一 Release 已完成，幂等成功 |
 | 422 | `avdb_asset_invalid` | 资产名、manifest 或内层格式不合法 |
 | 422 | `avdb_asset_digest_mismatch` | 主备或下载摘要不匹配，停止导入 |
@@ -49,7 +57,8 @@
 | 409 | `source_already_identified` | 待识别资源已关联影片 |
 | 409 | `movie_merge_conflict` | 合并会违反规范化番号或关系约束 |
 | 404 | `metadata_job_not_found` | 元数据任务不存在 |
-| 409 | `metadata_job_not_failed` | 只有失败任务可手动重试 |
+| 409 | `metadata_job_not_failed` | 只有失败任务可手动完整重试 |
+| 409 | `metadata_job_no_retryable_enrichment` | warning 任务没有所选的失败/缺失可选阶段 |
 | 409 | `metadata_job_already_active` | 同一番号已有 queued/running 任务 |
 | 504 | `metadata_timeout` | 单影片任务达到 600 秒并已强制终止 |
 | 502 | `javdb_upstream_error` | JavDB 临时失败 |
@@ -57,11 +66,13 @@
 | 502 | `dmm_upstream_error` | DMM 富化失败，不隐藏核心影片 |
 | 502 | `gfriends_upstream_error` | GFriends 索引/图片失败，不隐藏核心影片 |
 | 502 | `translation_upstream_error` | AI 翻译失败，不隐藏核心影片 |
+| 任务 | `translation_guardrail_failed` | AI 改写 protected 字段或返回非法结构，拒绝译文并保留原文 |
+| 503 | `ranking_snapshot_unavailable` | 所选榜单/年份从未有成功快照；details 说明凭据未配置或同步尚未成功 |
 
-## 4. 115 与缓存
+## 5. 115 与缓存
 
-| HTTP | code | 语义/客户端行为 |
-|---:|---|---|
+| HTTP/位置 | code | 语义/客户端行为 |
+|---|---|---|
 | 409 | `cloud115_binding_exists` | 已有活动单账号绑定 |
 | 422 | `cloud115_credentials_expired` | 明确提示重新扫码，不当作播放失败 |
 | 503 | `cloud115_unavailable` | 上游暂不可用，不把 Cookie 标过期 |
@@ -76,10 +87,11 @@
 | 409 | `cache_active_lease` | 正在播放，拒绝立即清理 |
 | 409 | `cache_ownership_mismatch` | 受管目录证明不成立，标记 detached，不删除 |
 | 502 | `cloud115_offline_failed` | 115 明确离线失败 |
+| 任务 | `cloud115_submit_uncertain` | 离线提交结果无法确认；禁止自动重复提交，等待人工重新操作 |
 | 422 | `source_permanently_unavailable` | 失效/违规/无法离线；创建拒绝标记 |
 | 500 | `cache_cleanup_failed` | 删除未确认成功，容量不释放 |
 
-## 5. 播放与字幕
+## 6. 播放与字幕
 
 | HTTP | code | 语义/客户端行为 |
 |---:|---|---|
@@ -98,7 +110,7 @@
 | 422 | `subtitle_format_unsupported` | 不加载该字幕，视频继续播放 |
 | 409 | `progress_version_conflict` | 客户端拉取最新影片进度后继续 |
 
-## 6. WebSocket 关闭码
+## 7. WebSocket 关闭码
 
 | close code | 含义 | 客户端动作 |
 |---:|---|---|
@@ -108,7 +120,7 @@
 | 4429 | 重连过快 | 指数退避，最大 30 秒 |
 | 4500 | 服务端异常 | 保留页面，拉 REST 快照并退避 |
 
-## 7. 兼容性规则
+## 8. 兼容性规则
 
 - 可以新增错误码，但不得把已有 code 改成另一语义。
 - 可以向 `details` 增加可选字段，不能让客户端依赖未声明的自由文本。

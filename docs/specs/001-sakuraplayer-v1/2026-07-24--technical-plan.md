@@ -14,9 +14,9 @@
 
 ### 1.1 输入依据
 
-- 功能规格中的 24 组需求与 132 条验收条件。
+- 功能规格中的 25 组需求与 135 条验收条件。
 - 真实 AVdb 快照：433,158 条总记录，六个目标分类 289,858 条。
-- `AVDB-DATABASE-GUIDE.md` 的 PBKDF2-HMAC-SHA256 与 AES-256-GCM 格式。
+- `contracts/avdb-source.md` 冻结的 AVdb 主备源、PBKDF2-HMAC-SHA256、AES-256-GCM 和 CSV 格式。
 - `avmedia` 已验证的 115 Cookie、扫码、离线、直链、HLS、字幕下载和错误映射原语。
 - `metadata-concurrency.md` 的三影片并发经验，但 v1 增加 600 秒父进程硬终止和禁止自动重试。
 - Windows 播放器的 Player 层 seek 合并经验。
@@ -29,6 +29,8 @@
 4. 客户端最多阻塞等待 60 秒；60 秒与 600 秒分别属于客户端等待和元数据任务硬超时，不能混用。
 5. 只有 JavDB 核心元数据成功的影片可见；DMM、图片、GFriends 和 AI 是非阻断富化。
 6. Windows 与真实 115 核心链路未通过前，不进入 HarmonyOS 功能实施。
+7. 首次管理员创建要求一次性 bootstrap token；设置 AES、JWT 和播放 HMAC 使用不同启动级密钥。
+8. 客户端先配置并验证后端基址；更换服务端必须清空旧会话和本地字幕状态。
 
 ## 2. 技术栈
 
@@ -276,6 +278,7 @@ Riverpod controller
 ```
 
 - 媒体库为去重影片网格，筛选与滚动位置只保存在本机页面状态。
+- 首次登录前配置/测试后端基址；远程 HTTP 只允许私有地址并显式确认风险，HTTPS 不允许忽略证书错误。
 - 影片详情聚合基础资料、永久图片、演员、收藏、影片进度和来源列表；来源列表按标签、资源大小和可用状态扫描。
 - 点击来源播放后，根据响应选择全屏等待、排队提示或直接播放器。
 - 全屏等待只允许二次确认取消；应用在 60 秒内仍通过事件/快照更新进度。
@@ -285,6 +288,7 @@ Riverpod controller
 ### 5.2 HarmonyOS
 
 - 主页面使用底部导航：媒体库、排行榜、女优。
+- 登录前使用与 Windows 相同的后端基址校验规则，更换地址后清空 Asset Store 中的旧会话。
 - 使用系统安全存储保存刷新令牌，应用私有目录缓存字幕和 GFriends 图片。
 - AVPlayer 适配器必须显式设置固定 UA，处理 `302`、Range、HLS、MKV、内嵌字幕/音轨与外置 ASS。
 - 系统后台仅使用平台允许的通知与生命周期，不建设常驻下载服务；115 离线在后端继续。
@@ -298,8 +302,8 @@ Riverpod controller
 
 **里程碑**:
 
-- Docker Compose、健康检查、PostgreSQL、Alembic Schema 门禁。
-- 唯一管理员、刷新会话、秘密加密和脱敏错误。
+- Docker Compose、loopback 默认发布、健康检查、PostgreSQL、Alembic Schema 门禁。
+- 一次性 bootstrap token、唯一管理员、刷新会话、用途分离的启动密钥和脱敏错误。
 - AVdb 主/备源、解密、六分类全量/增量幂等导入。
 - 三并发/600 秒元数据 supervisor、JavDB 核心、DMM/GFriends/AI 富化。
 - 永久图片卷、媒体库/搜索/影片/女优/排行榜 REST。
@@ -398,6 +402,7 @@ Riverpod controller
 | 任务目录被用户移动 | 中 | 高 | parent CID 重新验证，标记 detached，不追踪删除 | Phase 2 |
 | 用户未配置自动备份 | 中 | 高 | 设置页明确显示无备份；文档声明已接受风险 | 发布 |
 | 成人/版权合规 | 因地区而异 | 高 | 私有部署、无商店发布、用户承担适用法律和条款责任 | 发布 |
+| 局域网抢占首次管理员或明文传输 | 低到中 | 高 | 一次性 bootstrap token、loopback 默认发布、远程 HTTPS/VPN | Phase 1 |
 
 ### 9.1 高风险响应流程
 
@@ -415,7 +420,7 @@ Riverpod controller
 | 单元 | 状态机、番号、标签、TTL/LRU、签名、进度阈值全覆盖 |
 | 数据库集成 | claim、2/10 上限、幂等、部分唯一索引、事件事务 |
 | Provider | 固定样本覆盖成功、找不到、限流、结构变化和可选失败 |
-| 安全 | 凭据脱敏、XML XXE、路径穿越、签名篡改、目录越界 |
+| 安全 | bootstrap 抢占、密钥复用、凭据脱敏、传输边界、XML XXE、路径穿越、签名篡改、目录越界 |
 | Fake E2E | 浏览 -> 来源 -> 离线 -> 解析 -> 播放 -> 字幕 -> 清理 |
 | Windows | analyze、test、integration_test、release build |
 | 真实 115 | 仅显式运行，完整覆盖 AC-130 |
@@ -433,5 +438,6 @@ Riverpod controller
 | 播放 | 12 小时能力入口、原画优先、最高 HLS 兼容、302 直连 |
 | Windows | Flutter + media_kit/libmpv，先交付 |
 | HarmonyOS | ArkTS/ArkUI + AVPlayer，真实设备探针后实施 |
+| 私有连接 | loopback 默认；客户端配置基址，远程使用 HTTPS 或可信 VPN |
 
 下一步按四个实现工作流生成任务，每个工作流不超过 15 个实现任务，并为每个工作流追加独立 E2E 与代码清理任务。

@@ -5,8 +5,8 @@ spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
 dependencies: [TASK-201, TASK-202, TASK-203, TASK-204, TASK-205, TASK-206, TASK-207, TASK-208, TASK-209, TASK-210, TASK-211, TASK-212, TASK-113]
-ac-mapping: [AC-005, AC-059..AC-122, AC-128, AC-129, AC-130, AC-132]
-imp-requirements: [REQ-002, REQ-012..REQ-024]
+ac-mapping: [AC-005, AC-059..AC-122, AC-128, AC-129, AC-130, AC-132, AC-133..AC-135]
+imp-requirements: [REQ-002, REQ-012..REQ-025]
 cross-boundary: false
 external-dependency-risk: true
 provides: [Windows E2E suite, AC-130 real115 evidence]
@@ -30,6 +30,7 @@ provides: [Windows E2E suite, AC-130 real115 evidence]
 - [ ] 真实 115 验证扫码、离线、原画、HLS 回退、Range seek、字幕下载和安全清理；对应 `[EXT]` AC-130。
 - [ ] Windows 核心链路失败时不进入 HarmonyOS 功能开发；对应发布门禁。
 - [ ] 单个可选元数据源故障不影响已有目录/榜单/播放；对应 `[SEF]` AC-132。
+- [ ] 首次连接覆盖后端地址测试、bootstrap token、登录以及换地址后的本机状态清理；对应 AC-133 至 AC-135。
 
 ## Definition of Ready
 
