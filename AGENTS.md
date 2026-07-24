@@ -17,6 +17,15 @@
 4. `docs/specs/001-sakuraplayer-v1/2026-07-24--technical-plan.md`
 5. 当前任务文件及其直接引用的契约
 
+## 会话与进度管理
+
+- 新会话读取交接文档后，必须检查 `git status --short`、最近提交和当前任务文件，不得只依赖交接文档判断实际状态。
+- 每完成一个 `TASK-xxx`，必须在同一提交中更新 `SESSION-HANDOFF.md` 的当前阶段、已完成任务、下一任务、阻塞项和未完成外部门禁。
+- `SESSION-HANDOFF.md` 只记录恢复工作所需的当前状态，不复制完整规格、研究资料或提交历史；提交记录以 Git 为准。
+- 预计超过 5 次工具调用、包含多个实施阶段或可能跨会话的任务，使用 `planning-with-files-zh` 的文件规划方式。
+- 规划文件放在 `.planning/TASK-xxx/`；`task_plan.md` 只记录执行阶段，外部资料写入 `findings.md`，操作、错误和测试结果写入 `progress.md`。
+- `.planning/` 是本地工作记忆，不是冻结规格，不得包含凭据，也不得纳入任务提交。
+
 ## 实施边界
 
 - Windows 与真实 115 门禁完成前，不实施 HarmonyOS 业务功能。
