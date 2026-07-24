@@ -102,14 +102,28 @@ def _decode_key(
     return decoded, encoded
 
 
-def _decode_bootstrap(values: Mapping[str, str]) -> tuple[bytes | None, str | None]:
+def _decode_bootstrap(
+    values: Mapping[str, str],
+) -> tuple[bytes | None, str | None, bytes | None]:
     name = "SAKURAPLAYER_BOOTSTRAP_TOKEN"
     encoded = _read_secret_text(values, name)
     if encoded is None:
-        return None, None
-    if not _URL_SAFE_TEXT.fullmatch(encoded) or len(encoded.encode("ascii")) < 32:
+        return None, None, None
+    if len(encoded) > 512 or not _URL_SAFE_TEXT.fullmatch(encoded):
         raise StartupConfigurationError(name, "secret format is invalid")
-    return encoded.encode("ascii"), encoded
+    try:
+        padding = "=" * (-len(encoded) % 4)
+        decoded = base64.b64decode(
+            encoded + padding,
+            altchars=b"-_",
+            validate=True,
+        )
+    except (ValueError, base64.binascii.Error):
+        raise StartupConfigurationError(name, "secret format is invalid") from None
+    canonical = base64.urlsafe_b64encode(decoded).decode("ascii").rstrip("=")
+    if len(decoded) < 32 or canonical != encoded:
+        raise StartupConfigurationError(name, "secret format is invalid")
+    return encoded.encode("ascii"), encoded, decoded
 
 
 def load_settings(environment: Mapping[str, str] | None = None) -> Settings:
@@ -151,13 +165,17 @@ def load_settings(environment: Mapping[str, str] | None = None) -> Settings:
     playback_key, playback_key_source = _decode_key(
         values, "SAKURAPLAYER_PLAYBACK_KEY", minimum=32, exact=False
     )
-    bootstrap_token, bootstrap_token_source = _decode_bootstrap(values)
+    (
+        bootstrap_token,
+        bootstrap_token_source,
+        bootstrap_token_material,
+    ) = _decode_bootstrap(values)
 
     secrets = {
         "SAKURAPLAYER_SETTINGS_KEY": settings_key,
         "SAKURAPLAYER_TOKEN_KEY": token_key,
         "SAKURAPLAYER_PLAYBACK_KEY": playback_key,
-        "SAKURAPLAYER_BOOTSTRAP_TOKEN": bootstrap_token,
+        "SAKURAPLAYER_BOOTSTRAP_TOKEN": bootstrap_token_material,
     }
     if app_environment in _SECURE_ENVIRONMENTS:
         for name, value in secrets.items():

@@ -64,13 +64,14 @@ Domain aggregate 1 --- N DomainEvent
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
 | `id` | UUID | 唯一管理员固定一行 | AC-001 |
+| `singleton_key` | boolean | 固定为 true 且唯一，数据库级限制全表最多一行 | AC-001 `(derived)` |
 | `username` | varchar(64) | 唯一、非空 | AC-001 |
 | `password_hash` | text | Argon2id，永不返回 | AC-010 |
 | `session_epoch` | bigint | 退出/全局撤销时递增 | `(derived)`，支持 AC-011/102 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 | `updated_at` | timestamptz | 非空 | `(derived)` |
 
-**不变量**: 数据库检查或引导事务保证全表最多一行；不存在注册列表和角色表。AC-133 的 bootstrap token 只从启动 secret 读取并在事务前常量时间校验，不建立数据库字段或哈希记录。
+**不变量**: 数据库检查或引导事务保证全表最多一行；不存在注册列表和角色表。AC-133 的 bootstrap token 只从启动 secret 读取，在 bootstrap 事务锁内先确认管理员不存在后再常量时间校验，不建立数据库字段或哈希记录。
 
 ### 3.2 `refresh_session`
 
@@ -78,11 +79,13 @@ Domain aggregate 1 --- N DomainEvent
 |---|---|---|---|
 | `id` | UUID | 主键 | `(derived)` |
 | `admin_id` | UUID | 外键 | AC-011 |
-| `token_hash` | bytea | 只存刷新令牌哈希 | AC-011 |
+| `token_hash` | bytea | 当前 refresh JWT 的 SHA-256，固定 32 字节 | AC-011 |
 | `client_instance_id` | UUID | Windows/HarmonyOS 本机实例 | `(derived)` |
 | `expires_at` | timestamptz | 非空 | AC-011 |
 | `revoked_at` | timestamptz | 可空 | AC-011/012 |
 | `last_used_at` | timestamptz | 可空 | `(derived)` |
+
+**不变量**: 同一 `admin_id + client_instance_id` 最多一条 `revoked_at IS NULL` 会话。刷新在行锁事务内轮换当前 hash，不延长 `expires_at`；已签名旧 token 的 hash 不匹配视为重放并撤销该会话。
 
 ### 3.3 `encrypted_setting`
 

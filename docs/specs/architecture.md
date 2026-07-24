@@ -313,7 +313,7 @@ contracts/
 | 时间 | RFC 3339 UTC；计划调度显式使用 `Asia/Shanghai` |
 | 事件 | `{version,event_id,stream_version,type,occurred_at,resource}` |
 | 播放 | 每次点击重新创建 12 小时签名会话；响应 `Cache-Control: no-store` |
-| 首次初始化 | `POST /auth/bootstrap` 额外要求 `X-Bootstrap-Token`；管理员存在后永久拒绝 |
+| 首次初始化 | 尚无管理员时 `POST /auth/bootstrap` 要求 `X-Bootstrap-Token`；管理员存在后永久拒绝且不再校验该 header |
 | 运行配置 | [runtime-configuration.md](001-sakuraplayer-v1/contracts/runtime-configuration.md) |
 | AVdb 输入 | [avdb-source.md](001-sakuraplayer-v1/contracts/avdb-source.md) |
 | 运维健康 | [operational-health.md](001-sakuraplayer-v1/contracts/operational-health.md)；内部探针不进入业务 OpenAPI |
@@ -362,7 +362,8 @@ contracts/
 ### 4.2 令牌与加密
 
 - 访问令牌默认 15 分钟；刷新会话默认 30 天，并保存哈希而不是明文刷新令牌。
-- 退出登录递增用户 `session_epoch` 并撤销对应刷新会话，旧播放签名随之失效。
+- access/refresh 均为仅接受 HS256 的类型化 JWT；刷新会话保存当前 refresh JWT 的 SHA-256，30 天是登录时起的绝对期限，轮换不延长。
+- 退出登录撤销 access JWT `sid` 对应的本机刷新会话并递增用户 `session_epoch`，旧 access 与播放签名随之失效；其他未撤销客户端可 refresh 到新 epoch。
 - 加密记录保存 `key_id`、随机 96-bit nonce、ciphertext 和认证 tag；相同明文每次密文不同。
 - 设置加密、JWT、播放 HMAC 和 bootstrap 使用不同 secret；Docker Secret 文件优先于环境变量。缺少任一必需密钥、格式错误或复用密钥时生产模式拒绝启动。
 - bootstrap token 不入库，管理员创建后即使运行环境仍保留 token 也不能再次创建或替换管理员。

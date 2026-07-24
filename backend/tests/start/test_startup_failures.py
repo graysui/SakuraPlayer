@@ -28,7 +28,7 @@ def _production_environment() -> dict[str, str]:
             "SAKURAPLAYER_SETTINGS_KEY": _b64(b"s" * 32),
             "SAKURAPLAYER_TOKEN_KEY": _b64(b"t" * 32),
             "SAKURAPLAYER_PLAYBACK_KEY": _b64(b"p" * 32),
-            "SAKURAPLAYER_BOOTSTRAP_TOKEN": "b" * 32,
+            "SAKURAPLAYER_BOOTSTRAP_TOKEN": _b64(b"b" * 32),
         }
     )
     return environment

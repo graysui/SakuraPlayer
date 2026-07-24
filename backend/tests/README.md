@@ -1,10 +1,10 @@
-# TASK-001 Test Entry Points
+# Backend Test Entry Points
 
 Run the self-contained Python 3.10.16 suite through the test image:
 
 ```powershell
-docker build -f backend/docker/api.Dockerfile --target test -t sakuraplayer-task001-test .
-docker run --rm --entrypoint python sakuraplayer-task001-test -m pytest tests/start -m "not host_docker" -q
+docker build -f backend/docker/api.Dockerfile --target test -t sakuraplayer-test .
+docker run --rm --entrypoint python sakuraplayer-test -m pytest tests/start tests/unit tests/integration/identity/test_auth_api.py -m "not integration and not host_docker" -q
 ```
 
 Run host Docker configuration assertions with any supported local Python; no third-party Python package is required:
@@ -19,4 +19,4 @@ Run the complete isolated Compose, PostgreSQL, restart, and readiness workflow:
 pwsh -NoProfile -File backend/tests/run-compose.ps1
 ```
 
-The workflow creates random test-only secret files under the system temporary directory and removes its containers, network, volumes, images, and secret files in `finally`. It does not access real 115, JavDB writes, or paid AI.
+The workflow also runs all PostgreSQL-marked tests under `tests/integration`. It creates random test-only secret files under the system temporary directory and removes its containers, network, volumes, images, and secret files in `finally`. It does not access real 115, JavDB writes, or paid AI.

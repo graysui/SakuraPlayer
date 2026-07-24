@@ -27,6 +27,9 @@
 | 400 | `invalid_request` | 标记请求无效，不自动重试 |
 | 401 | `authentication_required` | 尝试一次 refresh；失败后回登录页 |
 | 401 | `session_revoked` | 清除本机令牌和字幕缓存 |
+| 401 | `invalid_credentials` | 用户名或密码错误；停留登录页，不自动 refresh |
+| 401 | `refresh_token_invalid` | refresh 无效、过期、未知或已撤销；清除本机会话并回登录页 |
+| 401 | `refresh_token_reused` | 已轮换 refresh 被重放；当前客户端会话已撤销，清除本机状态 |
 | 403 | `operation_forbidden` | 显示无权或状态不允许 |
 | 404 | `resource_not_found` | 返回上一页并允许刷新 |
 | 409 | `state_conflict` | 拉取最新 REST 快照 |

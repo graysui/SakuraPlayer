@@ -22,8 +22,9 @@ ENTRYPOINT ["/workspace/backend/docker/entrypoint.sh"]
 
 FROM base AS test
 COPY backend/tests ./tests
+COPY backend/docker/api.Dockerfile ./docker/api.Dockerfile
 RUN python -m pip install --no-cache-dir --disable-pip-version-check ".[test]"
-CMD ["python", "-m", "pytest", "tests/start", "-m", "not host_docker"]
+CMD ["python", "-m", "pytest", "tests/start", "tests/unit", "tests/integration/identity/test_auth_api.py", "-m", "not integration and not host_docker"]
 
 FROM base AS runtime
 CMD ["python", "-m", "sakuraplayer.api"]

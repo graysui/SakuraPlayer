@@ -11,6 +11,9 @@
 - `[E]` 对应 `[EXT]`，只由需要真实外部系统的显式 E2E 门禁验证，不进入默认自动测试。
 - 清理任务不承担新需求，因此不映射 AC。
 - AC-133 的 bootstrap secret 启动依赖与管理员创建后失去权限的生命周期由 [Bootstrap Secret 生命周期澄清](changes/2026-07-24--bootstrap-secret-lifecycle.md) 冻结；TASK-001 负责启动校验，TASK-002 负责永久关闭初始化行为。
+- AC-133 的 `X-Bootstrap-Token` 只在尚未初始化时必填；管理员存在检查必须先于 header/secret 校验，详见 [Bootstrap Header 条件校验](changes/2026-07-24--conditional-bootstrap-header.md)。
+- AC-011/AC-012 的 JWT claim、refresh 轮换/重放、client instance、logout 与 session epoch 语义由 [认证会话生命周期补强](changes/2026-07-24--authentication-session-lifecycle.md) 冻结，并由 TASK-002 实现。
+- AC-133 的 bootstrap token 熵、规范 Base64URL 编码和固定长度摘要比较由 [Bootstrap Token 熵与比较规范](changes/2026-07-24--bootstrap-token-entropy.md) 冻结。
 - AC-127 的内部探针、容器健康检查与 Schema 门禁由 [运维健康与 Schema 门禁契约](contracts/operational-health.md) 冻结；TASK-001 负责基础门禁，TASK-013/TASK-112 负责后续任务恢复与诊断。
 
 ## 逐条追踪

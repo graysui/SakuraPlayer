@@ -19,7 +19,7 @@ def production_env() -> dict[str, str]:
         "SAKURAPLAYER_SETTINGS_KEY": _b64(b"s" * 32),
         "SAKURAPLAYER_TOKEN_KEY": _b64(b"t" * 32),
         "SAKURAPLAYER_PLAYBACK_KEY": _b64(b"p" * 32),
-        "SAKURAPLAYER_BOOTSTRAP_TOKEN": "b" * 32,
+        "SAKURAPLAYER_BOOTSTRAP_TOKEN": _b64(b"b" * 32),
     }
 
 
@@ -30,6 +30,9 @@ def test_loads_valid_production_configuration(production_env: dict[str, str]) ->
     assert settings.publish_host == "127.0.0.1"
     assert settings.api_port == 8000
     assert settings.settings_key_id == "v1"
+    assert settings.bootstrap_token == production_env[
+        "SAKURAPLAYER_BOOTSTRAP_TOKEN"
+    ].encode("ascii")
     assert production_env["SAKURAPLAYER_DATABASE_URL"] not in repr(settings)
 
 
@@ -118,6 +121,9 @@ def test_reads_secret_file_without_exposing_its_value(
         ("SAKURAPLAYER_PLAYBACK_KEY", "not base64!"),
         ("SAKURAPLAYER_PLAYBACK_KEY", base64.b64encode(b"\xfb" * 32).decode()),
         ("SAKURAPLAYER_BOOTSTRAP_TOKEN", "short"),
+        ("SAKURAPLAYER_BOOTSTRAP_TOKEN", "b" * 32),
+        ("SAKURAPLAYER_BOOTSTRAP_TOKEN", _b64(b"b" * 31)),
+        ("SAKURAPLAYER_BOOTSTRAP_TOKEN", _b64(b"b" * 385)),
     ],
 )
 def test_rejects_invalid_secret_format_without_echoing_secret(
@@ -151,6 +157,22 @@ def test_rejects_reused_secret_source_across_key_and_bootstrap(
     production_env["SAKURAPLAYER_BOOTSTRAP_TOKEN"] = production_env[
         "SAKURAPLAYER_SETTINGS_KEY"
     ]
+
+    with pytest.raises(StartupConfigurationError) as error:
+        load_settings(production_env)
+
+    assert error.value.code == "startup_configuration_invalid"
+    assert "secret purposes" in str(error.value)
+
+
+def test_rejects_same_key_material_with_different_base64_padding(
+    production_env: dict[str, str],
+) -> None:
+    material = b"shared-key-material" + b"x" * 13
+    production_env["SAKURAPLAYER_TOKEN_KEY"] = base64.urlsafe_b64encode(
+        material
+    ).decode("ascii")
+    production_env["SAKURAPLAYER_BOOTSTRAP_TOKEN"] = _b64(material)
 
     with pytest.raises(StartupConfigurationError) as error:
         load_settings(production_env)

@@ -5,6 +5,8 @@ from pathlib import Path
 import uuid
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
@@ -110,7 +112,7 @@ def test_nonempty_unversioned_database_with_user_object_is_not_adopted(
     assert error.value.code == "schema_revision_unknown"
 
 
-def test_upgrade_to_head_is_idempotent_and_creates_no_business_tables(
+def test_upgrade_to_head_is_idempotent_and_creates_identity_tables(
     database_url: str,
 ) -> None:
     upgrade_database(database_url, ALEMBIC_INI)
@@ -119,8 +121,25 @@ def test_upgrade_to_head_is_idempotent_and_creates_no_business_tables(
 
     engine = create_engine(database_url)
     with engine.connect() as connection:
-        assert inspect(connection).get_table_names() == ["alembic_version"]
+        assert sorted(inspect(connection).get_table_names()) == [
+            "admin_user",
+            "alembic_version",
+            "refresh_session",
+        ]
     engine.dispose()
+
+
+def test_known_initial_revision_requires_identity_migration(database_url: str) -> None:
+    config = Config(str(ALEMBIC_INI))
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+    command.upgrade(config, "0001_initial_skeleton")
+
+    with pytest.raises(SchemaGuardError) as error:
+        check_schema(database_url, ALEMBIC_INI)
+
+    assert error.value.code == "schema_migration_required"
+    upgrade_database(database_url, ALEMBIC_INI)
+    check_schema(database_url, ALEMBIC_INI)
 
 
 def test_unknown_revision_is_rejected_without_leaking_revision(

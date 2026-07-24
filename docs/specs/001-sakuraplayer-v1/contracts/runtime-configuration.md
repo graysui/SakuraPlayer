@@ -1,6 +1,6 @@
 # SakuraPlayer v1 运行配置契约
 
-**版本**: 1.0.0
+**版本**: 1.1.0
 
 **适用范围**: Docker 后端、Windows 客户端、HarmonyOS 客户端、显式外部验收
 
@@ -30,7 +30,7 @@
 | 设置 AES-GCM | `SAKURAPLAYER_SETTINGS_KEY_FILE` | `SAKURAPLAYER_SETTINGS_KEY` | URL-safe Base64 解码后恰好 32 字节 |
 | JWT 签名 | `SAKURAPLAYER_TOKEN_KEY_FILE` | `SAKURAPLAYER_TOKEN_KEY` | URL-safe Base64 解码后至少 32 字节 |
 | 播放 HMAC | `SAKURAPLAYER_PLAYBACK_KEY_FILE` | `SAKURAPLAYER_PLAYBACK_KEY` | URL-safe Base64 解码后至少 32 字节 |
-| 首次初始化 | `SAKURAPLAYER_BOOTSTRAP_TOKEN_FILE` | `SAKURAPLAYER_BOOTSTRAP_TOKEN` | 至少 32 个随机字节的 URL-safe 文本 |
+| 首次初始化 | `SAKURAPLAYER_BOOTSTRAP_TOKEN_FILE` | `SAKURAPLAYER_BOOTSTRAP_TOKEN` | 至少 32 个随机字节编码为无 padding Base64URL 文本（43..512 字符） |
 
 设置密钥还需要非秘密标识 `SAKURAPLAYER_SETTINGS_KEY_ID`，v1 默认 `v1`。四种用途不得复用相同字节。生产模式缺少、格式错误或检测到复用时，API、worker 和 scheduler 均拒绝启动且日志只输出变量名称和稳定错误码。
 

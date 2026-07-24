@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $composeFile = Join-Path $backendRoot 'docker-compose.yml'
-$projectName = "sakuraplayer-task001-$PID"
+$projectName = "sakuraplayer-task002-$PID"
 $testImage = "$projectName-test"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) $projectName
 $envFile = Join-Path $tempRoot 'compose.env'
@@ -36,6 +36,35 @@ function Assert-Healthy([string] $Service) {
     if ($health -ne 'healthy') {
         throw "$Service is not healthy: $health"
     }
+}
+
+function Assert-ReadyDegraded([string] $ApiAddress) {
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    $observed = [Collections.Generic.List[string]]::new()
+    do {
+        try {
+            $response = Invoke-WebRequest `
+                -Uri "http://$ApiAddress/health/ready" `
+                -SkipHttpErrorCheck `
+                -TimeoutSec 10
+            $status = [string] $response.StatusCode
+        }
+        catch {
+            $status = "request_failed:$($_.Exception.GetType().Name)"
+        }
+        $observed.Add($status)
+        if ($status -eq '503') { return }
+        Start-Sleep -Milliseconds 500
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    $apiId = (& docker compose --env-file $envFile -f $composeFile -p $projectName ps -a -q api).Trim()
+    $apiState = if ($apiId) {
+        (& docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} health={{.State.Health.Status}}' $apiId).Trim()
+    }
+    else {
+        'container=missing'
+    }
+    throw "ready did not become 503 while PostgreSQL was stopped; observed=$($observed -join ','); api=$apiState"
 }
 
 function Get-ComponentLog([string] $Service) {
@@ -134,7 +163,7 @@ try {
     & docker build -f backend/docker/api.Dockerfile --target test -t $testImage .
     if ($LASTEXITCODE -ne 0) { throw 'test image build failed' }
 
-    & docker run --rm --entrypoint python $testImage -m pytest tests/start -m 'not host_docker' -q
+    & docker run --rm --entrypoint python $testImage -m pytest tests/start tests/unit tests/integration/identity/test_auth_api.py -m 'not integration and not host_docker' -q
     if ($LASTEXITCODE -ne 0) { throw 'self-contained tests failed' }
 
     & python backend/tests/start/test_docker_entrypoint.py
@@ -149,9 +178,48 @@ try {
     $migrateExit = (& docker inspect --format '{{.State.ExitCode}}' $migrateId).Trim()
     if ($migrateExit -ne '0') { throw "migrate exited with $migrateExit" }
 
-    $sensitiveLogValues = @($secretValues.Values)
+    $apiAddress = (& docker compose --env-file $envFile -f $composeFile -p $projectName port api 8000).Trim()
+    $authBaseUrl = "http://$apiAddress/api/v1/auth"
+    $authCanaryPassword = "Task002!$(ConvertTo-Base64Url (New-RandomBytes 18))"
+    $credentials = @{
+        username = 'admin'
+        password = $authCanaryPassword
+        client_instance_id = [guid]::NewGuid().ToString()
+    } | ConvertTo-Json -Compress
+    $bootstrapResponse = Invoke-WebRequest `
+        -Method Post `
+        -Uri "$authBaseUrl/bootstrap" `
+        -Headers @{ 'X-Bootstrap-Token' = $secretValues['bootstrap_token.txt'] } `
+        -ContentType 'application/json' `
+        -Body $credentials
+    if ($bootstrapResponse.StatusCode -ne 201) { throw 'bootstrap API test failed' }
+    if ($bootstrapResponse.Headers['Cache-Control'] -ne 'no-store') {
+        throw 'bootstrap API response is cacheable'
+    }
+    $initialPair = $bootstrapResponse.Content | ConvertFrom-Json
+    $refreshResponse = Invoke-WebRequest `
+        -Method Post `
+        -Uri "$authBaseUrl/refresh" `
+        -ContentType 'application/json' `
+        -Body (@{ refresh_token = $initialPair.refresh_token } | ConvertTo-Json -Compress)
+    if ($refreshResponse.StatusCode -ne 200) { throw 'refresh API test failed' }
+    $rotatedPair = $refreshResponse.Content | ConvertFrom-Json
+    $logoutResponse = Invoke-WebRequest `
+        -Method Post `
+        -Uri "$authBaseUrl/logout" `
+        -Headers @{ Authorization = "Bearer $($rotatedPair.access_token)" }
+    if ($logoutResponse.StatusCode -ne 204) { throw 'logout API test failed' }
+
+    $runtimeCanaries = @(
+        $authCanaryPassword
+        $initialPair.access_token
+        $initialPair.refresh_token
+        $rotatedPair.access_token
+        $rotatedPair.refresh_token
+    )
+    $sensitiveLogValues = @($secretValues.Values) + $runtimeCanaries
     $sensitiveLogValues += @(
-        $secretValues.Values | ForEach-Object { [Uri]::EscapeDataString($_) }
+        $sensitiveLogValues | ForEach-Object { [Uri]::EscapeDataString([string] $_) }
     )
     $logLineCounts = @{}
     foreach ($service in @('api', 'worker', 'scheduler')) {
@@ -162,7 +230,7 @@ try {
 
     $env:SAKURAPLAYER_TEST_DATABASE_URL = 'postgresql+psycopg://sakuraplayer@postgres:5432/postgres'
     $env:SAKURAPLAYER_TEST_DATABASE_PASSWORD = $postgresPassword
-    & docker run --rm --network "${projectName}_default" -e SAKURAPLAYER_TEST_DATABASE_URL -e SAKURAPLAYER_TEST_DATABASE_PASSWORD --entrypoint python $testImage -m pytest tests/integration/start -q
+    & docker run --rm --network "${projectName}_default" -e SAKURAPLAYER_TEST_DATABASE_URL -e SAKURAPLAYER_TEST_DATABASE_PASSWORD --entrypoint python $testImage -m pytest tests/integration -m 'integration' -q
     if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL integration tests failed' }
 
     Invoke-Compose restart
@@ -180,8 +248,7 @@ try {
 
     $apiAddress = (& docker compose --env-file $envFile -f $composeFile -p $projectName port api 8000).Trim()
     Invoke-Compose stop postgres
-    $status = (& curl.exe -s -o NUL -w '%{http_code}' "http://$apiAddress/health/ready").Trim()
-    if ($status -ne '503') { throw "ready returned $status while PostgreSQL was stopped" }
+    Assert-ReadyDegraded $apiAddress
 
     Invoke-Compose up -d --wait --wait-timeout 120
     foreach ($service in @('api', 'worker', 'scheduler', 'postgres')) {
