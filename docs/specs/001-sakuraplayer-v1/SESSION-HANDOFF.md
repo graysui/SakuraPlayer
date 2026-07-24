@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-24
 
-**当前阶段**: 规格、架构、契约和实施任务已冻结并完成实施前补强；产品代码尚未开始。
+**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 已完成，下一任务为 TASK-002。
 
 ## 1. 当前成果
 
@@ -11,6 +11,9 @@
 - 57 个任务已拆为后端元数据、115 缓存播放、Windows 和 HarmonyOS 四个工作流。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
+- TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
+- 启动配置固定四用途 secret，生产三类进程缺失、格式错误、来源冲突或用途复用时拒绝启动；bootstrap secret 生命周期由已接受变更规格冻结。
+- TASK-001 自动验证覆盖 44 项启动测试、14 项 PostgreSQL 集成测试、四组件健康、持久日志、重启恢复、ready 故障降级和项目级 Docker 资源清理。
 
 ## 2. Git 状态基线
 
@@ -24,21 +27,26 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 本交接文件、运行契约和接口补强属于其后的实施准备提交。新会话先运行 `git status --short` 和 `git log -5 --oneline`，不得假设工作区干净。
 
-## 3. 下一步
+## 3. 恢复状态
 
-从 `TASK-001` 开始，不得跳到客户端或 115 实现：
+- **已完成任务**: TASK-001。
+- **下一任务**: TASK-002 管理员、会话与授权基础。
+- **当前阻塞项**: 无；按任务依赖继续后端数据真相，不得跳到客户端或 115 实现。
+- **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
+
+下一会话从 TASK-002 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-001.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-002.md"
 ```
 
-完成 TASK-001 的实现、测试和评审后，按根目录 `AGENTS.md` 提交一次中文 Git，再进入 TASK-002。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
+完成 TASK-002 的实现、测试和评审后，按根目录 `AGENTS.md` 创建下一次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
 
 ## 4. 必读契约
 
 | 开始内容 | 必读文件 |
 |---|---|
-| 工程与 Compose | `contracts/runtime-configuration.md`、`architecture.md`、`TASK-001.md` |
+| 工程与 Compose | `contracts/runtime-configuration.md`、`contracts/operational-health.md`、`architecture.md`、`TASK-001.md` |
 | AVdb 导入 | `contracts/avdb-source.md`、`TASK-004.md` |
 | REST/客户端 | `contracts/rest-api.openapi.yaml`、`contracts/error-codes.md` |
 | 实时状态 | `contracts/realtime-events.md` |

@@ -64,7 +64,7 @@ Compose 可在容器内组装 `SAKURAPLAYER_DATABASE_URL`，但最终 DSN 不得
 2. 客户端先读取 `/auth/bootstrap-status`。
 3. 若尚无管理员，创建请求同时提交 bootstrap token、用户名、密码和客户端实例 ID。
 4. 服务端以常量时间比较 token；成功创建唯一管理员后，所有后续 bootstrap 请求都返回 `bootstrap_already_completed`，即使 token 正确。
-5. token 不写数据库、事件、普通日志或 API 响应。管理员创建后可以从运行环境移除该 secret。
+5. token 不写数据库、事件、普通日志或 API 响应。v1 中它仍是 API、worker 和 scheduler 的启动依赖，但管理员创建后永久失去初始化权限；运维可轮换其值，不得从运行配置中移除。
 
 ## 7. 网络与传输
 

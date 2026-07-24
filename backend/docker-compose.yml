@@ -1,0 +1,134 @@
+services:
+  postgres:
+    image: postgres:17.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sakuraplayer}
+      POSTGRES_USER: ${POSTGRES_USER:-sakuraplayer}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/docker/api.Dockerfile
+      target: runtime
+    restart: unless-stopped
+    command: ["python", "-m", "sakuraplayer.api"]
+    environment: &app-environment
+      SAKURAPLAYER_ENV: ${SAKURAPLAYER_ENV:-production-private}
+      SAKURAPLAYER_DATABASE_URL: ${SAKURAPLAYER_DATABASE_URL:-}
+      SAKURAPLAYER_LOG_LEVEL: ${SAKURAPLAYER_LOG_LEVEL:-INFO}
+      SAKURAPLAYER_SETTINGS_KEY_ID: ${SAKURAPLAYER_SETTINGS_KEY_ID:-v1}
+      SAKURAPLAYER_SETTINGS_KEY_FILE: /run/secrets/settings_key
+      SAKURAPLAYER_TOKEN_KEY_FILE: /run/secrets/token_key
+      SAKURAPLAYER_PLAYBACK_KEY_FILE: /run/secrets/playback_key
+      SAKURAPLAYER_BOOTSTRAP_TOKEN_FILE: /run/secrets/bootstrap_token
+      SAKURAPLAYER_TRUST_PROXY_HEADERS: ${SAKURAPLAYER_TRUST_PROXY_HEADERS:-false}
+      POSTGRES_DB: ${POSTGRES_DB:-sakuraplayer}
+      POSTGRES_USER: ${POSTGRES_USER:-sakuraplayer}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: &app-secrets
+      - postgres_password
+      - settings_key
+      - token_key
+      - playback_key
+      - bootstrap_token
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${SAKURAPLAYER_PUBLISH_HOST:-127.0.0.1}:${SAKURAPLAYER_API_PORT:-8000}:8000"
+    volumes: &app-volumes
+      - catalog-images:/var/lib/sakuraplayer/catalog-images
+      - provider-cache:/var/lib/sakuraplayer/provider-cache
+      - app-logs:/var/log/sakuraplayer
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: backend/docker/api.Dockerfile
+      target: runtime
+    restart: "no"
+    command: ["python", "-m", "sakuraplayer.shared.migration"]
+    environment: *app-environment
+    secrets: *app-secrets
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ..
+      dockerfile: backend/docker/api.Dockerfile
+      target: runtime
+    restart: unless-stopped
+    command: ["python", "-m", "sakuraplayer.worker"]
+    environment: *app-environment
+    secrets: *app-secrets
+    volumes: *app-volumes
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck: &process-healthcheck
+      test:
+        - CMD
+        - /workspace/backend/docker/entrypoint.sh
+        - python
+        - -m
+        - sakuraplayer.shared.healthcheck
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: backend/docker/api.Dockerfile
+      target: runtime
+    restart: unless-stopped
+    command: ["python", "-m", "sakuraplayer.scheduler"]
+    environment: *app-environment
+    secrets: *app-secrets
+    volumes: *app-volumes
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck: *process-healthcheck
+
+secrets:
+  postgres_password:
+    file: ${SAKURAPLAYER_POSTGRES_PASSWORD_SECRET_FILE:-./secrets/postgres_password.txt}
+  settings_key:
+    file: ${SAKURAPLAYER_SETTINGS_KEY_SECRET_FILE:-./secrets/settings_key.txt}
+  token_key:
+    file: ${SAKURAPLAYER_TOKEN_KEY_SECRET_FILE:-./secrets/token_key.txt}
+  playback_key:
+    file: ${SAKURAPLAYER_PLAYBACK_KEY_SECRET_FILE:-./secrets/playback_key.txt}
+  bootstrap_token:
+    file: ${SAKURAPLAYER_BOOTSTRAP_TOKEN_SECRET_FILE:-./secrets/bootstrap_token.txt}
+
+volumes:
+  db-data:
+  catalog-images:
+  provider-cache:
+  app-logs:

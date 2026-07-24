@@ -3,7 +3,8 @@ id: TASK-001
 title: "后端工程、Compose 与 Schema 门禁"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: implemented
+implemented_date: 2026-07-24
 dependencies: []
 ac-mapping: [AC-005, AC-008, AC-009, AC-123, AC-124, AC-125, AC-126, AC-127, AC-133, AC-134]
 imp-requirements: [REQ-002, REQ-023, REQ-024, REQ-025]
@@ -20,25 +21,26 @@ provides: [backend scaffold, docker compose, alembic head, health endpoints]
 
 ## 验收条件
 
-- [ ] Docker Compose 至少启动 API、scheduler/worker 和 PostgreSQL，PostgreSQL 不映射宿主公网；对应 AC-123。
-- [ ] PostgreSQL、永久图片、清单缓存和必要日志使用独立持久卷；后端提供健康检查，重启可进入恢复流程；对应 AC-124、AC-127。
-- [ ] 部署文档明确仅面向家庭网络/VPN、无公网向导、无自动数据库或图片备份；对应 AC-125、AC-126。
-- [ ] Windows 第一阶段所需后端契约、Windows 私有安装约束和 GPLv3/第三方声明骨架存在；对应 AC-005、AC-008、AC-009。
-- [ ] Compose 默认只发布 loopback，远程地址必须显式配置，部署文档要求 HTTPS 或可信 VPN；对应 AC-134。
-- [ ] 设置、JWT、播放和 bootstrap 四类 secret 名称/格式固定且不复用，bootstrap secret 可供 TASK-002 使用；对应 AC-133。
+- [x] Docker Compose 至少启动 API、scheduler/worker 和 PostgreSQL，PostgreSQL 不映射宿主公网；对应 AC-123。
+- [x] PostgreSQL、永久图片、清单缓存和必要日志使用独立持久卷；API 提供内部 live/ready 探针，worker/scheduler 提供容器内 ready 检查，PostgreSQL 使用 `pg_isready`，重启可进入恢复流程；对应 AC-124、AC-127。
+- [x] 部署文档明确仅面向家庭网络/VPN、无公网向导、无自动数据库或图片备份；对应 AC-125、AC-126。
+- [x] Windows 第一阶段所需后端契约、Windows 私有安装约束和 GPLv3/第三方声明骨架存在；对应 AC-005、AC-008、AC-009。
+- [x] Compose 默认只发布 loopback，远程地址必须显式配置，部署文档要求 HTTPS 或可信 VPN；对应 AC-134。
+- [x] 设置、JWT、播放和 bootstrap 四类 secret 名称/格式固定且不复用；生产模式下三类后端进程缺少任一 secret 均拒绝启动，bootstrap secret 可供 TASK-002 使用且管理员创建后永久失去初始化权限；对应 AC-133。
 
 ## Definition of Ready
 
-- [ ] 已读取项目架构、技术计划、数据模型和 REST 契约。
-- [ ] Docker、PostgreSQL 17.5 和 Python 3.10.16 可用。
-- [ ] 已读取 `contracts/runtime-configuration.md`，不得另起环境变量名称或密钥用途。
-- [ ] 旧 SakuraMedia Schema 不作为迁移输入。
+- [x] 已读取项目架构、技术计划、数据模型和 REST 契约。
+- [x] Docker、PostgreSQL 17.5 和 Python 3.10.16 可用。
+- [x] 已读取 `contracts/runtime-configuration.md`，不得另起环境变量名称或密钥用途。
+- [x] 旧 SakuraMedia Schema 不作为迁移输入。
 
 ## 技术上下文
 
 - **模式**: 模块化单体；API、scheduler、worker 共享领域包但独立入口。
 - **数据库**: SQLAlchemy 2.0.41 + Alembic 1.16.2，未知 Schema 明确拒绝启动。
 - **契约**: OpenAPI 3.1 `rest-api.openapi.yaml`，错误结构使用 `code/message/details/request_id`。
+- **运维契约**: `contracts/operational-health.md`；内部健康探针不进入业务 OpenAPI。
 - **目录**: `backend/src/sakuraplayer/{identity,resources,catalog,discovery,cloud_cache,playback,events,shared,api,worker,scheduler}`。
 - **参考**: 只移植 `avmedia` 的可验证基础设施，不引入 qBittorrent、Qdrant、永久媒体库或下载器。
 
@@ -61,6 +63,7 @@ provides: [backend scaffold, docker compose, alembic head, health endpoints]
 **单元测试**:
 
 - `schema_guard`: 验证 head Schema 允许启动、旧/未知版本明确拒绝。
+- 初始 migration 不创建业务表；非空无版本数据库不得被自动 `stamp` 或升级。
 - 配置加载: 验证生产模式缺少数据库或主密钥入口时失败，且不打印秘密。
 - 配置加载还要拒绝密钥格式错误、四用途复用和同时设置 `_FILE`/明文变量。
 
@@ -75,9 +78,16 @@ provides: [backend scaffold, docker compose, alembic head, health endpoints]
 
 ## Definition of Done
 
-- [ ] 骨架、迁移、Compose、健康检查和许可证声明完成。
-- [ ] 规格映射的测试全部通过。
-- [ ] 未引入未批准技术或公网部署入口。
+- [x] 骨架、迁移、Compose、健康检查和许可证声明完成。
+- [x] 规格映射的测试全部通过。
+- [x] 未引入未批准技术或公网部署入口。
+
+## 实现与验证摘要
+
+- 后端固定为 Python 3.10.16、FastAPI 0.110.1、SQLAlchemy 2.0.41、Alembic 1.16.2 和 PostgreSQL 17.5；API、worker、scheduler 与一次性 migrate 使用独立入口。
+- Compose 默认只发布 loopback，PostgreSQL 无宿主端口；四个命名卷分别保存数据库、目录图片、提供方缓存和脱敏日志。
+- 启动门禁拒绝未迁移、旧版、未知、异常或非空无版本 Schema，且不自动收编旧库；四类 secret 校验格式、来源冲突和用途复用。
+- `backend/tests/run-compose.ps1` 验证 `44 passed, 7 deselected` 的启动测试和 `14 passed` 的 PostgreSQL 集成测试，并覆盖迁移幂等、四组件健康、持久日志、重启恢复、ready 降级与项目级资源清理。
 
 **依赖**: None
 

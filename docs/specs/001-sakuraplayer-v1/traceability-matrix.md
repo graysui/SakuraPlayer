@@ -10,6 +10,8 @@
 - `[S]` 对应 `[SEF]`，只由可观察结果所属的 E2E 检查点验证，不创建实现任务。
 - `[E]` 对应 `[EXT]`，只由需要真实外部系统的显式 E2E 门禁验证，不进入默认自动测试。
 - 清理任务不承担新需求，因此不映射 AC。
+- AC-133 的 bootstrap secret 启动依赖与管理员创建后失去权限的生命周期由 [Bootstrap Secret 生命周期澄清](changes/2026-07-24--bootstrap-secret-lifecycle.md) 冻结；TASK-001 负责启动校验，TASK-002 负责永久关闭初始化行为。
+- AC-127 的内部探针、容器健康检查与 Schema 门禁由 [运维健康与 Schema 门禁契约](contracts/operational-health.md) 冻结；TASK-001 负责基础门禁，TASK-013/TASK-112 负责后续任务恢复与诊断。
 
 ## 逐条追踪
 

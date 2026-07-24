@@ -1,2 +1,9 @@
 # Local task planning state
 .planning/
+
+# Python and local backend state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+backend/secrets/

@@ -43,6 +43,9 @@
 | 401 | `bootstrap_token_invalid` | 初始化口令缺失或错误，不创建管理员；不得提示哪一部分错误 |
 | 409 | `bootstrap_already_completed` | 管理员已存在，初始化入口永久关闭 |
 | 启动 | `startup_configuration_invalid` | 必需配置或 secret 缺失、格式错误或密钥复用；进程拒绝启动 |
+| 启动 | `database_unavailable` | PostgreSQL 不可达；进程或 ready 检查失败，日志不输出 DSN |
+| 启动 | `schema_migration_required` | 数据库尚未迁移或 revision 是代码迁移图中的已知旧版本 |
+| 启动 | `schema_revision_unknown` | 非空无版本、未知/领先/分叉 revision 或版本表异常；禁止自动 stamp 或猜测迁移 |
 
 ## 4. AVdb、发现与元数据
 

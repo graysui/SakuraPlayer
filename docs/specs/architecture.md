@@ -316,6 +316,7 @@ contracts/
 | 首次初始化 | `POST /auth/bootstrap` 额外要求 `X-Bootstrap-Token`；管理员存在后永久拒绝 |
 | 运行配置 | [runtime-configuration.md](001-sakuraplayer-v1/contracts/runtime-configuration.md) |
 | AVdb 输入 | [avdb-source.md](001-sakuraplayer-v1/contracts/avdb-source.md) |
+| 运维健康 | [operational-health.md](001-sakuraplayer-v1/contracts/operational-health.md)；内部探针不进入业务 OpenAPI |
 
 ### 3.8 已批准的参考代码接口
 
