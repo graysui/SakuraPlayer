@@ -1,0 +1,1643 @@
+openapi: 3.1.0
+info:
+  title: SakuraPlayer API
+  version: 1.0.0
+  description: >-
+    Private single-administrator API for the SakuraPlayer v1 backend. Video bytes
+    are never proxied by this API; signed stream endpoints return 302 redirects.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Catalog
+  - name: Discovery
+  - name: Cloud115
+  - name: Cache
+  - name: Playback
+  - name: Admin
+  - name: Events
+paths:
+  /auth/bootstrap-status:
+    get:
+      tags: [Auth]
+      operationId: getBootstrapStatus
+      security: []
+      responses:
+        '200':
+          description: Whether the unique administrator has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapStatus'
+  /auth/bootstrap:
+    post:
+      tags: [Auth]
+      operationId: createAdministrator
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialsInput'
+      responses:
+        '201':
+          description: Unique administrator created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialsInput'
+      responses:
+        '200':
+          description: Access and refresh tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Rotated access and refresh tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      responses:
+        '204':
+          description: Current refresh session revoked.
+
+  /movies:
+    get:
+      tags: [Catalog]
+      operationId: listMovies
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: categories
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AvdbCategory'
+          style: form
+          explode: false
+        - name: labels
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/SourceLabel'
+          style: form
+          explode: false
+        - name: source_website
+          in: query
+          schema:
+            type: string
+        - name: playable
+          in: query
+          schema:
+            type: boolean
+        - name: min_resource_size_mb
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: max_resource_size_mb
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [publish_date_desc, publish_date_asc, number_asc]
+            default: publish_date_desc
+      responses:
+        '200':
+          description: Only core-ready movies are returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoviePage'
+  /movies/{movie_id}:
+    get:
+      tags: [Catalog]
+      operationId: getMovie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '200':
+          description: Aggregated movie detail without magnet or upstream playback URLs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /movies/{movie_id}/favorite:
+    put:
+      tags: [Catalog]
+      operationId: favoriteMovie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '204':
+          description: Movie favorited idempotently.
+    delete:
+      tags: [Catalog]
+      operationId: unfavoriteMovie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '204':
+          description: Movie favorite removed idempotently.
+  /movies/{movie_id}/progress:
+    put:
+      tags: [Playback]
+      operationId: updateMovieProgress
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgressUpdate'
+      responses:
+        '200':
+          description: Authoritative movie-level progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackProgress'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /movies/{movie_id}/play-requests:
+    post:
+      tags: [Cache]
+      operationId: createPlayRequest
+      description: >-
+        The only operation that may create a 115 offline job. The source_id must
+        belong to the movie and be an active AVdb source. A started disposition
+        allows at most 60 seconds of client blocking; the backend job continues
+        after that client wait expires.
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_id]
+              properties:
+                source_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Existing ready or active task reused.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayRequestResult'
+        '202':
+          description: New started or queued cache job.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayRequestResult'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /search:
+    get:
+      tags: [Discovery]
+      operationId: globalSearch
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Grouped movie and actress results, plus metadata completion state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResult'
+  /rankings:
+    get:
+      tags: [Discovery]
+      operationId: getRanking
+      parameters:
+        - name: board
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [daily, weekly, monthly, top250]
+        - name: year
+          in: query
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2200
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Latest successful local snapshot filtered to AVdb-backed core-ready movies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RankingPage'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /actors:
+    get:
+      tags: [Catalog]
+      operationId: listActors
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Actress/actor page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActorPage'
+  /actors/{actor_id}:
+    get:
+      tags: [Catalog]
+      operationId: getActor
+      parameters:
+        - $ref: '#/components/parameters/ActorId'
+      responses:
+        '200':
+          description: Actor detail with gallery URLs and related core-ready movies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActorDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /actors/{actor_id}/favorite:
+    put:
+      tags: [Catalog]
+      operationId: favoriteActor
+      parameters:
+        - $ref: '#/components/parameters/ActorId'
+      responses:
+        '204':
+          description: Actor favorited idempotently.
+    delete:
+      tags: [Catalog]
+      operationId: unfavoriteActor
+      parameters:
+        - $ref: '#/components/parameters/ActorId'
+      responses:
+        '204':
+          description: Actor favorite removed idempotently.
+
+  /cloud115/binding:
+    get:
+      tags: [Cloud115]
+      operationId: getCloud115Binding
+      responses:
+        '200':
+          description: Redacted binding status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cloud115Binding'
+    delete:
+      tags: [Cloud115]
+      operationId: deleteCloud115Binding
+      responses:
+        '204':
+          description: Binding removed when no active cache jobs exist.
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /cloud115/qr-sessions:
+    post:
+      tags: [Cloud115]
+      operationId: createCloud115QrSession
+      responses:
+        '201':
+          description: QR session and PNG payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrSession'
+  /cloud115/qr-sessions/{qr_session_id}:
+    get:
+      tags: [Cloud115]
+      operationId: getCloud115QrSession
+      parameters:
+        - name: qr_session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current QR state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrSession'
+  /cloud115/qr-sessions/{qr_session_id}/confirm:
+    post:
+      tags: [Cloud115]
+      operationId: confirmCloud115QrSession
+      parameters:
+        - name: qr_session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Encrypted binding saved and SakuraPlayer-Cache ensured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cloud115Binding'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /cache-jobs:
+    get:
+      tags: [Cache]
+      operationId: listCacheJobs
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/CacheJobStatus'
+          style: form
+          explode: false
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Task snapshot and fixed capacity counters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheJobPage'
+  /cache-jobs/{cache_job_id}:
+    get:
+      tags: [Cache]
+      operationId: getCacheJob
+      parameters:
+        - $ref: '#/components/parameters/CacheJobId'
+      responses:
+        '200':
+          description: Full safe task snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheJob'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /cache-jobs/{cache_job_id}/cancel:
+    post:
+      tags: [Cache]
+      operationId: cancelCacheJob
+      parameters:
+        - $ref: '#/components/parameters/CacheJobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmed]
+              properties:
+                confirmed:
+                  type: boolean
+                  const: true
+      responses:
+        '202':
+          description: Cancellation and safe cleanup accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheJob'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /cache-jobs/{cache_job_id}/cleanup:
+    post:
+      tags: [Cache]
+      operationId: cleanupCacheJob
+      parameters:
+        - $ref: '#/components/parameters/CacheJobId'
+      responses:
+        '202':
+          description: Safe cleanup accepted when no active lease exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheJob'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /cache-jobs/{cache_job_id}/media-selection:
+    put:
+      tags: [Cache]
+      operationId: selectCacheMedia
+      parameters:
+        - $ref: '#/components/parameters/CacheJobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [media_ids]
+              properties:
+                media_ids:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Selected media or ordered segment queue saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheJob'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /cache-jobs/{cache_job_id}/playback-sessions:
+    post:
+      tags: [Playback]
+      operationId: createPlaybackSession
+      parameters:
+        - $ref: '#/components/parameters/CacheJobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [media_id, mode, platform]
+              properties:
+                media_id:
+                  type: string
+                  format: uuid
+                mode:
+                  type: string
+                  enum: [original, compatibility]
+                platform:
+                  type: string
+                  enum: [windows, harmonyos]
+      responses:
+        '201':
+          description: Twelve-hour signed playback capability and subtitle options.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackManifest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /playback/streams/{playback_session_id}:
+    get:
+      tags: [Playback]
+      operationId: redirectPlaybackStream
+      description: >-
+        Validates the signed owner/session epoch, resource ownership, fixed
+        User-Agent, mode and expiry, then redirects to a short-lived 115/CDN URL.
+        This endpoint never proxies video bytes.
+      security: []
+      parameters:
+        - name: playback_session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: expires
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: signature
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-f0-9]{64}$'
+        - name: User-Agent
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to original direct URL or highest-bitrate HLS.
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+                format: uri
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                const: no-store
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+  /playback/sessions/{playback_session_id}/subtitles/{subtitle_id}:
+    get:
+      tags: [Playback]
+      operationId: downloadSubtitle
+      parameters:
+        - name: playback_session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subtitle_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Subtitle bytes for client-private cache.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/x-subrip:
+              schema:
+                type: string
+                format: binary
+            text/vtt:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          description: Subtitle exceeds the configured safe limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /playback/sessions/{playback_session_id}/heartbeat:
+    put:
+      tags: [Playback]
+      operationId: heartbeatPlaybackSession
+      parameters:
+        - name: playback_session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaybackHeartbeat'
+      responses:
+        '200':
+          description: Renewed lease and authoritative progress.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lease_expires_at, progress]
+                properties:
+                  lease_expires_at:
+                    type: string
+                    format: date-time
+                  progress:
+                    $ref: '#/components/schemas/PlaybackProgress'
+
+  /events/snapshot:
+    get:
+      tags: [Events]
+      operationId: getEventSnapshot
+      responses:
+        '200':
+          description: Full task, credential and notification snapshot for reconnect recovery.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSnapshot'
+
+  /settings:
+    get:
+      tags: [Admin]
+      operationId: getSettings
+      responses:
+        '200':
+          description: Redacted settings and connection states.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+    patch:
+      tags: [Admin]
+      operationId: updateSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsPatch'
+      responses:
+        '200':
+          description: Redacted updated settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /settings/connection-tests:
+    post:
+      tags: [Admin]
+      operationId: testConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target]
+              properties:
+                target:
+                  type: string
+                  enum: [cloud115, javdb, dmm, gfriends, ai]
+      responses:
+        '200':
+          description: Redacted test result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTest'
+  /admin/metadata-jobs:
+    get:
+      tags: [Admin]
+      operationId: listMetadataJobs
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [queued, running, completed, completed_with_warnings, failed]
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Persistent metadata queue snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MetadataJob'
+                  next_cursor:
+                    type: [string, 'null']
+  /admin/metadata-jobs/{metadata_job_id}/retry:
+    post:
+      tags: [Admin]
+      operationId: retryMetadataJob
+      parameters:
+        - name: metadata_job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: New queued attempt created; the failed row remains immutable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataJob'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/resources/{source_id}/identification:
+    put:
+      tags: [Admin]
+      operationId: identifyResourceSource
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [movie_id]
+              properties:
+                movie_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Pending source linked to a movie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieSource'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/movies/merge:
+    post:
+      tags: [Admin]
+      operationId: mergeMovies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_movie_id, source_movie_ids]
+              properties:
+                target_movie_id:
+                  type: string
+                  format: uuid
+                source_movie_ids:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Movies and their sources merged transactionally.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieDetail'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/movies/{movie_id}/sources/{source_id}/split:
+    post:
+      tags: [Admin]
+      operationId: splitMovieSource
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+        - name: source_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_normalized_number]
+              properties:
+                new_normalized_number:
+                  type: string
+                  maxLength: 128
+      responses:
+        '201':
+          description: Source moved to a new movie aggregate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieDetail'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/diagnostics:
+    get:
+      tags: [Admin]
+      operationId: getDiagnostics
+      responses:
+        '200':
+          description: Redacted component, queue, credential and failure diagnostics.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 24
+    MovieId:
+      name: movie_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ActorId:
+      name: actor_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CacheJobId:
+      name: cache_job_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Unauthorized:
+      description: Missing, invalid, expired or revoked authentication/capability.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: Authenticated but operation is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Requested resource does not exist or is not visible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: State, capacity, idempotency or ownership conflict.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ValidationError:
+      description: Request cannot be validated.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    UpstreamError:
+      description: An external provider failed without exposing its response body.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+  schemas:
+    BootstrapStatus:
+      type: object
+      required: [initialized]
+      properties:
+        initialized:
+          type: boolean
+    CredentialsInput:
+      type: object
+      required: [username, password, client_instance_id]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+        client_instance_id:
+          type: string
+          format: uuid
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, token_type, access_expires_at]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          const: Bearer
+        access_expires_at:
+          type: string
+          format: date-time
+    ApiError:
+      type: object
+      required: [code, message, request_id]
+      properties:
+        code:
+          type: string
+          pattern: '^[a-z0-9_]+$'
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
+    AvdbCategory:
+      type: string
+      enum: [亚洲有码, 亚洲无码, 中文字幕, 4K原版, 素人有码, FC2]
+    SourceLabel:
+      type: string
+      enum: [subtitle, cracked, 4k, censored]
+    PlaybackProgress:
+      type: object
+      required: [position_seconds, completed, version]
+      properties:
+        position_seconds:
+          type: number
+          minimum: 0
+        duration_seconds:
+          type: [number, 'null']
+          minimum: 0
+        completed:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+    ProgressUpdate:
+      type: object
+      required: [position_seconds, duration_seconds, version]
+      properties:
+        position_seconds:
+          type: number
+          minimum: 0
+        duration_seconds:
+          type: number
+          exclusiveMinimum: 0
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+    MovieSummary:
+      type: object
+      required: [id, number, title, labels, favorite, source_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        title:
+          type: string
+        title_original:
+          type: [string, 'null']
+        cover_url:
+          type: [string, 'null']
+        publish_date:
+          type: [string, 'null']
+          format: date
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceLabel'
+        favorite:
+          type: boolean
+        source_count:
+          type: integer
+          minimum: 1
+        progress:
+          oneOf:
+            - $ref: '#/components/schemas/PlaybackProgress'
+            - type: 'null'
+    MovieSource:
+      type: object
+      required:
+        [id, website, external_post_id, title, category, labels, availability]
+      properties:
+        id:
+          type: string
+          format: uuid
+        website:
+          type: string
+        external_post_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        publish_date:
+          type: [string, 'null']
+          format: date
+        category:
+          $ref: '#/components/schemas/AvdbCategory'
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceLabel'
+        resource_size_mb:
+          type: [integer, 'null']
+          minimum: 0
+        video_file_size_bytes:
+          type: [integer, 'null']
+          format: int64
+          minimum: 0
+        availability:
+          type: string
+          enum: [available, queued, running, ready, failed, rejected]
+    ActorSummary:
+      type: object
+      required: [id, display_name, aliases, favorite]
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        name_ja:
+          type: [string, 'null']
+        name_zh:
+          type: [string, 'null']
+        aliases:
+          type: array
+          items:
+            type: string
+        profile_url:
+          type: [string, 'null']
+        favorite:
+          type: boolean
+    MovieDetail:
+      allOf:
+        - $ref: '#/components/schemas/MovieSummary'
+        - type: object
+          required: [actors, tags, plot_image_urls, sources]
+          properties:
+            release_date:
+              type: [string, 'null']
+              format: date
+            maker:
+              type: [string, 'null']
+            series:
+              type: [string, 'null']
+            director:
+              type: [string, 'null']
+            score:
+              type: [number, 'null']
+            description:
+              type: [string, 'null']
+            description_original:
+              type: [string, 'null']
+            actors:
+              type: array
+              items:
+                $ref: '#/components/schemas/ActorSummary'
+            tags:
+              type: array
+              items:
+                type: string
+            plot_image_urls:
+              type: array
+              items:
+                type: string
+                format: uri-reference
+            sources:
+              type: array
+              items:
+                $ref: '#/components/schemas/MovieSource'
+    MoviePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MovieSummary'
+        next_cursor:
+          type: [string, 'null']
+    ActorDetail:
+      allOf:
+        - $ref: '#/components/schemas/ActorSummary'
+        - type: object
+          required: [gallery_urls, movies]
+          properties:
+            bio:
+              type: [string, 'null']
+            bio_original:
+              type: [string, 'null']
+            gallery_urls:
+              type: array
+              items:
+                type: string
+                format: uri
+            movies:
+              type: array
+              items:
+                $ref: '#/components/schemas/MovieSummary'
+    ActorPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActorSummary'
+        next_cursor:
+          type: [string, 'null']
+    SearchResult:
+      type: object
+      required: [movies, actors, pending_metadata]
+      properties:
+        movies:
+          type: array
+          items:
+            $ref: '#/components/schemas/MovieSummary'
+        actors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActorSummary'
+        pending_metadata:
+          type: array
+          items:
+            type: object
+            required: [number, state]
+            properties:
+              number:
+                type: string
+              state:
+                type: string
+                enum: [queued, running]
+              metadata_job_id:
+                type: string
+                format: uuid
+    RankingItem:
+      type: object
+      required: [rank, movie]
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+        movie:
+          $ref: '#/components/schemas/MovieSummary'
+    RankingPage:
+      type: object
+      required: [board, synced_at, items]
+      properties:
+        board:
+          type: string
+          enum: [daily, weekly, monthly, top250]
+        year:
+          type: [integer, 'null']
+        synced_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RankingItem'
+        next_cursor:
+          type: [string, 'null']
+    Cloud115Binding:
+      type: object
+      required: [bound, status]
+      properties:
+        bound:
+          type: boolean
+        status:
+          type: string
+          enum: [unbound, active, expired, unavailable, detached]
+        display_name:
+          type: [string, 'null']
+        cache_root_ready:
+          type: boolean
+        last_verified_at:
+          type: [string, 'null']
+          format: date-time
+    QrSession:
+      type: object
+      required: [id, status, expires_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [waiting, scanned, confirmed, expired, canceled]
+        qrcode_png_base64:
+          type: [string, 'null']
+        expires_at:
+          type: string
+          format: date-time
+    CacheJobStatus:
+      type: string
+      enum:
+        - queued
+        - submitting
+        - offlining
+        - resolving
+        - awaiting_selection
+        - ready
+        - cancelling
+        - cleaning
+        - cleanup_failed
+        - failed
+        - cleaned
+        - detached
+    RemoteMedia:
+      type: object
+      required: [id, name, size_bytes, sequence_no, is_valid]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        duration_seconds:
+          type: [integer, 'null']
+          format: int64
+        sequence_no:
+          type: integer
+        is_valid:
+          type: boolean
+    SubtitleOption:
+      type: object
+      required: [id, name, format]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        format:
+          type: string
+          enum: [srt, ass, ssa, vtt]
+        language:
+          type: [string, 'null']
+        selected_by_default:
+          type: boolean
+    CacheJob:
+      type: object
+      required:
+        [id, movie_id, source_id, status, remote_percent, media_candidates, subtitles, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        movie_id:
+          type: string
+          format: uuid
+        source_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/CacheJobStatus'
+        remote_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+        error_code:
+          type: [string, 'null']
+        media_candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/RemoteMedia'
+        selected_media_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        subtitles:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtitleOption'
+        ready_at:
+          type: [string, 'null']
+          format: date-time
+        expires_at:
+          type: [string, 'null']
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CacheCapacity:
+      type: object
+      required: [running, running_limit, queued, queued_limit, ready, ready_limit]
+      properties:
+        running:
+          type: integer
+        running_limit:
+          type: integer
+          const: 2
+        queued:
+          type: integer
+        queued_limit:
+          type: integer
+          const: 10
+        ready:
+          type: integer
+        ready_limit:
+          type: integer
+          default: 20
+    CacheJobPage:
+      type: object
+      required: [items, capacity]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CacheJob'
+        capacity:
+          $ref: '#/components/schemas/CacheCapacity'
+        next_cursor:
+          type: [string, 'null']
+    PlayRequestResult:
+      type: object
+      required: [disposition, cache_job]
+      properties:
+        disposition:
+          type: string
+          enum: [ready, started, queued, reused]
+        wait_deadline:
+          type: [string, 'null']
+          format: date-time
+          description: Present only for started; at most 60 seconds from response.
+        cache_job:
+          $ref: '#/components/schemas/CacheJob'
+    PlaybackManifest:
+      type: object
+      required:
+        [session_id, mode, platform, stream_url, expires_at, required_user_agent, media_queue, subtitles, progress]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [original, compatibility]
+        platform:
+          type: string
+          enum: [windows, harmonyos]
+        stream_url:
+          type: string
+          format: uri-reference
+        expires_at:
+          type: string
+          format: date-time
+        required_user_agent:
+          type: string
+        media_queue:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/RemoteMedia'
+        subtitles:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtitleOption'
+        progress:
+          $ref: '#/components/schemas/PlaybackProgress'
+    PlaybackHeartbeat:
+      type: object
+      required: [client_instance_id, progress]
+      properties:
+        client_instance_id:
+          type: string
+          format: uuid
+        progress:
+          $ref: '#/components/schemas/ProgressUpdate'
+        playing:
+          type: boolean
+    MetadataJob:
+      type: object
+      required:
+        [id, number, priority, reason, status, attempt_no, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        movie_id:
+          type: [string, 'null']
+          format: uuid
+        number:
+          type: string
+        priority:
+          type: integer
+        reason:
+          type: string
+          enum: [manual_or_search, ranking, daily, initial, history]
+        status:
+          type: string
+          enum: [queued, running, completed, completed_with_warnings, failed]
+        stage:
+          type: [string, 'null']
+        attempt_no:
+          type: integer
+          minimum: 1
+        elapsed_ms:
+          type: [integer, 'null']
+          format: int64
+        error_code:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+    Settings:
+      type: object
+      required: [cache_ttl_hours, ready_cache_limit, metadata_concurrency, metadata_timeout_seconds, providers]
+      properties:
+        cache_ttl_hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+          default: 24
+        ready_cache_limit:
+          type: integer
+          default: 20
+        metadata_concurrency:
+          type: integer
+          const: 3
+        metadata_timeout_seconds:
+          type: integer
+          const: 600
+        providers:
+          type: object
+          additionalProperties:
+            type: object
+            required: [configured, status]
+            properties:
+              configured:
+                type: boolean
+              status:
+                type: string
+                enum: [unknown, available, unavailable, credentials_invalid]
+    SettingsPatch:
+      type: object
+      properties:
+        cache_ttl_hours:
+          type: integer
+          minimum: 1
+          maximum: 168
+        javdb_username:
+          type: [string, 'null']
+        javdb_password:
+          type: [string, 'null']
+        ai_base_url:
+          type: [string, 'null']
+          format: uri
+        ai_api_key:
+          type: [string, 'null']
+        ai_model:
+          type: [string, 'null']
+        ai_timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 600
+      additionalProperties: false
+    ConnectionTest:
+      type: object
+      required: [target, status, checked_at]
+      properties:
+        target:
+          type: string
+        status:
+          type: string
+          enum: [available, unavailable, credentials_invalid]
+        error_code:
+          type: [string, 'null']
+        elapsed_ms:
+          type: integer
+        checked_at:
+          type: string
+          format: date-time
+    EventSnapshot:
+      type: object
+      required: [snapshot_version, cache_jobs, metadata_jobs, cloud115_binding, notifications]
+      properties:
+        snapshot_version:
+          type: integer
+          format: int64
+        last_event_id:
+          type: [string, 'null']
+          format: uuid
+        cache_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CacheJob'
+        metadata_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataJob'
+        cloud115_binding:
+          $ref: '#/components/schemas/Cloud115Binding'
+        notifications:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
