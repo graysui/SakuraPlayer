@@ -1,8 +1,8 @@
 # SakuraPlayer v1 新会话交接
 
-**更新时间**: 2026-07-25
+**更新时间**: 2026-07-26
 
-**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-006 已完成，下一任务为 TASK-007。
+**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-007 已完成，下一任务为 TASK-008。
 
 ## 1. 当前成果
 
@@ -30,12 +30,15 @@
 - TASK-006 已交付来源证据化叠加标签、事务性影片合并/拆分、安全管理员响应，以及 Resources 所有的 `SourceRejectionPort`。
 - 来源拒绝会原子清空磁力 envelope 并保存不含敏感载荷的唯一事实；导入与拒绝使用同一来源事务锁，增量/全量同步不能复活已拒绝来源。
 - TASK-006 自动验证覆盖 204 项自包含测试、45 项 PostgreSQL 集成测试、17,202 条破解分类基线、并发拒绝/导入、迁移、五服务健康、重启、ready 降级恢复、秘密扫描和资源清理。
+- TASK-007 已交付 PostgreSQL 持久元数据 job/stage、固定三槽 supervisor、600 秒 Linux 进程组硬终止、五级优先级、initial/history 持久 seeder，以及完整/可选富化管理员 retry。
+- 元数据 child 独立创建 Engine/Session/httpx Client；provider 未交付时任务保持 queued。失败不会自动重试，initial 配额在多 worker 下严格不超过 5000，失败前缀通过候选 anti-join 不阻塞 history。
+- TASK-007 自动验证覆盖 246 项自包含测试、33 项 PostgreSQL Fast 测试、三路无 P0/P1/P2 只读审计，以及 Compose Final 的 63 项 PostgreSQL/运行测试、迁移、五服务健康、重启、ready 降级恢复、秘密扫描和资源清理。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-006 已完成；下一任务为 TASK-007。
-- **最近绿色快速门禁**: TASK-006 Fast 为 204 passed、7 deselected；PostgreSQL 为 45 passed、12 deselected；宿主 Docker 配置断言通过。
-- **最终门禁状态**: TASK-006 Compose Final 通过；迁移、完整测试、健康、秘密扫描、重启、ready 降级恢复和资源清理全部完成。
+- **当前任务门禁阶段**: TASK-007 已完成；下一任务为 TASK-008。
+- **最近绿色快速门禁**: TASK-007 Fast 为 246 passed、7 deselected；TASK-007 PostgreSQL/Schema 为 33 passed；宿主 Docker 配置断言通过。
+- **最终门禁状态**: TASK-007 Compose Final 单次尝试通过；自包含 246 passed、7 deselected，PostgreSQL/Compose 63 passed、12 deselected；迁移、健康、秘密扫描、重启、ready 降级恢复和资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final。
 
 ## 2. Git 状态基线
@@ -52,18 +55,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006。
-- **下一任务**: TASK-007 持久元数据队列与硬超时。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007。
+- **下一任务**: TASK-008 JavDB 核心、DMM 与永久图片。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-007 开始：
+下一会话从 TASK-008 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-007.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-008.md"
 ```
 
-完成 TASK-006 的实现、测试和评审后，按根目录 `AGENTS.md` 创建下一次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
+完成 TASK-007 的实现、测试和评审后，按根目录 `AGENTS.md` 创建本次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
 
 ## 4. 必读契约
 

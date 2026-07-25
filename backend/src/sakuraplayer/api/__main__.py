@@ -5,6 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.api.app import create_app
+from sakuraplayer.catalog.metadata_api import MetadataAdminService
+from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
@@ -41,13 +43,14 @@ def main() -> None:
         pool_pre_ping=True,
         hide_parameters=True,
     )
+    factory = sessionmaker(engine, expire_on_commit=False)
     identity_service = AuthService(
-        session_factory=sessionmaker(engine, expire_on_commit=False),
+        session_factory=factory,
         token_key=settings.token_key,
         bootstrap_token=settings.bootstrap_token,
     )
     secret_repository = EncryptedSettingRepository(
-        sessionmaker(engine, expire_on_commit=False),
+        factory,
         SecretCipher(
             SettingsSecretKeyProvider(
                 key_id=settings.settings_key_id,
@@ -58,12 +61,9 @@ def main() -> None:
     app = create_app(
         readiness_probe=lambda: is_ready(settings),
         identity_service=identity_service,
-        identification_service=IdentificationService(
-            sessionmaker(engine, expire_on_commit=False)
-        ),
-        movie_source_admin_service=MovieSourceService(
-            sessionmaker(engine, expire_on_commit=False)
-        ),
+        identification_service=IdentificationService(factory),
+        movie_source_admin_service=MovieSourceService(factory),
+        metadata_admin_service=MetadataAdminService(factory, MetadataQueue(factory)),
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

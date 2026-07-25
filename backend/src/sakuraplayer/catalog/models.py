@@ -1,0 +1,204 @@
+from __future__ import annotations
+
+from datetime import date, datetime
+import uuid
+
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    JSON,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    Boolean,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from sakuraplayer.identity.models import Base
+
+
+_JSON_VALUE = JSON(none_as_null=True).with_variant(
+    JSONB(none_as_null=True),
+    "postgresql",
+)
+
+
+class MetadataQueueState(Base):
+    __tablename__ = "metadata_queue_state"
+    __table_args__ = (
+        CheckConstraint("singleton_key", name="ck_metadata_queue_state_singleton"),
+    )
+
+    singleton_key: Mapped[bool] = mapped_column(Boolean, primary_key=True, default=True)
+    initial_as_of: Mapped[date] = mapped_column(Date, nullable=False)
+    initial_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class MetadataJob(Base):
+    __tablename__ = "metadata_job"
+    __table_args__ = (
+        CheckConstraint(
+            "(reason = 'manual_or_search' AND priority = 10) OR "
+            "(reason = 'ranking' AND priority = 20) OR "
+            "(reason = 'daily' AND priority = 30) OR "
+            "(reason = 'initial' AND priority = 40) OR "
+            "(reason = 'history' AND priority = 50)",
+            name="ck_metadata_job_priority_reason",
+        ),
+        CheckConstraint(
+            "retry_mode IN ('full', 'missing_enrichment')",
+            name="ck_metadata_job_retry_mode",
+        ),
+        CheckConstraint(
+            "(retry_mode = 'full' AND requested_stages = '[]'::jsonb) OR "
+            "(retry_mode = 'missing_enrichment' "
+            "AND jsonb_typeof(requested_stages) = 'array' "
+            "AND jsonb_array_length(requested_stages) > 0 "
+            "AND requested_stages <@ "
+            "'[\"images\",\"dmm\",\"actor_map\",\"gfriends\",\"translation\"]'::jsonb "
+            "AND NOT requested_stages ? 'javdb_core')",
+            name="ck_metadata_job_retry_shape",
+        ).ddl_if(dialect="postgresql"),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'completed', "
+            "'completed_with_warnings', 'failed')",
+            name="ck_metadata_job_status",
+        ),
+        CheckConstraint("attempt_no >= 1", name="ck_metadata_job_attempt_no"),
+        CheckConstraint(
+            "elapsed_ms IS NULL OR elapsed_ms >= 0",
+            name="ck_metadata_job_elapsed",
+        ),
+        CheckConstraint(
+            "(status = 'queued' AND claim_owner IS NULL "
+            "AND claim_expires_at IS NULL AND started_at IS NULL "
+            "AND finished_at IS NULL AND elapsed_ms IS NULL "
+            "AND failure_code IS NULL AND failure_detail IS NULL) OR "
+            "(status = 'running' AND claim_owner IS NOT NULL "
+            "AND claim_expires_at IS NOT NULL AND started_at IS NOT NULL "
+            "AND finished_at IS NULL AND elapsed_ms IS NULL "
+            "AND failure_code IS NULL AND failure_detail IS NULL) OR "
+            "(status IN ('completed', 'completed_with_warnings') "
+            "AND claim_owner IS NULL AND claim_expires_at IS NULL "
+            "AND started_at IS NOT NULL AND finished_at IS NOT NULL "
+            "AND elapsed_ms IS NOT NULL AND failure_code IS NULL "
+            "AND failure_detail IS NULL) OR "
+            "(status = 'failed' AND claim_owner IS NULL "
+            "AND claim_expires_at IS NULL AND started_at IS NOT NULL "
+            "AND finished_at IS NOT NULL AND elapsed_ms IS NOT NULL "
+            "AND failure_code IS NOT NULL AND failure_detail IS NOT NULL)",
+            name="ck_metadata_job_state",
+        ),
+        UniqueConstraint(
+            "normalized_number",
+            "attempt_no",
+            name="uq_metadata_job_number_attempt",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    movie_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("movie.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    normalized_number: Mapped[str] = mapped_column(String(128), nullable=False)
+    priority: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(String(32), nullable=False)
+    sort_date: Mapped[date | None] = mapped_column(Date)
+    retry_mode: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_stages: Mapped[list[str]] = mapped_column(_JSON_VALUE, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    attempt_no: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    parent_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("metadata_job.id", ondelete="RESTRICT")
+    )
+    claim_owner: Mapped[str | None] = mapped_column(String(128))
+    claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    elapsed_ms: Mapped[int | None] = mapped_column(BigInteger)
+    failure_code: Mapped[str | None] = mapped_column(String(128))
+    failure_detail: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+Index(
+    "uq_metadata_job_active_number",
+    MetadataJob.normalized_number,
+    unique=True,
+    postgresql_where=MetadataJob.status.in_(("queued", "running")),
+    sqlite_where=MetadataJob.status.in_(("queued", "running")),
+)
+Index(
+    "ix_metadata_job_claim",
+    MetadataJob.status,
+    MetadataJob.priority,
+    MetadataJob.sort_date.desc().nulls_last(),
+    MetadataJob.created_at,
+    MetadataJob.id,
+).ddl_if(dialect="postgresql")
+Index(
+    "ix_metadata_job_claim_sqlite",
+    MetadataJob.status,
+    MetadataJob.priority,
+    MetadataJob.sort_date.desc(),
+    MetadataJob.created_at,
+    MetadataJob.id,
+).ddl_if(dialect="sqlite")
+
+
+class MetadataStage(Base):
+    __tablename__ = "metadata_stage"
+    __table_args__ = (
+        CheckConstraint(
+            "stage IN ('javdb_core', 'images', 'dmm', 'actor_map', "
+            "'gfriends', 'translation')",
+            name="ck_metadata_stage_name",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'running', 'succeeded', 'warning', "
+            "'failed', 'skipped')",
+            name="ck_metadata_stage_status",
+        ),
+        CheckConstraint(
+            "(status = 'pending' AND started_at IS NULL "
+            "AND finished_at IS NULL AND failure_code IS NULL) OR "
+            "(status = 'running' AND started_at IS NOT NULL "
+            "AND finished_at IS NULL AND failure_code IS NULL) OR "
+            "(status = 'succeeded' AND started_at IS NOT NULL "
+            "AND finished_at IS NOT NULL AND failure_code IS NULL) OR "
+            "(status IN ('warning', 'failed') AND started_at IS NOT NULL "
+            "AND finished_at IS NOT NULL AND failure_code IS NOT NULL) OR "
+            "(status = 'skipped' AND started_at IS NULL "
+            "AND finished_at IS NULL AND failure_code IS NULL)",
+            name="ck_metadata_stage_state",
+        ),
+    )
+
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("metadata_job.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    stage: Mapped[str] = mapped_column(String(32), primary_key=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_code: Mapped[str | None] = mapped_column(String(128))
+
+
+__all__ = ["MetadataJob", "MetadataQueueState", "MetadataStage"]

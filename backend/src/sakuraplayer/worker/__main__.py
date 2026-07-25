@@ -5,7 +5,8 @@ from pathlib import Path
 import os
 import signal
 import socket
-from threading import Event
+import sys
+from threading import Event, Thread
 from typing import Protocol
 
 import httpx
@@ -14,8 +15,11 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
+from sakuraplayer.catalog.metadata_queue import MetadataQueue
+from sakuraplayer.catalog.metadata_seeder import MetadataQueueSeeder
 from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
 from sakuraplayer.resources.avdb_worker import AvdbWorkerConsumer
+from sakuraplayer.resources.initial_scope import InitialScopeSelector
 from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.resources.sync_service import (
     AvdbSyncQueue,
@@ -32,14 +36,23 @@ from sakuraplayer.shared.runtime import (
     guarded_main,
     require_ready,
 )
+from sakuraplayer.worker.metadata_child import metadata_executor_available
+from sakuraplayer.worker.metadata_supervisor import (
+    MetadataSupervisor,
+    SubprocessGroupLauncher,
+)
 
 
 PROVIDER_CACHE_DIRECTORY = Path("/var/lib/sakuraplayer/provider-cache")
 IDLE_WAIT_SECONDS = 5.0
+SUPERVISOR_TICK_SECONDS = 1.0
+WORKER_THREAD_JOIN_SECONDS = 5.0
 
 
 class StopEvent(Protocol):
     def is_set(self) -> bool: ...
+
+    def set(self) -> None: ...
 
     def wait(self, timeout: float) -> bool: ...
 
@@ -54,6 +67,8 @@ class WorkerRuntime:
     importer: SourceImporter
     engine: Engine
     http_client: httpx.Client
+    metadata_supervisor: MetadataSupervisor
+    metadata_seeder: MetadataQueueSeeder
 
     def close(self) -> None:
         try:
@@ -109,16 +124,114 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             asset_directory=cache_root / "assets",
             plaintext_directory=cache_root / "plaintext",
         )
+        metadata_queue = MetadataQueue(factory)
+        metadata_supervisor = MetadataSupervisor(
+            queue=metadata_queue,
+            launcher=SubprocessGroupLauncher(
+                command_factory=lambda claim: (
+                    sys.executable,
+                    "-m",
+                    "sakuraplayer.worker.metadata_child",
+                    "--job-id",
+                    str(claim.job_id),
+                    "--claim-owner",
+                    claim.claim_owner,
+                ),
+                availability=metadata_executor_available,
+            ),
+        )
+        metadata_seeder = MetadataQueueSeeder(
+            factory,
+            queue=metadata_queue,
+            selector=InitialScopeSelector(factory),
+        )
         return WorkerRuntime(
             consumer=consumer,
             importer=SourceImporter(factory, cipher=cipher),
             engine=engine,
             http_client=http_client,
+            metadata_supervisor=metadata_supervisor,
+            metadata_seeder=metadata_seeder,
         )
     except Exception:
         http_client.close()
         engine.dispose()
         raise
+
+
+def run_worker(
+    *,
+    runtime: WorkerRuntime,
+    stop_event: StopEvent,
+    worker_id: str,
+    thread_join_seconds: float = WORKER_THREAD_JOIN_SECONDS,
+    supervisor_tick_seconds: float = SUPERVISOR_TICK_SECONDS,
+) -> None:
+    if thread_join_seconds <= 0 or supervisor_tick_seconds <= 0:
+        raise ValueError("worker loop timing must be positive")
+    background_errors: list[BaseException] = []
+    seeder_started = Event()
+
+    def run_avdb_consumer() -> None:
+        try:
+            consume_avdb_requests(
+                consumer=runtime.consumer,
+                importer=runtime.importer,
+                stop_event=stop_event,
+                worker_id=worker_id,
+            )
+        except BaseException as error:
+            background_errors.append(error)
+            stop_event.set()
+
+    def run_metadata_seeder() -> None:
+        seeder_started.set()
+        try:
+            while not stop_event.is_set():
+                runtime.metadata_seeder.seed_once()
+                stop_event.wait(supervisor_tick_seconds)
+        except BaseException as error:
+            background_errors.append(error)
+            stop_event.set()
+
+    avdb_thread = Thread(
+        target=run_avdb_consumer,
+        name="avdb-consumer",
+        daemon=True,
+    )
+    seeder_thread = Thread(
+        target=run_metadata_seeder,
+        name="metadata-seeder",
+        daemon=True,
+    )
+    avdb_thread.start()
+    seeder_thread.start()
+    seeder_started.wait(thread_join_seconds)
+    loop_error: BaseException | None = None
+    shutdown_error: BaseException | None = None
+    try:
+        while not stop_event.is_set():
+            runtime.metadata_supervisor.tick(worker_id=worker_id)
+            stop_event.wait(supervisor_tick_seconds)
+    except BaseException as error:
+        loop_error = error
+    finally:
+        stop_event.set()
+        try:
+            runtime.metadata_supervisor.shutdown()
+        except BaseException as error:
+            shutdown_error = error
+        for thread in (avdb_thread, seeder_thread):
+            thread.join(thread_join_seconds)
+    timed_out = any(thread.is_alive() for thread in (avdb_thread, seeder_thread))
+    if loop_error is not None:
+        raise loop_error
+    if background_errors:
+        raise background_errors[0]
+    if shutdown_error is not None:
+        raise shutdown_error
+    if timed_out:
+        raise RuntimeError("worker_thread_shutdown_timeout")
 
 
 def main() -> None:
@@ -137,12 +250,7 @@ def main() -> None:
     worker_id = f"{socket.gethostname()}-{os.getpid()}"[:64]
     logger.info("component_started")
     try:
-        consume_avdb_requests(
-            consumer=runtime.consumer,
-            importer=runtime.importer,
-            stop_event=stop_event,
-            worker_id=worker_id,
-        )
+        run_worker(runtime=runtime, stop_event=stop_event, worker_id=worker_id)
     finally:
         runtime.close()
         logger.info("component_stopped")

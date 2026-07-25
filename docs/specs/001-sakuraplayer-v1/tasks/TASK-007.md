@@ -3,7 +3,7 @@ id: TASK-007
 title: "持久元数据队列与硬超时"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: completed
 dependencies: [TASK-001, TASK-005]
 ac-mapping: [AC-037, AC-038, AC-039, AC-040, AC-041, AC-042, AC-043, AC-122]
 imp-requirements: [REQ-008, REQ-022]
@@ -22,18 +22,18 @@ provides: [metadata queue, three-slot supervisor, 600-second process timeout]
 
 ## 验收条件
 
-- [ ] 元数据任务、阶段和结果持久化，重启可恢复调度；对应 AC-037。
-- [ ] 同时执行固定 3 个影片任务，单任务 600 秒由父进程强制终止并标记失败；对应 AC-038、AC-039。
-- [ ] 失败/超时不自动创建重试，只有管理员动作生成新 attempt；对应 AC-040。
-- [ ] 优先级和同级发布日期排序严格按规格，记录 stage、时间、耗时、尝试和错误；对应 AC-041、AC-043。
-- [ ] 核心提交后可见，可选富化失败不回滚；对应 AC-042。
-- [ ] `completed_with_warnings` 只允许管理员选择失败/缺失可选阶段创建新 job，禁止 `javdb_core` 和隐式 AI 重跑；对应 AC-122。
+- [x] 元数据任务、阶段和结果持久化，重启可恢复调度；对应 AC-037。
+- [x] 同时执行固定 3 个影片任务，单任务 600 秒由父进程强制终止并标记失败；对应 AC-038、AC-039。
+- [x] 失败/超时不自动创建重试，只有管理员动作生成新 attempt；对应 AC-040。
+- [x] 优先级和同级发布日期排序严格按规格，记录 stage、时间、耗时、尝试和错误；对应 AC-041、AC-043。
+- [x] 核心提交后可见，可选富化失败不回滚；对应 AC-042。
+- [x] `completed_with_warnings`，或当前 attempt 的 `javdb_core` 已成功但随后失败且影片仍为 `core_ready`，只允许管理员选择失败/缺失可选阶段创建新 job；禁止 `javdb_core` 和隐式 AI 重跑；对应 AC-122。
 
 ## Definition of Ready
 
-- [ ] TASK-005 可提供规范化番号、发布日期和队列原因。
-- [ ] 子进程不能共享数据库 session/http client 的边界已确认。
-- [ ] queued/running 部分唯一约束和 claim expiry 已迁移。
+- [x] TASK-005 可提供规范化番号、发布日期和队列原因。
+- [x] 子进程不能共享数据库 session/http client 的边界已确认。
+- [x] `metadata_job`/`metadata_stage`、queued/running 部分唯一约束和 claim expiry 设计已在数据模型冻结；迁移由本任务交付，见 [元数据队列 DoR 迁移归属修正](../changes/2026-07-25--metadata-queue-dor-correction.md)。
 
 ## 技术上下文
 
@@ -46,6 +46,9 @@ provides: [metadata queue, three-slot supervisor, 600-second process timeout]
 **创建**:
 
 - `backend/src/sakuraplayer/catalog/metadata_queue.py` - 入队、优先级和手动重试。
+- `backend/src/sakuraplayer/catalog/metadata_seeder.py` - initial/history 持久化分批生产者。
+- `backend/src/sakuraplayer/catalog/metadata_api.py` - 管理任务快照与显式 retry。
+- `backend/src/sakuraplayer/catalog/models.py` - job/stage/queue state ORM 模型。
 - `backend/src/sakuraplayer/worker/metadata_supervisor.py` - 三槽子进程和 600 秒终止。
 - `backend/src/sakuraplayer/worker/metadata_child.py` - 单影片 stage runner。
 - `backend/src/sakuraplayer/catalog/metadata_state.py` - 合法状态和 stage 记录。
@@ -66,13 +69,19 @@ provides: [metadata queue, three-slot supervisor, 600-second process timeout]
 
 **边界条件**:
 
-- 600 秒边界、父进程崩溃、claim 过期、手动重试与新搜索并发。
+- 600 秒边界、父进程崩溃、claim 过期、手动重试与新搜索并发、双 seeder 接近 initial 5000 上限，以及大量失败影片不阻塞后续候选。
 
 ## Definition of Done
 
-- [ ] 固定并发、硬超时、优先级、持久化和手动重试完成。
-- [ ] 没有配置元数据并发数的用户入口。
-- [ ] 超时/崩溃集成测试通过。
+- [x] 固定并发、硬超时、优先级、持久化和手动重试完成。
+- [x] 没有配置元数据并发数的用户入口。
+- [x] 超时/崩溃集成测试通过。
+
+## 验证证据
+
+- Focused/Fast：worker/supervisor 21 passed；自包含 246 passed、7 deselected；TASK-007 PostgreSQL/Schema 33 passed。
+- 只读审计：Schema/队列、API/安全、supervisor/进程质量三路最终复审均无 P0/P1/P2。
+- Final：`backend/tests/run-compose.ps1` 单次尝试通过；自包含 246 passed、7 deselected，PostgreSQL/Compose 63 passed、12 deselected，并完成迁移、五服务健康、认证 canary、重启持久性、ready 降级恢复、秘密日志扫描和隔离资源清理。
 
 **依赖**: TASK-001, TASK-005
 

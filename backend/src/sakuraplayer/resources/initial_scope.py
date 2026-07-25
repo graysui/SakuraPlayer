@@ -31,12 +31,17 @@ class InitialScopeSelector:
         self._session_factory = session_factory
         self._initial_limit = initial_limit
 
-    def select_initial(self, *, as_of: date) -> list[MetadataCandidate]:
+    def select_initial(
+        self,
+        *,
+        as_of: date,
+        exclude_movie_ids: Select[tuple[uuid.UUID]] | None = None,
+    ) -> list[MetadataCandidate]:
         if not isinstance(as_of, date):
             raise TypeError("as_of must be a date")
         cutoff = as_of - timedelta(days=89)
         candidates = self._candidate_rows().subquery()
-        statement = (
+        initial_scope = (
             select(
                 candidates.c.movie_id,
                 candidates.c.normalized_number,
@@ -51,6 +56,20 @@ class InitialScopeSelector:
                 candidates.c.normalized_number.asc(),
             )
             .limit(self._initial_limit)
+            .subquery()
+        )
+        statement = select(
+            initial_scope.c.movie_id,
+            initial_scope.c.normalized_number,
+            initial_scope.c.publish_date,
+        )
+        if exclude_movie_ids is not None:
+            statement = statement.where(
+                initial_scope.c.movie_id.not_in(exclude_movie_ids)
+            )
+        statement = statement.order_by(
+            initial_scope.c.publish_date.desc(),
+            initial_scope.c.normalized_number.asc(),
         )
         with self._session_factory() as session:
             return [
@@ -91,6 +110,35 @@ class InitialScopeSelector:
                 candidates.c.publish_date.desc().nulls_last(),
                 candidates.c.normalized_number.asc(),
             )
+        )
+        with self._session_factory() as session:
+            rows = session.execute(statement.execution_options(yield_per=1_000))
+            for row in rows:
+                yield MetadataCandidate(
+                    movie_id=row.movie_id,
+                    normalized_number=row.normalized_number,
+                    publish_date=row.publish_date,
+                    reason="history",
+                )
+
+    def iter_remaining(
+        self,
+        *,
+        exclude_movie_ids: Select[tuple[uuid.UUID]] | None = None,
+    ) -> Iterator[MetadataCandidate]:
+        candidates = self._candidate_rows().subquery()
+        statement = select(
+            candidates.c.movie_id,
+            candidates.c.normalized_number,
+            candidates.c.publish_date,
+        )
+        if exclude_movie_ids is not None:
+            statement = statement.where(
+                candidates.c.movie_id.not_in(exclude_movie_ids)
+            )
+        statement = statement.order_by(
+            candidates.c.publish_date.desc().nulls_last(),
+            candidates.c.normalized_number.asc(),
         )
         with self._session_factory() as session:
             rows = session.execute(statement.execution_options(yield_per=1_000))

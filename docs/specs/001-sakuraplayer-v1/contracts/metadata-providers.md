@@ -74,6 +74,15 @@ HTTP 边界固定为兼容 `POST {base_url}/v1/chat/completions` 的适配器 `(
 - DMM/GFriends/AI/图片失败在核心成功后形成 warning；管理员可通过 `retry-enrichment` 显式选择失败或缺失的可选阶段创建新尝试。
 - 富化重试不得包含 `javdb_core`，不得自动创建，也不得在未选择 `translation` 时再次调用付费 AI。
 - 原 `completed_with_warnings` job 和 stage 保持不可变，新尝试保存 `parent_job_id`、`retry_mode=missing_enrichment` 和阶段白名单。
+- 当前 attempt 的 `javdb_core` 已成功提交后超时或异常退出形成的 `failed + core_ready` job，可由管理员显式选择尚未成功的可选阶段创建 `missing_enrichment`；旧 attempt 留下的 `core_ready` 不满足该条件，完整 retry 入口仍可由管理员主动选择。
+- 可重试资格沿 attempt 父链读取最近的非 `skipped` stage 事实；阶段一旦 succeeded，不能借中间富化 attempt 的 skipped 状态再次调用，尤其不能重复调用已成功的付费翻译。
+
+### 6.1 Worker/child Port
+
+- TASK-007 worker 固定轮询三槽 supervisor；TASK-008 提供 `sakuraplayer.catalog.providers.runtime.build_metadata_stage_executor` 后才开始 claim，provider 未交付时 queued 事实保持不变。
+- child 命令行只携带 job ID 和不可复用的 claim owner；数据库 URL与凭据只从 child 运行环境读取，不进入参数或日志。
+- 每个 child 在自身进程内创建并关闭 SQLAlchemy Engine/Session 与 httpx Client，禁止继承或接收父进程活动 session/client。
+- Linux 容器为后端 worker 运行边界。父 worker 通过管道 watchdog 持有 child 进程组；父进程异常死亡导致管道 EOF，child watchdog 强制终止自身完整进程组。
 
 ## 7. 可观察性
 

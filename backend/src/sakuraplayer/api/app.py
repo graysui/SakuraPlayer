@@ -5,6 +5,10 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from sakuraplayer.catalog.metadata_api import (
+    MetadataAdminService,
+    create_metadata_api,
+)
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.admin_api import (
@@ -28,6 +32,7 @@ def create_app(
     identity_service: AuthService | None = None,
     identification_service: IdentificationService | None = None,
     movie_source_admin_service: MovieSourceService | None = None,
+    metadata_admin_service: MetadataAdminService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -108,7 +113,18 @@ def create_app(
                     current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
-    elif identification_service is not None or movie_source_admin_service is not None:
-        raise ValueError("resource admin APIs require identity service")
+        if metadata_admin_service is not None:
+            app.include_router(
+                create_metadata_api(
+                    metadata_admin_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+    elif (
+        identification_service is not None
+        or movie_source_admin_service is not None
+        or metadata_admin_service is not None
+    ):
+        raise ValueError("admin APIs require identity service")
 
     return app

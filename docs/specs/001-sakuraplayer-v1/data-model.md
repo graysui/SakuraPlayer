@@ -308,6 +308,8 @@ Domain aggregate 1 --- N DomainEvent
 
 ### 5.5 `metadata_job` 与 `metadata_stage`
 
+`metadata_queue_state` 以固定 `singleton_key=true` 保存首批范围的 `initial_as_of`、`initial_completed_at` 和更新时间。worker 分批入队时必须复用冻结日期；完成标记后不得因重启或新来源把后续影片重新归入 initial。读取 initial 剩余额度、初始化状态行和整批入队必须处于同一 PostgreSQL advisory lock 生命周期，保证多 worker 下不超过 5000 部。候选查询 anti-join 已有任意 attempt 的影片并继续补足新任务，不得因失败影片仍为 `raw_only` 而阻塞或反复扫描后续 initial/history 候选，也不得借此自动重试失败任务。
+
 `metadata_job`:
 
 | 字段 | 类型 | 规则 | 来源 |
@@ -317,6 +319,7 @@ Domain aggregate 1 --- N DomainEvent
 | `normalized_number` | varchar(128) | 任务稳定输入 | AC-037 |
 | `priority` | smallint | 10/20/30/40/50 | AC-041 |
 | `reason` | enum | `manual_or_search/ranking/daily/initial/history` | AC-041 |
+| `sort_date` | date | 可空；创建 attempt 时冻结的来源发布日期排序键 | AC-041 |
 | `retry_mode` | enum | `full/missing_enrichment`；默认 `full` | AC-122 |
 | `requested_stages` | jsonb | 富化重试只允许 `images/dmm/actor_map/gfriends/translation`；完整任务为空 | AC-122 |
 | `status` | enum | `queued/running/completed/completed_with_warnings/failed` | AC-037/040 |
@@ -331,7 +334,7 @@ Domain aggregate 1 --- N DomainEvent
 | `failure_detail` | text | 可空、脱敏 | AC-043 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 
-部分唯一索引保证同一 `normalized_number` 最多一条 `queued/running`。失败或 warning 行永不由 worker 改回 queued；重试插入带 `parent_job_id` 的新行。`missing_enrichment` 的 `requested_stages` 必须非空且禁止 `javdb_core`，未列出的 stage 直接记为 `skipped`。
+部分唯一索引保证同一 `normalized_number` 最多一条 `queued/running`。同优先级按 `sort_date DESC NULLS LAST, created_at ASC, id ASC` claim；重试继承父任务 `sort_date`。失败或 warning 行永不由 worker 改回 queued；重试插入带 `parent_job_id` 的新行。`missing_enrichment` 的 `requested_stages` 必须非空且禁止 `javdb_core`，未列出的 stage 直接记为 `skipped`。
 
 `metadata_stage`:
 
@@ -587,6 +590,7 @@ queued -> running -> completed
 - worker 崩溃且 claim 过期后可恢复同一 `running` 行进行对账 `(derived)`，但不得把已明确失败行自动重跑。
 - `completed_with_warnings` 表示核心成功、至少一个可选 stage 失败。
 - `completed_with_warnings` 的富化重试只运行明确失败或缺失的可选 stage，原 job/stage 事实保持不可变。
+- `failed + core_ready` 只有在当前 attempt 的 `javdb_core` stage 已 `succeeded` 时才可选择该 attempt 或父链中尚未成功的可选 stage；旧 attempt 留下的 `core_ready` 不能替当前失败的核心 stage 授权富化重试。
 
 ### 10.2 缓存任务
 

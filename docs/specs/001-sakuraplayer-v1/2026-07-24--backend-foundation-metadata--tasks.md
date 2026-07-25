@@ -24,7 +24,7 @@
 | [TASK-004](tasks/TASK-004.md) | AVdb Release 下载、解密与同步 | 主备、PBKDF2/AES、调度生产者、同步事实 | TASK-001,TASK-003 | 否 | 是 |
 | [TASK-005](tasks/TASK-005.md) | 六分类导入、番号与首次范围 | worker consumer、29 万级导入、90 天/5000、待识别 | TASK-004 | 否 | 否 |
 | [TASK-006](tasks/TASK-006.md) | 影片多来源、标签和拒绝标记 | 合并拆分、字幕/破解/4K/有码 | TASK-005 | 否 | 否 |
-| [TASK-007](tasks/TASK-007.md) | 持久元数据队列与硬超时 | 3 子进程、600 秒、完整/富化重试 | TASK-001,TASK-005 | 否 | 否 |
+| [TASK-007](tasks/TASK-007.md) | 持久元数据队列与硬超时 | PostgreSQL 队列/约束、3 子进程、600 秒、完整/富化重试 | TASK-001,TASK-005 | 否 | 否 |
 | [TASK-008](tasks/TASK-008.md) | JavDB 核心、DMM 与永久图片 | core_ready、简介、图片 warning | TASK-003,TASK-007 | 否 | 是 |
 | [TASK-009](tasks/TASK-009.md) | 演员映射与 GFriends | 周更、权威别名、唯一匹配 | TASK-008 | 否 | 是 |
 | [TASK-010](tasks/TASK-010.md) | OpenAI 兼容翻译 | 保护字段、幂等、异步富化 | TASK-003,TASK-008 | 否 | 是 |

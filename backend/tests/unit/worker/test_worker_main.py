@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+from threading import Event, Thread
+import time
+from types import SimpleNamespace
+
+import pytest
+
 from sakuraplayer.resources.sync_service import BatchStats
-from sakuraplayer.worker.__main__ import consume_avdb_requests
+from sakuraplayer.worker.__main__ import consume_avdb_requests, run_worker
 
 
 class StopAfterIdleWait:
@@ -59,3 +65,297 @@ def test_consumer_loop_injects_importer_and_waits_only_when_idle() -> None:
     assert consumer.worker_ids == ["worker-fixture", "worker-fixture"]
     assert [call[0] for call in importer.calls] == ["fixture.zip", "fixture.zip"]
     assert stop_event.waits == [2.5]
+
+
+class RuntimeSeeder:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def seed_once(self) -> None:
+        self.calls += 1
+
+
+class BlockingSeeder(RuntimeSeeder):
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered = Event()
+        self.release = Event()
+
+    def seed_once(self) -> None:
+        super().seed_once()
+        self.entered.set()
+        self.release.wait(2)
+
+
+class RuntimeSupervisor:
+    def __init__(self, stop_event: Event) -> None:
+        self.stop_event = stop_event
+        self.ticks: list[str] = []
+        self.shutdown_called = False
+
+    def tick(self, *, worker_id: str) -> None:
+        self.ticks.append(worker_id)
+        self.stop_event.set()
+
+    def shutdown(self) -> None:
+        self.shutdown_called = True
+
+
+class SignallingSupervisor(RuntimeSupervisor):
+    def __init__(self, stop_event: Event) -> None:
+        super().__init__(stop_event)
+        self.ticked = Event()
+
+    def tick(self, *, worker_id: str) -> None:
+        self.ticks.append(worker_id)
+        self.ticked.set()
+        self.stop_event.set()
+
+
+class RepeatingSupervisor(RuntimeSupervisor):
+    def __init__(self, stop_event: Event, *, target_ticks: int) -> None:
+        super().__init__(stop_event)
+        self.target_ticks = target_ticks
+        self.reached_target = Event()
+
+    def tick(self, *, worker_id: str) -> None:
+        self.ticks.append(worker_id)
+        if len(self.ticks) >= self.target_ticks:
+            self.reached_target.set()
+            self.stop_event.set()
+
+
+class FailingShutdownSupervisor(RuntimeSupervisor):
+    def shutdown(self) -> None:
+        self.shutdown_called = True
+        raise RuntimeError("fixture shutdown failure")
+
+
+class IdleConsumer:
+    def run_once(self, *, worker_id: str, importer) -> str:
+        del worker_id, importer
+        return "idle"
+
+
+class FailingConsumer:
+    def run_once(self, *, worker_id: str, importer) -> str:
+        del worker_id, importer
+        raise RuntimeError("fixture consumer failure")
+
+
+class DelayedStopConsumer:
+    def __init__(self, stop_event: Event, delay: float) -> None:
+        self.stop_event = stop_event
+        self.delay = delay
+        self.exited = Event()
+
+    def run_once(self, *, worker_id: str, importer) -> str:
+        del worker_id, importer
+        self.stop_event.wait()
+        time.sleep(self.delay)
+        self.exited.set()
+        return "idle"
+
+
+class CoordinatedFailingConsumer:
+    def __init__(self) -> None:
+        self.release = Event()
+        self.about_to_fail = Event()
+
+    def run_once(self, *, worker_id: str, importer) -> str:
+        del worker_id, importer
+        self.release.wait(1)
+        self.about_to_fail.set()
+        raise RuntimeError("fixture background failure")
+
+
+class CombinedFailureSupervisor(RuntimeSupervisor):
+    def __init__(self, stop_event: Event, consumer: CoordinatedFailingConsumer) -> None:
+        super().__init__(stop_event)
+        self.consumer = consumer
+
+    def tick(self, *, worker_id: str) -> None:
+        self.ticks.append(worker_id)
+        self.consumer.release.set()
+        assert self.consumer.about_to_fail.wait(1)
+        raise RuntimeError("fixture loop failure")
+
+    def shutdown(self) -> None:
+        self.shutdown_called = True
+        raise RuntimeError("fixture shutdown failure")
+
+
+class SlowStopSeeder(RuntimeSeeder):
+    def __init__(self, stop_event: Event) -> None:
+        super().__init__()
+        self.stop_event = stop_event
+        self.exited = Event()
+
+    def seed_once(self) -> None:
+        super().seed_once()
+        self.stop_event.wait()
+        time.sleep(0.1)
+        self.exited.set()
+
+
+def test_worker_runtime_polls_seeder_and_metadata_supervisor() -> None:
+    stop_event = Event()
+    seeder = RuntimeSeeder()
+    supervisor = RuntimeSupervisor(stop_event)
+    runtime = SimpleNamespace(
+        consumer=IdleConsumer(),
+        importer=RecordingImporter(),
+        metadata_seeder=seeder,
+        metadata_supervisor=supervisor,
+    )
+
+    run_worker(
+        runtime=runtime,  # type: ignore[arg-type]
+        stop_event=stop_event,
+        worker_id="worker-runtime",
+    )
+
+    assert seeder.calls == 1
+    assert supervisor.ticks == ["worker-runtime"]
+    assert supervisor.shutdown_called is True
+
+
+def test_worker_propagates_avdb_thread_failure_after_supervisor_cleanup() -> None:
+    stop_event = Event()
+    seeder = RuntimeSeeder()
+    supervisor = RuntimeSupervisor(stop_event)
+    supervisor.tick = lambda *, worker_id: None  # type: ignore[method-assign]
+    runtime = SimpleNamespace(
+        consumer=FailingConsumer(),
+        importer=RecordingImporter(),
+        metadata_seeder=seeder,
+        metadata_supervisor=supervisor,
+    )
+
+    with pytest.raises(RuntimeError, match="fixture consumer failure"):
+        run_worker(
+            runtime=runtime,  # type: ignore[arg-type]
+            stop_event=stop_event,
+            worker_id="worker-runtime",
+        )
+
+    assert supervisor.shutdown_called is True
+
+
+def test_blocking_seeder_does_not_delay_supervisor_tick() -> None:
+    stop_event = Event()
+    seeder = BlockingSeeder()
+    supervisor = RepeatingSupervisor(stop_event, target_ticks=3)
+    runtime = SimpleNamespace(
+        consumer=IdleConsumer(),
+        importer=RecordingImporter(),
+        metadata_seeder=seeder,
+        metadata_supervisor=supervisor,
+    )
+    errors: list[BaseException] = []
+    worker = Thread(
+        target=lambda: _capture_worker_error(
+            errors,
+            runtime=runtime,
+            stop_event=stop_event,
+            supervisor_tick_seconds=0.01,
+        )
+    )
+    worker.start()
+    try:
+        assert seeder.entered.wait(1)
+        assert supervisor.reached_target.wait(0.25)
+    finally:
+        seeder.release.set()
+        worker.join(2)
+
+    assert not worker.is_alive()
+    assert errors == []
+    assert supervisor.ticks == ["worker-runtime"] * 3
+
+
+def test_shutdown_failure_still_joins_the_avdb_thread() -> None:
+    stop_event = Event()
+    consumer = DelayedStopConsumer(stop_event, delay=0.05)
+    supervisor = FailingShutdownSupervisor(stop_event)
+    runtime = SimpleNamespace(
+        consumer=consumer,
+        importer=RecordingImporter(),
+        metadata_seeder=RuntimeSeeder(),
+        metadata_supervisor=supervisor,
+    )
+
+    with pytest.raises(RuntimeError, match="fixture shutdown failure"):
+        run_worker(
+            runtime=runtime,  # type: ignore[arg-type]
+            stop_event=stop_event,
+            worker_id="worker-runtime",
+            thread_join_seconds=0.5,
+        )
+
+    assert consumer.exited.is_set()
+
+
+def test_blocked_avdb_thread_has_a_bounded_shutdown() -> None:
+    stop_event = Event()
+    consumer = DelayedStopConsumer(stop_event, delay=0.1)
+    supervisor = RuntimeSupervisor(stop_event)
+    runtime = SimpleNamespace(
+        consumer=consumer,
+        importer=RecordingImporter(),
+        metadata_seeder=RuntimeSeeder(),
+        metadata_supervisor=supervisor,
+    )
+
+    with pytest.raises(RuntimeError, match="worker_thread_shutdown_timeout"):
+        run_worker(
+            runtime=runtime,  # type: ignore[arg-type]
+            stop_event=stop_event,
+            worker_id="worker-runtime",
+            thread_join_seconds=0.01,
+        )
+
+    assert consumer.exited.wait(1)
+
+
+def test_loop_error_wins_over_background_shutdown_and_join_timeout() -> None:
+    stop_event = Event()
+    consumer = CoordinatedFailingConsumer()
+    seeder = SlowStopSeeder(stop_event)
+    supervisor = CombinedFailureSupervisor(stop_event, consumer)
+    runtime = SimpleNamespace(
+        consumer=consumer,
+        importer=RecordingImporter(),
+        metadata_seeder=seeder,
+        metadata_supervisor=supervisor,
+    )
+
+    with pytest.raises(RuntimeError, match="fixture loop failure"):
+        run_worker(
+            runtime=runtime,  # type: ignore[arg-type]
+            stop_event=stop_event,
+            worker_id="worker-runtime",
+            thread_join_seconds=0.01,
+            supervisor_tick_seconds=0.01,
+        )
+
+    assert supervisor.shutdown_called is True
+    assert seeder.exited.wait(1)
+
+
+def _capture_worker_error(
+    errors,
+    *,
+    runtime,
+    stop_event,
+    supervisor_tick_seconds=1.0,
+) -> None:
+    try:
+        run_worker(
+            runtime=runtime,
+            stop_event=stop_event,
+            worker_id="worker-runtime",
+            supervisor_tick_seconds=supervisor_tick_seconds,
+        )
+    except BaseException as error:
+        errors.append(error)

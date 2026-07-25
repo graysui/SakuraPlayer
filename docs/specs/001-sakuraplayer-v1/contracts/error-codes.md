@@ -64,9 +64,14 @@
 | 409 | `movie_merge_conflict` | 合并会违反规范化番号或关系约束 |
 | 404 | `metadata_job_not_found` | 元数据任务不存在 |
 | 409 | `metadata_job_not_failed` | 只有失败任务可手动完整重试 |
-| 409 | `metadata_job_no_retryable_enrichment` | warning 任务没有所选的失败/缺失可选阶段 |
+| 409 | `metadata_job_no_retryable_enrichment` | warning 任务或当前 attempt 已成功提交核心的 failed 任务，没有所选的失败/缺失可选阶段 |
 | 409 | `metadata_job_already_active` | 同一番号已有 queued/running 任务 |
-| 504 | `metadata_timeout` | 单影片任务达到 600 秒并已强制终止 |
+| 任务 | `metadata_timeout` | 单影片任务达到 600 秒并已强制终止 |
+| 任务 | `metadata_child_start_failed` | 父进程未能创建隔离子进程，任务失败且不自动重试 |
+| 任务 | `metadata_child_failed` | 子进程异常退出，任务失败且不自动重试 |
+| 任务 | `metadata_child_incomplete` | 子进程正常退出但未提交终态，父进程持久化失败 |
+| 任务 | `metadata_core_not_committed` | `javdb_core` 未原子提交 `core_ready`，禁止继续富化或完成 |
+| 任务 | `metadata_optional_stage_failed` | 可选阶段出现未分类异常，保存 warning 且不回滚核心 |
 | 502 | `javdb_upstream_error` | JavDB 临时失败 |
 | 401 | `javdb_credentials_invalid` | 可选 JavDB 凭据失效 |
 | 502 | `dmm_upstream_error` | DMM 富化失败，不隐藏核心影片 |
