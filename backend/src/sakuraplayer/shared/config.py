@@ -38,6 +38,7 @@ _ENVIRONMENTS = frozenset(
 _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR"})
 _URL_SAFE_TEXT = re.compile(r"^[A-Za-z0-9_-]+$")
 _URL_SAFE_BASE64 = re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
+_KEY_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def _required(values: Mapping[str, str], name: str) -> str:
@@ -201,6 +202,13 @@ def load_settings(environment: Mapping[str, str] | None = None) -> Settings:
             "secret purposes", "secret purposes must not reuse key material"
         )
 
+    settings_key_id = values.get("SAKURAPLAYER_SETTINGS_KEY_ID", "v1").strip()
+    if not _KEY_ID.fullmatch(settings_key_id):
+        raise StartupConfigurationError(
+            "SAKURAPLAYER_SETTINGS_KEY_ID",
+            "expected 1..64 stable characters",
+        )
+
     return Settings(
         environment=app_environment,
         database_url=database_url,
@@ -210,7 +218,7 @@ def load_settings(environment: Mapping[str, str] | None = None) -> Settings:
         trust_proxy_headers=_parse_bool(
             values, "SAKURAPLAYER_TRUST_PROXY_HEADERS", False
         ),
-        settings_key_id=values.get("SAKURAPLAYER_SETTINGS_KEY_ID", "v1").strip(),
+        settings_key_id=settings_key_id,
         settings_key=settings_key,
         token_key=token_key,
         playback_key=playback_key,

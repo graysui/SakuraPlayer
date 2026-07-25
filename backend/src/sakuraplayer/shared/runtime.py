@@ -13,6 +13,7 @@ from sakuraplayer.shared.config import (
     load_settings,
 )
 from sakuraplayer.shared.schema_guard import SchemaGuardError, check_schema
+from sakuraplayer.shared.redaction import RedactionFilter
 
 
 LOG_DIRECTORY = Path("/var/log/sakuraplayer")
@@ -58,11 +59,13 @@ def configure_component_logging(
     )
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
+    stream_handler.addFilter(RedactionFilter())
     file_handler = logging.FileHandler(
         log_directory / f"{component}.log",
         encoding="utf-8",
     )
     file_handler.setFormatter(formatter)
+    file_handler.addFilter(RedactionFilter())
     logging.basicConfig(
         level=level,
         handlers=[stream_handler, file_handler],

@@ -1,8 +1,8 @@
 # SakuraPlayer v1 新会话交接
 
-**更新时间**: 2026-07-24
+**更新时间**: 2026-07-25
 
-**当前阶段**: Phase 1 后端基础设施实施中；TASK-001、TASK-002 已完成，下一任务为 TASK-003。
+**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-003 已完成，下一任务为 TASK-004。
 
 ## 1. 当前成果
 
@@ -17,6 +17,10 @@
 - TASK-002 已交付唯一管理员、Argon2id 密码、类型化 JWT、可撤销 refresh 会话、统一 HTTP/WebSocket 授权依赖和 logout epoch 清理语义。
 - 认证契约冻结 15 分钟 access、登录起 30 天 refresh 绝对期限、同客户端单活、重放撤销、条件 bootstrap header 与 43..512 字符规范 Base64URL 初始化口令。
 - TASK-002 自动验证覆盖 95 项自包含测试、18 项 PostgreSQL 集成测试、真实认证 canary、敏感日志扫描、重启恢复、ready 故障降级和项目级 Docker 资源清理。
+- TASK-003 已交付 AES-256-GCM 加密 envelope、内存测试 key provider、`encrypted_setting` PostgreSQL 仓储和版本 CAS，以及统一日志/API 错误脱敏。
+- 加密记录使用独立设置密钥、随机 96-bit nonce、key ID、密文和版本；并发新建/更新均以数据库原子条件写入避免旧凭据覆盖新值。
+- 脱敏覆盖多段 Cookie、磁力、Bearer/JWT、AI key、client secret、DSN、绝对/相对 URL query、异常 traceback 与结构化日志字段；异常 code 仅允许稳定小写蛇形码。
+- TASK-003 自动验证覆盖 125 项自包含测试、21 项 PostgreSQL 集成测试、Compose 真实认证 canary、秘密日志扫描、服务重启、ready 故障降级恢复和资源清理。
 
 ## 2. Git 状态基线
 
@@ -32,18 +36,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002。
-- **下一任务**: TASK-003 秘密加密与脱敏基础设施。
+- **已完成任务**: TASK-001、TASK-002、TASK-003。
+- **下一任务**: TASK-004 AVdb Release 下载、解密与同步。
 - **当前阻塞项**: 无；按任务依赖继续后端数据真相，不得跳到客户端或 115 实现。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-003 开始：
+下一会话从 TASK-004 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-003.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-004.md"
 ```
 
-完成 TASK-003 的实现、测试和评审后，按根目录 `AGENTS.md` 创建下一次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
+完成 TASK-004 的实现、测试和评审后，按根目录 `AGENTS.md` 创建下一次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
 
 ## 4. 必读契约
 

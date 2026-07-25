@@ -7,6 +7,11 @@ from fastapi.responses import JSONResponse
 
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.shared.redaction import (
+    redact_mapping,
+    redact_text,
+    stable_error_code,
+)
 
 
 def create_app(
@@ -28,8 +33,8 @@ def create_app(
     async def api_problem(request: Request, error: ApiProblem) -> JSONResponse:
         return JSONResponse(
             {
-                "code": error.code,
-                "message": error.message,
+                "code": stable_error_code(error.code),
+                "message": redact_text(error.message),
                 "request_id": request.state.request_id,
             },
             status_code=error.status_code,
@@ -48,7 +53,7 @@ def create_app(
             {
                 "code": "validation_failed",
                 "message": "Request validation failed",
-                "details": {"fields": fields},
+                "details": redact_mapping({"fields": fields}),
                 "request_id": request.state.request_id,
             },
             status_code=422,

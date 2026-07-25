@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from starlette.websockets import WebSocketDisconnect
 
 from sakuraplayer.api.app import create_app
+from sakuraplayer.identity.api import ApiProblem
 from sakuraplayer.identity.domain import CurrentAdmin
 from sakuraplayer.identity.models import Base
 from sakuraplayer.identity.service import AuthService
@@ -50,6 +51,25 @@ def client() -> TestClient:
         admin: CurrentAdmin = Depends(app.state.current_admin_dependency),
     ) -> dict[str, str]:
         return {"admin_id": str(admin.admin_id)}
+
+    @app.get("/api/v1/redaction-probe")
+    def redaction_probe() -> None:
+        raise ApiProblem(
+            status_code=502,
+            code="upstream_unavailable",
+            message=(
+                "Cookie: UID=private-cookie "
+                "https://example.test/play?signature=private-signature"
+            ),
+        )
+
+    @app.get("/api/v1/malicious-code-probe")
+    def malicious_code_probe() -> None:
+        raise ApiProblem(
+            status_code=502,
+            code="cookie=private-cookie",
+            message="upstream failed",
+        )
 
     @app.websocket("/api/v1/websocket-protected-probe")
     async def websocket_protected_probe(
@@ -192,6 +212,25 @@ def test_login_validation_and_credentials_errors_never_echo_secrets(
     assert invalid.headers["cache-control"] == "no-store"
     assert wrong_password not in wrong.text
     assert "short" not in invalid.text
+
+
+def test_api_problem_response_redacts_secrets_and_capability_urls(
+    client: TestClient,
+) -> None:
+    response = client.get("/api/v1/redaction-probe")
+
+    assert response.status_code == 502
+    assert response.json()["code"] == "upstream_unavailable"
+    assert "private-cookie" not in response.text
+    assert "private-signature" not in response.text
+
+
+def test_api_problem_response_rejects_untrusted_error_codes(client: TestClient) -> None:
+    response = client.get("/api/v1/malicious-code-probe")
+
+    assert response.status_code == 502
+    assert response.json()["code"] == "internal_error"
+    assert "private-cookie" not in response.text
 
 
 def test_bearer_dependency_refresh_and_logout_enforce_session_state(

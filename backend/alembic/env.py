@@ -4,11 +4,13 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from sakuraplayer.identity.models import Base
+from sakuraplayer.shared.redaction import install_redaction_filters
 
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+    install_redaction_filters()
 
 target_metadata = Base.metadata
 

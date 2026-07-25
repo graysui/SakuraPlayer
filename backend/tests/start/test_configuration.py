@@ -165,6 +165,19 @@ def test_rejects_reused_secret_source_across_key_and_bootstrap(
     assert "secret purposes" in str(error.value)
 
 
+@pytest.mark.parametrize("key_id", ["", "x" * 65, "contains spaces"])
+def test_rejects_invalid_settings_key_id(
+    production_env: dict[str, str],
+    key_id: str,
+) -> None:
+    production_env["SAKURAPLAYER_SETTINGS_KEY_ID"] = key_id
+
+    with pytest.raises(StartupConfigurationError) as error:
+        load_settings(production_env)
+
+    assert error.value.variable == "SAKURAPLAYER_SETTINGS_KEY_ID"
+
+
 def test_rejects_same_key_material_with_different_base64_padding(
     production_env: dict[str, str],
 ) -> None:

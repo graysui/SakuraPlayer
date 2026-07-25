@@ -3,7 +3,7 @@ id: TASK-003
 title: "秘密加密与脱敏基础设施"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: implemented
 dependencies: [TASK-001]
 ac-mapping: [AC-014, AC-015, AC-017, AC-120, AC-128]
 imp-requirements: [REQ-004, REQ-022, REQ-024]
@@ -20,16 +20,16 @@ provides: [AES-GCM secret repository, redaction, test secret provider]
 
 ## 验收条件
 
-- [ ] 115 Cookie 等敏感配置以主密钥加密后写 PostgreSQL，主密钥只能来自 Docker Secret 或环境变量；对应 AC-014、AC-120。
-- [ ] 加密记录包含版本并支持并发安全 CAS，旧请求不能覆盖新凭据；对应 AC-015。
-- [ ] 普通日志和诊断响应不输出 Cookie、完整磁力、AI key 或完整签名 URL；对应 AC-017。
-- [ ] 默认自动测试使用可替换的内存/fake secret provider，不访问真实外部服务；对应 AC-128。
+- [x] 115 Cookie 等敏感配置以主密钥加密后写 PostgreSQL，主密钥只能来自 Docker Secret 或环境变量；对应 AC-014、AC-120。
+- [x] 加密记录包含版本并支持并发安全 CAS，旧请求不能覆盖新凭据；对应 AC-015。
+- [x] 普通日志和诊断响应不输出 Cookie、完整磁力、AI key 或完整签名 URL；对应 AC-017。
+- [x] 默认自动测试使用可替换的内存/fake secret provider，不访问真实外部服务；对应 AC-128。
 
 ## Definition of Ready
 
-- [ ] TASK-001 数据模型骨架和 TASK-002 session epoch 可用。
-- [ ] AES-256-GCM nonce、key_id、ciphertext 和 version 字段已确认。
-- [ ] 生产缺少主密钥的启动失败行为已确定。
+- [x] TASK-001 数据模型骨架和 TASK-002 session epoch 可用。
+- [x] AES-256-GCM nonce、key_id、ciphertext 和 version 字段已确认。
+- [x] 生产缺少主密钥的启动失败行为已确定。
 
 ## 技术上下文
 
@@ -67,9 +67,9 @@ provides: [AES-GCM secret repository, redaction, test secret provider]
 
 ## Definition of Done
 
-- [ ] 所有可恢复秘密统一接入仓储和 CAS。
-- [ ] 脱敏测试覆盖 API/日志/诊断路径。
-- [ ] 自动测试无真实外部访问。
+- [x] 所有可恢复秘密统一接入仓储和 CAS。
+- [x] 脱敏测试覆盖 API/日志/诊断路径。
+- [x] 自动测试无真实外部访问。
 
 **依赖**: TASK-001
 

@@ -124,6 +124,7 @@ def test_upgrade_to_head_is_idempotent_and_creates_identity_tables(
         assert sorted(inspect(connection).get_table_names()) == [
             "admin_user",
             "alembic_version",
+            "encrypted_setting",
             "refresh_session",
         ]
     engine.dispose()

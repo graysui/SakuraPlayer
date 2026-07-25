@@ -10,17 +10,25 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    JSON,
     LargeBinary,
     String,
     Text,
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
+
+
+_JSON_VALUE = JSON(none_as_null=True).with_variant(
+    JSONB(none_as_null=True),
+    "postgresql",
+)
 
 
 class AdminUser(Base):
@@ -101,3 +109,47 @@ Index(
     postgresql_where=RefreshSession.revoked_at.is_(None),
     sqlite_where=RefreshSession.revoked_at.is_(None),
 )
+
+
+class EncryptedSetting(Base):
+    __tablename__ = "encrypted_setting"
+    __table_args__ = (
+        CheckConstraint(
+            "length(key) >= 1",
+            name="ck_encrypted_setting_key_not_empty",
+        ),
+        CheckConstraint(
+            "(public_value IS NOT NULL AND key_id IS NULL "
+            "AND nonce IS NULL AND ciphertext IS NULL) OR "
+            "(public_value IS NULL AND key_id IS NOT NULL "
+            "AND nonce IS NOT NULL AND ciphertext IS NOT NULL)",
+            name="ck_encrypted_setting_value_shape",
+        ),
+        CheckConstraint(
+            "key_id IS NULL OR length(key_id) >= 1",
+            name="ck_encrypted_setting_key_id_not_empty",
+        ),
+        CheckConstraint(
+            "nonce IS NULL OR length(nonce) = 12",
+            name="ck_encrypted_setting_nonce_length",
+        ),
+        CheckConstraint(
+            "ciphertext IS NULL OR length(ciphertext) >= 16",
+            name="ck_encrypted_setting_ciphertext_length",
+        ),
+        CheckConstraint("version >= 1", name="ck_encrypted_setting_version"),
+    )
+
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    public_value: Mapped[object | None] = mapped_column(
+        _JSON_VALUE,
+        nullable=True,
+    )
+    key_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    nonce: Mapped[bytes | None] = mapped_column(LargeBinary(12), nullable=True)
+    ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    version: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
