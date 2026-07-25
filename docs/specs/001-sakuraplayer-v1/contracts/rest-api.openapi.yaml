@@ -893,7 +893,8 @@ paths:
       operationId: listResourceSourcesForIdentification
       description: >-
         Lists resource-source identification records without magnet, upstream
-        response bodies or other submission secrets.
+        response bodies or other submission secrets. Results use stable
+        imported_at/id keyset order; cursors are bound to status and query.
       parameters:
         - name: identification_status
           in: query
@@ -903,6 +904,7 @@ paths:
             default: pending
         - name: q
           in: query
+          description: Literal case-insensitive title/raw-number search, or exact post ID.
           schema:
             type: string
             maxLength: 200
@@ -915,6 +917,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PendingResourceSourcePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /admin/resources/{source_id}/identification:
     put:
       tags: [Admin]
@@ -944,8 +950,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MovieSource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /admin/movies/merge:
     post:
       tags: [Admin]

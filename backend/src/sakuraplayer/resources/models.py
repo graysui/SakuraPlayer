@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 import uuid
 
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
     JSON,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -18,6 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from sakuraplayer.identity.crypto import EncryptedEnvelope
 from sakuraplayer.identity.models import Base
 
 
@@ -172,11 +175,151 @@ class AvdbAsset(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
 
 
+class Movie(Base):
+    __tablename__ = "movie"
+    __table_args__ = (
+        CheckConstraint(
+            "catalog_state IN ('raw_only', 'metadata_queued', "
+            "'metadata_running', 'core_ready')",
+            name="ck_movie_catalog_state",
+        ),
+        UniqueConstraint(
+            "normalized_number",
+            name="uq_movie_normalized_number",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    normalized_number: Mapped[str] = mapped_column(String(128), nullable=False)
+    raw_numbers: Mapped[list[str]] = mapped_column(_JSON_VALUE, nullable=False)
+    catalog_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+class ResourceSource(Base):
+    __tablename__ = "resource_source"
+    __table_args__ = (
+        CheckConstraint(
+            "website IN ('sehuatang', 'x1080x')",
+            name="ck_resource_source_website",
+        ),
+        CheckConstraint(
+            "resource_size_mb IS NULL OR resource_size_mb >= 0",
+            name="ck_resource_source_size",
+        ),
+        CheckConstraint(
+            "section IN "
+            "('亚洲有码', '亚洲无码', '中文字幕', "
+            "'4K原版', '素人有码', 'FC2')",
+            name="ck_resource_source_section",
+        ),
+        CheckConstraint(
+            "identification_status IN "
+            "('identified', 'pending', 'manual', 'rejected')",
+            name="ck_resource_source_identification_status",
+        ),
+        CheckConstraint(
+            "(identification_status = 'pending' AND movie_id IS NULL "
+            "AND normalized_number IS NULL) OR "
+            "(identification_status IN ('identified', 'manual') "
+            "AND movie_id IS NOT NULL AND normalized_number IS NOT NULL) OR "
+            "(identification_status = 'rejected')",
+            name="ck_resource_source_identification",
+        ),
+        CheckConstraint(
+            "(magnet_key_id IS NULL AND magnet_nonce IS NULL "
+            "AND magnet_ciphertext IS NULL) OR "
+            "(magnet_key_id IS NOT NULL AND magnet_nonce IS NOT NULL "
+            "AND magnet_ciphertext IS NOT NULL)",
+            name="ck_resource_source_magnet_shape",
+        ),
+        CheckConstraint(
+            "identification_status <> 'rejected' OR "
+            "(magnet_key_id IS NULL AND magnet_nonce IS NULL "
+            "AND magnet_ciphertext IS NULL)",
+            name="ck_resource_source_rejected_secret",
+        ),
+        CheckConstraint(
+            "magnet_nonce IS NULL OR length(magnet_nonce) = 12",
+            name="ck_resource_source_magnet_nonce",
+        ),
+        CheckConstraint(
+            "magnet_ciphertext IS NULL OR length(magnet_ciphertext) >= 16",
+            name="ck_resource_source_magnet_ciphertext",
+        ),
+        UniqueConstraint(
+            "website",
+            "external_post_id",
+            name="uq_resource_source_external",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    website: Mapped[str] = mapped_column(String(32), nullable=False)
+    external_post_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    movie_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("movie.id", ondelete="RESTRICT"),
+        index=True,
+    )
+    raw_number: Mapped[str | None] = mapped_column(String(128))
+    normalized_number: Mapped[str | None] = mapped_column(String(128))
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    publish_date: Mapped[date | None] = mapped_column(Date)
+    section: Mapped[str] = mapped_column(String(64), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(128))
+    resource_size_mb: Mapped[int | None] = mapped_column(BigInteger)
+    detail_url: Mapped[str | None] = mapped_column(Text)
+    preview_urls: Mapped[list[str]] = mapped_column(_JSON_VALUE, nullable=False)
+    magnet_key_id: Mapped[str | None] = mapped_column(String(64))
+    magnet_nonce: Mapped[bytes | None] = mapped_column(LargeBinary(12))
+    magnet_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    identification_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    source_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    @property
+    def magnet_envelope(self) -> EncryptedEnvelope | None:
+        if (
+            self.magnet_key_id is None
+            or self.magnet_nonce is None
+            or self.magnet_ciphertext is None
+        ):
+            return None
+        return EncryptedEnvelope(
+            key_id=self.magnet_key_id,
+            nonce=self.magnet_nonce,
+            ciphertext=self.magnet_ciphertext,
+        )
+
+
 Index(
     "ix_avdb_sync_request_claim",
     AvdbSyncRequest.status,
     AvdbSyncRequest.scheduled_for,
 )
+Index(
+    "ix_resource_source_number_publish_date",
+    ResourceSource.normalized_number,
+    ResourceSource.publish_date.desc(),
+)
 
 
-__all__ = ["AvdbAsset", "AvdbSyncRequest", "AvdbSyncRun", "Base"]
+__all__ = [
+    "AvdbAsset",
+    "AvdbSyncRequest",
+    "AvdbSyncRun",
+    "Base",
+    "Movie",
+    "ResourceSource",
+]

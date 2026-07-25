@@ -3,7 +3,7 @@ id: TASK-005
 title: "六分类导入、番号与首次范围"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: completed
 dependencies: [TASK-004]
 ac-mapping: [AC-020, AC-021, AC-022, AC-025, AC-026, AC-027, AC-028, AC-029, AC-030]
 imp-requirements: [REQ-005, REQ-006, REQ-007]
@@ -22,25 +22,27 @@ provides: [AVdb worker consumer, source importer, number normalizer, initial met
 
 ## 验收条件
 
-- [ ] worker 原子 claim TASK-004 的同步请求，执行 Release 下载、解密和来源批量导入后收尾；每日/每周请求不得永久停在 queued；与 TASK-004 联合对应 AC-020、AC-021。
-- [ ] 全量导入只 upsert 当前行，缺失的既有 `resource_source` 不删除、不禁用；与 TASK-004 联合对应 AC-022。
-- [ ] 只导入亚洲有码、亚洲无码、中文字幕、4K原版、素人有码、FC2 的全部历史来源；对应 AC-025。
-- [ ] 首批队列只取最近 90 天且最多 5000 个唯一番号，之后继续无总量上限的历史补齐；对应 AC-026、AC-027。
-- [ ] 无番号或无法规范化的来源进入可搜索、可分页的待识别列表，不进入正式媒体库和自动元数据队列；管理员可手动关联；对应 AC-028、AC-029。
-- [ ] 同一规范化番号只有一部影片骨架，并保留原始番号和别名；对应 AC-030。
+- [x] worker 原子 claim TASK-004 的同步请求，执行 Release 下载、解密和来源批量导入后收尾；每日/每周请求不得永久停在 queued；与 TASK-004 联合对应 AC-020、AC-021。
+- [x] 全量导入只 upsert 当前行，缺失的既有 `resource_source` 不删除、不禁用；与 TASK-004 联合对应 AC-022。
+- [x] 只导入亚洲有码、亚洲无码、中文字幕、4K原版、素人有码、FC2 的全部历史来源；对应 AC-025。
+- [x] 首批队列只取最近 90 天且最多 5000 个唯一番号，之后继续无总量上限的历史补齐；对应 AC-026、AC-027。
+- [x] 无番号或无法规范化的来源进入可搜索、可分页的待识别列表，不进入正式媒体库和自动元数据队列；管理员可手动关联；对应 AC-028、AC-029。
+- [x] 同一规范化番号只有一部影片骨架，并保留原始番号和别名；对应 AC-030。
 
 ## Definition of Ready
 
-- [ ] TASK-004 能提供验证后的 CSV 行流、同步批次、幂等请求和 worker consumer 端口。
-- [ ] 番号规范化规则与特殊 FC2 格式已有固定样本。
-- [ ] 29 万级目标数据量作为容量基线。
+- [x] TASK-004 能提供验证后的 CSV 行流、同步批次、幂等请求和 worker consumer 端口。
+- [x] 番号规范化规则与特殊 FC2 格式已有固定样本；见 [影片番号规范化输入边界](../changes/2026-07-25--movie-number-normalization.md)。
+- [x] 29 万级目标数据量作为容量基线。
 
 ## 技术上下文
 
 - `resource_source` 以 website + tid 唯一；`movie` 以 normalized_number 唯一。
 - 初始选择先按发布日期降序去重，再截断 5000；不能按来源帖子数截断。
+- 最近 90 天的日历边界、并列排序、空日期和历史候选语义见 [首批元数据范围边界与排序](../changes/2026-07-25--initial-metadata-scope-ordering.md)。
 - 处理采用批次提交，内存中不构造全部 CSV 行列表。
 - request claim、Release 运行与来源批次分别持久化；worker 崩溃后按租约和游标恢复，不把 queued 当作 imported。
+- 待识别搜索、键集游标和手动关联并发语义见 [待识别查询与关联确定性](../changes/2026-07-25--pending-identification-pagination.md)。
 
 ## 实现文件（仅文件名）
 
@@ -80,11 +82,11 @@ provides: [AVdb worker consumer, source importer, number normalizer, initial met
 
 ## Definition of Done
 
-- [ ] 六分类、规范化、首批范围和待识别流程完成。
-- [ ] AVdb 生产 worker consumer 已接通，调度请求不会永久停在 queued。
-- [ ] 全量缺失既有来源的 PostgreSQL 证据通过。
-- [ ] 29 万级 fixture/生成数据验证采用流式或分批处理。
-- [ ] 正式查询不能看到待识别来源。
+- [x] 六分类、规范化、首批范围和待识别流程完成。
+- [x] AVdb 生产 worker consumer 已接通，调度请求不会永久停在 queued。
+- [x] 全量缺失既有来源的 PostgreSQL 证据通过。
+- [x] 29 万级 fixture/生成数据验证采用流式或分批处理。
+- [x] 正式查询不能看到待识别来源。
 
 **依赖**: TASK-004
 

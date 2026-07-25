@@ -112,7 +112,7 @@ def test_nonempty_unversioned_database_with_user_object_is_not_adopted(
     assert error.value.code == "schema_revision_unknown"
 
 
-def test_upgrade_to_head_is_idempotent_and_creates_identity_tables(
+def test_upgrade_to_head_is_idempotent_and_creates_expected_tables(
     database_url: str,
 ) -> None:
     upgrade_database(database_url, ALEMBIC_INI)
@@ -128,7 +128,9 @@ def test_upgrade_to_head_is_idempotent_and_creates_identity_tables(
             "avdb_sync_request",
             "avdb_sync_run",
             "encrypted_setting",
+            "movie",
             "refresh_session",
+            "resource_source",
         ]
     engine.dispose()
 

@@ -7,6 +7,10 @@ from fastapi.responses import JSONResponse
 
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.resources.identification_api import (
+    IdentificationService,
+    create_identification_api,
+)
 from sakuraplayer.shared.redaction import (
     redact_mapping,
     redact_text,
@@ -18,6 +22,7 @@ def create_app(
     *,
     readiness_probe: Callable[[], bool],
     identity_service: AuthService | None = None,
+    identification_service: IdentificationService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -83,5 +88,15 @@ def create_app(
             identity_api.websocket_admin_dependency
         )
         app.state.access_authenticator = identity_api.access_authenticator
+
+        if identification_service is not None:
+            app.include_router(
+                create_identification_api(
+                    identification_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+    elif identification_service is not None:
+        raise ValueError("identification API requires identity service")
 
     return app
