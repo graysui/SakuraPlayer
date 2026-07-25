@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [reviewed HarmonyOS client files]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-314: HarmonyOS 客户端代码清理
 
 **功能描述**: HarmonyOS E2E 与真机门禁通过后执行 ArkTS/ArkUI/Hvigor 卫生清理，不改变导航、状态、AVPlayer、固定 UA、字幕或签名行为。

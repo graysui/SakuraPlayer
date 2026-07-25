@@ -6,6 +6,8 @@
 
 **语言**: ArkTS / ArkUI / HarmonyOS API 24
 
+**实施与验证流程**: [统一实施与验证工作流](implementation-workflow.md)
+
 ## 代码库与平台分析摘要
 
 - 使用 DevEco Studio 6.1.1 Release 6.1.1.280、SDK 6.1.1(24)、Hvigor 6.24.2、ohpm 6.1.2.268、Node 18.20.1。
@@ -14,6 +16,8 @@
 - AC-006 和 AC-131 是进入门禁，不生成业务实现任务。TASK-301 只建立最小 Stage/签名探针工程，TASK-312 必须在 TASK-302 及后续功能开发前完成真实设备验收。
 
 ## 任务索引
+
+表中的依赖列是便于阅读的直接依赖或连续范围摘要；正式直接依赖始终以对应 `tasks/TASK-xxx.md` frontmatter 为准。
 
 | ID | 标题 | 主要焦点 | 依赖 | 外部风险 |
 |---|---|---|---|---|

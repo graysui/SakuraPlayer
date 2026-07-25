@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [HarmonyOS E2E suite, cross-platform state evidence]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-313: HarmonyOS 端到端验收
 
 **功能描述**: 在 AC-131 前置门禁和全部鸿蒙功能任务完成后，使用 Fake 后端验证完整用户旅程、跨端状态一致性和可选服务故障隔离。

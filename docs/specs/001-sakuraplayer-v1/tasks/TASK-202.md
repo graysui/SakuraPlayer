@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [Dio API client, secure token store, WebSocket client, snapshot recovery]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-202: API、令牌、事件与快照基础
 
 **功能描述**: 实现后端基址配置/测试、OpenAPI DTO、Dio 认证/refresh、安全存储、WebSocket 去重/版本检测、REST snapshot 恢复和前后台生命周期。

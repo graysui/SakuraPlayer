@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [HarmonyOS media library grid and filters]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-304: HarmonyOS 媒体库网格筛选与进度
 
 **功能描述**: 使用 LazyForEach/Grid/响应式 breakpoint 实现去重影片网格、六分类/标签/来源/可播放/大小/收藏筛选和进度按钮。

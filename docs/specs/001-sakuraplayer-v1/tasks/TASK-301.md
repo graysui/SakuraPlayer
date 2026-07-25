@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [HarmonyOS API24 Stage app scaffold, signing baseline, GPLv3 bundle]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-301: API 24 Stage 工程与签名侧载基线
 
 **功能描述**: 在 Windows/真实 115 门禁后，用 DevEco Studio 6.1.1 Release 生成 API 24 Stage 模型 entry HAP，配置精确工具链、最小权限、签名侧载和许可证。

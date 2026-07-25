@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [Windows release packaging, explicit real115 test harness, license bundle]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-212: Windows 私有安装包与真实验收工具
 
 **功能描述**: 建立 Windows release/私有安装包、许可证产物、默认离线自动测试和显式真实 115 验收 harness，为 TASK-213 提供可重复门禁。

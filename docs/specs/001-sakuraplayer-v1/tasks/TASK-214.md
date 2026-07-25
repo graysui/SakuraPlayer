@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [reviewed Windows client files]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-214: Windows 客户端代码清理
 
 **功能描述**: Windows E2E 评审后执行 Dart/Flutter 卫生清理，不改变导航、状态、播放器、固定 UA 或平台构建行为。

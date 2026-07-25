@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [Windows movie detail and source selector]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-207: 影片详情多来源与收藏
 
 **功能描述**: 实现聚合影片详情、演员/标签/图片、影片进度、单一收藏和像 Emby 一样的多来源选择列表。

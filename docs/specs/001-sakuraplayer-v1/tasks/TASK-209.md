@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [Windows play request controller, blocking wait page, cache notifications]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-209: 播放请求全屏等待与通知
 
 **功能描述**: 从详情来源触发 play-request，处理 ready/started/queued/reused，started 时全屏锁定最多 60 秒，排队/超时/后台完成按规格退出和通知。

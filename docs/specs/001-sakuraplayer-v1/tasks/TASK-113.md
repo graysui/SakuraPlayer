@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [cloud115 cache playback fake e2e suite]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-113: 115 缓存播放后端端到端测试
 
 **功能描述**: 用 Fake 115 和真实 PostgreSQL 验证扫码、点击来源、2/10、60 秒、解析、播放、字幕、进度、TTL/LRU、安全清理和恢复全链路。

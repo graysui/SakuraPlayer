@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [HarmonyOS subtitle cache, track controls, progress heartbeat]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-311: HarmonyOS 字幕音轨进度与生命周期
 
 **功能描述**: 在 API 24 真机已验证前提下接入内嵌字幕/音轨、外置四格式私有缓存、字幕选择、倍速和影片级自动续播/完成阈值。

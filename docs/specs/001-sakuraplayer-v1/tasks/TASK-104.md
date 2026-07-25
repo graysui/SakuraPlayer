@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [cache worker claim, offline submit reconcile poll cancel]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-104: 离线提交、对账、取消与等待语义
 
 **功能描述**: worker 创建独立任务目录、提交/对账 115 离线、轮询状态、处理取消，并通过 API disposition 表达 started/queued/reused/ready 和 60 秒等待边界。

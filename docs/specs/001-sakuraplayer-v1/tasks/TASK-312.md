@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [AC-131 API 24 real device evidence, HarmonyOS development gate marker]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-312: HarmonyOS API 24 真机前置门禁
 
 **功能描述**: 在任何鸿蒙业务功能开发前，使用 TASK-301 的最小签名 HAP 和真实 API 24 设备验证固定 User-Agent、302、Range、HLS、MKV 与 ASS；任一关键项失败都阻断 TASK-302 及后续任务。

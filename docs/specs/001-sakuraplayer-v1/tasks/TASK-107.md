@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [sliding TTL, ready LRU, playback lease, ownership verifier, cleanup worker]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-107: TTL、LRU、租约与安全清理
 
 **功能描述**: 实现 24 小时可配置滑动 TTL、默认 20 就绪上限、播放租约、运行任务排除和证明式 115 安全清理。

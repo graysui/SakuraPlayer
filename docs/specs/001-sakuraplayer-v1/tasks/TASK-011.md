@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [catalog REST API, global search, movie actor detail, favorites]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-011: 媒体库、搜索、详情与收藏 API
 
 **功能描述**: 发布只读 core_ready 目录、组合筛选、全局搜索、补全占位、影片/女优聚合详情和单一收藏 API。

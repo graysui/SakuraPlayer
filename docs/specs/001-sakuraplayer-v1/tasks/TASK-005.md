@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [source importer, number normalizer, initial metadata selector, pending identification]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-005: 六分类导入、番号与首次范围
 
 **功能描述**: 流式导入六个目标分类全部历史来源，规范化番号，建立去重影片骨架，并实现最近 90 天/最多 5000 的首批元数据选择和待识别流程。

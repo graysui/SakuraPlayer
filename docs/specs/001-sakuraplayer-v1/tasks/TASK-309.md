@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [HarmonyOS play request store, full-screen blocking wait, completion notifications]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-309: HarmonyOS 播放请求与 60 秒全屏等待
 
 **功能描述**: 处理 play-request disposition，用 bindContentCover/全屏 NavDestination 锁定 started 任务最多 60 秒，支持二次确认取消、排队退出和后台通知。

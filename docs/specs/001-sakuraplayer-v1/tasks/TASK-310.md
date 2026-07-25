@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [HarmonyOS AVPlayer surface, fixed UA transport, coalesced seek, playback modes]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-310: AVPlayer 原画 HLS 固定 UA 与 seek
 
 **功能描述**: 使用 Media Kit AVPlayer + XComponent/Video surface 构建应用内播放器，在 API 24 已验证能力上设置固定 UA、跟随 302/Range/HLS，并串行合并 seek。

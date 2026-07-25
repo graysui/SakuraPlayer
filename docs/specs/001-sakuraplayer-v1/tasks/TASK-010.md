@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [translation adapter, protected-field guard, translation record]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-010: OpenAI 兼容翻译
 
 **功能描述**: 实现可配置 OpenAI 兼容翻译适配器、异步标题/简介翻译、保护字段校验和来源摘要幂等复用。

@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [playback session signing, original resolver, 302 stream endpoint]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-108: 签名播放会话与原画 302
 
 **功能描述**: 创建 12 小时播放会话，绑定 owner/session epoch/cache/media/platform UA，默认解析 115 原画并以 `302 no-store` 直连。

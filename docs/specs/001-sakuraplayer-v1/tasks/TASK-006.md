@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [movie-source relation, source labels, merge split, source rejection port]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-006: 影片多来源、标签和拒绝标记
 
 **功能描述**: 建立影片与独立 AVdb 帖子的多来源关系、叠加标签证据、后台合并拆分和不含磁力的永久来源拒绝端口。

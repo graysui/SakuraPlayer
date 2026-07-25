@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [Windows QR binding UI, cache page, settings diagnostics]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-208: 115 扫码缓存管理设置与诊断
 
 **功能描述**: 实现 115 QR 绑定状态、缓存任务页、TTL 设置、连接测试、脱敏诊断和管理员重试/取消/清理操作。

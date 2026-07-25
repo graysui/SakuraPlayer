@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [HLS compatibility resolver, original fallback policy]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-109: 最高码率 HLS 兼容播放
 
 **功能描述**: 在原画取链失败或用户选择兼容播放时解析 115 HLS，按固定 UA 选择最高 bandwidth variant，并只暴露“原画/兼容播放”模式。

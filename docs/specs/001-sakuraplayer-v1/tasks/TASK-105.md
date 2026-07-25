@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [remote file scanner, media scorer, segment queue, subtitle locator]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-105: 视频字幕解析与媒体选择
 
 **功能描述**: 离线完成后递归枚举受管目录，识别有效视频/字幕、真实大小、主视频、多个候选和连续分段队列。

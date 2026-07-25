@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [movie playback state, heartbeat API, completion rule]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-111: 影片级进度与播放心跳
 
 **功能描述**: 保存跨端共享的影片级进度和播放租约心跳，自动续播，并按 95% 或剩余不足 2 分钟标记已看完。

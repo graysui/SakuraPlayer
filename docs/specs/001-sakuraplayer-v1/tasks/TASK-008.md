@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [JavDB core provider, DMM enrichment, permanent image store]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-008: JavDB 核心、DMM 与永久图片
 
 **功能描述**: 接入 JavDB 核心影片/演员关系、DMM 简介富化、可选 JavDB 凭据和永久目录图片原子缓存。

@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [Windows subtitle cache, track controls, progress heartbeat]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-211: 字幕音轨倍速与影片进度
 
 **功能描述**: 枚举内嵌字幕/音轨，下载 115 外置字幕到应用私有缓存，提供选择/倍速，并实现影片级自动续播、心跳和完成阈值。

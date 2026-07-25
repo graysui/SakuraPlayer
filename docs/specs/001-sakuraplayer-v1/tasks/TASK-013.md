@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [domain event log, websocket gateway, REST snapshot, settings diagnostics]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-013: 管理设置、诊断与持久事件
 
 **功能描述**: 建立事务内事件日志、鉴权 WebSocket/REST 快照恢复、脱敏设置/连接测试、元数据管理和诊断 API。

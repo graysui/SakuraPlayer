@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [HarmonyOS movie detail and source selector]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-307: HarmonyOS 影片详情多来源与收藏
 
 **功能描述**: 构建移动详情页、写真/演员/标签、影片进度、单一收藏和多来源选择 sheet。

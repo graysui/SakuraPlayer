@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [AVdb release adapter, decrypt pipeline, sync run persistence]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-004: AVdb Release 下载、解密与同步
 
 **功能描述**: 实现 AVdb GitHub Release 主/备发现、SHA-256 校验、PBKDF2-HMAC-SHA256/AES-256-GCM 解密、30D/全量调度和同步批次持久化。
@@ -43,6 +45,17 @@ provides: [AVdb release adapter, decrypt pipeline, sync run persistence]
 - 主备仓库、资产白名单、解密限制和 13 字段边界只使用 `contracts/avdb-source.md`，不依赖未跟踪原始指南。
 - 解密采用流式/分批 CSV 读取，单批失败不回滚其他已提交批次。
 - 使用 `Asia/Shanghai` 调度，scheduler 只入队，worker 执行导入。
+
+## 实施批次
+
+这些批次只定义 TASK-004 内的实现和聚焦验证顺序，不改变任务 ID、依赖、AC 映射或单次中文提交要求。
+
+| 批次 | 行为闭环 | 聚焦证据 |
+|---|---|---|
+| 1 | 固定加密 fixture、manifest 白名单、SHA-256、PBKDF2 和 AES-GCM 解密 | 密码参数、认证失败、BOM、空/损坏/超大资产单元测试 |
+| 2 | GitHub Release 主备发现、资产选择、下载中断和摘要切换策略 | Fake HTTP 主失败/备成功、摘要一致/冲突、未知 Release 测试 |
+| 3 | 同步批次持久化、游标、幂等导入协调和 scheduler 入队 | 隔离 PostgreSQL 集成、重复触发、30D/全量缺失不删除测试 |
+| 4 | 完整任务回归、差异自审和并行只读审计 | Fast 绿色、P0/P1 关闭后进入一次 Final 尝试 |
 
 ## 实现文件（仅文件名）
 

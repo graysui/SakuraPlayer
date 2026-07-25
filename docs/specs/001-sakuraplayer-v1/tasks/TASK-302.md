@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [HarmonyOS auth store, typed HTTP client, WebSocket snapshot recovery]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-302: Asset Store 认证 HTTP WebSocket 与快照
 
 **功能描述**: 用 API 24 官方能力实现后端基址配置/测试、安全令牌、严格 ArkTS DTO、HTTP refresh、WebSocket 去重和 REST snapshot 恢复。

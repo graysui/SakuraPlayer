@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [actor mapping snapshot, authoritative aliases, GFriends unique asset index]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-009: 演员映射与 GFriends
 
 **功能描述**: 每周刷新演员映射 XML 和 GFriends 索引，保存权威别名并只接受唯一明确的写真/头像匹配。

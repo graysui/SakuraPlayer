@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [HarmonyOS rankings page]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-305: HarmonyOS 日周月 TOP250 排行榜
 
 **功能描述**: 实现移动友好的四类榜单、年份筛选、本地快照时间、下拉刷新和游标加载。

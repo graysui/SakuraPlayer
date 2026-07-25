@@ -10,4 +10,8 @@ The four named volumes keep PostgreSQL data, permanent catalog images, provider 
 
 Windows delivery uses a private installer. HarmonyOS delivery remains blocked until the Windows and real 115 gates pass, then uses developer-signed sideloading. No public app-store workflow is included.
 
+## Development verification
+
+Backend implementation uses Focused/Fast checks for short feedback and a Final gate before a task is completed or committed. Fast results never replace the full PostgreSQL and Compose evidence required by Final. The authoritative commands, current script capabilities, and cache safety rules are in [tests/README.md](tests/README.md); the repository-wide sequence is in [implementation-workflow.md](../docs/specs/001-sakuraplayer-v1/implementation-workflow.md).
+
 See `../LICENSE` and `../THIRD_PARTY_NOTICES.md` before redistributing builds or imported source.

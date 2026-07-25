@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [cache events, notifications, snapshots, cache admin API, startup reconciliation]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-112: 缓存事件、通知、诊断与恢复
 
 **功能描述**: 将缓存/凭据/播放状态接入持久事件和 REST 快照，提供计数角标、通知、任务操作、脱敏诊断和进程重启对账。

@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [movie library grid, filters, progress card]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-204: 媒体库网格、筛选与进度卡片
 
 **功能描述**: 实现去重影片网格、六分类和叠加标签/来源/可播放/大小/收藏筛选、默认发布日期排序及卡片播放进度。

@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [desktop shell, global search, cache badge]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-203: 桌面 Shell、全局搜索与缓存角标
 
 **功能描述**: 实现 Windows 左侧三入口 Shell、顶部全局搜索/缓存/设置工具和影片/女优分组搜索补全状态。

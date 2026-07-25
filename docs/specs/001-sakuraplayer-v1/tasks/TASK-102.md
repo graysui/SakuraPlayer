@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [single 115 binding, QR API, cookie CAS, SakuraPlayer-Cache root]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-102: 扫码绑定、Cookie CAS 与缓存根
 
 **功能描述**: 实现 Windows/HarmonyOS 可用的扫码会话、唯一加密绑定、Cookie snapshot CAS、凭据状态和 `SakuraPlayer-Cache` find-or-create。

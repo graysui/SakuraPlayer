@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [ranking snapshot sync, ranking query API]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-012: JavDB 排行榜快照
 
 **功能描述**: 定时同步 JavDB 日榜、周榜、月榜、TOP250 和适用年份为本地快照，缺元数据时排高优先级任务，失败保留最近成功快照。

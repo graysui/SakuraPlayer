@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [HarmonyOS Navigation root, bottom tabs, theme, search, cache badge]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-303: Navigation 底部 Tab 主题搜索与角标
 
 **功能描述**: 使用 Navigation/NavPathStack 和 ArkUI V2 构建媒体库/排行榜/女优底部导航、顶部搜索/缓存/设置、系统明暗主题和缓存角标。

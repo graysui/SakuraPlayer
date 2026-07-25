@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [HarmonyOS QR binding, cache page, settings diagnostics notifications]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-308: HarmonyOS 115 扫码缓存设置与诊断
 
 **功能描述**: 实现 QR 绑定、缓存任务/角标、TTL 设置、连接测试、脱敏诊断、任务操作和 Notification Kit 完成通知。

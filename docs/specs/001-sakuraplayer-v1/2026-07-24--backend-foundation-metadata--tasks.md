@@ -6,6 +6,8 @@
 
 **语言**: Python / FastAPI / PostgreSQL
 
+**实施与验证流程**: [统一实施与验证工作流](implementation-workflow.md)
+
 ## 代码库分析摘要
 
 - 新建 `backend/`，遵循项目架构中的模块化单体和端口适配器结构。

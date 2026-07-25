@@ -6,6 +6,8 @@
 
 **语言**: Dart / Flutter / media_kit
 
+**实施与验证流程**: [统一实施与验证工作流](implementation-workflow.md)
+
 ## 代码库分析摘要
 
 - 新建 `windows/` Flutter 3.29.2 工程，只启用 Windows 平台。

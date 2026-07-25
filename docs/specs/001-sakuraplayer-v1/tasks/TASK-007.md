@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [metadata queue, three-slot supervisor, 600-second process timeout]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-007: 持久元数据队列与硬超时
 
 **功能描述**: 实现 PostgreSQL 元数据队列、固定三子进程 supervisor、600 秒进程组硬终止、五级优先级、完整失败重试和可选富化阶段重试。

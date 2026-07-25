@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [cache job aggregate, state machine, capacity slots, play request API]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-103: 缓存任务状态机与 2/10 容量
 
 **功能描述**: 建立 CacheJob 聚合、合法状态转换、AVdb SourceId 播放请求、固定 2 个运行/10 个排队容量和重复点击复用。

@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [Cloud115Port, protocol adapter, FakeCloud115, stable error mapping]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-101: Cloud115Port、适配器与 Fake
 
 **功能描述**: 选择性移植已验证 115 SDK 原语，封装 Cloud115Port、稳定错误、敏感信息边界和可编排 Fake，不带入永久媒体库语义。

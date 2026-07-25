@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [backend metadata e2e suite]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-014: 后端基础与元数据端到端测试
 
 **功能描述**: 使用 PostgreSQL、固定 AVdb/provider fixture 和 fake 外部适配器验证部署、认证、导入、元数据、目录、排行榜、事件和故障隔离全链路。

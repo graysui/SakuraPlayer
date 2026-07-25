@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [Flutter Windows app scaffold, theme, typed routes, login shell]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-201: Flutter Windows 脚手架、主题与认证壳
 
 **功能描述**: 新建仅 Windows 的 Flutter 3.29.2 工程，固定依赖、Riverpod/typed routes、主题、登录壳、私有发布和 GPLv3 声明。

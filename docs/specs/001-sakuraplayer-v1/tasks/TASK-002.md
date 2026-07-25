@@ -3,8 +3,9 @@ id: TASK-002
 title: "唯一管理员认证与会话"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: implemented
+status: completed
 implemented_date: 2026-07-24
+completed_date: 2026-07-24
 dependencies: [TASK-001]
 ac-mapping: [AC-001, AC-002, AC-004, AC-010, AC-011, AC-012, AC-133]
 imp-requirements: [REQ-001, REQ-003, REQ-025]
@@ -12,6 +13,8 @@ cross-boundary: false
 external-dependency-risk: false
 provides: [admin auth, refresh sessions, auth middleware]
 ---
+
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
 
 # TASK-002: 唯一管理员认证与会话
 

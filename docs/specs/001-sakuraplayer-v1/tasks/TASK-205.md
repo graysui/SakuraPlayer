@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [Windows rankings page]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-205: 日周月 TOP250 排行榜
 
 **功能描述**: 实现基于后端本地快照的日榜、周榜、月榜、TOP250 和适用年份筛选桌面页面。

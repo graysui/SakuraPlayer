@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [reviewed backend foundation and metadata files]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-015: 后端基础与元数据代码清理
 
 **功能描述**: 在 TASK-001 至 TASK-014 全部评审通过后，按 `specs-code-cleanup` 执行纯卫生清理，不改变逻辑或公共签名。

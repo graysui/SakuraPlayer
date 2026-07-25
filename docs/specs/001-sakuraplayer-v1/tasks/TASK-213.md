@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [Windows E2E suite, AC-130 real115 evidence]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-213: Windows 端到端与真实 115 门禁
 
 **功能描述**: 先用 Fake 后端完成 Windows 用户旅程，再用真实 115 专用目录验证 AC-130；全部通过才允许 HarmonyOS 工作流进入。

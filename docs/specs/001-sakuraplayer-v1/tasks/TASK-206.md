@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [Windows actress listing detail gallery cache]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-206: 女优列表详情与写真
 
 **功能描述**: 实现女优姓名/别名搜索、列表、详情、单一收藏、关联影片和 GFriends 头像/写真按需客户端缓存。

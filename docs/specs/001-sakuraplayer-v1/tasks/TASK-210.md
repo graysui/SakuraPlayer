@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [Windows media_kit player, fixed UA, throttled seek, playback modes]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-210: media_kit 原画 HLS 播放器
 
 **功能描述**: 实现应用内 media_kit/libmpv 播放器、固定 Windows UA、12 小时 stream capability、原画/兼容模式和 Player 层 in-flight seek 合并。

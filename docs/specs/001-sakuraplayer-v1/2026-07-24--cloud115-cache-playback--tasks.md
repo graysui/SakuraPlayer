@@ -6,6 +6,8 @@
 
 **语言**: Python / FastAPI / PostgreSQL
 
+**实施与验证流程**: [统一实施与验证工作流](implementation-workflow.md)
+
 ## 代码库分析摘要
 
 - 可移植参考项目的 Cloud115 SDK、扫码、Cookie CAS、原画/HLS 和小文件下载原语。

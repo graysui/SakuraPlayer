@@ -12,6 +12,8 @@ external-dependency-risk: false
 provides: [reviewed cloud cache playback files]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-114: 115 缓存播放后端代码清理
 
 **功能描述**: 在 115 后端评审通过后执行纯卫生清理，保留所有协议、状态机、安全删除和公共签名行为。

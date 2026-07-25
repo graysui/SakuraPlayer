@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [deterministic 115 failure classifier, SourceRejectionPort integration]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-106: 确定性失败与来源拒绝集成
 
 **功能描述**: 区分 115 确定性失效/违规/无法离线和临时错误，前者通过资源上下文公开端口擦除磁力并写永久拒绝标记。

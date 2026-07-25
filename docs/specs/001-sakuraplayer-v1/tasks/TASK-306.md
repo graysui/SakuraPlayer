@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [HarmonyOS actress listing detail gallery cache]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-306: HarmonyOS 女优列表详情与写真
 
 **功能描述**: 实现姓名/别名搜索、女优详情、单一收藏、关联影片和 GFriends 写真私有有界缓存。

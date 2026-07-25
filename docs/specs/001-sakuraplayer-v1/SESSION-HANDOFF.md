@@ -22,6 +22,13 @@
 - 脱敏覆盖多段 Cookie、磁力、Bearer/JWT、AI key、client secret、DSN、绝对/相对 URL query、异常 traceback 与结构化日志字段；异常 code 仅允许稳定小写蛇形码。
 - TASK-003 自动验证覆盖 125 项自包含测试、21 项 PostgreSQL 集成测试、Compose 真实认证 canary、秘密日志扫描、服务重启、ready 故障降级恢复和资源清理。
 
+## 1.1 当前任务门禁状态
+
+- **当前任务门禁阶段**: 未开始（TASK-004）
+- **最近绿色快速门禁**: TASK-003 已完成；后续任务从新的任务批次重新记录，不能把历史结果当作 TASK-004 证据。
+- **最终门禁状态**: 未运行；TASK-004 的完整 Compose 尚未运行。
+- **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final。
+
 ## 2. Git 状态基线
 
 已完成的文档提交：

@@ -3,8 +3,9 @@ id: TASK-001
 title: "后端工程、Compose 与 Schema 门禁"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: implemented
+status: completed
 implemented_date: 2026-07-24
+completed_date: 2026-07-24
 dependencies: []
 ac-mapping: [AC-005, AC-008, AC-009, AC-123, AC-124, AC-125, AC-126, AC-127, AC-133, AC-134]
 imp-requirements: [REQ-002, REQ-023, REQ-024, REQ-025]
@@ -12,6 +13,8 @@ cross-boundary: false
 external-dependency-risk: false
 provides: [backend scaffold, docker compose, alembic head, health endpoints]
 ---
+
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
 
 # TASK-001: 后端工程、Compose 与 Schema 门禁
 

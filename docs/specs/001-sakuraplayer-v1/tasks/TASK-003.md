@@ -3,7 +3,9 @@ id: TASK-003
 title: "秘密加密与脱敏基础设施"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: implemented
+status: completed
+implemented_date: 2026-07-25
+completed_date: 2026-07-25
 dependencies: [TASK-001]
 ac-mapping: [AC-014, AC-015, AC-017, AC-120, AC-128]
 imp-requirements: [REQ-004, REQ-022, REQ-024]
@@ -11,6 +13,8 @@ cross-boundary: false
 external-dependency-risk: false
 provides: [AES-GCM secret repository, redaction, test secret provider]
 ---
+
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
 
 # TASK-003: 秘密加密与脱敏基础设施
 

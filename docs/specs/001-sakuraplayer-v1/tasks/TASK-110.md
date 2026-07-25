@@ -12,6 +12,8 @@ external-dependency-risk: true
 provides: [subtitle options and download API, client cleanup lifecycle signals]
 ---
 
+**实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
 # TASK-110: 字幕下载、音轨契约与生命周期
 
 **功能描述**: 为播放器发布内嵌字幕/音轨能力、115 外置字幕选项和有上限的鉴权下载，并在缓存/登录生命周期变化时通知客户端删除副本。
