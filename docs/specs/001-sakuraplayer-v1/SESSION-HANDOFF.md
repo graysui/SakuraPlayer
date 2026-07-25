@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-25
 
-**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-003 已完成，下一任务为 TASK-004。
+**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-004 已完成，下一任务为 TASK-005。
 
 ## 1. 当前成果
 
@@ -21,12 +21,15 @@
 - 加密记录使用独立设置密钥、随机 96-bit nonce、key ID、密文和版本；并发新建/更新均以数据库原子条件写入避免旧凭据覆盖新值。
 - 脱敏覆盖多段 Cookie、磁力、Bearer/JWT、AI key、client secret、DSN、绝对/相对 URL query、异常 traceback 与结构化日志字段；异常 code 仅允许稳定小写蛇形码。
 - TASK-003 自动验证覆盖 125 项自包含测试、21 项 PostgreSQL 集成测试、Compose 真实认证 canary、秘密日志扫描、服务重启、ready 故障降级恢复和资源清理。
+- TASK-004 已交付 AVdb Release 主备发现、逐跳下载校验、PBKDF2/AES-GCM 文件式解密、类型化 13 字段行流、同步事实、租约恢复、调度生产者和 worker consumer 端口。
+- AVdb request/run 使用 token、未过期租约和 PostgreSQL 行锁隔离旧 worker；同 Release 已提交目录按文件集合、大小和 SHA-256 安全复用，解密明文使用受管目录并支持崩溃后扫尾。
+- TASK-004 自动验证覆盖 175 项自包含测试、28 项 PostgreSQL 集成测试、迁移、五服务健康、认证 canary、敏感日志扫描、重启、ready 降级恢复和资源清理。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: 未开始（TASK-004）
-- **最近绿色快速门禁**: TASK-003 已完成；后续任务从新的任务批次重新记录，不能把历史结果当作 TASK-004 证据。
-- **最终门禁状态**: 未运行；TASK-004 的完整 Compose 尚未运行。
+- **当前任务门禁阶段**: TASK-004 已完成；下一任务 TASK-005 尚未开始。
+- **最近绿色快速门禁**: TASK-004 Fast 为 175 passed、7 deselected；宿主 Docker 配置断言通过。
+- **最终门禁状态**: TASK-004 Compose Final 通过；PostgreSQL 集成为 28 passed、12 deselected，运行与清理门禁全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final。
 
 ## 2. Git 状态基线
@@ -43,18 +46,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003。
-- **下一任务**: TASK-004 AVdb Release 下载、解密与同步。
-- **当前阻塞项**: 无；按任务依赖继续后端数据真相，不得跳到客户端或 115 实现。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004。
+- **下一任务**: TASK-005 六分类导入、番号与首次范围。
+- **当前阻塞项**: 无；TASK-005 接入真实 importer 时需约束单批处理低于 10 分钟或增加 run 批内心跳，并补齐 PostgreSQL run 并发创建与恢复矩阵。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-004 开始：
+下一会话从 TASK-005 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-004.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-005.md"
 ```
 
-完成 TASK-004 的实现、测试和评审后，按根目录 `AGENTS.md` 创建下一次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
+完成 TASK-005 的实现、测试和评审后，按根目录 `AGENTS.md` 创建下一次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
 
 ## 4. 必读契约
 

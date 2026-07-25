@@ -87,6 +87,8 @@ GCM 认证失败时不得尝试无认证解密、旧算法或降级路径，返�
 
 来源唯一键为 `(website, tid)`，不能只使用 `tid`。只有六个目标 section 进入 v1：亚洲有码、亚洲无码、中文字幕、4K原版、素人有码、FC2。
 
+TASK-004 输出类型化行边界：`tid/size` 转为 int64，日期和时间转为对应类型，空可选文本转为 null，`title/section/website/magnet` 保持非空；`website` 只接受 `sehuatang/x1080x`。无效日期或结构不安全的 URL 按 null 处理并附带不进入日志的字段错误；重复表头、越界整数、空必填字段和未知 website 拒绝资产。TASK-005 在持久化来源前执行站点主机白名单和六分类筛选。
+
 ## 6. 资源限制
 
 以下是 v1 实现边界 `(derived)`：

@@ -123,6 +123,27 @@ Domain aggregate 1 --- N DomainEvent
 
 ## 4. AVdb 资源接入
 
+### 4.0 `avdb_sync_request` `(derived)`
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `id` | UUID | 主键 | `(derived)` |
+| `mode` | enum | `incremental_30d/full_reconcile` | 支持 AC-020/021 |
+| `scheduled_for` | timestamptz | 调度触发的 UTC 分钟槽 | `(derived)` |
+| `status` | enum | `queued/claimed/completed/failed` | `(derived)` |
+| `claim_owner` | varchar(64) | 可空；claimed 时为 worker 实例 | `(derived)` |
+| `claim_token` | UUID | claimed 时非空，防止过期 worker 以相同 owner 收尾 | `(derived)` |
+| `claimed_at` | timestamptz | 可空；保留最近 claim 时间 | `(derived)` |
+| `claim_expires_at` | timestamptz | 可空；心跳续租，过期后允许重新 claim | `(derived)` |
+| `attempt_count` | bigint | 从 0 单调递增 | `(derived)` |
+| `created_at` | timestamptz | 非空 | `(derived)` |
+| `completed_at` | timestamptz | 可空 | `(derived)` |
+| `failure_code` | varchar(128) | 可空；稳定错误码 | 支持 AC-024 |
+| `failure_detail` | text | 可空；只保存脱敏摘要 | 支持 AC-024 |
+| `sync_run_id` | UUID | 成功时关联运行；禁止删除被引用运行 | `(derived)` |
+
+唯一键 `(mode, scheduled_for)` 合并 scheduler 的同槽重复触发。claim 收尾以 `id + owner + token + 未过期租约` 为 CAS 条件；该表只表达待执行请求，Release、资产、游标、结果和失败事实仍由 `avdb_sync_run` 与 `avdb_asset` 持有，scheduler 不执行下载或导入业务。
+
 ### 4.1 `avdb_sync_run`
 
 | 字段 | 类型 | 规则 | 来源 |
@@ -138,8 +159,11 @@ Domain aggregate 1 --- N DomainEvent
 | `failure_code` | varchar(128) | 可空、稳定错误码 | AC-024 |
 | `failure_detail` | text | 可空、脱敏 | AC-024 |
 | `stats` | jsonb | 插入/更新/跳过/待识别统计 | `(derived)` |
+| `claim_token` | UUID | running 时非空，防止旧 worker 更新 | `(derived)` |
+| `claim_expires_at` | timestamptz | running 租约；批次推进时续租 | `(derived)` |
+| `attempt_count` | bigint | 至少 1；恢复时递增 | `(derived)` |
 
-唯一键 `(repository, release_id, mode)` 防止重复导入同一 Release。
+唯一键 `(repository, release_id, mode)` 防止重复导入同一 Release。`completed` 永久幂等；`failed` 或租约过期的 `running` 可由新 claim 按游标恢复，活动租约不得被并发接管。
 
 ### 4.2 `avdb_asset`
 

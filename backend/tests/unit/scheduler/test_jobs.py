@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from datetime import timedelta
+
+from apscheduler.schedulers.background import BackgroundScheduler
+import pytest
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+
+from sakuraplayer.scheduler.jobs import register_avdb_jobs
+from sakuraplayer.resources.models import AvdbSyncRequest, Base
+from sakuraplayer.resources.sync_service import AvdbSyncQueue
+
+
+def test_registers_shanghai_incremental_and_weekly_full_enqueue_jobs() -> None:
+    enqueued: list[str] = []
+    scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
+
+    register_avdb_jobs(scheduler, enqueued.append)
+    register_avdb_jobs(scheduler, enqueued.append)
+
+    jobs = {job.id: job for job in scheduler.get_jobs()}
+    assert set(jobs) == {"avdb_incremental_30d", "avdb_full_reconcile"}
+    assert str(scheduler.timezone) == "Asia/Shanghai"
+    assert str(jobs["avdb_incremental_30d"].trigger) == (
+        "cron[hour='3', minute='0']"
+    )
+    assert str(jobs["avdb_full_reconcile"].trigger) == (
+        "cron[day_of_week='sun', hour='4', minute='0']"
+    )
+
+    jobs["avdb_incremental_30d"].func(*jobs["avdb_incremental_30d"].args)
+    jobs["avdb_full_reconcile"].func(*jobs["avdb_full_reconcile"].args)
+    assert enqueued == ["incremental_30d", "full_reconcile"]
+
+
+def test_database_queue_coalesces_duplicate_scheduler_slot() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    queue = AvdbSyncQueue(
+        factory,
+        now=lambda: datetime(2026, 7, 25, 19, 0, 30, tzinfo=timezone.utc),
+    )
+
+    first = queue.enqueue("incremental_30d")
+    repeated = queue.enqueue("incremental_30d")
+
+    assert first.created is True
+    assert repeated.created is False
+    assert first.request_id == repeated.request_id
+    with factory() as session:
+        requests = session.scalars(select(AvdbSyncRequest)).all()
+        assert len(requests) == 1
+        assert requests[0].scheduled_for == datetime(
+            2026,
+            7,
+            25,
+            19,
+            0,
+            tzinfo=timezone.utc,
+        ).replace(tzinfo=None)
+        assert requests[0].status == "queued"
+    engine.dispose()
+
+
+def test_queue_claim_and_failure_persist_safe_attempt_fact() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    current = datetime(2026, 7, 25, 19, 0, 30, tzinfo=timezone.utc)
+    queue = AvdbSyncQueue(factory, now=lambda: current)
+    enqueued = queue.enqueue("incremental_30d")
+
+    claimed = queue.claim_next("worker-1", lease_duration=timedelta(minutes=5))
+    assert claimed is not None and claimed.request_id == enqueued.request_id
+    queue.fail(
+        claimed,
+        code="avdb_decryption_failed",
+        detail="avdb_decryption_failed",
+    )
+
+    with factory() as session:
+        request = session.get(AvdbSyncRequest, enqueued.request_id)
+        assert request is not None and request.status == "failed"
+        assert request.attempt_count == 1
+        assert request.completed_at == current.replace(tzinfo=None)
+        assert request.failure_code == "avdb_decryption_failed"
+        assert request.failure_detail == "avdb_decryption_failed"
+        assert request.claim_owner is None
+        assert request.claim_expires_at is None
+    engine.dispose()
+
+
+def test_expired_reclaim_rejects_old_claim_from_same_worker() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    current = [datetime(2026, 7, 25, 19, 0, tzinfo=timezone.utc)]
+    queue = AvdbSyncQueue(factory, now=lambda: current[0])
+    queue.enqueue("incremental_30d")
+
+    old_claim = queue.claim_next("worker-1", lease_duration=timedelta(minutes=5))
+    current[0] += timedelta(minutes=6)
+    new_claim = queue.claim_next("worker-1", lease_duration=timedelta(minutes=5))
+
+    assert old_claim is not None and new_claim is not None
+    assert old_claim.claim_token != new_claim.claim_token
+    with pytest.raises(RuntimeError):
+        queue.fail(old_claim, code="internal_error", detail="internal_error")
+    queue.renew(new_claim, lease_duration=timedelta(minutes=5))
+    queue.fail(new_claim, code="internal_error", detail="internal_error")
+    engine.dispose()

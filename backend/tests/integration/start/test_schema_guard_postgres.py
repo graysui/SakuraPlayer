@@ -124,6 +124,9 @@ def test_upgrade_to_head_is_idempotent_and_creates_identity_tables(
         assert sorted(inspect(connection).get_table_names()) == [
             "admin_user",
             "alembic_version",
+            "avdb_asset",
+            "avdb_sync_request",
+            "avdb_sync_run",
             "encrypted_setting",
             "refresh_session",
         ]

@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from sakuraplayer.identity.models import Base
+from sakuraplayer.resources import models as resource_models
 from sakuraplayer.shared.redaction import install_redaction_filters
 
 
@@ -12,7 +12,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
     install_redaction_filters()
 
-target_metadata = Base.metadata
+target_metadata = resource_models.Base.metadata
 
 
 def run_migrations_offline() -> None:

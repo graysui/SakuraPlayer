@@ -3,7 +3,7 @@ id: TASK-004
 title: "AVdb Release 下载、解密与同步"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: completed
 dependencies: [TASK-001, TASK-003]
 ac-mapping: [AC-018, AC-019, AC-020, AC-021, AC-022, AC-024]
 imp-requirements: [REQ-005]
@@ -28,23 +28,23 @@ provides: [AVdb release adapter, decrypt pipeline, sync run persistence]
 
 ## 验收条件
 
-- [ ] 按文档的 200,000 次 PBKDF2-HMAC-SHA256 与 AES-256-GCM 解密内层 CSV；对应 AC-018。
-- [ ] 主源失败时使用备用源，切换前校验资产 SHA-256；对应 AC-019。
-- [ ] 每日 03:00 导入 30D、每周日 04:00 全量对账；同一 Release 幂等且全量缺失旧行不删除；对应 AC-020 至 AC-022。
-- [ ] 同步游标、Release、资产摘要、时间和失败原因持久化；对应 AC-024。
+- [x] 按文档的 200,000 次 PBKDF2-HMAC-SHA256 与 AES-256-GCM 解密内层 CSV；对应 AC-018。
+- [x] 主源失败时使用备用源，切换前校验资产 SHA-256；对应 AC-019。
+- [x] 每日 03:00 产生 30D 请求、每周日 04:00 产生全量请求；同槽请求和同一 Release 幂等，协调端口不发布删除/失效指令；与 TASK-005 联合对应 AC-020 至 AC-022。
+- [x] 同步游标、Release、资产摘要、时间和失败原因持久化；对应 AC-024。
 
 ## Definition of Ready
 
-- [ ] TASK-001 迁移和 scheduler 入口可运行。
-- [ ] 已读取 `contracts/avdb-source.md`；上游固定密钥材料作为公开格式常量，不与 SakuraPlayer 启动级 secret 混用。
-- [ ] 主备仓库、资产名和 Release ID 规则冻结。
+- [x] TASK-001 迁移和 scheduler 入口可运行。
+- [x] 已读取 `contracts/avdb-source.md`；上游固定密钥材料作为公开格式常量，不与 SakuraPlayer 启动级 secret 混用。
+- [x] 主备仓库、资产名和 Release ID 规则冻结。
 
 ## 技术上下文
 
 - `resources` 上下文拥有 `avdb_sync_run`、asset manifest 和 provider cache。
 - 主备仓库、资产白名单、解密限制和 13 字段边界只使用 `contracts/avdb-source.md`，不依赖未跟踪原始指南。
 - 解密采用流式/分批 CSV 读取，单批失败不回滚其他已提交批次。
-- 使用 `Asia/Shanghai` 调度，scheduler 只入队，worker 执行导入。
+- 使用 `Asia/Shanghai` 调度，scheduler 只入队；TASK-004 提供 worker consumer 端口，TASK-005 在来源 importer 可用后接通生产 worker 执行链，详见 [AVdb 管线任务边界澄清](../changes/2026-07-25--avdb-pipeline-task-boundary.md)。
 
 ## 实施批次
 
@@ -54,7 +54,7 @@ provides: [AVdb release adapter, decrypt pipeline, sync run persistence]
 |---|---|---|
 | 1 | 固定加密 fixture、manifest 白名单、SHA-256、PBKDF2 和 AES-GCM 解密 | 密码参数、认证失败、BOM、空/损坏/超大资产单元测试 |
 | 2 | GitHub Release 主备发现、资产选择、下载中断和摘要切换策略 | Fake HTTP 主失败/备成功、摘要一致/冲突、未知 Release 测试 |
-| 3 | 同步批次持久化、游标、幂等导入协调和 scheduler 入队 | 隔离 PostgreSQL 集成、重复触发、30D/全量缺失不删除测试 |
+| 3 | 同步批次持久化、游标、幂等协调、失败事实和 scheduler 入队 | 隔离 PostgreSQL 集成、重复触发、恢复和无删除指令测试 |
 | 4 | 完整任务回归、差异自审和并行只读审计 | Fast 绿色、P0/P1 关闭后进入一次 Final 尝试 |
 
 ## 实现文件（仅文件名）
@@ -64,10 +64,18 @@ provides: [AVdb release adapter, decrypt pipeline, sync run persistence]
 - `backend/src/sakuraplayer/resources/avdb_release.py` - Release 主备发现和下载。
 - `backend/src/sakuraplayer/resources/avdb_crypto.py` - manifest 校验和 AES-GCM 解密。
 - `backend/src/sakuraplayer/resources/sync_service.py` - 批次导入协调和游标。
+- `backend/src/sakuraplayer/resources/avdb_worker.py` - request claim、同步执行和安全状态收尾端口。
+- `backend/src/sakuraplayer/resources/models.py` - 同步请求、运行和资产模型。
 - `backend/src/sakuraplayer/scheduler/jobs.py` - 03:00/周日 04:00 入队注册。
 - `backend/tests/fixtures/avdb/` - 固定加密样本和损坏资产样本。
 - `backend/tests/unit/resources/test_avdb_crypto.py` - 解密/摘要单测。
 - `backend/tests/integration/resources/test_avdb_sync.py` - 主备、调度和持久化测试。
+
+**修改**:
+
+- `backend/src/sakuraplayer/scheduler/__main__.py` - 注册 AVdb 调度生产者。
+- `backend/alembic/env.py` - 注册资源模型 metadata。
+- `backend/alembic/versions/0004_avdb_sync.py` - 同步请求、运行和资产迁移。
 
 ## 测试说明
 
@@ -87,9 +95,9 @@ provides: [AVdb release adapter, decrypt pipeline, sync run persistence]
 
 ## Definition of Done
 
-- [ ] 解密、摘要、主备、调度和持久化完成。
-- [ ] 未把固定密钥、磁力或上游响应写入日志。
-- [ ] fixture/integration 测试通过。
+- [x] 解密、摘要、主备、调度生产者、worker consumer 端口和持久化完成。
+- [x] 未把固定密钥、磁力或上游响应写入日志。
+- [x] fixture/integration 测试通过。
 
 **依赖**: TASK-001, TASK-003
 
