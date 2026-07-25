@@ -227,6 +227,7 @@ Domain aggregate 1 --- N DomainEvent
 | `last_seen_release_id` | varchar(128) | 可空 | `(derived)` |
 
 唯一键 `(website, external_post_id)`。表中禁止磁力、标题全文和上游响应正文；同步先查拒绝标记并跳过重建来源。
+拒绝与来源导入对同一 `(website, external_post_id)` 使用相同的 PostgreSQL 事务级 advisory lock；拒绝事务提交后，后续增量或全量导入不得恢复来源磁力。
 
 ## 5. 目录与元数据
 

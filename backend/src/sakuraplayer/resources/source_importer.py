@@ -6,13 +6,20 @@ from datetime import date, datetime, timezone
 from urllib.parse import urlparse
 import uuid
 
-from sqlalchemy import case, select, tuple_
+from sqlalchemy import case, delete, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.identity.crypto import SecretCipher
-from sakuraplayer.resources.models import Movie, ResourceSource
+from sakuraplayer.resources.models import (
+    Movie,
+    ResourceSource,
+    ResourceSourceLabel,
+    SourceRejection,
+)
 from sakuraplayer.resources.number_normalizer import normalize_movie_number
+from sakuraplayer.resources.source_lock import lock_source_keys
+from sakuraplayer.resources.source_labels import derive_source_labels
 from sakuraplayer.resources.sync_service import BatchStats
 
 
@@ -91,6 +98,19 @@ class SourceImporter:
             return BatchStats(skipped=skipped)
         current = self._utc_now()
         with self._session_factory.begin() as session:
+            lock_source_keys(
+                session,
+                {(item.website, item.external_post_id) for item in prepared},
+            )
+            rejected = self._lock_rejections(session, prepared)
+            prepared = [
+                item
+                for item in prepared
+                if (item.website, item.external_post_id) not in rejected
+            ]
+            skipped += len(rejected)
+            if not prepared:
+                return BatchStats(skipped=skipped)
             movies = self._upsert_movies(session, prepared, current=current)
             existing = self._lock_existing_sources(session, prepared)
             self._upsert_sources(
@@ -99,6 +119,7 @@ class SourceImporter:
                 movies=movies,
                 current=current,
             )
+            self._replace_labels(session, prepared, current=current)
         pending = sum(
             item.normalized_number is None
             and existing.get((item.website, item.external_post_id)) != "manual"
@@ -148,6 +169,25 @@ class SourceImporter:
         )
 
     @staticmethod
+    def _lock_rejections(
+        session: Session,
+        prepared: list[_PreparedSource],
+    ) -> set[tuple[str, int]]:
+        keys = {(item.website, item.external_post_id) for item in prepared}
+        return set(
+            session.execute(
+                select(SourceRejection.website, SourceRejection.external_post_id)
+                .where(
+                    tuple_(
+                        SourceRejection.website,
+                        SourceRejection.external_post_id,
+                    ).in_(keys)
+                )
+                .with_for_update()
+            )
+        )
+
+    @staticmethod
     def _upsert_movies(
         session: Session,
         prepared: list[_PreparedSource],
@@ -191,6 +231,48 @@ class SourceImporter:
                 movie.raw_numbers = merged
                 movie.updated_at = current
         return {movie.normalized_number: movie for movie in movies}
+
+    @staticmethod
+    def _replace_labels(
+        session: Session,
+        prepared: list[_PreparedSource],
+        *,
+        current: datetime,
+    ) -> None:
+        keys = {(item.website, item.external_post_id) for item in prepared}
+        sources = list(
+            session.scalars(
+                select(ResourceSource).where(
+                    tuple_(
+                        ResourceSource.website,
+                        ResourceSource.external_post_id,
+                    ).in_(keys)
+                )
+            )
+        )
+        source_by_key = {
+            (source.website, source.external_post_id): source for source in sources
+        }
+        session.execute(
+            delete(ResourceSourceLabel).where(
+                ResourceSourceLabel.source_id.in_([source.id for source in sources])
+            )
+        )
+        for item in prepared:
+            source = source_by_key[(item.website, item.external_post_id)]
+            session.add_all(
+                ResourceSourceLabel(
+                    source_id=source.id,
+                    label=evidence.label,
+                    evidence=evidence.evidence,
+                    created_at=current,
+                )
+                for evidence in derive_source_labels(
+                    section=item.section,
+                    category=item.category,
+                    title=item.title,
+                )
+            )
 
     @staticmethod
     def _lock_existing_sources(

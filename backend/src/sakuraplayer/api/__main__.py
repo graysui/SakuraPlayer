@@ -9,6 +9,7 @@ from sakuraplayer.identity.service import AuthService
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.identification_api import IdentificationService
+from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.shared.config import StartupConfigurationError, load_settings
 from sakuraplayer.shared.runtime import (
     configure_component_logging,
@@ -58,6 +59,9 @@ def main() -> None:
         readiness_probe=lambda: is_ready(settings),
         identity_service=identity_service,
         identification_service=IdentificationService(
+            sessionmaker(engine, expire_on_commit=False)
+        ),
+        movie_source_admin_service=MovieSourceService(
             sessionmaker(engine, expire_on_commit=False)
         ),
     )

@@ -303,6 +303,50 @@ class ResourceSource(Base):
         )
 
 
+class ResourceSourceLabel(Base):
+    __tablename__ = "resource_source_label"
+    __table_args__ = (
+        CheckConstraint(
+            "label IN ('subtitle', 'cracked', '4k', 'censored')",
+            name="ck_resource_source_label_value",
+        ),
+        CheckConstraint("length(evidence) >= 1", name="ck_resource_source_label_evidence"),
+    )
+
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("resource_source.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    label: Mapped[str] = mapped_column(String(16), primary_key=True)
+    evidence: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+class SourceRejection(Base):
+    __tablename__ = "source_rejection"
+    __table_args__ = (
+        CheckConstraint("length(reason_code) >= 1", name="ck_source_rejection_reason_code"),
+        UniqueConstraint(
+            "website",
+            "external_post_id",
+            name="uq_source_rejection_external",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    website: Mapped[str] = mapped_column(String(32), nullable=False)
+    external_post_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(128), nullable=False)
+    rejected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    last_seen_release_id: Mapped[str | None] = mapped_column(String(128))
+
+
 Index(
     "ix_avdb_sync_request_claim",
     AvdbSyncRequest.status,
@@ -322,4 +366,6 @@ __all__ = [
     "Base",
     "Movie",
     "ResourceSource",
+    "ResourceSourceLabel",
+    "SourceRejection",
 ]

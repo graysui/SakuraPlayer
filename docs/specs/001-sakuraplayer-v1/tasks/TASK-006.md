@@ -3,7 +3,7 @@ id: TASK-006
 title: "影片多来源、标签和拒绝标记"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: completed
 dependencies: [TASK-005]
 ac-mapping: [AC-031, AC-032, AC-033, AC-034, AC-035, AC-036]
 imp-requirements: [REQ-007]
@@ -22,16 +22,16 @@ provides: [movie-source relation, source labels, merge split, source rejection p
 
 ## 验收条件
 
-- [ ] 每条来源按 website + tid 独立保存并可关联同一影片，后台可事务性合并或拆分错误关系；对应 AC-031、AC-032。
-- [ ] 字幕、破解、4K、有码是可叠加标签；严格按 section/category/标题或明确元数据证据生成；对应 AC-033、AC-034。
-- [ ] 离线前 API 将 AVdb size 标为资源大小，预留真实视频文件大小字段；对应 AC-035。
-- [ ] 确定性失效/违规/无法离线可擦除活动来源磁力并保存不含磁力的拒绝标记，后续导入跳过；对应 AC-036。
+- [x] 每条来源按 website + tid 独立保存并可关联同一影片，后台可事务性合并或拆分错误关系；对应 AC-031、AC-032。
+- [x] 字幕、破解、4K、有码是可叠加标签；严格按 section/category/标题或明确元数据证据生成；对应 AC-033、AC-034。
+- [x] 离线前 API 将 AVdb size 标为资源大小，预留真实视频文件大小字段；对应 AC-035。
+- [x] 确定性失效/违规/无法离线可擦除活动来源磁力并保存不含磁力的拒绝标记，后续导入跳过；对应 AC-036。
 
 ## Definition of Ready
 
-- [ ] TASK-005 的来源和影片唯一键已迁移。
-- [ ] 破解/字幕/4K/有码真实字段样本已固定。
-- [ ] Cloud/cache 后续调用所需 `SourceRejectionPort` 契约已确认。
+- [x] TASK-005 的来源和影片唯一键已迁移。
+- [x] 破解/字幕/4K/有码真实字段样本已固定。
+- [x] Cloud/cache 后续调用所需 [`SourceRejectionPort`](../contracts/source-rejection-port.md) 契约已确认。
 
 ## 技术上下文
 
@@ -47,6 +47,7 @@ provides: [movie-source relation, source labels, merge split, source rejection p
 - `backend/src/sakuraplayer/resources/movie_source_service.py` - 来源关系、合并和拆分。
 - `backend/src/sakuraplayer/resources/rejection.py` - 拒绝端口及导入 anti-join。
 - `backend/src/sakuraplayer/resources/admin_api.py` - identify/merge/split 管理 API。
+- `docs/specs/001-sakuraplayer-v1/contracts/source-rejection-port.md` - 跨上下文最小输入和原子拒绝语义。
 - `backend/tests/unit/resources/test_source_labels.py` - 真实分类组合测试。
 - `backend/tests/integration/resources/test_movie_source_admin.py` - 多来源和拒绝持久化。
 
@@ -68,9 +69,9 @@ provides: [movie-source relation, source labels, merge split, source rejection p
 
 ## Definition of Done
 
-- [ ] 多来源、标签、合并拆分和拒绝端口完成。
-- [ ] 17,202 破解与 4K/有码事实可由 fixture 正确分类。
-- [ ] 拒绝记录不含磁力或可还原摘要。
+- [x] 多来源、标签、合并拆分和拒绝端口完成。
+- [x] 17,202 破解与 4K/有码事实可由 fixture 正确分类。
+- [x] 拒绝记录不含磁力或可还原摘要。
 
 **依赖**: TASK-005
 

@@ -7,6 +7,10 @@ from fastapi.responses import JSONResponse
 
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.resources.admin_api import (
+    create_movie_source_admin_api,
+)
+from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.resources.identification_api import (
     IdentificationService,
     create_identification_api,
@@ -23,6 +27,7 @@ def create_app(
     readiness_probe: Callable[[], bool],
     identity_service: AuthService | None = None,
     identification_service: IdentificationService | None = None,
+    movie_source_admin_service: MovieSourceService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -96,7 +101,14 @@ def create_app(
                     current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
-    elif identification_service is not None:
-        raise ValueError("identification API requires identity service")
+        if movie_source_admin_service is not None:
+            app.include_router(
+                create_movie_source_admin_api(
+                    movie_source_admin_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+    elif identification_service is not None or movie_source_admin_service is not None:
+        raise ValueError("resource admin APIs require identity service")
 
     return app

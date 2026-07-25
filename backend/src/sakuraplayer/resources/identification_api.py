@@ -14,7 +14,7 @@ from sqlalchemy import or_, select, tuple_
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.identity.api import ApiProblem
-from sakuraplayer.resources.models import Movie, ResourceSource
+from sakuraplayer.resources.models import Movie, ResourceSource, ResourceSourceLabel
 
 
 class IdentificationProblem(RuntimeError):
@@ -52,6 +52,7 @@ class IdentifiedSourceView:
     title: str
     publish_date: date | None
     category: str
+    labels: list[str]
     resource_size_mb: int | None
 
 
@@ -147,6 +148,13 @@ class IdentificationService:
             source.movie_id = movie.id
             source.normalized_number = movie.normalized_number
             source.identification_status = "manual"
+            labels = sorted(
+                session.scalars(
+                    select(ResourceSourceLabel.label).where(
+                        ResourceSourceLabel.source_id == source.id
+                    )
+                )
+            )
             return IdentifiedSourceView(
                 id=source.id,
                 website=source.website,
@@ -154,6 +162,7 @@ class IdentificationService:
                 title=source.title,
                 publish_date=source.publish_date,
                 category=source.section,
+                labels=labels,
                 resource_size_mb=source.resource_size_mb,
             )
 
@@ -300,7 +309,6 @@ def create_identification_api(
             raise _api_problem(error) from None
         return MovieSourceOutput(
             **source.__dict__,
-            labels=[],
             video_file_size_bytes=None,
             availability="available",
         )
