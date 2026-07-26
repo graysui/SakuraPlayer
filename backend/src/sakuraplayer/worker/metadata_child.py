@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from sakuraplayer.catalog.metadata_queue import MetadataClaim, MetadataQueue
 from sakuraplayer.catalog.metadata_state import (
     ALL_STAGES,
+    MetadataStageExecutionError,
     validate_enrichment_stages,
 )
 from sakuraplayer.shared.redaction import stable_error_code
@@ -23,7 +24,7 @@ from sakuraplayer.shared.config import Settings, load_settings
 from sakuraplayer.shared.runtime import guarded_main, require_ready
 
 
-class StageExecutionFailure(RuntimeError):
+class StageExecutionFailure(MetadataStageExecutionError):
     def __init__(self, code: str) -> None:
         self.code = stable_error_code(code)
         super().__init__(self.code)
@@ -84,7 +85,7 @@ class MetadataChildRunner:
             self._queue.start_stage(claim, stage)
             try:
                 self._executor.execute(stage, claim)
-            except StageExecutionFailure as error:
+            except MetadataStageExecutionError as error:
                 terminal_status = "failed" if stage == "javdb_core" else "warning"
                 self._queue.finish_stage(
                     claim,

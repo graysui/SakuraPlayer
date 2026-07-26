@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 import uuid
 
 from sqlalchemy import (
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Index,
     JSON,
     LargeBinary,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -192,7 +194,20 @@ class Movie(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
     normalized_number: Mapped[str] = mapped_column(String(128), nullable=False)
     raw_numbers: Mapped[list[str]] = mapped_column(_JSON_VALUE, nullable=False)
+    javdb_id: Mapped[str | None] = mapped_column(String(128))
+    title_original: Mapped[str | None] = mapped_column(Text)
+    title_zh: Mapped[str | None] = mapped_column(Text)
+    release_date: Mapped[date | None] = mapped_column(Date)
+    maker: Mapped[str | None] = mapped_column(String(255))
+    series: Mapped[str | None] = mapped_column(String(255))
+    director: Mapped[str | None] = mapped_column(String(255))
+    description_original: Mapped[str | None] = mapped_column(Text)
+    description_zh: Mapped[str | None] = mapped_column(Text)
+    score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     catalog_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    metadata_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -201,6 +216,15 @@ class Movie(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+
+Index(
+    "uq_movie_javdb_id",
+    Movie.javdb_id,
+    unique=True,
+    postgresql_where=Movie.javdb_id.is_not(None),
+    sqlite_where=Movie.javdb_id.is_not(None),
+)
 
 
 class ResourceSource(Base):

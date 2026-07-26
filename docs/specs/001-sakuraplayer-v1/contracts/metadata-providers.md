@@ -24,6 +24,8 @@ fetch_rankings(board, year?) -> ordered MovieNumber list
 
 核心成功条件：影片主记录及影片-演员核心关系在一个短事务中提交。图片下载、DMM、GFriends、AI 不属于核心成功条件。
 
+可选 JavDB 用户名和密码作为单个 `javdb.credentials` AES-GCM JSON envelope 通过 TASK-003 设置仓储 CAS 读写，避免分键读取产生混合版本。未配置或配置无效不得阻断公开影片核心抓取；需登录的 TOP250 由排行榜任务明确跳过或报告凭据无效。
+
 ## 3. DMM 端口
 
 ```text
@@ -33,6 +35,21 @@ fetch_description(normalized_number) -> Description | NotFound | Unavailable
 - `NotFound` 是终态富化结果，不覆盖现有简介。
 - `Unavailable` 记录 warning，不回滚核心元数据。
 - HTML 只提取文本，禁止把脚本或原始 HTML 返回客户端。
+
+## 3.1 永久目录图片端口
+
+```text
+store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
+```
+
+- 只允许精确主机 `https://c0.jdbstatic.com`，禁止 userinfo、非默认端口、IP 字面量和通配子域；每次重定向都重新校验，最多 3 跳。
+- 只接受 `image/jpeg`、`image/png`、`image/webp`，单图响应正文最多 8 MiB。
+- Pillow 11.2.1 完整解码后的宽高分别为 1..12,000，总像素最多 40,000,000；声明 MIME 必须与真实格式一致。
+- 服务端生成相对路径；同目录临时文件完成校验、flush、fsync 后原子替换。失败清理临时文件且不得覆盖既有 ready 文件。
+- 下载或验证失败保存 `retry_pending` 和本地占位事实，形成 images stage warning；不得回滚 `core_ready`。
+- 已有 ready 图片需要替换或上游列表缩短时保留最近成功文件；替换记录可在 `retry_pending` 状态继续指向旧文件，只有新文件验证和原子写入成功后才切换。
+
+完整边界由 [TASK-008 永久图片安全边界](../changes/2026-07-26--task-008-image-security-boundaries.md) 冻结。
 
 ## 4. Actor Mapping 与 GFriends
 

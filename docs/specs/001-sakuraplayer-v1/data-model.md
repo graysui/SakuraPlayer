@@ -89,7 +89,7 @@ Domain aggregate 1 --- N DomainEvent
 
 ### 3.3 `encrypted_setting`
 
-用于 115 Cookie、AI key、可选 JavDB 密码等可恢复秘密。普通非敏感配置使用同一记录的 `public_value`，但同一键不能同时存在明文和密文。
+用于 115 Cookie、AI key、可选 JavDB 凭据等可恢复秘密。JavDB 用户名和密码使用单个 `javdb.credentials` 加密 JSON envelope 原子 CAS，避免跨键混合版本。普通非敏感配置使用同一记录的 `public_value`，但同一键不能同时存在明文和密文。
 
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
@@ -299,9 +299,10 @@ Domain aggregate 1 --- N DomainEvent
 | `owner_id` | UUID | 逻辑外键 | `(derived)` |
 | `kind` | enum | `cover/plot/profile/placeholder` | AC-047/048 |
 | `source_url` | text | 可空、白名单 URL | `(derived)` |
+| `position` | integer | 同 owner/kind 内从 0 开始，封面固定为 0 | `(derived)` |
 | `relative_path` | text | 永久卷相对路径 | AC-047 |
 | `sha256` | char(64) | 内容摘要 | `(derived)` |
-| `status` | enum | `ready/placeholder/retry_pending` | AC-048 |
+| `status` | enum | `ready/placeholder/retry_pending`；已有成功图片待替换时 `retry_pending` 可继续指向最近 ready 文件 | AC-048 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 
 写入必须临时文件 + 原子替换。GFriends 图不进入此表，除非它被明确选作永久目录图片且规格后续变更；v1 只保存 GFriends URL 索引。

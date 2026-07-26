@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     JSON,
+    Integer,
     SmallInteger,
     String,
     Text,
@@ -201,4 +202,158 @@ class MetadataStage(Base):
     failure_code: Mapped[str | None] = mapped_column(String(128))
 
 
-__all__ = ["MetadataJob", "MetadataQueueState", "MetadataStage"]
+class Actor(Base):
+    __tablename__ = "actor"
+    __table_args__ = (
+        CheckConstraint(
+            "gender IN ('female', 'male', 'unknown')",
+            name="ck_actor_gender",
+        ),
+        UniqueConstraint("javdb_id", name="uq_actor_javdb_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    javdb_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    name_ja: Mapped[str | None] = mapped_column(String(255))
+    name_zh: Mapped[str | None] = mapped_column(String(255))
+    bio_original: Mapped[str | None] = mapped_column(Text)
+    bio_zh: Mapped[str | None] = mapped_column(Text)
+    gender: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ActorAlias(Base):
+    __tablename__ = "actor_alias"
+    __table_args__ = (
+        CheckConstraint(
+            "authority IN ('javdb', 'actor_mapping')",
+            name="ck_actor_alias_authority",
+        ),
+    )
+
+    actor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("actor.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    alias: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalized_alias: Mapped[str] = mapped_column(String(255), primary_key=True)
+    authority: Mapped[str] = mapped_column(String(32), nullable=False)
+
+
+Index("ix_actor_alias_normalized", ActorAlias.normalized_alias)
+
+
+class MovieActor(Base):
+    __tablename__ = "movie_actor"
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="ck_movie_actor_position"),
+        UniqueConstraint("movie_id", "position", name="uq_movie_actor_position"),
+    )
+
+    movie_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("movie.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    actor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("actor.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class Tag(Base):
+    __tablename__ = "tag"
+    __table_args__ = (UniqueConstraint("name", name="uq_tag_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class MovieTag(Base):
+    __tablename__ = "movie_tag"
+
+    movie_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("movie.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tag.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+
+
+class CatalogImage(Base):
+    __tablename__ = "catalog_image"
+    __table_args__ = (
+        CheckConstraint(
+            "owner_type IN ('movie', 'actor')",
+            name="ck_catalog_image_owner_type",
+        ),
+        CheckConstraint(
+            "kind IN ('cover', 'plot', 'profile', 'placeholder')",
+            name="ck_catalog_image_kind",
+        ),
+        CheckConstraint("position >= 0", name="ck_catalog_image_position"),
+        CheckConstraint(
+            "kind <> 'cover' OR position = 0",
+            name="ck_catalog_image_cover_position",
+        ),
+        CheckConstraint(
+            "status IN ('ready', 'placeholder', 'retry_pending')",
+            name="ck_catalog_image_status",
+        ),
+        CheckConstraint(
+            "relative_path <> '' AND relative_path NOT LIKE '/%' "
+            "AND relative_path NOT LIKE '%..%'",
+            name="ck_catalog_image_relative_path",
+        ),
+        CheckConstraint(
+            "sha256 IS NULL OR (length(sha256) = 64 AND lower(sha256) = sha256)",
+            name="ck_catalog_image_sha256",
+        ),
+        CheckConstraint(
+            "sha256 IS NULL OR sha256 ~ '^[0-9a-f]{64}$'",
+            name="ck_catalog_image_sha256_format",
+        ).ddl_if(dialect="postgresql"),
+        CheckConstraint(
+            "(status = 'ready' AND source_url IS NOT NULL AND sha256 IS NOT NULL) OR "
+            "(status = 'retry_pending' AND source_url IS NOT NULL) OR "
+            "(status = 'placeholder' AND source_url IS NULL AND sha256 IS NOT NULL)",
+            name="ck_catalog_image_ready_shape",
+        ),
+        UniqueConstraint(
+            "owner_type",
+            "owner_id",
+            "kind",
+            "position",
+            name="uq_catalog_image_owner_kind_position",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    owner_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text)
+    relative_path: Mapped[str] = mapped_column(Text, nullable=False)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+Index("ix_catalog_image_owner", CatalogImage.owner_type, CatalogImage.owner_id)
+
+
+__all__ = [
+    "Actor",
+    "ActorAlias",
+    "CatalogImage",
+    "MetadataJob",
+    "MetadataQueueState",
+    "MetadataStage",
+    "MovieActor",
+    "MovieTag",
+    "Tag",
+]

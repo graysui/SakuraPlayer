@@ -750,6 +750,8 @@ class MetadataQueue:
 def _elapsed_ms(started_at: datetime | None, current: datetime) -> int:
     if started_at is None:
         return 0
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=timezone.utc)
     return max(0, int((current - started_at).total_seconds() * 1000))
 
 

@@ -25,6 +25,12 @@ class MetadataStateError(ValueError):
     pass
 
 
+class MetadataStageExecutionError(RuntimeError):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
 def priority_for_reason(reason: str) -> int:
     try:
         return PRIORITY_BY_REASON[reason]
@@ -65,6 +71,7 @@ __all__ = [
     "ALL_STAGES",
     "OPTIONAL_STAGES",
     "MetadataStateError",
+    "MetadataStageExecutionError",
     "priority_for_reason",
     "stage_plan",
     "validate_enrichment_stages",

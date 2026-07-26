@@ -122,20 +122,26 @@ def test_upgrade_to_head_is_idempotent_and_creates_expected_tables(
     engine = create_engine(database_url)
     with engine.connect() as connection:
         assert sorted(inspect(connection).get_table_names()) == [
+            "actor",
+            "actor_alias",
             "admin_user",
             "alembic_version",
             "avdb_asset",
             "avdb_sync_request",
             "avdb_sync_run",
+            "catalog_image",
             "encrypted_setting",
             "metadata_job",
             "metadata_queue_state",
             "metadata_stage",
             "movie",
+            "movie_actor",
+            "movie_tag",
             "refresh_session",
             "resource_source",
             "resource_source_label",
             "source_rejection",
+            "tag",
         ]
     engine.dispose()
 

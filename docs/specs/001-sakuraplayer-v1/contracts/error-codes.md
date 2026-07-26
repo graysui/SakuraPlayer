@@ -73,8 +73,15 @@
 | 任务 | `metadata_core_not_committed` | `javdb_core` 未原子提交 `core_ready`，禁止继续富化或完成 |
 | 任务 | `metadata_optional_stage_failed` | 可选阶段出现未分类异常，保存 warning 且不回滚核心 |
 | 502 | `javdb_upstream_error` | JavDB 临时失败 |
+| 任务 | `javdb_movie_not_found` | JavDB 没有与规范化番号精确匹配的影片，核心任务失败 |
 | 401 | `javdb_credentials_invalid` | 可选 JavDB 凭据失效 |
 | 502 | `dmm_upstream_error` | DMM 富化失败，不隐藏核心影片 |
+| 任务 | `image_source_not_allowed` | 图片 URL 不满足固定 HTTPS 主机白名单 |
+| 任务 | `image_content_type_invalid` | 图片声明类型或真实格式不在允许集合或二者不一致 |
+| 任务 | `image_too_large` | 图片响应超过 8 MiB |
+| 任务 | `image_dimensions_invalid` | 图片宽高或总像素超出固定边界 |
+| 任务 | `image_download_failed` | 图片网络、重定向、截断或解码失败；保留核心并等待显式富化重试 |
+| 任务 | `metadata_optional_stage_unavailable` | 当前版本尚未交付该可选 provider；记录 warning，不伪造成功 |
 | 502 | `gfriends_upstream_error` | GFriends 索引/图片失败，不隐藏核心影片 |
 | 502 | `translation_upstream_error` | AI 翻译失败，不隐藏核心影片 |
 | 任务 | `translation_guardrail_failed` | AI 改写 protected 字段或返回非法结构，拒绝译文并保留原文 |

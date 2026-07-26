@@ -52,7 +52,7 @@ Compose 可在容器内组装 `SAKURAPLAYER_DATABASE_URL`，但最终 DSN 不得
 
 以下配置通过已认证的 `/api/v1/settings` 保存到 `encrypted_setting`，不作为启动环境变量：
 
-- JavDB 用户名和密码。
+- JavDB 用户名和密码；两者作为单个 `javdb.credentials` 加密 JSON envelope 原子 CAS，不保存分键明文。
 - AI `base_url`、`api_key`、`model`、超时。
 - 缓存 TTL 1..168 小时。
 
