@@ -254,9 +254,11 @@ Windows 的 Player 包装器覆盖 `seek`：已有 seek 在飞时只保留最后
 ### 4.6 排行榜和发现
 
 - JavDB 同步写不可变快照头和有序条目，全部成功后原子切换 `current_snapshot_id` `(derived)`。
-- 页面读取日榜、周榜、月榜、TOP250；年份只对支持的 TOP250 查询生效。
-- 条目可先只保存番号。若存在 AVdb 来源但影片未 `core_ready`，创建优先级 20 任务；查询只返回已有来源且 `core_ready` 的影片。
+- scheduler 每天 01:45 Asia/Shanghai 为每个目标持久入队；worker 以 claim token/lease 执行。日/周/月固定使用公开 playback all 榜；TOP250 同步总榜和当前年，2008 至上一年只在缺少 current 时补一次。
+- 页面读取日榜、周榜、月榜、TOP250；年份只对 TOP250 查询生效，null 表示总榜，显式年份为 2008..服务器当前年。
+- 条目保留原始 rank，非法番号跳过、重复番号只保留首次。若存在 AVdb 来源但影片未 `core_ready`，幂等创建或提升优先级 20 任务；查询只返回已有来源且 `core_ready` 的影片。
 - 同步失败保留 current 指针，不清空最近成功快照。
+- cursor 绑定 immutable snapshot ID；翻页期间 current 切换不混合结果。空或全无效 provider 响应按失败处理。
 - 番号精确搜索先查本地规范化列；命中 raw source 但无影片时创建优先级 10 任务并返回补全占位状态。
 
 ## 5. 客户端设计

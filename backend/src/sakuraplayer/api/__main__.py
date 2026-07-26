@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import uvicorn
 from sqlalchemy import create_engine
@@ -9,8 +11,13 @@ from sqlalchemy.orm import sessionmaker
 from sakuraplayer.api.app import create_app
 from sakuraplayer.catalog.metadata_api import MetadataAdminService
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
+from sakuraplayer.catalog.providers.javdb import (
+    EncryptedJavdbCredentialStore,
+    MetadataProviderProblem,
+)
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.discovery.favorites import FavoriteService
+from sakuraplayer.discovery.ranking_query import RankingQueryService
 from sakuraplayer.discovery.search_service import SearchService
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
@@ -64,6 +71,14 @@ def main() -> None:
         ),
     )
     metadata_queue = MetadataQueue(factory)
+    credential_store = EncryptedJavdbCredentialStore(secret_repository)
+
+    def credential_status() -> str:
+        try:
+            return "configured" if credential_store.load() is not None else "not_configured"
+        except MetadataProviderProblem:
+            return "invalid"
+
     favorite_service = FavoriteService(factory)
     catalog_query_service = CatalogQueryService(
         factory,
@@ -79,6 +94,13 @@ def main() -> None:
         catalog_query_service=catalog_query_service,
         search_service=SearchService(catalog_query_service, metadata_queue),
         favorite_service=favorite_service,
+        ranking_query_service=RankingQueryService(
+            factory,
+            catalog=catalog_query_service,
+            completion=metadata_queue,
+            credential_status=credential_status,
+            current_year=lambda: datetime.now(ZoneInfo("Asia/Shanghai")).year,
+        ),
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

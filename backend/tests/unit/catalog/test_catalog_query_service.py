@@ -526,3 +526,64 @@ def test_number_cursor_uses_normalized_number_instead_of_publish_date(catalog) -
 
     assert [item.number for item in first.items] == ["ABP-060"]
     assert [item.number for item in second.items] == ["ABP-061"]
+
+
+def test_movie_summaries_by_ids_preserves_order_and_hides_ineligible_movies(
+    catalog,
+) -> None:
+    service, factory, _ = catalog
+    first = _movie("ABP-070")
+    second = _movie("ABP-071")
+    raw = _movie("ABP-072", state="raw_only")
+    no_source = _movie("ABP-073")
+    with factory.begin() as session:
+        session.add_all(
+            [
+                first,
+                second,
+                raw,
+                no_source,
+                _source(
+                    first,
+                    70,
+                    publish_date=date(2026, 7, 20),
+                    section="亚洲有码",
+                ),
+                _source(
+                    second,
+                    71,
+                    publish_date=date(2026, 7, 21),
+                    section="亚洲有码",
+                ),
+                _source(
+                    raw,
+                    72,
+                    publish_date=date(2026, 7, 22),
+                    section="亚洲有码",
+                ),
+            ]
+        )
+
+    summaries = service.movie_summaries_by_ids(
+        (raw.id, second.id, no_source.id, first.id)
+    )
+
+    assert [item.id for item in summaries] == [second.id, first.id]
+    assert [item.publish_date for item in summaries] == [
+        date(2026, 7, 21),
+        date(2026, 7, 20),
+    ]
+
+
+@pytest.mark.parametrize(
+    "movie_ids",
+    [
+        lambda: (uuid.uuid4(),) * 2,
+        lambda: tuple(uuid.uuid4() for _ in range(101)),
+    ],
+)
+def test_movie_summaries_by_ids_rejects_invalid_batch(catalog, movie_ids) -> None:
+    service, _, _ = catalog
+
+    with pytest.raises(CatalogProblem, match="validation_failed"):
+        service.movie_summaries_by_ids(movie_ids())

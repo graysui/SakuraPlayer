@@ -5,18 +5,34 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 import json
 import re
+import uuid
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from sakuraplayer.catalog.providers._html import HtmlNode, parse_html
+from sakuraplayer.identity.crypto import SecretDecryptionError
 from sakuraplayer.identity.secrets import EncryptedSettingRepository, SecretSetting
+from sakuraplayer.resources.number_normalizer import normalize_movie_number
 
 
 _BASE_URL = "https://javdb.com"
 _MAX_HTML_BYTES = 2 * 1024 * 1024
+_MAX_JSON_BYTES = 2 * 1024 * 1024
 _STABLE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _SCORE = re.compile(r"([0-9]+(?:\.[0-9]+)?)")
+_PUBLIC_RANKING_BOARDS = {"daily", "weekly", "monthly"}
+_TOP250_PAGE_LIMIT = 50
+_TOP250_MAX_PAGES = 5
+_DEVICE_FIELDS = {
+    "device_name": "meizu16sPro",
+    "device_model": "meizu/16s Pro",
+    "platform": "android",
+    "system_version": "9",
+    "app_channel": "official",
+    "app_version": "official",
+    "app_version_number": "1.9.29",
+}
 
 
 class MetadataProviderProblem(RuntimeError):
@@ -29,6 +45,16 @@ class MetadataProviderProblem(RuntimeError):
 class JavdbCredentials:
     username: str = field(repr=False)
     password: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class RankedMovieNumber:
+    rank: int
+    normalized_number: str
+
+    def __post_init__(self) -> None:
+        if self.rank < 1 or not self.normalized_number:
+            raise ValueError("invalid ranked movie number")
 
 
 class EncryptedJavdbCredentialStore:
@@ -59,7 +85,10 @@ class EncryptedJavdbCredentialStore:
         )
 
     def load(self) -> JavdbCredentials | None:
-        setting = self._repository.get_secret(self.CREDENTIAL_KEY)
+        try:
+            setting = self._repository.get_secret(self.CREDENTIAL_KEY)
+        except SecretDecryptionError:
+            raise MetadataProviderProblem("javdb_credentials_invalid") from None
         if setting is None:
             return None
         if len(setting.value) > 4096:
@@ -238,6 +267,172 @@ class JavdbProvider:
         except (ValueError, TypeError):
             raise MetadataProviderProblem("javdb_upstream_error") from None
 
+    def fetch_rankings(
+        self,
+        board: str,
+        *,
+        year: int | None,
+        credentials: JavdbCredentials | None,
+    ) -> tuple[RankedMovieNumber, ...]:
+        if board in _PUBLIC_RANKING_BOARDS:
+            if year is not None:
+                raise ValueError("invalid ranking scope")
+            payload = self._request_json(
+                "GET",
+                "/api/v1/rankings/playback",
+                params={"filter_by": "all", "period": board},
+                error_code="javdb_upstream_error",
+            )
+            movies = self._ranking_movies(payload, error_code="javdb_upstream_error")
+            ranked = self._ranked_numbers(movies)
+        elif board == "top250":
+            if year is not None and not 2008 <= year <= 2200:
+                raise ValueError("invalid ranking scope")
+            if credentials is None:
+                raise MetadataProviderProblem("javdb_credentials_invalid")
+            token = self._login(credentials)
+            ranked = self._fetch_top250(token=token, year=year)
+        else:
+            raise ValueError("invalid ranking scope")
+        if not ranked:
+            raise MetadataProviderProblem("javdb_upstream_error")
+        return ranked
+
+    def _login(self, credentials: JavdbCredentials) -> str:
+        username, password = _validate_credentials(
+            credentials.username,
+            credentials.password,
+        )
+        device_uuid = str(
+            uuid.uuid5(uuid.NAMESPACE_URL, f"https://javdb.com/accounts/{username}")
+        )
+        payload = self._request_json(
+            "POST",
+            "/api/v1/sessions",
+            data={
+                "username": username,
+                "password": password,
+                "device_uuid": device_uuid,
+                **_DEVICE_FIELDS,
+            },
+            headers={
+                "User-Agent": "Dart/3.5 (dart:io)",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            error_code="javdb_credentials_invalid",
+        )
+        data = payload.get("data")
+        token = data.get("token") if isinstance(data, dict) else None
+        if (
+            payload.get("success") not in {None, 1}
+            or not isinstance(token, str)
+            or not token
+            or len(token) > 4096
+        ):
+            raise MetadataProviderProblem("javdb_credentials_invalid")
+        return token
+
+    def _fetch_top250(
+        self,
+        *,
+        token: str,
+        year: int | None,
+    ) -> tuple[RankedMovieNumber, ...]:
+        accepted: list[RankedMovieNumber] = []
+        seen: set[str] = set()
+        for page in range(1, _TOP250_MAX_PAGES + 1):
+            payload = self._request_json(
+                "GET",
+                "/api/v1/movies/top",
+                params={
+                    "start_rank": "1",
+                    "type": "all" if year is None else "year",
+                    "type_value": "" if year is None else str(year),
+                    "ignore_watched": "false",
+                    "page": str(page),
+                    "limit": str(_TOP250_PAGE_LIMIT),
+                },
+                headers={"Authorization": f"Bearer {token}"},
+                error_code="javdb_upstream_error",
+            )
+            movies = self._ranking_movies(payload, error_code="javdb_upstream_error")
+            if not movies:
+                break
+            accepted.extend(
+                self._ranked_numbers(
+                    movies,
+                    rank_offset=(page - 1) * _TOP250_PAGE_LIMIT,
+                    seen=seen,
+                )
+            )
+        return tuple(accepted)
+
+    @staticmethod
+    def _ranking_movies(payload: dict[str, object], *, error_code: str) -> list[object]:
+        if payload.get("success") != 1:
+            raise MetadataProviderProblem(error_code)
+        data = payload.get("data")
+        movies = data.get("movies") if isinstance(data, dict) else None
+        if not isinstance(movies, list):
+            raise MetadataProviderProblem(error_code)
+        return movies
+
+    @staticmethod
+    def _ranked_numbers(
+        movies: list[object],
+        *,
+        rank_offset: int = 0,
+        seen: set[str] | None = None,
+    ) -> tuple[RankedMovieNumber, ...]:
+        known = seen if seen is not None else set()
+        result: list[RankedMovieNumber] = []
+        for position, item in enumerate(movies, start=1):
+            raw_number = item.get("number") if isinstance(item, dict) else None
+            number = normalize_movie_number(
+                raw_number if isinstance(raw_number, str) else None
+            )
+            if number is None or number in known:
+                continue
+            known.add(number)
+            result.append(
+                RankedMovieNumber(
+                    rank=rank_offset + position,
+                    normalized_number=number,
+                )
+            )
+        return tuple(result)
+
+    def _request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
+        data: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        error_code: str,
+    ) -> dict[str, object]:
+        try:
+            response = self._http.request(
+                method,
+                f"{_BASE_URL}{path}",
+                params=params,
+                data=data,
+                headers=headers,
+                timeout=httpx.Timeout(30.0, connect=10.0, pool=10.0),
+            )
+        except httpx.HTTPError:
+            raise MetadataProviderProblem(error_code) from None
+        if response.status_code != 200 or len(response.content) > _MAX_JSON_BYTES:
+            raise MetadataProviderProblem(error_code)
+        try:
+            payload = response.json()
+        except (ValueError, UnicodeError):
+            raise MetadataProviderProblem(error_code) from None
+        if not isinstance(payload, dict):
+            raise MetadataProviderProblem(error_code)
+        return payload
+
     def _request(
         self,
         path: str,
@@ -364,4 +559,5 @@ __all__ = [
     "JavdbCredentials",
     "JavdbProvider",
     "MetadataProviderProblem",
+    "RankedMovieNumber",
 ]

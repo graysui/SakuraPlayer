@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-26
 
-**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-011 已完成，下一任务为 TASK-012。
+**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-012 已完成，下一任务为 TASK-013。
 
 ## 1. 当前成果
 
@@ -45,12 +45,15 @@
 - TASK-011 已交付 core-ready 媒体库、同来源组合筛选、版本化键集游标、全局搜索与补全、影片/演员详情、单一收藏和受认证永久图片读取。
 - 0011 启用 `pg_trgm` 并建立标题/姓名/别名 GIN、favorite 唯一事实；Phase 1 availability/progress 使用稳定空端口，搜索 queued 原子提升且 failed 不自动重试。
 - TASK-011 自动验证覆盖 408 项自包含测试、289,858 来源/100,000 别名规模 p95 与 B-tree/GIN 计划、无剩余 P0/P1/P2 审计，以及 Compose Final 的 78 项 PostgreSQL/运行测试、迁移、健康、重启恢复、秘密扫描和资源清理。
+- TASK-012 已交付 JavDB 日/周/月/TOP250 总榜与年度榜持久请求、01:45 调度、worker claim/heartbeat、不可变快照、snapshot-bound cursor、priority 20 元数据协调和受认证本地查询 API。
+- 0012 以 current/active 部分唯一索引、owner/token/lease fencing 和短事务原子切换保证失败保留；晚到 Movie 按番号重新关联，TOP250 无凭据/失效/未同步/同步失败使用稳定 503 reason。
+- TASK-012 自动验证覆盖 450 项自包含测试、PostgreSQL 迁移/并发与 250 条快照 p95、完整差异审计，以及 Compose Final 的 83 项 PostgreSQL/运行测试、迁移、健康、重启恢复、秘密扫描和资源清理。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-011 已完成；下一任务为 TASK-012。
-- **最近绿色快速门禁**: TASK-011 Fast 为 408 passed、7 deselected；compileall、宿主 Docker 配置断言、OpenAPI 40 路径解析、秘密扫描和 `git diff --check` 通过，最终审计无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-011 Compose Final 尝试 4 通过；自包含 408 passed、7 deselected，PostgreSQL/Compose 78 passed、12 deselected；真实规模 p95/索引计划、迁移、五服务健康、认证 canary、秘密扫描、重启恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-012 已完成；下一任务为 TASK-013。
+- **最近绿色快速门禁**: TASK-012 Fast 为 450 passed、7 deselected；compileall、宿主 Docker 配置断言、OpenAPI strict YAML、PostgreSQL 迁移/并发/性能、敏感模式和 `git diff --check` 通过，最终审计无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-012 Compose Final 尝试 1 通过；自包含 450 passed、7 deselected，PostgreSQL/Compose 83 passed、12 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启恢复、ready 降级恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -67,18 +70,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011。
-- **下一任务**: TASK-012 JavDB 排行榜快照。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012。
+- **下一任务**: TASK-013 管理设置、诊断与持久事件。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-012 开始：
+下一会话从 TASK-013 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-012.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-013.md"
 ```
 
-完成 TASK-011 的实现、测试和评审后，按根目录 `AGENTS.md` 创建本次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
+完成 TASK-012 的实现、测试和评审后，按根目录 `AGENTS.md` 创建本次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
 
 ## 4. 必读契约
 

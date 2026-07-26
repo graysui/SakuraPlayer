@@ -29,7 +29,7 @@
 | [TASK-009](tasks/TASK-009.md) | 演员映射与 GFriends | 周更、权威别名、唯一匹配 | TASK-008 | 否 | 是 |
 | [TASK-010](tasks/TASK-010.md) | OpenAI 兼容翻译 | 保护字段、付费幂等、异步富化 | TASK-003,TASK-008,TASK-009 | 是 | 是 |
 | [TASK-011](tasks/TASK-011.md) | 媒体库、搜索、详情与收藏 API | core_ready 查询、聚合详情 | TASK-006,TASK-008,TASK-009,TASK-010 | 是 | 否 |
-| [TASK-012](tasks/TASK-012.md) | JavDB 排行榜快照 | 日/周/月/TOP250/年份 | TASK-007,TASK-008 | 否 | 是 |
+| [TASK-012](tasks/TASK-012.md) | JavDB 排行榜快照 | 日/周/月/TOP250/年份 | TASK-007,TASK-008,TASK-011 | 是 | 是 |
 | [TASK-013](tasks/TASK-013.md) | 管理设置、诊断与持久事件 | 设置、任务管理、REST snapshot/WS | TASK-002,TASK-003,TASK-007,TASK-011,TASK-012 | 否 | 否 |
 | [TASK-014](tasks/TASK-014.md) | 后端基础与元数据 E2E | 全链路和 `[SEF]` 故障隔离 | TASK-001..013 | 否 | 是 |
 | [TASK-015](tasks/TASK-015.md) | 后端基础与元数据清理 | specs-code-cleanup | TASK-014 | 否 | 否 |

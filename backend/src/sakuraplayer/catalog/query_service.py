@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 import json
@@ -191,6 +192,55 @@ class CatalogQueryService:
         self._playback = playback_port or EmptyPlaybackStatePort()
         self._favorites = favorite_port or EmptyFavoriteStatePort()
         self._image_root = Path(image_root)
+
+    def movie_summaries_by_ids(
+        self,
+        movie_ids: Iterable[uuid.UUID],
+    ) -> list[MovieSummaryView]:
+        requested = tuple(movie_ids)
+        if (
+            len(requested) > MAX_PAGE_SIZE
+            or len(set(requested)) != len(requested)
+            or any(not isinstance(movie_id, uuid.UUID) for movie_id in requested)
+        ):
+            raise CatalogProblem(status_code=422, code="validation_failed")
+        if not requested:
+            return []
+        with self._session_factory() as session:
+            movies_by_id = {
+                movie.id: movie
+                for movie in session.scalars(
+                    select(Movie).where(
+                        Movie.id.in_(requested),
+                        Movie.catalog_state == "core_ready",
+                        _has_active_source(Movie.id),
+                    )
+                )
+            }
+            visible = [movies_by_id[movie_id] for movie_id in requested if movie_id in movies_by_id]
+            if not visible:
+                return []
+            visible_ids = tuple(movie.id for movie in visible)
+            publish_dates = {
+                movie_id: publish_date
+                for movie_id, publish_date in session.execute(
+                    select(
+                        ResourceSource.movie_id,
+                        func.max(ResourceSource.publish_date),
+                    )
+                    .where(
+                        ResourceSource.movie_id.in_(visible_ids),
+                        ResourceSource.identification_status.in_(_ACTIVE_SOURCE_STATES),
+                    )
+                    .group_by(ResourceSource.movie_id)
+                )
+            }
+            return self._movie_summaries(
+                session,
+                visible,
+                publish_dates=publish_dates,
+                favorite_ids=self._favorites.target_ids("movie"),
+            )
 
     def list_movies(
         self,

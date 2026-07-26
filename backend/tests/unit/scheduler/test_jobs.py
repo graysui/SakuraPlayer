@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from sakuraplayer.scheduler.jobs import register_avdb_jobs
 from sakuraplayer.scheduler.__main__ import build_scheduler
 from sakuraplayer.scheduler.provider_snapshots import register_provider_snapshot_job
+from sakuraplayer.scheduler.rankings import RankingSchedulerJob, register_ranking_job
 from sakuraplayer.catalog.models import ProviderSnapshotRequest
 from sakuraplayer.resources.models import AvdbSyncRequest, Base
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
@@ -157,6 +158,7 @@ def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> No
         "avdb_incremental_30d",
         "avdb_full_reconcile",
         "provider_snapshots_weekly",
+        "javdb_rankings_daily",
     }
     jobs["provider_snapshots_weekly"].func()
     jobs["provider_snapshots_weekly"].func()
@@ -165,3 +167,35 @@ def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> No
         assert len(requests) == 1
         assert requests[0].status == "queued"
     engine.dispose()
+
+
+def test_registers_daily_ranking_enqueue_only_job_at_0145_shanghai() -> None:
+    calls: list[tuple[datetime, int, bool]] = []
+
+    class Queue:
+        def enqueue_due_targets(
+            self,
+            *,
+            scheduled_for: datetime,
+            current_year: int,
+            credentials_configured: bool,
+        ) -> None:
+            calls.append((scheduled_for, current_year, credentials_configured))
+
+    current = datetime(2026, 7, 26, 1, 45, tzinfo=timezone(timedelta(hours=8)))
+    scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
+    job = RankingSchedulerJob(
+        Queue(),
+        credentials_configured=lambda: True,
+        now=lambda: current,
+    )
+
+    register_ranking_job(scheduler, job)
+    register_ranking_job(scheduler, job)
+
+    registered = {item.id: item for item in scheduler.get_jobs()}[
+        "javdb_rankings_daily"
+    ]
+    assert str(registered.trigger) == "cron[hour='1', minute='45']"
+    registered.func()
+    assert calls == [(current, 2026, True)]

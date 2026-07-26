@@ -141,6 +141,7 @@ v1 是单机单管理员产品，不做水平自动扩展。所有上限由数�
 |---|---:|---|
 | 元数据影片任务 | 3 个运行中 | PostgreSQL `FOR UPDATE SKIP LOCKED` + 父进程子进程槽位 |
 | 单元数据任务 | 600 秒 | 父进程终止完整子进程组，持久化失败 |
+| 排行榜同步 | 同榜单/年份 1 个活动请求 | PostgreSQL 部分唯一索引 + worker claim token/lease |
 | 115 离线 | 2 个运行中 | 数据库部分唯一约束与槽位事务 |
 | 115 排队 | 10 个 | 创建任务事务内计数，超限拒绝 |
 | 就绪缓存 | 默认 20 个 | LRU 选择器；活跃租约排除 |
@@ -403,6 +404,7 @@ contracts/
 14. 质量门禁只能随功能和风险增加，不能因为耗时、并行或任务范围而减少。
 15. 实施不得调用或依赖 Superpowers 插件及任何 `superpowers:*` 技能；仓库工作流本身定义规划、TDD、调试、审计、验证和 Git 收尾步骤。
 16. 超过 5 次工具调用、多阶段或可能跨会话的任务继续使用 `planning-with-files-zh`，其本地规划记录不得替代正式任务或契约。
+17. 排行榜 scheduler 只按 01:45 Asia/Shanghai 生成持久目标请求；JavDB 登录、分页、快照写入和 current 切换只在 worker 执行，API 只读本地 immutable snapshot。
 
 具体测试命令、Compose 执行频次和任务内批次以
 [统一实施与验证工作流](001-sakuraplayer-v1/implementation-workflow.md) 为准。

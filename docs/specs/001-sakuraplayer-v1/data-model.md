@@ -135,7 +135,7 @@ Domain aggregate 1 --- N DomainEvent
 | `claim_token` | UUID | claimed 时非空，防止过期 worker 以相同 owner 收尾 | `(derived)` |
 | `claimed_at` | timestamptz | 可空；保留最近 claim 时间 | `(derived)` |
 | `claim_expires_at` | timestamptz | 可空；心跳续租，过期后允许重新 claim | `(derived)` |
-| `attempt_count` | bigint | 从 0 单调递增 | `(derived)` |
+| `attempt_count` | integer | 从 0 单调递增 | `(derived)` |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 | `completed_at` | timestamptz | 可空 | `(derived)` |
 | `failure_code` | varchar(128) | 可空；稳定错误码 | 支持 AC-024 |
@@ -427,7 +427,30 @@ scheduler 只插入请求。worker 以 `FOR UPDATE SKIP LOCKED` claim；同一 `
 
 ## 6. 发现与收藏
 
-### 6.1 `ranking_snapshot` 与 `ranking_entry`
+### 6.1 `ranking_sync_request`、`ranking_snapshot` 与 `ranking_entry`
+
+`ranking_sync_request`:
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `id` | UUID | 主键 | `(derived)` |
+| `board` | enum | `daily/weekly/monthly/top250` | AC-070 |
+| `year` | smallint | 仅 top250 可填，2008..2200；运行时不得超过当前年 | AC-070 |
+| `scheduled_for` | timestamptz | 调度触发 UTC 分钟槽 | `(derived)` |
+| `status` | enum | `queued/claimed/completed/failed` | AC-069/073 |
+| `claim_owner` | varchar(128) | claimed 时非空 | `(derived)` |
+| `claim_token` | UUID | claimed 时非空，隔离过期 worker | `(derived)` |
+| `claim_expires_at` | timestamptz | claimed 时非空，heartbeat 续租 | `(derived)` |
+| `attempt_count` | bigint | 从 0 单调递增 | `(derived)` |
+| `snapshot_id` | UUID | completed 时指向激活快照 | `(derived)` |
+| `completed_at` | timestamptz | 终态非空 | `(derived)` |
+| `failure_code` | varchar(128) | failed 时稳定错误码 | AC-073 |
+| `created_at` | timestamptz | 非空 | `(derived)` |
+
+唯一 `(board, COALESCE(year, 0), scheduled_for)` 合并同槽重复调度；部分唯一索引
+保证同一 `(board, COALESCE(year, 0))` 最多一个 `queued/claimed`。claim/renew/finish
+必须匹配 id、owner、token 和未过期 lease。失败详情不保存上游正文、凭据、token 或
+完整 URL。
 
 `ranking_snapshot`:
 
@@ -435,21 +458,29 @@ scheduler 只插入请求。worker 以 `FOR UPDATE SKIP LOCKED` claim；同一 `
 |---|---|---|---|
 | `id` | UUID | 主键 | `(derived)` |
 | `board` | enum | `daily/weekly/monthly/top250` | AC-070 |
-| `year` | smallint | 仅适用榜单可填 | AC-070 |
-| `status` | enum | `building/current/superseded/failed` | AC-069/073 |
-| `source_synced_at` | timestamptz | 上游快照时间 | AC-069 |
+| `year` | smallint | 仅 top250 可填，null 表示总榜 | AC-070 |
+| `status` | enum | `building/current/superseded` | AC-069/073 |
+| `source_synced_at` | timestamptz | 成功取得并验证候选的 UTC 时间 | AC-069 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
+
+部分唯一索引保证每个 `(board, COALESCE(year, 0))` 最多一个 current。候选快照和
+全部条目在短事务内写入，随后旧 current 改 superseded、候选改 current；building
+不会在提交后对查询可见。失败只终结 request，不创建或激活 failed snapshot。
 
 `ranking_entry`:
 
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
-| `snapshot_id` | UUID | 外键 | AC-069 |
-| `rank` | integer | 正数 | AC-069 |
+| `snapshot_id` | UUID | 外键，删除快照时级联 | AC-069 |
+| `rank` | integer | 正数，保留上游原始名次 | AC-069 |
 | `normalized_number` | varchar(128) | 非空 | `(derived)` |
-| `movie_id` | UUID | 可空，元数据完成后关联 | AC-071/072 |
+| `movie_id` | UUID | 可空，指向同步时已存在的影片 | AC-071/072 |
 
-主键 `(snapshot_id, rank)`。查询只输出 `movie_id` 有目标来源且影片 `core_ready` 的条目；缺元数据但有来源时入优先级 20 队列。新同步失败不改变 current 快照。
+主键 `(snapshot_id, rank)`，并唯一 `(snapshot_id, normalized_number)`。非法番号跳过，
+重复番号只保留第一次，允许 rank 间隙。查询按 normalized_number 重新关联当前 Movie，
+只输出有活动来源且 `core_ready` 的条目；有来源但未完成核心时幂等创建或提升
+priority 20。cursor 绑定 snapshot ID 和最后可见 rank，current 切换后继续读取同一
+superseded 快照。空或全无效候选不激活，新同步失败不改变 current。
 
 ### 6.2 `favorite`
 
@@ -697,6 +728,8 @@ completed -> in_progress (下次从头播放且产生新进度)
 | 拒绝来源不可重建 | 同来源唯一拒绝 + 导入前 anti-join | AC-036 |
 | 同番号一个活动元数据任务 | 部分唯一索引 | AC-037/040 |
 | 元数据运行最多 3 | worker 槽位 + 监控不变量 | AC-038 |
+| 同榜单/年份一个 current 快照 | normalized year 部分唯一索引 | AC-069/073 |
+| 同榜单/年份一个活动同步请求 | normalized year 部分唯一索引 + claim fencing | AC-069/073 |
 | 同来源一个活动缓存任务 | 部分唯一索引 | AC-091 |
 | 115 运行 2/排队 10 | 事务计数或槽位行锁 | AC-085 |
 | 任务目录唯一 | `task_dir_cid` 唯一非空 | AC-080/081 |

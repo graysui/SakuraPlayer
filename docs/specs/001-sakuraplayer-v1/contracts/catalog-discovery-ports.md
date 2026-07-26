@@ -51,3 +51,22 @@ FavoriteStatePort.target_ids(target_type) -> set[target_id]
 ```
 
 发现实现 PostgreSQL 适配器和幂等写服务。目录只消费目标 ID 集合生成 favorite 字段和 `favorite=true` 过滤，不 import discovery ORM 模型。
+
+## 7. 排行榜目录投影与元数据协调
+
+```text
+CatalogQueryService.movie_summaries_by_ids(movie_ids) -> MovieSummary list
+MetadataCompletionPort.ensure_ranking_priority(movie_id, normalized_number, sort_date)
+  -> MetadataCompletion(job_id, state)
+```
+
+- `movie_summaries_by_ids` 输入最多 100 个唯一 ID，按输入顺序返回仍满足
+  `core_ready + active identified/manual source` 的安全 MovieSummary；不可见 ID 不返回。
+  favorite、availability、progress 和永久图片 URL 继续使用本契约既有端口，不允许
+  Discovery 复制目录私有投影。
+- 排行榜无 attempt 时创建 `priority=20, reason=ranking`；queued 且 priority 大于 20
+  时在影片/attempt 行锁事务内提升；priority 10 不降级；running 原样复用；最近
+  attempt 为 failed 时不自动创建重试。
+- 影片在协调事务中变为 core_ready 时返回内部 `completed` 信号。并发排行榜查询或
+  同步不得产生重复活动 attempt。
+- 排行榜 cursor 和快照由 Discovery 所有；目录端口不接收 board/year/snapshot。

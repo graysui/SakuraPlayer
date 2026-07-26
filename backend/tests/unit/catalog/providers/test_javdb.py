@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
@@ -17,6 +18,7 @@ from sakuraplayer.catalog.providers.javdb import (
     JavdbCredentials,
     JavdbProvider,
     MetadataProviderProblem,
+    RankedMovieNumber,
 )
 from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.models import Base, EncryptedSetting
@@ -76,6 +78,116 @@ def test_public_core_lookup_works_without_credentials() -> None:
         return httpx.Response(200, text=fixture("javdb-search.html"))
 
     assert provider(handler).search_movie("ABP-123") is not None
+
+
+@pytest.mark.parametrize("board", ["daily", "weekly", "monthly"])
+def test_public_rankings_preserve_original_rank_and_first_number(board: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/rankings/playback"
+        assert dict(request.url.params) == {
+            "filter_by": "all",
+            "period": board,
+        }
+        assert "authorization" not in request.headers
+        return httpx.Response(200, text=fixture("javdb-ranking-playback.json"))
+
+    result = provider(handler).fetch_rankings(board, year=None, credentials=None)
+
+    assert result == (
+        RankedMovieNumber(rank=1, normalized_number="ABP-123"),
+        RankedMovieNumber(rank=4, normalized_number="IPX-456"),
+    )
+
+
+@pytest.mark.parametrize(
+    ("year", "ranking_type", "type_value"),
+    [(None, "all", ""), (2020, "year", "2020")],
+)
+def test_top250_logs_in_and_stops_on_empty_page(
+    year: int | None,
+    ranking_type: str,
+    type_value: str,
+) -> None:
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request.url.path)
+        if request.url.path == "/api/v1/sessions":
+            assert request.method == "POST"
+            assert request.headers["content-type"].startswith(
+                "application/x-www-form-urlencoded"
+            )
+            form = parse_qs(request.content.decode("utf-8"))
+            assert form["username"] == ["fixture-user"]
+            assert form["password"] == ["fixture-password"]
+            assert form["device_uuid"]
+            return httpx.Response(200, json={"success": 1, "data": {"token": "t"}})
+        assert request.url.path == "/api/v1/movies/top"
+        assert request.headers["authorization"] == "Bearer t"
+        assert request.url.params["type"] == ranking_type
+        assert request.url.params["type_value"] == type_value
+        assert request.url.params["limit"] == "50"
+        page = int(request.url.params["page"])
+        return httpx.Response(
+            200,
+            text=fixture(
+                "javdb-ranking-top-page.json"
+                if page == 1
+                else "javdb-ranking-empty.json"
+            ),
+        )
+
+    result = provider(handler).fetch_rankings(
+        "top250",
+        year=year,
+        credentials=JavdbCredentials("fixture-user", "fixture-password"),
+    )
+
+    assert result == (
+        RankedMovieNumber(rank=1, normalized_number="SSIS-001"),
+        RankedMovieNumber(rank=2, normalized_number="FC2-PPV-1234567"),
+    )
+    assert requests == ["/api/v1/sessions", "/api/v1/movies/top", "/api/v1/movies/top"]
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_code"),
+    [
+        ({"success": 1, "data": {}}, "javdb_upstream_error"),
+        ({"success": 1, "data": {"movies": []}}, "javdb_upstream_error"),
+        ({"success": 0, "message": "fixture"}, "javdb_upstream_error"),
+    ],
+)
+def test_ranking_empty_or_changed_payload_is_rejected(
+    payload: dict,
+    expected_code: str,
+) -> None:
+    javdb = provider(lambda request: httpx.Response(200, json=payload))
+
+    with pytest.raises(MetadataProviderProblem) as error:
+        javdb.fetch_rankings("daily", year=None, credentials=None)
+
+    assert error.value.code == expected_code
+
+
+def test_top250_login_rejection_maps_to_credentials_error() -> None:
+    javdb = provider(
+        lambda request: httpx.Response(
+            200,
+            json={"success": 0, "message": "fixture rejected"},
+        )
+    )
+
+    with pytest.raises(MetadataProviderProblem) as error:
+        javdb.fetch_rankings(
+            "top250",
+            year=None,
+            credentials=JavdbCredentials("fixture-user", "fixture-password"),
+        )
+
+    assert error.value.code == "javdb_credentials_invalid"
+    assert "fixture" not in str(error.value)
 
 
 def test_core_dto_merges_duplicate_actor_ids_and_rejects_conflicting_names() -> None:
@@ -187,6 +299,40 @@ def test_invalid_utf8_credentials_are_rejected_without_exposing_value() -> None:
             EncryptedJavdbCredentialStore(repository).load()
         assert error.value.code == "javdb_credentials_invalid"
         assert str(error.value) == "javdb_credentials_invalid"
+    finally:
+        engine.dispose()
+
+
+def test_credential_decryption_failure_maps_to_credentials_invalid() -> None:
+    engine = create_engine("sqlite+pysqlite://")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    original = EncryptedSettingRepository(
+        factory,
+        SecretCipher(
+            InMemorySecretKeyProvider(
+                active_key_id="v1",
+                keys={"v1": b"k" * 32},
+            )
+        ),
+    )
+    EncryptedJavdbCredentialStore(original).save(
+        JavdbCredentials("fixture-user", "fixture-password"),
+        expected_version=0,
+    )
+    wrong_key = EncryptedSettingRepository(
+        factory,
+        SecretCipher(
+            InMemorySecretKeyProvider(
+                active_key_id="v1",
+                keys={"v1": b"z" * 32},
+            )
+        ),
+    )
+    try:
+        with pytest.raises(MetadataProviderProblem) as error:
+            EncryptedJavdbCredentialStore(wrong_key).load()
+        assert error.value.code == "javdb_credentials_invalid"
     finally:
         engine.dispose()
 

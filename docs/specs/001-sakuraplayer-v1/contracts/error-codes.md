@@ -92,7 +92,7 @@
 | 任务 | `translation_input_too_large` | 待翻译原文超过 32,000 个 Unicode 字符；不访问 provider |
 | 任务 | `translation_dispatch_in_progress` | 同一业务键已有尚未 dispatch 的有效 reservation；本 attempt 不并发付费 |
 | 任务 | `translation_result_unavailable` | 同一业务键已有 dispatched/rejected/unknown 事实且无可复用译文；不得自动再次派发 |
-| 503 | `ranking_snapshot_unavailable` | 所选榜单/年份从未有成功快照；details 说明凭据未配置或同步尚未成功 |
+| 503 | `ranking_snapshot_unavailable` | 所选榜单/年份从未有成功快照；`details.reason` 只允许 `credentials_not_configured/credentials_invalid/never_synced/sync_failed`，可选 `last_error_code` 只含稳定错误码 |
 
 ## 5. 115 与缓存
 

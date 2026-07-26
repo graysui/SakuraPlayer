@@ -17,6 +17,7 @@ if config.config_file_name is not None:
 target_metadata = resource_models.Base.metadata
 assert catalog_models.MetadataJob.metadata is target_metadata
 assert discovery_models.Favorite.metadata is target_metadata
+assert discovery_models.RankingSyncRequest.metadata is target_metadata
 
 
 def run_migrations_offline() -> None:

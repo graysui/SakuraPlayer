@@ -375,6 +375,11 @@ paths:
     get:
       tags: [Discovery]
       operationId: getRanking
+      description: >-
+        Reads one immutable local JavDB snapshot and never contacts JavDB during
+        the request. Daily, weekly, and monthly reject year. TOP250 without year
+        is the overall board; explicit years are 2008 through the server current
+        year. Cursors bind the selected snapshot so a current switch cannot mix pages.
       parameters:
         - name: board
           in: query
@@ -384,15 +389,19 @@ paths:
             enum: [daily, weekly, monthly, top250]
         - name: year
           in: query
+          description: Only valid for top250; omitted top250 means the overall board.
           schema:
             type: integer
-            minimum: 1900
+            minimum: 2008
             maximum: 2200
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
           description: Latest successful local snapshot filtered to AVdb-backed core-ready movies.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
           content:
             application/json:
               schema:
@@ -404,7 +413,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: '#/components/schemas/RankingUnavailableError'
   /actors:
     get:
       tags: [Catalog]
@@ -1613,13 +1622,20 @@ components:
           $ref: '#/components/schemas/MovieSummary'
     RankingPage:
       type: object
-      required: [board, synced_at, items]
+      required: [board, year, available_years, synced_at, items, next_cursor]
       properties:
         board:
           type: string
           enum: [daily, weekly, monthly, top250]
         year:
           type: [integer, 'null']
+        available_years:
+          description: Descending 2008..current year for top250; empty otherwise.
+          type: array
+          maxItems: 100
+          items:
+            type: integer
+            minimum: 2008
         synced_at:
           type: string
           format: date-time
@@ -1629,6 +1645,26 @@ components:
             $ref: '#/components/schemas/RankingItem'
         next_cursor:
           type: [string, 'null']
+    RankingUnavailableDetails:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          enum:
+            [credentials_not_configured, credentials_invalid, never_synced, sync_failed]
+        last_error_code:
+          type: [string, 'null']
+          pattern: '^[a-z0-9_]+$'
+    RankingUnavailableError:
+      allOf:
+        - $ref: '#/components/schemas/ApiError'
+        - type: object
+          required: [details]
+          properties:
+            details:
+              $ref: '#/components/schemas/RankingUnavailableDetails'
     Cloud115Binding:
       type: object
       required: [bound, status]

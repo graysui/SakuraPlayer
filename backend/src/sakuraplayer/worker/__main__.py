@@ -14,13 +14,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.metadata_seeder import MetadataQueueSeeder
 from sakuraplayer.catalog.provider_snapshots import (
     ProviderSnapshotQueue,
     ProviderSnapshotRefreshService,
 )
+from sakuraplayer.catalog.providers.javdb import (
+    EncryptedJavdbCredentialStore,
+    JavdbProvider,
+)
+from sakuraplayer.discovery.ranking_sync import (
+    RankingSnapshotSynchronizer,
+    RankingSyncQueue,
+)
+from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
+from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
 from sakuraplayer.resources.avdb_worker import AvdbWorkerConsumer
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
@@ -46,6 +55,7 @@ from sakuraplayer.worker.metadata_supervisor import (
     SubprocessGroupLauncher,
 )
 from sakuraplayer.worker.provider_snapshots import ProviderSnapshotConsumer
+from sakuraplayer.worker.rankings import RankingConsumer
 
 
 PROVIDER_CACHE_DIRECTORY = Path("/var/lib/sakuraplayer/provider-cache")
@@ -79,6 +89,7 @@ class WorkerRuntime:
     provider_snapshot_consumer: ProviderSnapshotConsumer
     metadata_supervisor: MetadataSupervisor
     metadata_seeder: MetadataQueueSeeder
+    ranking_consumer: RankingConsumer | None = None
 
     def close(self) -> None:
         try:
@@ -178,6 +189,18 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
                 cache_root=PROVIDER_CACHE_DIRECTORY,
             ),
         )
+        ranking_queue = RankingSyncQueue(factory)
+        credential_store = EncryptedJavdbCredentialStore(
+            EncryptedSettingRepository(factory, cipher)
+        )
+        ranking_consumer = RankingConsumer(
+            queue=ranking_queue,
+            synchronizer=RankingSnapshotSynchronizer(
+                ranking_queue,
+                JavdbProvider(http_client=http_client),
+                credentials=credential_store.load,
+            ),
+        )
         return WorkerRuntime(
             consumer=consumer,
             importer=SourceImporter(factory, cipher=cipher),
@@ -186,6 +209,7 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             provider_snapshot_consumer=provider_snapshot_consumer,
             metadata_supervisor=metadata_supervisor,
             metadata_seeder=metadata_seeder,
+            ranking_consumer=ranking_consumer,
         )
     except Exception:
         http_client.close()
@@ -206,6 +230,8 @@ def run_worker(
     background_errors: list[BaseException] = []
     seeder_started = Event()
     snapshot_consumer_started = Event()
+    ranking_consumer_started = Event()
+    ranking_consumer = getattr(runtime, "ranking_consumer", None)
 
     def run_avdb_consumer() -> None:
         try:
@@ -241,6 +267,19 @@ def run_worker(
             background_errors.append(error)
             stop_event.set()
 
+    def run_ranking_consumer() -> None:
+        ranking_consumer_started.set()
+        assert ranking_consumer is not None
+        try:
+            consume_provider_snapshot_requests(
+                consumer=ranking_consumer,
+                stop_event=stop_event,
+                worker_id=worker_id,
+            )
+        except BaseException as error:
+            background_errors.append(error)
+            stop_event.set()
+
     avdb_thread = Thread(
         target=run_avdb_consumer,
         name="avdb-consumer",
@@ -256,11 +295,21 @@ def run_worker(
         name="provider-snapshot-consumer",
         daemon=True,
     )
-    avdb_thread.start()
-    seeder_thread.start()
-    snapshot_thread.start()
+    threads = [avdb_thread, seeder_thread, snapshot_thread]
+    if ranking_consumer is not None:
+        threads.append(
+            Thread(
+                target=run_ranking_consumer,
+                name="ranking-consumer",
+                daemon=True,
+            )
+        )
+    for thread in threads:
+        thread.start()
     seeder_started.wait(thread_join_seconds)
     snapshot_consumer_started.wait(thread_join_seconds)
+    if ranking_consumer is not None:
+        ranking_consumer_started.wait(thread_join_seconds)
     loop_error: BaseException | None = None
     shutdown_error: BaseException | None = None
     try:
@@ -275,11 +324,9 @@ def run_worker(
             runtime.metadata_supervisor.shutdown()
         except BaseException as error:
             shutdown_error = error
-        for thread in (avdb_thread, seeder_thread, snapshot_thread):
+        for thread in threads:
             thread.join(thread_join_seconds)
-    timed_out = any(
-        thread.is_alive() for thread in (avdb_thread, seeder_thread, snapshot_thread)
-    )
+    timed_out = any(thread.is_alive() for thread in threads)
     if loop_error is not None:
         raise loop_error
     if background_errors:

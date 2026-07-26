@@ -26,6 +26,35 @@ fetch_rankings(board, year?) -> ordered MovieNumber list
 
 可选 JavDB 用户名和密码作为单个 `javdb.credentials` AES-GCM JSON envelope 通过 TASK-003 设置仓储 CAS 读写，避免分键读取产生混合版本。未配置或配置无效不得阻断公开影片核心抓取；需登录的 TOP250 由排行榜任务明确跳过或报告凭据无效。
 
+### 2.1 JavDB 排行榜端口
+
+```text
+fetch_rankings(board, year?, credentials?) -> RankedMovieNumber list
+RankedMovieNumber = {rank: positive integer, normalized_number: MovieNumber}
+```
+
+- `board=daily/weekly/monthly` 时 `year` 必须为空，固定请求
+  `GET https://javdb.com/api/v1/rankings/playback`，参数为
+  `filter_by=all&period={board}`，不使用登录凭据。
+- `board=top250, year=null` 表示总榜；显式年份只允许 2008 至服务器当前年。
+  先向 `POST https://javdb.com/api/v1/sessions` 提交用户名、密码和固定的
+  app-compatible 设备字段，成功 token 只保存在当前 worker 调用内。总榜请求
+  `type=all&type_value=`，年度榜请求 `type=year&type_value={year}`。
+- TOP250 请求 `GET https://javdb.com/api/v1/movies/top`，固定
+  `start_rank=1&ignore_watched=false&limit=50`，最多 5 页；空页结束翻页。
+- 单次 JSON 响应最多 2 MiB，只接受 `success=1` 且 `data.movies` 为数组。每项只读取
+  `number`；缺失或无法规范化的单项跳过，重复番号只保留第一次出现并保留其全局
+  原始 rank，因此允许名次间隙。
+- 首页为空，或全部项经校验后为空，返回 `javdb_upstream_error`，不得激活空快照。
+  HTTP/JSON/结构异常映射 `javdb_upstream_error`；缺少凭据由调用方跳过，登录拒绝或
+  token 缺失映射 `javdb_credentials_invalid`。
+- 密码、登录 token、完整响应、设备 UUID 和完整 query 不进入日志、数据库或异常
+  details。默认测试只使用固定脱敏 JSON fixture，不访问真实 JavDB。
+
+完整同步、调度、年份和快照规则由
+[TASK-012 排行榜快照确定性与执行边界](../changes/2026-07-26--task-012-ranking-snapshot-boundaries.md)
+冻结。
+
 ## 3. DMM 端口
 
 ```text

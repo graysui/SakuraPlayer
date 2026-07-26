@@ -13,6 +13,8 @@ from sakuraplayer.catalog.api import create_catalog_api
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.discovery.api import create_discovery_api
 from sakuraplayer.discovery.favorites import FavoriteService
+from sakuraplayer.discovery.ranking_api import create_ranking_api
+from sakuraplayer.discovery.ranking_query import RankingQueryService
 from sakuraplayer.discovery.search_service import SearchService
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
@@ -41,6 +43,7 @@ def create_app(
     catalog_query_service: CatalogQueryService | None = None,
     search_service: SearchService | None = None,
     favorite_service: FavoriteService | None = None,
+    ranking_query_service: RankingQueryService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -48,18 +51,23 @@ def create_app(
     async def request_context(request: Request, call_next):
         request.state.request_id = uuid.uuid4().hex
         response = await call_next(request)
-        if request.url.path.startswith("/api/v1/auth/"):
+        if request.url.path.startswith("/api/v1/auth/") or request.url.path == (
+            "/api/v1/rankings"
+        ):
             response.headers["Cache-Control"] = "no-store"
         return response
 
     @app.exception_handler(ApiProblem)
     async def api_problem(request: Request, error: ApiProblem) -> JSONResponse:
+        payload: dict[str, object] = {
+            "code": stable_error_code(error.code),
+            "message": redact_text(error.message),
+            "request_id": request.state.request_id,
+        }
+        if error.details is not None:
+            payload["details"] = redact_mapping(error.details)
         return JSONResponse(
-            {
-                "code": stable_error_code(error.code),
-                "message": redact_text(error.message),
-                "request_id": request.state.request_id,
-            },
+            payload,
             status_code=error.status_code,
         )
 
@@ -145,6 +153,13 @@ def create_app(
             )
         elif search_service is not None or favorite_service is not None:
             raise ValueError("discovery API requires search and favorite services")
+        if ranking_query_service is not None:
+            app.include_router(
+                create_ranking_api(
+                    ranking_query_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
@@ -152,6 +167,7 @@ def create_app(
         or catalog_query_service is not None
         or search_service is not None
         or favorite_service is not None
+        or ranking_query_service is not None
     ):
         raise ValueError("admin APIs require identity service")
 
