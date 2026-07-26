@@ -177,6 +177,7 @@ v1 是单机单管理员产品，不做水平自动扩展。所有上限由数�
 | 迁移 | Alembic | 1.16.2 | 单向版本迁移和启动 Schema 门禁 |
 | PostgreSQL 驱动 | psycopg | 3.2.9 | 同步 worker 与 async API 双实现 |
 | HTTP | httpx | 0.28.1 | 所有外部适配器，统一超时和脱敏日志 |
+| XML 安全解析 | defusedxml | 0.7.1 | Actor Mapping 禁用 DTD、实体和外部网络 |
 | 图片验证 | Pillow | 11.2.1 | 永久图片完整解码、真实格式和像素边界 |
 | 加密 | cryptography | 45.0.4 | AVdb AES-GCM 与配置 AES-GCM |
 | 密码 | argon2-cffi | 23.1.0 | Argon2id 管理员密码哈希 |
@@ -374,6 +375,8 @@ contracts/
 
 - HTML 元数据只提取白名单文本字段，不在客户端渲染上游 HTML。
 - GFriends 和图片 URL 只能来自固定 HTTPS 主机白名单。TASK-008 永久目录图片固定为 `https://c0.jdbstatic.com` 精确主机。
+- TASK-009 的 Actor Mapping/Filetree 固定为精确 GitHub Raw URL，正文上限分别为 16/32 MiB，最多三跳逐跳校验重定向；GFriends Content URL 只能由固定基址和受校验相对段生成。
+- Actor Mapping 使用 defusedxml 0.7.1 拒绝 DTD、实体和外部网络；GFriends 路径拒绝绝对路径、scheme、反斜杠和 `.`/`..` 路径段。
 - 永久图片只接受 JPEG/PNG/WebP，单图最多 8 MiB、最多 3 次逐跳校验的重定向、单边最多 12,000 像素且总像素最多 40,000,000，使用 Pillow 11.2.1 完整解码后写入同目录临时文件并原子替换。
 - OpenAI 兼容 `base_url` 由管理员配置，但连接测试与请求日志不得输出 API key。
 - 自动测试默认使用固定 fixture 和 fake adapter；真实外部测试必须显式标记。

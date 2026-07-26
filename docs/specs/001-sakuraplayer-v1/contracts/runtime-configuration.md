@@ -58,6 +58,16 @@ Compose 可在容器内组装 `SAKURAPLAYER_DATABASE_URL`，但最终 DSN 不得
 
 115 Cookie 只通过扫码流程写入。DMM、演员映射和 GFriends 使用冻结的公共地址，不接受客户端任意 URL。
 
+TASK-009 固定公共地址：
+
+| 用途 | 固定地址 |
+|---|---|
+| Actor Mapping | `https://raw.githubusercontent.com/li-peifeng/Jav-Actors-Mapping/main/actor-mapping.xml` |
+| GFriends Filetree | `https://raw.githubusercontent.com/li-peifeng/gfriends/main/Filetree.json` |
+| GFriends Content 基址 | `https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content` |
+
+三个地址不是环境变量或管理员设置。实现必须使用完整 URL 等值校验；不得允许上游载荷改变 scheme、主机、仓库、分支或固定资产路径。
+
 ## 6. 首次管理员初始化
 
 1. 操作者生成 bootstrap token 并通过 Secret/环境变量提供。

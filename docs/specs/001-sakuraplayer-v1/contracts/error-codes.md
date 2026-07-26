@@ -82,7 +82,10 @@
 | 任务 | `image_dimensions_invalid` | 图片宽高或总像素超出固定边界 |
 | 任务 | `image_download_failed` | 图片网络、重定向、截断或解码失败；保留核心并等待显式富化重试 |
 | 任务 | `metadata_optional_stage_unavailable` | 当前版本尚未交付该可选 provider；记录 warning，不伪造成功 |
+| 502 | `actor_mapping_upstream_error` | Actor Mapping 下载失败；保留最近成功快照和既有演员资料 |
 | 502 | `gfriends_upstream_error` | GFriends 索引/图片失败，不隐藏核心影片 |
+| 422/任务 | `provider_snapshot_invalid` | 快照超限、结构、XML 安全、路径或摘要校验失败；不得激活 |
+| 任务 | `provider_snapshot_unavailable` | 对应 provider 从未有成功快照；可选阶段 warning，不隐藏核心影片 |
 | 502 | `translation_upstream_error` | AI 翻译失败，不隐藏核心影片 |
 | 任务 | `translation_guardrail_failed` | AI 改写 protected 字段或返回非法结构，拒绝译文并保留原文 |
 | 503 | `ranking_snapshot_unavailable` | 所选榜单/年份从未有成功快照；details 说明凭据未配置或同步尚未成功 |

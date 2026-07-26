@@ -7,7 +7,11 @@ from types import SimpleNamespace
 import pytest
 
 from sakuraplayer.resources.sync_service import BatchStats
-from sakuraplayer.worker.__main__ import consume_avdb_requests, run_worker
+from sakuraplayer.worker.__main__ import (
+    consume_avdb_requests,
+    consume_provider_snapshot_requests,
+    run_worker,
+)
 
 
 class StopAfterIdleWait:
@@ -67,12 +71,47 @@ def test_consumer_loop_injects_importer_and_waits_only_when_idle() -> None:
     assert stop_event.waits == [2.5]
 
 
+class RecordingSnapshotConsumer:
+    def __init__(self) -> None:
+        self.worker_ids: list[str] = []
+        self.results = ["completed", "idle"]
+
+    def run_once(self, *, worker_id: str) -> str:
+        self.worker_ids.append(worker_id)
+        return self.results.pop(0)
+
+
+def test_snapshot_consumer_loop_waits_only_when_idle() -> None:
+    consumer = RecordingSnapshotConsumer()
+    stop_event = StopAfterIdleWait()
+
+    consume_provider_snapshot_requests(
+        consumer=consumer,
+        stop_event=stop_event,
+        worker_id="worker-fixture",
+        idle_wait_seconds=2.5,
+    )
+
+    assert consumer.worker_ids == ["worker-fixture", "worker-fixture"]
+    assert stop_event.waits == [2.5]
+
+
 class RuntimeSeeder:
     def __init__(self) -> None:
         self.calls = 0
 
     def seed_once(self) -> None:
         self.calls += 1
+
+
+class RuntimeSnapshotConsumer:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def run_once(self, *, worker_id: str) -> str:
+        assert worker_id == "worker-runtime"
+        self.calls += 1
+        return "idle"
 
 
 class BlockingSeeder(RuntimeSeeder):
@@ -201,10 +240,12 @@ class SlowStopSeeder(RuntimeSeeder):
 def test_worker_runtime_polls_seeder_and_metadata_supervisor() -> None:
     stop_event = Event()
     seeder = RuntimeSeeder()
+    snapshot_consumer = RuntimeSnapshotConsumer()
     supervisor = RuntimeSupervisor(stop_event)
     runtime = SimpleNamespace(
         consumer=IdleConsumer(),
         importer=RecordingImporter(),
+        provider_snapshot_consumer=snapshot_consumer,
         metadata_seeder=seeder,
         metadata_supervisor=supervisor,
     )
@@ -216,6 +257,7 @@ def test_worker_runtime_polls_seeder_and_metadata_supervisor() -> None:
     )
 
     assert seeder.calls == 1
+    assert snapshot_consumer.calls == 1
     assert supervisor.ticks == ["worker-runtime"]
     assert supervisor.shutdown_called is True
 
@@ -228,6 +270,7 @@ def test_worker_propagates_avdb_thread_failure_after_supervisor_cleanup() -> Non
     runtime = SimpleNamespace(
         consumer=FailingConsumer(),
         importer=RecordingImporter(),
+        provider_snapshot_consumer=RuntimeSnapshotConsumer(),
         metadata_seeder=seeder,
         metadata_supervisor=supervisor,
     )
@@ -249,6 +292,7 @@ def test_blocking_seeder_does_not_delay_supervisor_tick() -> None:
     runtime = SimpleNamespace(
         consumer=IdleConsumer(),
         importer=RecordingImporter(),
+        provider_snapshot_consumer=RuntimeSnapshotConsumer(),
         metadata_seeder=seeder,
         metadata_supervisor=supervisor,
     )
@@ -281,6 +325,7 @@ def test_shutdown_failure_still_joins_the_avdb_thread() -> None:
     runtime = SimpleNamespace(
         consumer=consumer,
         importer=RecordingImporter(),
+        provider_snapshot_consumer=RuntimeSnapshotConsumer(),
         metadata_seeder=RuntimeSeeder(),
         metadata_supervisor=supervisor,
     )
@@ -303,6 +348,7 @@ def test_blocked_avdb_thread_has_a_bounded_shutdown() -> None:
     runtime = SimpleNamespace(
         consumer=consumer,
         importer=RecordingImporter(),
+        provider_snapshot_consumer=RuntimeSnapshotConsumer(),
         metadata_seeder=RuntimeSeeder(),
         metadata_supervisor=supervisor,
     )
@@ -326,6 +372,7 @@ def test_loop_error_wins_over_background_shutdown_and_join_timeout() -> None:
     runtime = SimpleNamespace(
         consumer=consumer,
         importer=RecordingImporter(),
+        provider_snapshot_consumer=RuntimeSnapshotConsumer(),
         metadata_seeder=seeder,
         metadata_supervisor=supervisor,
     )

@@ -1,0 +1,14 @@
+{
+  "Content": {
+    "fixture-source": {
+      "Actor One.jpg": "Actor One.jpg?t=1600000000",
+      "Alias One.jpg": "Actor One profile.jpg?t=1600000001",
+      "Same Name.jpg": "Same Name.jpg?t=1600000002",
+      "Marin..jpg": "Marin..jpg?t=1600000003"
+    }
+  },
+  "Information": {
+    "Timestamp": "1600000000",
+    "Version": "fixture"
+  }
+}

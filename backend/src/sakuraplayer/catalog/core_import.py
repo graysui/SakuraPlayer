@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from sakuraplayer.catalog.actor_mapping import normalize_actor_alias
 from sakuraplayer.catalog.models import (
     Actor,
     ActorAlias,
@@ -169,7 +170,7 @@ class CoreMetadataImporter:
             )
             aliases: dict[str, str] = {}
             for alias in (item.name, *item.aliases):
-                normalized = _normalize_alias(alias)
+                normalized = normalize_actor_alias(alias)
                 if normalized and normalized not in protected_aliases:
                     aliases.setdefault(normalized, alias)
             session.add_all(
@@ -276,10 +277,6 @@ class CoreMetadataImporter:
                     created_at=self._now(),
                 )
             )
-
-
-def _normalize_alias(value: str) -> str:
-    return " ".join(value.casefold().split())
 
 
 def require_active_metadata_claim(

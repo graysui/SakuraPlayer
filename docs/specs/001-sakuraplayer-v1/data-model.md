@@ -368,11 +368,51 @@ Domain aggregate 1 --- N DomainEvent
 
 ### 5.7 上游索引快照
 
-| 表 | 关键字段 | 规则 | 来源 |
+`provider_snapshot_request`:
+
+| 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
-| `actor_mapping_snapshot` | `sha256, fetched_at, relative_path, status` | 仅最近成功文件供解析 | AC-049/050 |
-| `gfriends_snapshot` | `sha256, fetched_at, relative_path, status` | Filetree 索引持久化，不镜像图片 | AC-049/052 |
-| `gfriends_actor_asset` | `actor_id, asset_kind, url, match_name` | 仅唯一权威匹配；URL 唯一 | AC-051/052 |
+| `id` | UUID | 主键 | `(derived)` |
+| `scheduled_for` | timestamptz | UTC 分钟槽；唯一 | AC-049 |
+| `status` | enum | `queued/claimed/completed/failed` | AC-049 |
+| `claim_owner` | varchar(128) | 可空 | `(derived)` |
+| `claim_token` | UUID | 可空；每次 claim 唯一 | `(derived)` |
+| `claim_expires_at` | timestamptz | 可空；过期可回收同一请求 | `(derived)` |
+| `attempt_count` | integer | >= 0 | `(derived)` |
+| `created_at` | timestamptz | 非空 | `(derived)` |
+| `completed_at` | timestamptz | 可空 | `(derived)` |
+| `failure_code` | varchar(128) | 可空、稳定码 | AC-049 |
+
+scheduler 只插入请求。worker 以 `FOR UPDATE SKIP LOCKED` claim；同一 `scheduled_for` 重复入队返回既有请求，不为明确失败自动插入新请求。
+
+`actor_mapping_snapshot` 与 `gfriends_snapshot` 使用相同结构：
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `id` | UUID | 主键 | `(derived)` |
+| `sha256` | char(64) | 每个来源内唯一 | AC-049 |
+| `byte_size` | bigint | 正数且不超过来源上限 | `(derived)` |
+| `relative_path` | text | provider-cache 服务端相对路径 | AC-049/052 |
+| `status` | enum | `current/superseded` | AC-049 |
+| `fetched_at` | timestamptz | 非空 | AC-049 |
+| `activated_at` | timestamptz | 非空 | `(derived)` |
+
+每张快照表用部分唯一索引保证最多一个 `current`。只有完整验证并已原子写入的文件能入表；同摘要幂等复用，激活新快照时在同一事务把旧 current 改为 superseded。
+
+`gfriends_actor_asset`:
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `id` | UUID | 主键 | `(derived)` |
+| `actor_id` | UUID | 外键 | AC-051 |
+| `snapshot_id` | UUID | 外键到 current GFriends 快照 | AC-049/052 |
+| `asset_kind` | enum | `profile/gallery` | AC-051/052 |
+| `position` | integer | 同 actor 从 0 开始；profile 固定 0 | `(derived)` |
+| `url` | text | 固定 Content 基址下的 HTTPS URL；全局唯一 | AC-051/052 |
+| `match_name` | varchar(255) | 产生唯一匹配的原始名称 | AC-051 |
+| `created_at` | timestamptz | 非空 | `(derived)` |
+
+一次成功重建在同一事务替换全部 `gfriends_actor_asset`，并以唯一 `(actor_id, asset_kind, position)` 和全局 `url` 防止重复或跨演员复用。GFriends 图不进入 `catalog_image`。
 
 ## 6. 发现与收藏
 
@@ -662,7 +702,8 @@ completed -> in_progress (下次从头播放且产生新进度)
 | AVdb 来源与同步游标 | 永久历史；全量缺失不自动删除 |
 | 来源拒绝标记 | 永久 |
 | 永久目录图片 | 永久，不随 115 缓存清理 |
-| GFriends 索引 | 保留最近成功及必要历史摘要 `(derived)` |
+| Actor Mapping/GFriends 快照 | 保留 current 文件及必要历史摘要；无数据库引用的 superseded 文件可维护清理 `(derived)` |
+| GFriends URL 索引 | 随 current 快照全量原子替换，不保存图片字节 |
 | 缓存任务审计 | 至少保留终态精简记录 `(derived)`；远端媒体定位清理后删除 |
 | 就绪 115 内容 | 滑动 TTL/LRU，清理成功才释放 |
 | 播放会话/租约 | 过期后可定期清除 `(derived)` |

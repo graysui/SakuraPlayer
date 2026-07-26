@@ -21,7 +21,11 @@ from sakuraplayer.catalog.image_store import (
 )
 from sakuraplayer.catalog.metadata_queue import MetadataClaim
 from sakuraplayer.catalog.metadata_state import MetadataStageExecutionError
-from sakuraplayer.catalog.models import CatalogImage
+from sakuraplayer.catalog.models import (
+    ActorMappingSnapshot,
+    CatalogImage,
+    GfriendsSnapshot,
+)
 from sakuraplayer.catalog.providers.dmm import DmmProvider
 from sakuraplayer.catalog.providers.javdb import (
     EncryptedJavdbCredentialStore,
@@ -35,7 +39,11 @@ from sakuraplayer.shared.config import Settings
 
 
 CATALOG_IMAGE_ROOT = Path("/var/lib/sakuraplayer/catalog-images")
-_FUTURE_OPTIONAL_STAGES = frozenset({"actor_map", "gfriends", "translation"})
+_FUTURE_OPTIONAL_STAGES = frozenset({"translation"})
+_SNAPSHOT_STAGE_MODELS = {
+    "actor_map": ActorMappingSnapshot,
+    "gfriends": GfriendsSnapshot,
+}
 
 
 class CatalogMetadataStageExecutor:
@@ -71,6 +79,9 @@ class CatalogMetadataStageExecutor:
             return
         if stage == "dmm":
             self._execute_dmm(claim)
+            return
+        if stage in _SNAPSHOT_STAGE_MODELS:
+            self._require_snapshot(claim, stage)
             return
         if stage in _FUTURE_OPTIONAL_STAGES:
             raise MetadataStageExecutionError("metadata_optional_stage_unavailable")
@@ -176,6 +187,25 @@ class CatalogMetadataStageExecutor:
                 if not movie.description_original:
                     movie.description_original = description
                     movie.updated_at = self._utc_now()
+        except CoreImportProblem as error:
+            raise MetadataStageExecutionError(error.code) from None
+
+    def _require_snapshot(self, claim: MetadataClaim, stage: str) -> None:
+        model = _SNAPSHOT_STAGE_MODELS[stage]
+        try:
+            with self._session_factory.begin() as session:
+                require_active_metadata_claim(
+                    session,
+                    _fence(claim, stage),
+                    current=self._utc_now(),
+                )
+                snapshot_id = session.scalar(
+                    select(model.id).where(model.status == "current")
+                )
+                if snapshot_id is None:
+                    raise MetadataStageExecutionError(
+                        "provider_snapshot_unavailable"
+                    )
         except CoreImportProblem as error:
             raise MetadataStageExecutionError(error.code) from None
 

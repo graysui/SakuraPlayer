@@ -9,6 +9,9 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.scheduler.jobs import register_avdb_jobs
+from sakuraplayer.scheduler.__main__ import build_scheduler
+from sakuraplayer.scheduler.provider_snapshots import register_provider_snapshot_job
+from sakuraplayer.catalog.models import ProviderSnapshotRequest
 from sakuraplayer.resources.models import AvdbSyncRequest, Base
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
 
@@ -111,4 +114,54 @@ def test_expired_reclaim_rejects_old_claim_from_same_worker() -> None:
         queue.fail(old_claim, code="internal_error", detail="internal_error")
     queue.renew(new_claim, lease_duration=timedelta(minutes=5))
     queue.fail(new_claim, code="internal_error", detail="internal_error")
+    engine.dispose()
+
+
+def test_registers_weekly_provider_snapshot_enqueue_only_job() -> None:
+    calls = 0
+
+    def enqueue() -> None:
+        nonlocal calls
+        calls += 1
+
+    scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
+
+    register_provider_snapshot_job(scheduler, enqueue)
+    register_provider_snapshot_job(scheduler, enqueue)
+
+    jobs = {job.id: job for job in scheduler.get_jobs()}
+    assert "provider_snapshots_weekly" in jobs
+    assert str(jobs["provider_snapshots_weekly"].trigger) == (
+        "cron[day_of_week='sun', hour='5', minute='0']"
+    )
+    jobs["provider_snapshots_weekly"].func()
+    assert calls == 1
+
+
+def test_provider_snapshot_job_rejects_non_shanghai_scheduler() -> None:
+    scheduler = BackgroundScheduler(timezone="UTC")
+
+    with pytest.raises(ValueError, match="Asia/Shanghai"):
+        register_provider_snapshot_job(scheduler, lambda: None)
+
+
+def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+
+    scheduler = build_scheduler(factory)
+
+    jobs = {job.id: job for job in scheduler.get_jobs()}
+    assert set(jobs) == {
+        "avdb_incremental_30d",
+        "avdb_full_reconcile",
+        "provider_snapshots_weekly",
+    }
+    jobs["provider_snapshots_weekly"].func()
+    jobs["provider_snapshots_weekly"].func()
+    with factory() as session:
+        requests = list(session.scalars(select(ProviderSnapshotRequest)))
+        assert len(requests) == 1
+        assert requests[0].status == "queued"
     engine.dispose()

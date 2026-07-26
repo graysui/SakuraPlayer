@@ -346,14 +346,192 @@ class CatalogImage(Base):
 Index("ix_catalog_image_owner", CatalogImage.owner_type, CatalogImage.owner_id)
 
 
+class ProviderSnapshotRequest(Base):
+    __tablename__ = "provider_snapshot_request"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'claimed', 'completed', 'failed')",
+            name="ck_provider_snapshot_request_status",
+        ),
+        CheckConstraint("attempt_count >= 0", name="ck_provider_snapshot_request_attempt"),
+        CheckConstraint(
+            "(status = 'queued' AND claim_owner IS NULL AND claim_token IS NULL "
+            "AND claim_expires_at IS NULL AND completed_at IS NULL "
+            "AND failure_code IS NULL) OR "
+            "(status = 'claimed' AND claim_owner IS NOT NULL "
+            "AND claim_token IS NOT NULL AND claim_expires_at IS NOT NULL "
+            "AND completed_at IS NULL AND failure_code IS NULL) OR "
+            "(status = 'completed' AND claim_owner IS NULL AND claim_token IS NULL "
+            "AND claim_expires_at IS NULL AND completed_at IS NOT NULL "
+            "AND failure_code IS NULL) OR "
+            "(status = 'failed' AND claim_owner IS NULL AND claim_token IS NULL "
+            "AND claim_expires_at IS NULL AND completed_at IS NOT NULL "
+            "AND failure_code IS NOT NULL)",
+            name="ck_provider_snapshot_request_state",
+        ),
+        UniqueConstraint(
+            "scheduled_for",
+            name="uq_provider_snapshot_request_slot",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    scheduled_for: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    claim_owner: Mapped[str | None] = mapped_column(String(128))
+    claim_token: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_code: Mapped[str | None] = mapped_column(String(128))
+
+
+class ActorMappingSnapshot(Base):
+    __tablename__ = "actor_mapping_snapshot"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('current', 'superseded')",
+            name="ck_actor_mapping_snapshot_state",
+        ),
+        CheckConstraint(
+            "byte_size > 0 AND byte_size <= 16777216",
+            name="ck_actor_mapping_snapshot_size",
+        ),
+        CheckConstraint(
+            "length(sha256) = 64 AND lower(sha256) = sha256",
+            name="ck_actor_mapping_snapshot_sha256",
+        ),
+        CheckConstraint(
+            "relative_path <> '' AND relative_path NOT LIKE '/%' "
+            "AND relative_path NOT LIKE '%..%'",
+            name="ck_actor_mapping_snapshot_path",
+        ),
+        UniqueConstraint("sha256", name="uq_actor_mapping_snapshot_sha256"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    relative_path: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    activated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+Index(
+    "uq_actor_mapping_snapshot_current",
+    ActorMappingSnapshot.status,
+    unique=True,
+    postgresql_where=ActorMappingSnapshot.status == "current",
+    sqlite_where=ActorMappingSnapshot.status == "current",
+)
+
+
+class GfriendsSnapshot(Base):
+    __tablename__ = "gfriends_snapshot"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('current', 'superseded')",
+            name="ck_gfriends_snapshot_state",
+        ),
+        CheckConstraint(
+            "byte_size > 0 AND byte_size <= 33554432",
+            name="ck_gfriends_snapshot_size",
+        ),
+        CheckConstraint(
+            "length(sha256) = 64 AND lower(sha256) = sha256",
+            name="ck_gfriends_snapshot_sha256",
+        ),
+        CheckConstraint(
+            "relative_path <> '' AND relative_path NOT LIKE '/%' "
+            "AND relative_path NOT LIKE '%..%'",
+            name="ck_gfriends_snapshot_path",
+        ),
+        UniqueConstraint("sha256", name="uq_gfriends_snapshot_sha256"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    relative_path: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    activated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+Index(
+    "uq_gfriends_snapshot_current",
+    GfriendsSnapshot.status,
+    unique=True,
+    postgresql_where=GfriendsSnapshot.status == "current",
+    sqlite_where=GfriendsSnapshot.status == "current",
+)
+
+
+class GfriendsActorAsset(Base):
+    __tablename__ = "gfriends_actor_asset"
+    __table_args__ = (
+        CheckConstraint(
+            "asset_kind IN ('profile', 'gallery')",
+            name="ck_gfriends_actor_asset_kind",
+        ),
+        CheckConstraint(
+            "(asset_kind = 'profile' AND position = 0) OR "
+            "(asset_kind = 'gallery' AND position >= 1)",
+            name="ck_gfriends_actor_asset_position",
+        ),
+        CheckConstraint("match_name <> ''", name="ck_gfriends_actor_asset_match_name"),
+        CheckConstraint(
+            "url LIKE 'https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/%'",
+            name="ck_gfriends_actor_asset_url",
+        ),
+        UniqueConstraint(
+            "actor_id",
+            "asset_kind",
+            "position",
+            name="uq_gfriends_actor_asset_owner_position",
+        ),
+        UniqueConstraint("url", name="uq_gfriends_actor_asset_url"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    actor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("actor.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("gfriends_snapshot.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    asset_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    match_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "Actor",
     "ActorAlias",
+    "ActorMappingSnapshot",
     "CatalogImage",
+    "GfriendsActorAsset",
+    "GfriendsSnapshot",
     "MetadataJob",
     "MetadataQueueState",
     "MetadataStage",
     "MovieActor",
     "MovieTag",
+    "ProviderSnapshotRequest",
     "Tag",
 ]

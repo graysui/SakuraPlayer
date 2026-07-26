@@ -22,6 +22,7 @@
 - AC-026/AC-027 的 90 日历日边界、5000 截断、稳定排序和无上限历史候选由 [首批元数据范围边界与排序](changes/2026-07-25--initial-metadata-scope-ordering.md) 冻结，并由 TASK-005 输出、TASK-007 消费。
 - TASK-007 的元数据队列表、活动 attempt 部分唯一约束和 claim expiry 由 [元数据队列 DoR 迁移归属修正](changes/2026-07-25--metadata-queue-dor-correction.md) 明确归属 TASK-007，不改变 AC-037 至 AC-043、AC-122 或任务依赖。
 - AC-047/AC-048 的永久图片精确 HTTPS 主机、MIME、8 MiB、重定向、像素、完整解码和原子替换边界由 [TASK-008 永久图片安全边界](changes/2026-07-26--task-008-image-security-boundaries.md) 冻结，并由 TASK-008 实现。
+- AC-049 至 AC-053 的固定 provider 地址、16/32 MiB 上限、XML/路径安全、周日 05:00 持久入队、独立 current 快照、唯一身份匹配和陈旧 GFriends 资产清理由 [TASK-009 提供方快照安全与重建边界](changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结，并由 TASK-009 实现。
 - AC-028/AC-029 的搜索字段、键集游标、安全响应和原子手动关联由 [待识别查询与关联确定性](changes/2026-07-25--pending-identification-pagination.md) 冻结，并由 TASK-005 实现。
 
 ## 逐条追踪

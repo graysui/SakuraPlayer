@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<actor-mapping>
+  <actor>
+    <a zh_cn="演员一" zh_tw="演員一" jp="Actor One" keyword="Actor One,Alias One" bio_graphy="演员一简介" verified="1" />
+    <a zh_cn="同名甲" zh_tw="同名甲" jp="Same Name" keyword="Same Name,Shared Alias" verified="1" />
+    <a zh_cn="同名乙" zh_tw="同名乙" jp="Same Name" keyword="Same Name,Other Alias" verified="1" />
+  </actor>
+</actor-mapping>

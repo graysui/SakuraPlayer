@@ -17,6 +17,10 @@ from sqlalchemy.orm import sessionmaker
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.metadata_seeder import MetadataQueueSeeder
+from sakuraplayer.catalog.provider_snapshots import (
+    ProviderSnapshotQueue,
+    ProviderSnapshotRefreshService,
+)
 from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
 from sakuraplayer.resources.avdb_worker import AvdbWorkerConsumer
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
@@ -41,6 +45,7 @@ from sakuraplayer.worker.metadata_supervisor import (
     MetadataSupervisor,
     SubprocessGroupLauncher,
 )
+from sakuraplayer.worker.provider_snapshots import ProviderSnapshotConsumer
 
 
 PROVIDER_CACHE_DIRECTORY = Path("/var/lib/sakuraplayer/provider-cache")
@@ -61,12 +66,17 @@ class Consumer(Protocol):
     def run_once(self, *, worker_id: str, importer: Importer) -> str: ...
 
 
+class SnapshotConsumer(Protocol):
+    def run_once(self, *, worker_id: str) -> str: ...
+
+
 @dataclass
 class WorkerRuntime:
     consumer: AvdbWorkerConsumer
     importer: SourceImporter
     engine: Engine
     http_client: httpx.Client
+    provider_snapshot_consumer: ProviderSnapshotConsumer
     metadata_supervisor: MetadataSupervisor
     metadata_seeder: MetadataQueueSeeder
 
@@ -92,6 +102,21 @@ def consume_avdb_requests(
             worker_id=worker_id,
             importer=importer.import_batch,
         )
+        if outcome == "idle":
+            stop_event.wait(idle_wait_seconds)
+
+
+def consume_provider_snapshot_requests(
+    *,
+    consumer: SnapshotConsumer,
+    stop_event: StopEvent,
+    worker_id: str,
+    idle_wait_seconds: float = IDLE_WAIT_SECONDS,
+) -> None:
+    if not worker_id or len(worker_id) > 64 or idle_wait_seconds < 0:
+        raise ValueError("invalid provider snapshot worker loop configuration")
+    while not stop_event.is_set():
+        outcome = consumer.run_once(worker_id=worker_id)
         if outcome == "idle":
             stop_event.wait(idle_wait_seconds)
 
@@ -145,11 +170,20 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             queue=metadata_queue,
             selector=InitialScopeSelector(factory),
         )
+        provider_snapshot_consumer = ProviderSnapshotConsumer(
+            queue=ProviderSnapshotQueue(factory),
+            service=ProviderSnapshotRefreshService(
+                factory,
+                http_client=http_client,
+                cache_root=PROVIDER_CACHE_DIRECTORY,
+            ),
+        )
         return WorkerRuntime(
             consumer=consumer,
             importer=SourceImporter(factory, cipher=cipher),
             engine=engine,
             http_client=http_client,
+            provider_snapshot_consumer=provider_snapshot_consumer,
             metadata_supervisor=metadata_supervisor,
             metadata_seeder=metadata_seeder,
         )
@@ -171,6 +205,7 @@ def run_worker(
         raise ValueError("worker loop timing must be positive")
     background_errors: list[BaseException] = []
     seeder_started = Event()
+    snapshot_consumer_started = Event()
 
     def run_avdb_consumer() -> None:
         try:
@@ -194,6 +229,18 @@ def run_worker(
             background_errors.append(error)
             stop_event.set()
 
+    def run_snapshot_consumer() -> None:
+        snapshot_consumer_started.set()
+        try:
+            consume_provider_snapshot_requests(
+                consumer=runtime.provider_snapshot_consumer,
+                stop_event=stop_event,
+                worker_id=worker_id,
+            )
+        except BaseException as error:
+            background_errors.append(error)
+            stop_event.set()
+
     avdb_thread = Thread(
         target=run_avdb_consumer,
         name="avdb-consumer",
@@ -204,9 +251,16 @@ def run_worker(
         name="metadata-seeder",
         daemon=True,
     )
+    snapshot_thread = Thread(
+        target=run_snapshot_consumer,
+        name="provider-snapshot-consumer",
+        daemon=True,
+    )
     avdb_thread.start()
     seeder_thread.start()
+    snapshot_thread.start()
     seeder_started.wait(thread_join_seconds)
+    snapshot_consumer_started.wait(thread_join_seconds)
     loop_error: BaseException | None = None
     shutdown_error: BaseException | None = None
     try:
@@ -221,9 +275,11 @@ def run_worker(
             runtime.metadata_supervisor.shutdown()
         except BaseException as error:
             shutdown_error = error
-        for thread in (avdb_thread, seeder_thread):
+        for thread in (avdb_thread, seeder_thread, snapshot_thread):
             thread.join(thread_join_seconds)
-    timed_out = any(thread.is_alive() for thread in (avdb_thread, seeder_thread))
+    timed_out = any(
+        thread.is_alive() for thread in (avdb_thread, seeder_thread, snapshot_thread)
+    )
     if loop_error is not None:
         raise loop_error
     if background_errors:

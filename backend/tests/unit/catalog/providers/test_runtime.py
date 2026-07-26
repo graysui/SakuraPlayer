@@ -13,7 +13,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
-from sakuraplayer.catalog.models import CatalogImage, MetadataJob, MetadataStage
+from sakuraplayer.catalog.models import (
+    ActorMappingSnapshot,
+    CatalogImage,
+    GfriendsSnapshot,
+    MetadataJob,
+    MetadataStage,
+)
 from sakuraplayer.catalog.core_import import CoreImportProblem
 from sakuraplayer.catalog.providers.runtime import build_metadata_stage_executor
 from sakuraplayer.identity.models import Base
@@ -140,9 +146,11 @@ def test_runtime_commits_core_and_isolates_unimplemented_optional_stages(
         assert stages["javdb_core"].status == "succeeded"
         assert stages["images"].status == "succeeded"
         assert stages["dmm"].status == "succeeded"
-        assert {
-            stages[name].failure_code for name in ("actor_map", "gfriends", "translation")
-        } == {"metadata_optional_stage_unavailable"}
+        assert stages["actor_map"].failure_code == "provider_snapshot_unavailable"
+        assert stages["gfriends"].failure_code == "provider_snapshot_unavailable"
+        assert stages["translation"].failure_code == (
+            "metadata_optional_stage_unavailable"
+        )
         assert all(image.status == "ready" for image in images)
         assert all((tmp_path / image.relative_path).is_file() for image in images)
     finally:
@@ -292,6 +300,63 @@ def test_claim_lost_after_reusing_digest_keeps_existing_ready_file(
         with factory() as session:
             image = session.scalar(select(CatalogImage))
         assert image is not None and image.status == "retry_pending"
+    finally:
+        client.close()
+        engine.dispose()
+
+
+def test_runtime_succeeds_snapshot_stages_when_current_snapshots_exist(
+    tmp_path: Path,
+) -> None:
+    engine, factory, queue, _, outcome, claim = context()
+    with factory.begin() as session:
+        session.add_all(
+            (
+                ActorMappingSnapshot(
+                    id=uuid.uuid4(),
+                    sha256="a" * 64,
+                    byte_size=100,
+                    relative_path="metadata/actor_mapping/a.xml",
+                    status="current",
+                    fetched_at=NOW,
+                    activated_at=NOW,
+                ),
+                GfriendsSnapshot(
+                    id=uuid.uuid4(),
+                    sha256="b" * 64,
+                    byte_size=100,
+                    relative_path="metadata/gfriends/b.json",
+                    status="current",
+                    fetched_at=NOW,
+                    activated_at=NOW,
+                ),
+            )
+        )
+    client = fake_client()
+    try:
+        executor = build_metadata_stage_executor(
+            settings=settings(),
+            session_factory=factory,
+            http_client=client,
+            image_root=tmp_path,
+            now=lambda: NOW,
+        )
+
+        result = MetadataChildRunner(queue=queue, executor=executor).run(claim)
+
+        assert result == "completed_with_warnings"
+        with factory() as session:
+            stages = {
+                item.stage: item
+                for item in session.scalars(
+                    select(MetadataStage).where(MetadataStage.job_id == outcome.job_id)
+                )
+            }
+        assert stages["actor_map"].status == "succeeded"
+        assert stages["gfriends"].status == "succeeded"
+        assert stages["translation"].failure_code == (
+            "metadata_optional_stage_unavailable"
+        )
     finally:
         client.close()
         engine.dispose()

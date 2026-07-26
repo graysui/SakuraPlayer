@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-26
 
-**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-008 已完成，下一任务为 TASK-009。
+**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-009 已完成，下一任务为 TASK-010。
 
 ## 1. 当前成果
 
@@ -36,12 +36,15 @@
 - TASK-008 已交付 JavDB 精确番号核心导入、Actor/Tag 关系、DMM 纯文本简介富化、可选 AES-GCM 凭据和永久目录图片原子缓存。
 - JavDB 核心短事务与 DMM/图片可选阶段隔离；图片仅允许精确 HTTPS 主机和三种格式，并限制 8 MiB、3 跳、12,000 单边和 40M 总像素，失败保留最近 ready 图片并进入显式富化重试。
 - TASK-008 自动验证覆盖 293 项自包含测试、38 项 PostgreSQL Fast 测试、三路无剩余 P0/P1/P2 只读审计，以及 Compose Final 的 67 项 PostgreSQL/运行测试、迁移、五服务健康、重启恢复和资源清理。
+- TASK-009 已交付 Actor Mapping 与 GFriends 安全周更快照、权威别名协调、唯一演员 URL 索引、最近成功回退、持久调度请求和 worker claim/lease consumer。
+- Actor Mapping 固定 16 MiB、defusedxml/XXE 拒绝和 JavDB 身份边界；GFriends 固定 32 MiB、三层安全路径与唯一匹配，只保存 URL 索引，不进入永久 `catalog_image` 或镜像 Content 图片。
+- TASK-009 自动验证覆盖 342 项自包含测试、PostgreSQL 生命周期/并发聚焦测试和无剩余 P0/P1/P2 只读审计，以及 Compose Final 的 71 项 PostgreSQL/运行测试、迁移、五服务健康、重启恢复、秘密扫描和资源清理。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-008 已完成；下一任务为 TASK-009。
-- **最近绿色快速门禁**: TASK-008 Fast 为 293 passed、7 deselected；TASK-008 PostgreSQL/Schema 为 38 passed；只读 compileall 与宿主 Docker 配置断言通过。
-- **最终门禁状态**: TASK-008 Compose Final 尝试 1 通过；自包含 293 passed、7 deselected，PostgreSQL/Compose 67 passed、12 deselected；迁移、五服务健康、重启恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-009 已完成；下一任务为 TASK-010。
+- **最近绿色快速门禁**: TASK-009 Fast 为 342 passed、7 deselected；TASK-009 PostgreSQL 生命周期与 Schema 聚焦 5 passed；只读 compileall、宿主 Docker 配置断言和 `git diff --check` 通过。
+- **最终门禁状态**: TASK-009 Compose Final 尝试 1 通过；自包含 342 passed、7 deselected，PostgreSQL/Compose 71 passed、12 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -58,18 +61,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008。
-- **下一任务**: TASK-009 演员映射与 GFriends。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009。
+- **下一任务**: TASK-010 OpenAI 兼容翻译。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-009 开始：
+下一会话从 TASK-010 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-009.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-010.md"
 ```
 
-完成 TASK-008 的实现、测试和评审后，按根目录 `AGENTS.md` 创建本次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
+完成 TASK-009 的实现、测试和评审后，按根目录 `AGENTS.md` 创建本次中文 Git 提交。工作流级清理由 TASK-015 在后端基础 E2E 后统一执行。
 
 ## 4. 必读契约
 
