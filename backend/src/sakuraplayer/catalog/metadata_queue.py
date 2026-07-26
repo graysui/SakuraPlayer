@@ -48,6 +48,12 @@ class EnqueueOutcome:
 
 
 @dataclass(frozen=True)
+class MetadataCompletionOutcome:
+    job_id: uuid.UUID
+    state: str
+
+
+@dataclass(frozen=True)
 class MetadataClaim:
     job_id: uuid.UUID
     movie_id: uuid.UUID
@@ -126,6 +132,55 @@ class MetadataQueue:
                 )
             )
         return outcomes
+
+    def ensure_search_priority(
+        self,
+        *,
+        movie_id: uuid.UUID,
+        normalized_number: str,
+        sort_date: date | None,
+    ) -> MetadataCompletionOutcome:
+        current = self._utc_now()
+        with self._session_factory.begin() as session:
+            movie = session.get(Movie, movie_id, with_for_update=True)
+            if movie is None or movie.normalized_number != normalized_number:
+                raise MetadataQueueProblem(
+                    status_code=404,
+                    code="resource_not_found",
+                )
+            existing = session.scalar(
+                select(MetadataJob)
+                .where(MetadataJob.normalized_number == normalized_number)
+                .order_by(MetadataJob.attempt_no.desc())
+                .limit(1)
+                .with_for_update()
+            )
+            if existing is None:
+                job = self._add_job(
+                    session,
+                    movie=movie,
+                    normalized_number=normalized_number,
+                    priority=priority_for_reason("manual_or_search"),
+                    reason="manual_or_search",
+                    sort_date=sort_date,
+                    retry_mode="full",
+                    requested_stages=(),
+                    attempt_no=1,
+                    parent_job_id=None,
+                    created_at=current,
+                )
+                return MetadataCompletionOutcome(job.id, "queued")
+            if movie.catalog_state == "core_ready":
+                return MetadataCompletionOutcome(existing.id, "completed")
+            if existing.status == "queued":
+                existing.priority = priority_for_reason("manual_or_search")
+                existing.reason = "manual_or_search"
+                if sort_date is not None:
+                    existing.sort_date = sort_date
+                return MetadataCompletionOutcome(existing.id, "queued")
+            if existing.status == "running":
+                return MetadataCompletionOutcome(existing.id, "running")
+            return MetadataCompletionOutcome(existing.id, "failed")
 
     def manual_retry(self, parent_job_id: uuid.UUID) -> EnqueueOutcome:
         current = self._utc_now()
@@ -812,6 +867,7 @@ __all__ = [
     "MAX_RUNNING_JOBS",
     "MetadataCandidateInput",
     "MetadataClaim",
+    "MetadataCompletionOutcome",
     "MetadataQueue",
     "MetadataQueueProblem",
     "retryable_enrichment_stages",

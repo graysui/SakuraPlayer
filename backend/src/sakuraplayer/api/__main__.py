@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import uvicorn
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -7,6 +9,9 @@ from sqlalchemy.orm import sessionmaker
 from sakuraplayer.api.app import create_app
 from sakuraplayer.catalog.metadata_api import MetadataAdminService
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
+from sakuraplayer.catalog.query_service import CatalogQueryService
+from sakuraplayer.discovery.favorites import FavoriteService
+from sakuraplayer.discovery.search_service import SearchService
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
@@ -58,12 +63,22 @@ def main() -> None:
             )
         ),
     )
+    metadata_queue = MetadataQueue(factory)
+    favorite_service = FavoriteService(factory)
+    catalog_query_service = CatalogQueryService(
+        factory,
+        favorite_port=favorite_service,
+        image_root=Path("/var/lib/sakuraplayer/catalog-images"),
+    )
     app = create_app(
         readiness_probe=lambda: is_ready(settings),
         identity_service=identity_service,
         identification_service=IdentificationService(factory),
         movie_source_admin_service=MovieSourceService(factory),
-        metadata_admin_service=MetadataAdminService(factory, MetadataQueue(factory)),
+        metadata_admin_service=MetadataAdminService(factory, metadata_queue),
+        catalog_query_service=catalog_query_service,
+        search_service=SearchService(catalog_query_service, metadata_queue),
+        favorite_service=favorite_service,
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

@@ -9,6 +9,11 @@ from sakuraplayer.catalog.metadata_api import (
     MetadataAdminService,
     create_metadata_api,
 )
+from sakuraplayer.catalog.api import create_catalog_api
+from sakuraplayer.catalog.query_service import CatalogQueryService
+from sakuraplayer.discovery.api import create_discovery_api
+from sakuraplayer.discovery.favorites import FavoriteService
+from sakuraplayer.discovery.search_service import SearchService
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.admin_api import (
@@ -33,6 +38,9 @@ def create_app(
     identification_service: IdentificationService | None = None,
     movie_source_admin_service: MovieSourceService | None = None,
     metadata_admin_service: MetadataAdminService | None = None,
+    catalog_query_service: CatalogQueryService | None = None,
+    search_service: SearchService | None = None,
+    favorite_service: FavoriteService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -120,10 +128,30 @@ def create_app(
                     current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
+        if catalog_query_service is not None:
+            app.include_router(
+                create_catalog_api(
+                    catalog_query_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+        if search_service is not None and favorite_service is not None:
+            app.include_router(
+                create_discovery_api(
+                    search_service,
+                    favorite_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+        elif search_service is not None or favorite_service is not None:
+            raise ValueError("discovery API requires search and favorite services")
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
         or metadata_admin_service is not None
+        or catalog_query_service is not None
+        or search_service is not None
+        or favorite_service is not None
     ):
         raise ValueError("admin APIs require identity service")
 

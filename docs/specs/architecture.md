@@ -19,7 +19,7 @@ SakuraPlayer 是单管理员、单 115 账号的私有部署产品。后端采�
 | 身份与配置 | 唯一管理员、访问令牌、115/JavDB/AI 配置、密钥保护 | 管理员、刷新会话、加密配置 | 无 |
 | 资源接入 | AVdb Release 发现、校验、解密、幂等导入、拒绝标记、待识别资源 | 同步批次、原始资源、来源拒绝标记 | 身份与配置 |
 | 目录与元数据 | 影片、女优、标签、图片、元数据任务、翻译、演员映射 | 目录聚合、刮削任务、翻译记录、永久图片清单 | 资源接入、身份与配置 |
-| 发现 | 媒体库查询、搜索、排行榜快照、收藏 | 榜单快照、影片/女优收藏 | 目录与元数据、资源接入 |
+| 发现 | 媒体库查询、搜索、排行榜快照、收藏 | 榜单快照、影片/女优收藏 | 目录与元数据、资源接入、115 播放缓存、播放 |
 | 115 播放缓存 | 单账户绑定、离线队列、任务目录、文件解析、TTL/LRU、安全清理 | 115 绑定、缓存任务、远端文件定位、清理记录 | 资源接入、身份与配置 |
 | 播放 | 短期播放会话、原画/HLS 派发、字幕、租约、影片级进度 | 播放会话、租约、进度、本地字幕副本状态 | 115 播放缓存、目录与元数据 |
 | 客户端体验 | Windows 与 HarmonyOS 页面、路由、通知、本地安全存储 | 本机令牌、页面状态、临时图片与字幕缓存 | 所有后端公开契约 |
@@ -68,6 +68,8 @@ Windows Flutter                         HarmonyOS ArkTS
 |---|---|---|---|
 | 资源接入 | 目录与元数据 | 发布语言 | `SourceImported` 与规范化番号 |
 | 目录与元数据 | 发现 | 发布语言 | 只读目录查询与 `core_ready` 可见性 |
+| 115 播放缓存 | 发现 | 发布语言 | `SourceAvailabilityPort` 批量只读来源状态 |
+| 播放 | 发现 | 发布语言 | `PlaybackStatePort` 批量只读影片进度 |
 | 资源接入 | 115 播放缓存 | 客户-供应商 | 只传 `SourceId` 和服务端解密后的提交载荷 |
 | 115 播放缓存 | 播放 | 发布语言 | 只传就绪远端媒体定位，不传磁力 |
 | 身份与配置 | 外部适配器 | 防腐层 | 适配器拿到解密后的短生命周期凭据对象 |
@@ -319,6 +321,7 @@ contracts/
 | 运行配置 | [runtime-configuration.md](001-sakuraplayer-v1/contracts/runtime-configuration.md) |
 | AVdb 输入 | [avdb-source.md](001-sakuraplayer-v1/contracts/avdb-source.md) |
 | 运维健康 | [operational-health.md](001-sakuraplayer-v1/contracts/operational-health.md)；内部探针不进入业务 OpenAPI |
+| 目录/发现端口 | [catalog-discovery-ports.md](001-sakuraplayer-v1/contracts/catalog-discovery-ports.md)；Phase 1 不提前建立 cache/playback 表 |
 
 ### 3.8 已批准的参考代码接口
 

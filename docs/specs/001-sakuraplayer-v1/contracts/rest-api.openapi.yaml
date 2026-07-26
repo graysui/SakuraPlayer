@@ -137,21 +137,29 @@ paths:
     get:
       tags: [Catalog]
       operationId: listMovies
+      description: >-
+        Returns only core-ready movies with at least one active AVdb source. All
+        source-scoped filters must match the same source. Cursors are versioned
+        and bound to the normalized filters, sort, and favorite flag.
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
         - name: categories
           in: query
+          description: Any selected category may match the same qualifying source.
           schema:
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/AvdbCategory'
           style: form
           explode: false
         - name: labels
           in: query
+          description: Every selected label must exist on the same qualifying source.
           schema:
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/SourceLabel'
           style: form
@@ -160,8 +168,12 @@ paths:
           in: query
           schema:
             type: string
+            enum: [sehuatang, x1080x]
         - name: playable
           in: query
+          description: >-
+            True requires availability=ready; false requires a non-ready source.
+            The Phase 1 empty availability port reports active sources as available.
           schema:
             type: boolean
         - name: min_resource_size_mb
@@ -176,13 +188,18 @@ paths:
             minimum: 0
         - name: sort
           in: query
+          description: >-
+            Publish-date sorts use MAX(publish_date) among qualifying sources,
+            keep null last, and use movie_id as the stable tie-breaker.
           schema:
             type: string
             enum: [publish_date_desc, publish_date_asc, number_asc]
             default: publish_date_desc
         - name: favorite
           in: query
-          description: When true, return the single movie favorite collection.
+          description: >-
+            When true, return the single movie favorite collection. False or
+            omitted does not filter by favorite state.
           schema:
             type: boolean
       responses:
@@ -192,6 +209,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MoviePage'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /movies/{movie_id}:
     get:
       tags: [Catalog]
@@ -216,6 +235,8 @@ paths:
       responses:
         '204':
           description: Movie favorited idempotently.
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Catalog]
       operationId: unfavoriteMovie
@@ -224,6 +245,40 @@ paths:
       responses:
         '204':
           description: Movie favorite removed idempotently.
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /catalog/images/{image_id}:
+    get:
+      tags: [Catalog]
+      operationId: getCatalogImage
+      description: >-
+        Reads a permanent catalog image by database ID from the managed image root.
+        Filesystem paths and upstream source URLs are never returned.
+      parameters:
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Validated JPEG, PNG, or WebP bytes.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
   /movies/{movie_id}/progress:
     put:
       tags: [Playback]
@@ -290,6 +345,11 @@ paths:
     get:
       tags: [Discovery]
       operationId: globalSearch
+      description: >-
+        Exact normalized movie numbers are evaluated first. A raw-only exact hit
+        idempotently creates or promotes a metadata job to priority 10; running
+        jobs are reused and failed jobs are reported without automatic retry.
+        The limit applies independently to each result group.
       parameters:
         - name: q
           in: query
@@ -302,10 +362,15 @@ paths:
       responses:
         '200':
           description: Grouped movie and actress results, plus metadata completion state.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SearchResult'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /rankings:
     get:
       tags: [Discovery]
@@ -344,17 +409,24 @@ paths:
     get:
       tags: [Catalog]
       operationId: listActors
+      description: >-
+        Returns actors related to at least one core-ready sourced movie. Search
+        matches Japanese/Chinese names and authoritative aliases; ambiguous
+        aliases return every matching actor.
       parameters:
         - name: q
           in: query
           schema:
             type: string
+            minLength: 1
             maxLength: 200
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
         - name: favorite
           in: query
-          description: When true, return the single actor favorite collection.
+          description: >-
+            When true, return the single actor favorite collection. False or
+            omitted does not filter by favorite state.
           schema:
             type: boolean
       responses:
@@ -364,6 +436,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ActorPage'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /actors/{actor_id}:
     get:
       tags: [Catalog]
@@ -372,7 +446,9 @@ paths:
         - $ref: '#/components/parameters/ActorId'
       responses:
         '200':
-          description: Actor detail with gallery URLs and related core-ready movies.
+          description: >-
+            Actor detail with deterministically ordered gallery URLs and related
+            core-ready movies; each nested collection is limited to 100 items.
           content:
             application/json:
               schema:
@@ -388,6 +464,8 @@ paths:
       responses:
         '204':
           description: Actor favorited idempotently.
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Catalog]
       operationId: unfavoriteActor
@@ -396,6 +474,8 @@ paths:
       responses:
         '204':
           description: Actor favorite removed idempotently.
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /cloud115/binding:
     get:
@@ -1068,6 +1148,9 @@ components:
     Cursor:
       name: cursor
       in: query
+      description: >-
+        Opaque versioned keyset cursor bound to the endpoint's normalized query,
+        filters and sort. Malformed or cross-query cursors return validation_failed.
       schema:
         type: string
     Limit:
@@ -1295,6 +1378,7 @@ components:
           format: date
         labels:
           type: array
+          maxItems: 4
           items:
             $ref: '#/components/schemas/SourceLabel'
         favorite:
@@ -1316,6 +1400,7 @@ components:
           format: uuid
         website:
           type: string
+          enum: [sehuatang, x1080x]
         external_post_id:
           type: integer
           format: int64
@@ -1340,6 +1425,7 @@ components:
         availability:
           type: string
           enum: [available, queued, running, ready, failed, rejected]
+          description: Only ready is playable; Phase 1 defaults active sources to available.
     PendingResourceSource:
       type: object
       required:
@@ -1395,6 +1481,7 @@ components:
           type: [string, 'null']
         aliases:
           type: array
+          maxItems: 100
           items:
             type: string
         profile_url:
@@ -1424,19 +1511,23 @@ components:
               type: [string, 'null']
             actors:
               type: array
+              maxItems: 100
               items:
                 $ref: '#/components/schemas/ActorSummary'
             tags:
               type: array
+              maxItems: 100
               items:
                 type: string
             plot_image_urls:
               type: array
+              maxItems: 100
               items:
                 type: string
                 format: uri-reference
             sources:
               type: array
+              maxItems: 100
               items:
                 $ref: '#/components/schemas/MovieSource'
     MoviePage:
@@ -1445,6 +1536,7 @@ components:
       properties:
         items:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/MovieSummary'
         next_cursor:
@@ -1461,11 +1553,13 @@ components:
               type: [string, 'null']
             gallery_urls:
               type: array
+              maxItems: 100
               items:
                 type: string
                 format: uri
             movies:
               type: array
+              maxItems: 100
               items:
                 $ref: '#/components/schemas/MovieSummary'
     ActorPage:
@@ -1474,6 +1568,7 @@ components:
       properties:
         items:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/ActorSummary'
         next_cursor:
@@ -1484,23 +1579,26 @@ components:
       properties:
         movies:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/MovieSummary'
         actors:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/ActorSummary'
         pending_metadata:
           type: array
+          maxItems: 100
           items:
             type: object
-            required: [number, state]
+            required: [number, state, metadata_job_id]
             properties:
               number:
                 type: string
               state:
                 type: string
-                enum: [queued, running]
+                enum: [queued, running, failed]
               metadata_job_id:
                 type: string
                 format: uuid

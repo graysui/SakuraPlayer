@@ -338,6 +338,8 @@ Domain aggregate 1 --- N DomainEvent
 
 部分唯一索引保证同一 `normalized_number` 最多一条 `queued/running`。同优先级按 `sort_date DESC NULLS LAST, created_at ASC, id ASC` claim；重试继承父任务 `sort_date`。失败或 warning 行永不由 worker 改回 queued；重试插入带 `parent_job_id` 的新行。`missing_enrichment` 的 `requested_stages` 必须非空且禁止 `javdb_core`，未列出的 stage 直接记为 `skipped`。
 
+用户搜索 exact number 时允许在影片行锁事务内把既有 `queued` attempt 原子改为 `priority=10, reason=manual_or_search`；`running` 只复用，最近 attempt 为 `failed` 时不得自动创建新 attempt。
+
 `metadata_stage`:
 
 | 字段 | 类型 | 规则 | 来源 |
@@ -458,7 +460,15 @@ scheduler 只插入请求。worker 以 `FOR UPDATE SKIP LOCKED` claim；同一 `
 | `target_id` | UUID | 非空 | AC-077 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 
-唯一键 `(target_type, target_id)`。无列表名、排序和自定义播放列表实体。
+唯一键 `(target_type, target_id)`。写入服务必须先验证目标可见：影片为 `core_ready` 且有活动来源；演员至少关联一部该类影片。无列表名、排序和自定义播放列表实体。影片收藏复用媒体库排序；演员收藏按规范化展示名、actor ID 稳定排序。
+
+### 6.3 目录查询确定性 `(derived)`
+
+- category 多选为 OR，label 多选为 AND；全部来源条件必须由同一活动 identified/manual 来源满足。
+- 影片发布日期排序键是满足来源筛选的 `MAX(resource_source.publish_date)`，null 永远最后，movie ID 为 tie-breaker。
+- cursor 是版本化 Base64URL JSON 并绑定查询、筛选、排序和 favorite；跨查询复用无效。
+- Phase 1 通过空 `SourceAvailabilityPort` 和 `PlaybackStatePort` 返回 `available`/null，不建立未来 cache/playback 表。
+- 影片详情和演员详情中的每个集合使用确定性顺序并限制为 100 项。
 
 ## 7. 115 缓存
 
@@ -696,9 +706,11 @@ completed -> in_progress (下次从头播放且产生新进度)
 
 搜索索引 `(derived)`:
 
+- PostgreSQL 启用 `pg_trgm` 扩展。
 - `resource_source(normalized_number, publish_date DESC)`。
 - `movie(normalized_number)` 唯一 B-tree。
 - `movie USING GIN (title_original gin_trgm_ops)` 和中文标题同类索引。
+- `actor USING GIN (name_ja gin_trgm_ops)` 和中文名同类索引。
 - `actor_alias USING GIN (normalized_alias gin_trgm_ops)`。
 - `cache_job(status, created_at)`、`metadata_job(status, priority, created_at)`。
 - `domain_event(stream, event_id)` 和 `(aggregate_id, stream_version)` 唯一。

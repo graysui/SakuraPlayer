@@ -34,7 +34,7 @@
 | 404 | `resource_not_found` | 返回上一页并允许刷新 |
 | 409 | `state_conflict` | 拉取最新 REST 快照 |
 | 409 | `idempotency_conflict` | 使用原请求结果或更换幂等键 |
-| 422 | `validation_failed` | 标记字段错误 |
+| 422 | `validation_failed` | 标记字段错误；包括畸形/跨查询 cursor、重复或冲突筛选和 min 大于 max |
 | 429 | `rate_limited` | 使用 `Retry-After`，不连续重放 |
 | 500 | `internal_error` | 显示 request ID，不暴露异常 |
 | 503 | `service_unavailable` | 保留现有页面数据并允许重试 |
