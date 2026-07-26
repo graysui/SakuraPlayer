@@ -14,9 +14,11 @@ from sakuraplayer.catalog.providers.javdb import (
     MetadataProviderProblem,
 )
 from sakuraplayer.discovery.ranking_sync import RankingSyncQueue
+from sakuraplayer.events.outbox import EventLog
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
+from sakuraplayer.scheduler.events import register_event_prune_job
 from sakuraplayer.scheduler.jobs import SHANGHAI_TIMEZONE, register_avdb_jobs
 from sakuraplayer.scheduler.provider_snapshots import register_provider_snapshot_job
 from sakuraplayer.scheduler.rankings import RankingSchedulerJob, register_ranking_job
@@ -35,6 +37,7 @@ def build_scheduler(
 ) -> BackgroundScheduler:
     scheduler = BackgroundScheduler(timezone=SHANGHAI_TIMEZONE)
     register_avdb_jobs(scheduler, AvdbSyncQueue(session_factory).enqueue)
+    register_event_prune_job(scheduler, EventLog(session_factory).prune_expired)
     register_provider_snapshot_job(
         scheduler,
         ProviderSnapshotQueue(session_factory).enqueue,

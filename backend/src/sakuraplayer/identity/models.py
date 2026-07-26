@@ -153,3 +153,28 @@ class EncryptedSetting(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+
+class ConnectionTestResult(Base):
+    __tablename__ = "connection_test_result"
+    __table_args__ = (
+        CheckConstraint(
+            "target IN ('cloud115', 'javdb', 'dmm', 'gfriends', 'ai')",
+            name="ck_connection_test_target",
+        ),
+        CheckConstraint(
+            "status IN ('available', 'unavailable', 'credentials_invalid', "
+            "'not_configured')",
+            name="ck_connection_test_status",
+        ),
+        CheckConstraint("elapsed_ms >= 0", name="ck_connection_test_elapsed"),
+    )
+
+    target: Mapped[str] = mapped_column(String(16), primary_key=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(128))
+    elapsed_ms: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )

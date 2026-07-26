@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.scheduler.jobs import register_avdb_jobs
 from sakuraplayer.scheduler.__main__ import build_scheduler
+from sakuraplayer.scheduler.events import register_event_prune_job
 from sakuraplayer.scheduler.provider_snapshots import register_provider_snapshot_job
 from sakuraplayer.scheduler.rankings import RankingSchedulerJob, register_ranking_job
 from sakuraplayer.catalog.models import ProviderSnapshotRequest
@@ -159,7 +160,11 @@ def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> No
         "avdb_full_reconcile",
         "provider_snapshots_weekly",
         "javdb_rankings_daily",
+        "domain_events_daily_prune",
     }
+    assert str(jobs["domain_events_daily_prune"].trigger) == (
+        "cron[hour='2', minute='30']"
+    )
     jobs["provider_snapshots_weekly"].func()
     jobs["provider_snapshots_weekly"].func()
     with factory() as session:
@@ -167,6 +172,25 @@ def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> No
         assert len(requests) == 1
         assert requests[0].status == "queued"
     engine.dispose()
+
+
+def test_event_prune_job_is_daily_and_single_instance() -> None:
+    calls = 0
+
+    def prune() -> None:
+        nonlocal calls
+        calls += 1
+
+    scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
+    register_event_prune_job(scheduler, prune)
+    register_event_prune_job(scheduler, prune)
+
+    job = {item.id: item for item in scheduler.get_jobs()}[
+        "domain_events_daily_prune"
+    ]
+    assert str(job.trigger) == "cron[hour='2', minute='30']"
+    job.func()
+    assert calls == 1
 
 
 def test_registers_daily_ranking_enqueue_only_job_at_0145_shanghai() -> None:

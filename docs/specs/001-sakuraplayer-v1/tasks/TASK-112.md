@@ -30,13 +30,13 @@ provides: [cache events, notifications, snapshots, cache admin API, startup reco
 
 ## Definition of Ready
 
-- [ ] TASK-013 event/snapshot extension points和本工作流所有状态服务可用。
+- [ ] TASK-013 全局 sequence、有界 snapshot 与 cache/credential 扩展端口和本工作流所有状态服务可用。
 - [ ] realtime-events.md 的 cache 事件和 close code 已冻结。
 - [ ] 客户端不自动播放 ready 通知的产品规则明确。
 
 ## 技术上下文
 
-- 事件 resource 是脱敏任务快照；60 秒结束无事件。
+- 事件 resource 是脱敏任务快照；60 秒结束无事件。TASK-112 复用 TASK-013 的全局 sequence、水位和 30 天保留，不另建游标体系。
 - startup reconciliation 先锁 job 再查 remote/task directory，状态不能倒退。
 - 操作 API 复用业务用例，不在诊断路由直接改状态。
 

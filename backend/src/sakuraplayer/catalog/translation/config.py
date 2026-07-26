@@ -122,6 +122,12 @@ class EncryptedAiConfigurationStore:
         payload = self._validate(raw)
         return self._snapshot(payload, version=setting.version)
 
+    def clear(self, *, expected_version: int) -> None:
+        self._repository.delete_secret(
+            _CONFIGURATION_KEY,
+            expected_version=expected_version,
+        )
+
     @staticmethod
     def _validate(value: object) -> _ConfigurationPayload:
         try:

@@ -41,7 +41,8 @@ docker run --rm `
   --workdir /workspace/backend `
   --entrypoint python `
   sakuraplayer-test `
-  -m pytest tests/start tests/unit tests/integration/identity/test_auth_api.py `
+  -m pytest tests/start tests/unit tests/integration/api tests/integration/events `
+  tests/integration/identity/test_auth_api.py `
   -m "not integration and not host_docker" -q -p no:cacheprovider
 ```
 

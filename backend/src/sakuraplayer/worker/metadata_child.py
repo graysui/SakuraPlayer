@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.metadata_queue import MetadataClaim, MetadataQueue
+from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.catalog.metadata_state import (
     ALL_STAGES,
     MetadataStageExecutionError,
@@ -201,7 +202,7 @@ def run_child_process(
     http_client = httpx.Client(headers={"User-Agent": "SakuraPlayer/0.1"})
     try:
         factory = sessionmaker(engine, expire_on_commit=False)
-        queue = MetadataQueue(factory)
+        queue = MetadataQueue(factory, event_writer=DomainEventWriter())
         claim = queue.load_claim(job_id=job_id, claim_owner=claim_owner)
         runtime = import_module("sakuraplayer.catalog.providers.runtime")
         executor = runtime.build_metadata_stage_executor(

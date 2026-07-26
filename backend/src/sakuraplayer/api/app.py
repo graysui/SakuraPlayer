@@ -9,6 +9,8 @@ from sakuraplayer.catalog.metadata_api import (
     MetadataAdminService,
     create_metadata_api,
 )
+from sakuraplayer.api.diagnostics import DiagnosticsService, create_diagnostics_api
+from sakuraplayer.api.settings import SettingsService, create_settings_api
 from sakuraplayer.catalog.api import create_catalog_api
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.discovery.api import create_discovery_api
@@ -16,6 +18,9 @@ from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.ranking_api import create_ranking_api
 from sakuraplayer.discovery.ranking_query import RankingQueryService
 from sakuraplayer.discovery.search_service import SearchService
+from sakuraplayer.events.outbox import EventLog
+from sakuraplayer.events.snapshot import EventSnapshotService
+from sakuraplayer.events.websocket import create_events_api
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.admin_api import (
@@ -44,6 +49,10 @@ def create_app(
     search_service: SearchService | None = None,
     favorite_service: FavoriteService | None = None,
     ranking_query_service: RankingQueryService | None = None,
+    event_snapshot_service: EventSnapshotService | None = None,
+    event_log: EventLog | None = None,
+    settings_service: SettingsService | None = None,
+    diagnostics_service: DiagnosticsService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -51,8 +60,12 @@ def create_app(
     async def request_context(request: Request, call_next):
         request.state.request_id = uuid.uuid4().hex
         response = await call_next(request)
-        if request.url.path.startswith("/api/v1/auth/") or request.url.path == (
-            "/api/v1/rankings"
+        if (
+            request.url.path.startswith("/api/v1/auth/")
+            or request.url.path.startswith("/api/v1/settings")
+            or request.url.path.startswith("/api/v1/admin/")
+            or request.url.path.startswith("/api/v1/events/")
+            or request.url.path == "/api/v1/rankings"
         ):
             response.headers["Cache-Control"] = "no-store"
         return response
@@ -160,6 +173,31 @@ def create_app(
                     current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
+        if event_snapshot_service is not None and event_log is not None:
+            app.include_router(
+                create_events_api(
+                    event_snapshot_service,
+                    event_log,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                    websocket_admin_dependency=identity_api.websocket_admin_dependency,
+                )
+            )
+        elif event_snapshot_service is not None or event_log is not None:
+            raise ValueError("events API requires snapshot service and event log")
+        if settings_service is not None:
+            app.include_router(
+                create_settings_api(
+                    settings_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+        if diagnostics_service is not None:
+            app.include_router(
+                create_diagnostics_api(
+                    diagnostics_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
@@ -168,6 +206,10 @@ def create_app(
         or search_service is not None
         or favorite_service is not None
         or ranking_query_service is not None
+        or event_snapshot_service is not None
+        or event_log is not None
+        or settings_service is not None
+        or diagnostics_service is not None
     ):
         raise ValueError("admin APIs require identity service")
 

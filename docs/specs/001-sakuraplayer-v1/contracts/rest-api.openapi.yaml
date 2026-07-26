@@ -883,6 +883,7 @@ paths:
                 target:
                   type: string
                   enum: [cloud115, javdb, dmm, gfriends, ai]
+              additionalProperties: false
       responses:
         '200':
           description: Redacted test result.
@@ -1967,17 +1968,20 @@ components:
       allOf:
         - $ref: '#/components/schemas/ProviderState'
         - type: object
-          required: [password_configured]
+          required: [password_configured, version]
           properties:
             username:
               type: [string, 'null']
             password_configured:
               type: boolean
+            version:
+              type: integer
+              minimum: 0
     AiSettings:
       allOf:
         - $ref: '#/components/schemas/ProviderState'
         - type: object
-          required: [api_key_configured]
+          required: [api_key_configured, version]
           properties:
             base_url:
               type: [string, 'null']
@@ -1990,6 +1994,9 @@ components:
               maximum: 600
             api_key_configured:
               type: boolean
+            version:
+              type: integer
+              minimum: 0
     SyncRunState:
       type: object
       required: [status]
@@ -2052,36 +2059,89 @@ components:
           $ref: '#/components/schemas/AvdbSyncStatus'
     SettingsPatch:
       type: object
+      minProperties: 1
       properties:
         cache_ttl_hours:
           type: integer
           minimum: 1
           maximum: 168
-        javdb_username:
-          type: [string, 'null']
-        javdb_password:
-          type: [string, 'null']
-        ai_base_url:
-          type: [string, 'null']
+        javdb:
+          $ref: '#/components/schemas/JavdbSettingsCommand'
+        ai:
+          $ref: '#/components/schemas/AiSettingsCommand'
+      additionalProperties: false
+    SettingClearCommand:
+      type: object
+      required: [action, expected_version]
+      properties:
+        action:
+          const: clear
+        expected_version:
+          type: integer
+          minimum: 1
+      additionalProperties: false
+    JavdbSettingsReplace:
+      type: object
+      required: [action, expected_version, username, password]
+      properties:
+        action:
+          const: replace
+        expected_version:
+          type: integer
+          minimum: 0
+        username:
+          type: string
+          minLength: 1
+          maxLength: 255
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+      additionalProperties: false
+    JavdbSettingsCommand:
+      oneOf:
+        - $ref: '#/components/schemas/JavdbSettingsReplace'
+        - $ref: '#/components/schemas/SettingClearCommand'
+    AiSettingsReplace:
+      type: object
+      required: [action, expected_version, base_url, api_key, model, timeout_seconds]
+      properties:
+        action:
+          const: replace
+        expected_version:
+          type: integer
+          minimum: 0
+        base_url:
+          type: string
           format: uri
-        ai_api_key:
-          type: [string, 'null']
-        ai_model:
-          type: [string, 'null']
-        ai_timeout_seconds:
+          maxLength: 2048
+        api_key:
+          type: string
+          minLength: 1
+          maxLength: 8192
+        model:
+          type: string
+          minLength: 1
+          maxLength: 255
+        timeout_seconds:
           type: integer
           minimum: 1
           maximum: 600
       additionalProperties: false
+    AiSettingsCommand:
+      oneOf:
+        - $ref: '#/components/schemas/AiSettingsReplace'
+        - $ref: '#/components/schemas/SettingClearCommand'
     ConnectionTest:
       type: object
-      required: [target, status, checked_at]
+      required: [target, status, error_code, elapsed_ms, checked_at]
       properties:
         target:
           type: string
+          enum: [cloud115, javdb, dmm, gfriends, ai]
         status:
           type: string
-          enum: [available, unavailable, credentials_invalid]
+          enum: [available, unavailable, credentials_invalid, not_configured]
         error_code:
           type: [string, 'null']
         elapsed_ms:
@@ -2098,7 +2158,7 @@ components:
           enum: [api, scheduler, worker, postgres, avdb, javdb, dmm, gfriends, ai, cloud115]
         status:
           type: string
-          enum: [healthy, degraded, unavailable, credentials_invalid]
+          enum: [healthy, degraded, unavailable, credentials_invalid, unknown]
         error_code:
           type: [string, 'null']
         checked_at:
@@ -2158,16 +2218,19 @@ components:
           format: date-time
         components:
           type: array
+          maxItems: 10
           items:
             $ref: '#/components/schemas/ComponentDiagnostic'
         queues:
           $ref: '#/components/schemas/QueueDiagnostic'
         recent_failures:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/FailureDiagnostic'
         connection_tests:
           type: array
+          maxItems: 5
           items:
             $ref: '#/components/schemas/ConnectionTest'
     Notification:
@@ -2193,25 +2256,31 @@ components:
           format: date-time
     EventSnapshot:
       type: object
-      required: [snapshot_version, cache_jobs, metadata_jobs, cloud115_binding, notifications]
+      required: [snapshot_version, last_event_id, queues, cache_jobs, metadata_jobs, cloud115_binding, notifications]
       properties:
         snapshot_version:
           type: integer
           format: int64
+          minimum: 0
         last_event_id:
           type: [string, 'null']
           format: uuid
         cache_jobs:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/CacheJob'
         metadata_jobs:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/MetadataJob'
         cloud115_binding:
           $ref: '#/components/schemas/Cloud115Binding'
+        queues:
+          $ref: '#/components/schemas/QueueDiagnostic'
         notifications:
           type: array
+          maxItems: 100
           items:
             $ref: '#/components/schemas/Notification'

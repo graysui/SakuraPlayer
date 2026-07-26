@@ -106,7 +106,7 @@ class MetadataAdminService:
         with self._session_factory() as session:
             jobs = list(session.scalars(statement))
             visible = jobs[:limit]
-            views = self._views(session, visible)
+            views = self.views_in_session(session, visible)
         next_cursor = None
         if len(jobs) > limit and visible:
             last = visible[-1]
@@ -134,10 +134,13 @@ class MetadataAdminService:
                     status_code=404,
                     code="metadata_job_not_found",
                 )
-            return self._views(session, [job])[0]
+            return self.views_in_session(session, [job])[0]
 
     @staticmethod
-    def _views(session: Session, jobs: list[MetadataJob]) -> list[MetadataJobView]:
+    def views_in_session(
+        session: Session,
+        jobs: list[MetadataJob],
+    ) -> list[MetadataJobView]:
         if not jobs:
             return []
         stages_by_job: dict[uuid.UUID, dict[str, MetadataStage]] = {

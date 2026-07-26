@@ -28,6 +28,7 @@ from sakuraplayer.discovery.ranking_sync import (
     RankingSnapshotSynchronizer,
     RankingSyncQueue,
 )
+from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
@@ -160,7 +161,7 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             asset_directory=cache_root / "assets",
             plaintext_directory=cache_root / "plaintext",
         )
-        metadata_queue = MetadataQueue(factory)
+        metadata_queue = MetadataQueue(factory, event_writer=DomainEventWriter())
         metadata_supervisor = MetadataSupervisor(
             queue=metadata_queue,
             launcher=SubprocessGroupLauncher(

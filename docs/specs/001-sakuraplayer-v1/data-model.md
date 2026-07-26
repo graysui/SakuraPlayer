@@ -89,7 +89,7 @@ Domain aggregate 1 --- N DomainEvent
 
 ### 3.3 `encrypted_setting`
 
-用于 115 Cookie、AI key、可选 JavDB 凭据等可恢复秘密。JavDB 用户名和密码使用单个 `javdb.credentials` 加密 JSON envelope 原子 CAS，避免跨键混合版本。普通非敏感配置使用同一记录的 `public_value`，但同一键不能同时存在明文和密文。
+用于 115 Cookie、AI key、可选 JavDB 凭据等可恢复秘密。JavDB 用户名和密码使用单个 `javdb.credentials` 加密 JSON envelope 原子 CAS，避免跨键混合版本。普通非敏感配置使用同一记录的 `public_value`，但同一键不能同时存在明文和密文。秘密 clear 后以内部无秘密 tombstone 保留递增版本；旧客户端不能用清空前版本覆盖后续新配置。
 
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
@@ -637,22 +637,54 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 
 ## 9. 事件、通知与诊断
 
-### 9.1 `domain_event`
+### 9.1 `event_sequence`
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `singleton_key` | boolean | 主键且恒为 true | AC-115/116 |
+| `current_value` | bigint | 非负、事务内行锁递增 | AC-115/116 |
+
+该单例行分配 `domain_event.sequence`。递增与领域写入、事件插入处于同一事务，事务回滚时不消耗水位。
+
+### 9.2 `event_stream_version`
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `stream` | varchar(64) | 联合主键，取值同 `domain_event.stream` | AC-115 |
+| `aggregate_id` | UUID | 联合主键 | AC-115 |
+| `current_version` | bigint | 正数、事务内递增 | AC-115 |
+
+该表只保留聚合版本水位，不包含事件 payload。`domain_event` 到期清理后，后续事件仍从原 `stream_version` 继续递增。
+
+### 9.3 `domain_event`
 
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
 | `event_id` | UUID | 主键 | NFR-003 |
-| `stream` | varchar(64) | `metadata/cache/credential` | AC-115 |
+| `sequence` | bigint | 数据库生成、全局单调、唯一 | AC-115/116 |
+| `stream` | varchar(64) | `metadata/cache/credential/catalog/notification` | AC-115 |
 | `aggregate_id` | UUID | 资源 ID | AC-115 |
 | `stream_version` | bigint | 同聚合单调递增 | NFR-003 |
 | `event_type` | varchar(128) | 版本化名称 | AC-115 |
 | `payload` | jsonb | 脱敏任务快照 | AC-115/121 |
 | `occurred_at` | timestamptz | 非空 | AC-115 |
-| `expires_at` | timestamptz | 事件保留窗口 `(derived)` | `(derived)` |
+| `expires_at` | timestamptz | 固定 `occurred_at + 30 days` | `(derived)` |
 
-领域状态和事件必须在同一数据库事务提交。客户端游标落后或事件缺失时使用 REST 快照。
+领域状态和事件必须在同一数据库事务提交。`event_id` 用于去重和外部游标句柄，`sequence` 用于全局追赶/快照水位，`stream_version` 用于聚合合并。客户端游标落后或事件缺失时使用同一事务水位下的有界 REST 快照。
 
-### 9.2 `notification`
+### 9.4 `connection_test_result`
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `target` | varchar(16) | 主键，`cloud115/javdb/dmm/gfriends/ai` | AC-119/121 |
+| `status` | varchar(32) | `available/unavailable/credentials_invalid/not_configured` | AC-119/121 |
+| `error_code` | varchar(128) | 可空、稳定错误码 | AC-121 |
+| `elapsed_ms` | bigint | 非负 | AC-121 |
+| `checked_at` | timestamptz | 非空 | AC-119/121 |
+
+每个 target 只保留最近一次脱敏结果；秘密配置 replace/clear 后删除对应旧结果，避免把旧凭据的成功状态应用到新版本。
+
+### 9.5 `notification`
 
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
@@ -746,7 +778,7 @@ completed -> in_progress (下次从头播放且产生新进度)
 - `actor USING GIN (name_ja gin_trgm_ops)` 和中文名同类索引。
 - `actor_alias USING GIN (normalized_alias gin_trgm_ops)`。
 - `cache_job(status, created_at)`、`metadata_job(status, priority, created_at)`。
-- `domain_event(stream, event_id)` 和 `(aggregate_id, stream_version)` 唯一。
+- `domain_event(sequence)`、`domain_event(event_id)` 和 `(stream, aggregate_id, stream_version)` 唯一；读取按 `sequence ASC`。
 
 ## 12. 保留与删除
 
@@ -761,7 +793,8 @@ completed -> in_progress (下次从头播放且产生新进度)
 | 缓存任务审计 | 至少保留终态精简记录 `(derived)`；远端媒体定位清理后删除 |
 | 就绪 115 内容 | 滑动 TTL/LRU，清理成功才释放 |
 | 播放会话/租约 | 过期后可定期清除 `(derived)` |
-| 域事件 | 有限保留窗口 `(derived)`，状态由业务表恢复 |
+| 事件 sequence/stream version 水位 | 永久精简计数，不保存 payload |
+| 域事件正文 | 固定 30 天；每日只删除已过期行，状态由业务表恢复 |
 | 客户端字幕副本 | 对应缓存、登录或本地 TTL 结束时删除 |
 
 v1 不创建自动备份任务，也不提供旧 SakuraMedia Schema 迁移。

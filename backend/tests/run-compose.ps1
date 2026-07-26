@@ -163,7 +163,7 @@ try {
     & docker build -f backend/docker/api.Dockerfile --target test -t $testImage .
     if ($LASTEXITCODE -ne 0) { throw 'test image build failed' }
 
-    & docker run --rm --entrypoint python $testImage -m pytest tests/start tests/unit tests/integration/identity/test_auth_api.py -m 'not integration and not host_docker' -q
+    & docker run --rm --entrypoint python $testImage -m pytest tests/start tests/unit tests/integration/api tests/integration/events tests/integration/identity/test_auth_api.py -m 'not integration and not host_docker' -q
     if ($LASTEXITCODE -ne 0) { throw 'self-contained tests failed' }
 
     & python backend/tests/start/test_docker_entrypoint.py

@@ -18,6 +18,7 @@ from sakuraplayer.catalog.metadata_state import (
     validate_enrichment_stages,
 )
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
+from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.redaction import redact_text, stable_error_code
 
@@ -73,9 +74,11 @@ class MetadataQueue:
         session_factory: sessionmaker[Session],
         *,
         now: Callable[[], datetime] | None = None,
+        event_writer: DomainEventWriter | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._event_writer = event_writer
 
     def enqueue(
         self,
@@ -173,10 +176,18 @@ class MetadataQueue:
             if movie.catalog_state == "core_ready":
                 return MetadataCompletionOutcome(existing.id, "completed")
             if existing.status == "queued":
+                changed = existing.priority != priority_for_reason("manual_or_search")
                 existing.priority = priority_for_reason("manual_or_search")
                 existing.reason = "manual_or_search"
                 if sort_date is not None:
+                    changed = changed or existing.sort_date != sort_date
                     existing.sort_date = sort_date
+                if changed:
+                    self._publish_job(
+                        session,
+                        existing,
+                        event_type="metadata.job.queued.v1",
+                    )
                 return MetadataCompletionOutcome(existing.id, "queued")
             if existing.status == "running":
                 return MetadataCompletionOutcome(existing.id, "running")
@@ -231,6 +242,11 @@ class MetadataQueue:
                     existing.reason = "ranking"
                     if sort_date is not None:
                         existing.sort_date = sort_date
+                    self._publish_job(
+                        session,
+                        existing,
+                        event_type="metadata.job.queued.v1",
+                    )
                 return MetadataCompletionOutcome(existing.id, "queued")
             if existing.status == "running":
                 return MetadataCompletionOutcome(existing.id, "running")
@@ -432,6 +448,15 @@ class MetadataQueue:
                     select(MetadataStage).where(MetadataStage.job_id == job.id)
                 )
             }
+            pending_stages = tuple(
+                stage for stage in ALL_STAGES if stage_statuses.get(stage) == "pending"
+            )
+            self._publish_job(
+                session,
+                job,
+                event_type="metadata.job.started.v1",
+                stage=pending_stages[0] if pending_stages else None,
+            )
             return MetadataClaim(
                 job_id=job.id,
                 movie_id=job.movie_id,
@@ -441,9 +466,7 @@ class MetadataQueue:
                 claim_owner=claim_owner,
                 claim_expires_at=job.claim_expires_at,
                 elapsed_ms=elapsed_ms,
-                pending_stages=tuple(
-                    stage for stage in ALL_STAGES if stage_statuses.get(stage) == "pending"
-                ),
+                pending_stages=pending_stages,
                 has_warnings=any(
                     status in {"warning", "failed"}
                     for status in stage_statuses.values()
@@ -548,7 +571,7 @@ class MetadataQueue:
             raise ValueError("invalid metadata stage")
         current = self._utc_now()
         with self._session_factory.begin() as session:
-            self._require_active_claim(session, claim, current=current)
+            job = self._require_active_claim(session, claim, current=current)
             stage = session.get(
                 MetadataStage,
                 (claim.job_id, stage_name),
@@ -561,6 +584,13 @@ class MetadataQueue:
                 )
             stage.status = "running"
             stage.started_at = current
+            self._publish_job(
+                session,
+                job,
+                event_type="metadata.job.stage_changed.v1",
+                stage=stage_name,
+                stage_status="running",
+            )
 
     def is_core_ready(self, claim: MetadataClaim) -> bool:
         current = self._utc_now()
@@ -594,7 +624,7 @@ class MetadataQueue:
             raise ValueError("invalid metadata stage failure code")
         current = self._utc_now()
         with self._session_factory.begin() as session:
-            self._require_active_claim(session, claim, current=current)
+            job = self._require_active_claim(session, claim, current=current)
             stage = session.get(
                 MetadataStage,
                 (claim.job_id, stage_name),
@@ -609,6 +639,13 @@ class MetadataQueue:
             stage.finished_at = current
             stage.failure_code = (
                 stable_error_code(failure_code) if failure_code is not None else None
+            )
+            self._publish_job(
+                session,
+                job,
+                event_type="metadata.job.stage_changed.v1",
+                stage=stage_name,
+                stage_status=status,
             )
 
     def complete(self, claim: MetadataClaim, *, with_warnings: bool) -> None:
@@ -645,6 +682,12 @@ class MetadataQueue:
                 current=current,
                 failure_code=None,
                 failure_detail=None,
+            )
+            self._publish_job(
+                session,
+                job,
+                event_type="metadata.job.completed.v1",
+                stages=stages,
             )
 
     def fail(
@@ -721,6 +764,12 @@ class MetadataQueue:
                 failure_code=safe_code,
                 failure_detail=safe_detail,
             )
+            self._publish_job(
+                session,
+                job,
+                event_type="metadata.job.failed.v1",
+                stage=running_stage.stage if running_stage is not None else None,
+            )
             movie = session.get(Movie, job.movie_id, with_for_update=True)
             if movie is not None and movie.catalog_state != "core_ready":
                 movie.catalog_state = "raw_only"
@@ -782,7 +831,98 @@ class MetadataQueue:
         if movie.catalog_state != "core_ready":
             movie.catalog_state = "metadata_queued"
             movie.updated_at = created_at
+        self._publish_job(
+            session,
+            job,
+            event_type="metadata.job.queued.v1",
+        )
         return job
+
+    def _publish_job(
+        self,
+        session: Session,
+        job: MetadataJob | None,
+        *,
+        event_type: str,
+        stage: str | None = None,
+        stage_status: str | None = None,
+        elapsed_ms: int | None = None,
+        stages: list[MetadataStage] | None = None,
+    ) -> None:
+        if self._event_writer is None or job is None:
+            return
+        if event_type == "metadata.job.queued.v1":
+            payload: dict[str, object] = {
+                "id": str(job.id),
+                "movie_id": str(job.movie_id),
+                "number": job.normalized_number,
+                "priority": job.priority,
+                "status": job.status,
+                "attempt_no": job.attempt_no,
+                "retry_mode": job.retry_mode,
+                "requested_stages": list(job.requested_stages),
+                "parent_job_id": (
+                    str(job.parent_job_id) if job.parent_job_id is not None else None
+                ),
+            }
+        elif event_type == "metadata.job.started.v1":
+            payload = {
+                "id": str(job.id),
+                "movie_id": str(job.movie_id),
+                "number": job.normalized_number,
+                "priority": job.priority,
+                "status": job.status,
+                "attempt_no": job.attempt_no,
+                "retry_mode": job.retry_mode,
+                "requested_stages": list(job.requested_stages),
+                "parent_job_id": (
+                    str(job.parent_job_id) if job.parent_job_id is not None else None
+                ),
+                "stage": stage,
+                "started_at": _iso(job.started_at),
+            }
+        elif event_type == "metadata.job.stage_changed.v1":
+            payload = {
+                "id": str(job.id),
+                "status": job.status,
+                "stage": stage,
+                "stage_status": stage_status,
+                "elapsed_ms": (
+                    elapsed_ms
+                    if elapsed_ms is not None
+                    else _elapsed_ms(job.started_at, self._utc_now())
+                ),
+            }
+        elif event_type == "metadata.job.completed.v1":
+            payload = {
+                "id": str(job.id),
+                "movie_id": str(job.movie_id),
+                "status": job.status,
+                "warnings": [
+                    item.stage
+                    for item in stages or []
+                    if item.status in {"warning", "failed"}
+                ],
+                "finished_at": _iso(job.finished_at),
+            }
+        elif event_type == "metadata.job.failed.v1":
+            payload = {
+                "id": str(job.id),
+                "movie_id": str(job.movie_id),
+                "status": job.status,
+                "error_code": job.failure_code,
+                "stage": stage,
+                "elapsed_ms": job.elapsed_ms,
+            }
+        else:
+            raise ValueError("unsupported metadata event type")
+        self._event_writer.append(
+            session,
+            stream="metadata",
+            aggregate_id=job.id,
+            event_type=event_type,
+            payload=payload,
+        )
 
     @staticmethod
     def _ensure_no_active(session: Session, normalized_number: str) -> None:
@@ -862,6 +1002,14 @@ def _elapsed_ms(started_at: datetime | None, current: datetime) -> int:
     if started_at.tzinfo is None:
         started_at = started_at.replace(tzinfo=timezone.utc)
     return max(0, int((current - started_at).total_seconds() * 1000))
+
+
+def _iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def retryable_enrichment_stages(

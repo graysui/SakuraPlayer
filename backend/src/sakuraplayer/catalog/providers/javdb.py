@@ -48,6 +48,12 @@ class JavdbCredentials:
 
 
 @dataclass(frozen=True)
+class JavdbCredentialSnapshot:
+    credentials: JavdbCredentials = field(repr=False)
+    version: int
+
+
+@dataclass(frozen=True)
 class RankedMovieNumber:
     rank: int
     normalized_number: str
@@ -85,6 +91,10 @@ class EncryptedJavdbCredentialStore:
         )
 
     def load(self) -> JavdbCredentials | None:
+        snapshot = self.load_snapshot()
+        return snapshot.credentials if snapshot is not None else None
+
+    def load_snapshot(self) -> JavdbCredentialSnapshot | None:
         try:
             setting = self._repository.get_secret(self.CREDENTIAL_KEY)
         except SecretDecryptionError:
@@ -111,7 +121,19 @@ class EncryptedJavdbCredentialStore:
             )
         except ValueError:
             raise MetadataProviderProblem("javdb_credentials_invalid")
-        return JavdbCredentials(username=username_text, password=password_text)
+        return JavdbCredentialSnapshot(
+            credentials=JavdbCredentials(
+                username=username_text,
+                password=password_text,
+            ),
+            version=setting.version,
+        )
+
+    def clear(self, *, expected_version: int) -> None:
+        self._repository.delete_secret(
+            self.CREDENTIAL_KEY,
+            expected_version=expected_version,
+        )
 
 
 class CoreMovieCandidate(BaseModel):

@@ -1,14 +1,14 @@
 # SakuraPlayer v1 实时事件契约
 
-**版本**: 1.0.0
+**版本**: 1.1.0
 
 **WebSocket**: `GET /api/v1/events/ws?after_event_id={uuid}`
 
 ## 1. 连接规则
 
 1. 握手必须携带有效 Bearer 访问令牌。
-2. `after_event_id` 可选；存在时服务端从下一条仍保留的事件开始发送。
-3. 游标过旧或不存在时用 close code `4409` 关闭，客户端先请求 `GET /api/v1/events/snapshot`。
+2. `after_event_id` 可选；服务端先把仍保留的 event ID 解析为全局 `sequence`，再按 `sequence ASC` 从下一条发送。
+3. 游标不存在或已超过固定 30 天保留窗口时用 close code `4409` 关闭，客户端先请求 `GET /api/v1/events/snapshot`。
 4. WebSocket 只降低延迟。客户端首次启动、重连、切回前台和检测到 `stream_version` 跳号时必须以 REST 快照恢复。
 5. 完全退出后客户端不维持后台连接；下次启动补拉任务和未读通知。
 
@@ -18,6 +18,7 @@
 {
   "version": 1,
   "event_id": "018f...",
+  "sequence": 1042,
   "stream": "cache",
   "stream_version": 8,
   "type": "cache.job.updated.v1",
@@ -34,6 +35,7 @@
 |---|---|---|
 | `version` | 是 | 信封版本，v1 固定为 `1` |
 | `event_id` | 是 | 全局唯一 UUID，可用于去重和游标 |
+| `sequence` | 是 | 数据库生成的全局单调 bigint；用于追赶和 REST 快照水位 |
 | `stream` | 是 | `metadata/cache/credential/catalog/notification` |
 | `stream_version` | 是 | 同聚合单调递增；跳号时拉快照 |
 | `type` | 是 | 版本化事件名 |
@@ -41,6 +43,7 @@
 | `resource` | 是 | 脱敏后的完整或足够合并的资源快照 |
 
 事件不包含 Cookie、磁力、AI key、Bearer/刷新令牌、完整播放 URL、115 上游 URL、字幕正文。
+事件写入时固定 `expires_at=occurred_at+30 days`。`expires_at` 是服务端持久字段，不进入公开信封；清理只删除已过期事件。
 
 ## 3. 事件类型
 
@@ -82,19 +85,26 @@
 
 ## 4. 客户端合并算法
 
-1. `event_id` 已处理则忽略。
+1. `event_id` 已处理或 `sequence <= snapshot_version` 则忽略。
 2. 同资源事件 `stream_version <= local_version` 则忽略。
 3. `stream_version == local_version + 1` 时用 `resource` 替换对应快照。
-4. 版本跳号、未知事件版本或本地没有资源时，拉对应 REST 快照。
+4. sequence 或聚合版本跳号、未知事件版本或本地没有资源时，拉对应 REST 快照。
 5. 事件触发导航或通知，但不得自动开始播放；后台完成的缓存只进入 ready 并通知。
 
-## 5. 心跳
+## 5. REST 恢复快照
+
+- 服务端在同一数据库事务内读取已分配的最大事件 sequence 和业务状态；该 sequence 是 `snapshot_version`。水位事件仍在 30 天窗口内时返回对应 `last_event_id`，已清理时返回 null。
+- Phase 1 的元数据任务最多返回 100 项，活动任务优先，其后为最近终态；同时返回全量状态计数。
+- cache、credential 和 notification 通过有界扩展端口聚合。对应 Phase 尚未交付时返回空任务/通知、零计数和 `unbound` 凭据状态，不创建未来业务表。
+- 客户端应用快照后，无游标重连 WebSocket，并只合并 `sequence > snapshot_version` 的事件。
+
+## 6. 心跳
 
 - 客户端每 30 秒发送 `{"type":"ping","sent_at":"..."}` `(derived)`。
 - 服务端返回 `{"type":"pong","sent_at":"...","server_at":"..."}`。
 - 连续两个周期无响应时关闭并退避重连；重连后拉任务快照。
 
-## 6. 兼容性
+## 7. 兼容性
 
 - 新增事件必须使用新的 `type`。
 - 现有事件可以新增可选字段，不能删除或改变已有字段语义。

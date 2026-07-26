@@ -55,7 +55,7 @@ Windows Flutter                         HarmonyOS ArkTS
 | `MovieId` / `MovieNumber` | 资源、目录、发现、缓存、播放 | 影片以规范化番号聚合，内部 ID 不对外推断 |
 | `ActorId` | 目录、发现、客户端 | 姓名不是身份主键 |
 | `SourceId` | 资源、缓存、详情页 | 指向一条 AVdb 来源帖子，不接受客户端提交任意磁力 |
-| `TaskId` / `EventId` | 元数据、缓存、WebSocket | UUID；事件可按 ID 去重 |
+| `TaskId` / `EventId` | 元数据、缓存、WebSocket | UUID；事件可按 ID 去重，全局 sequence 负责断线追赶 |
 | `ErrorCode` | 后端与两端客户端 | 稳定英文小写蛇形码，文案由客户端本地化 |
 | `PageCursor` | 目录、发现、诊断 | 不暴露数据库偏移实现 |
 | `PlatformUserAgent` | 播放、Windows、HarmonyOS | 每个平台固定且参与播放签名验证 |
@@ -405,6 +405,7 @@ contracts/
 15. 实施不得调用或依赖 Superpowers 插件及任何 `superpowers:*` 技能；仓库工作流本身定义规划、TDD、调试、审计、验证和 Git 收尾步骤。
 16. 超过 5 次工具调用、多阶段或可能跨会话的任务继续使用 `planning-with-files-zh`，其本地规划记录不得替代正式任务或契约。
 17. 排行榜 scheduler 只按 01:45 Asia/Shanghai 生成持久目标请求；JavDB 登录、分页、快照写入和 current 切换只在 worker 执行，API 只读本地 immutable snapshot。
+18. TASK-013 是事件、身份配置和目录元数据之间的跨边界应用聚合；只能通过显式端口接入现有领域事务，API 路由不得直接修改领域状态。
 
 具体测试命令、Compose 执行频次和任务内批次以
 [统一实施与验证工作流](001-sakuraplayer-v1/implementation-workflow.md) 为准。

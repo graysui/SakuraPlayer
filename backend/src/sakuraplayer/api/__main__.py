@@ -9,6 +9,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.api.app import create_app
+from sakuraplayer.api.diagnostics import DiagnosticsService
+from sakuraplayer.api.settings import SettingsService
 from sakuraplayer.catalog.metadata_api import MetadataAdminService
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.providers.javdb import (
@@ -16,12 +18,15 @@ from sakuraplayer.catalog.providers.javdb import (
     MetadataProviderProblem,
 )
 from sakuraplayer.catalog.query_service import CatalogQueryService
+from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
 from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.ranking_query import RankingQueryService
 from sakuraplayer.discovery.search_service import SearchService
-from sakuraplayer.identity.service import AuthService
+from sakuraplayer.events.outbox import DomainEventWriter, EventLog
+from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
+from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.identification_api import IdentificationService
 from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.shared.config import StartupConfigurationError, load_settings
@@ -70,8 +75,16 @@ def main() -> None:
             )
         ),
     )
-    metadata_queue = MetadataQueue(factory)
+    event_writer = DomainEventWriter()
+    event_log = EventLog(factory)
+    metadata_queue = MetadataQueue(factory, event_writer=event_writer)
     credential_store = EncryptedJavdbCredentialStore(secret_repository)
+    settings_service = SettingsService(
+        factory,
+        secret_repository,
+        credential_store,
+        EncryptedAiConfigurationStore(secret_repository),
+    )
 
     def credential_status() -> str:
         try:
@@ -101,6 +114,10 @@ def main() -> None:
             credential_status=credential_status,
             current_year=lambda: datetime.now(ZoneInfo("Asia/Shanghai")).year,
         ),
+        event_snapshot_service=EventSnapshotService(factory, event_log),
+        event_log=event_log,
+        settings_service=settings_service,
+        diagnostics_service=DiagnosticsService(factory, settings_service),
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

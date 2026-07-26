@@ -42,6 +42,17 @@ class SettingStatus:
     updated_at: datetime
 
 
+@dataclass(frozen=True)
+class PublicSetting:
+    key: str
+    value: object
+    version: int
+    updated_at: datetime
+
+
+_CLEARED_SECRET = {"sakuraplayer_secret_state": "cleared"}
+
+
 class EncryptedSettingRepository:
     def __init__(
         self,
@@ -109,23 +120,22 @@ class EncryptedSettingRepository:
         envelope = self._cipher.encrypt(value, context=context)
         updated_at = self._now()
         with self._session_factory.begin() as session:
-            result = session.execute(
-                update(EncryptedSetting)
-                .where(
-                    EncryptedSetting.key == key,
-                    EncryptedSetting.version == expected_version,
-                    EncryptedSetting.public_value.is_(None),
+            setting = session.get(EncryptedSetting, key, with_for_update=True)
+            if (
+                setting is None
+                or setting.version != expected_version
+                or (
+                    setting.public_value is not None
+                    and setting.public_value != _CLEARED_SECRET
                 )
-                .values(
-                    key_id=envelope.key_id,
-                    nonce=envelope.nonce,
-                    ciphertext=envelope.ciphertext,
-                    version=EncryptedSetting.version + 1,
-                    updated_at=updated_at,
-                )
-            )
-            if result.rowcount != 1:
+            ):
                 raise ConcurrentSettingUpdate
+            setting.public_value = None
+            setting.key_id = envelope.key_id
+            setting.nonce = envelope.nonce
+            setting.ciphertext = envelope.ciphertext
+            setting.version += 1
+            setting.updated_at = updated_at
         return SecretSetting(
             key=key,
             value=value,
@@ -179,6 +189,69 @@ class EncryptedSettingRepository:
                 configured=row.key_id is not None,
                 version=row.version,
                 updated_at=row.updated_at,
+            )
+
+    def delete_secret(self, key: str, *, expected_version: int) -> None:
+        updated_at = self._now()
+        with self._session_factory.begin() as session:
+            setting = session.get(EncryptedSetting, key, with_for_update=True)
+            if (
+                setting is None
+                or setting.version != expected_version
+                or setting.public_value is not None
+            ):
+                raise ConcurrentSettingUpdate
+            setting.public_value = dict(_CLEARED_SECRET)
+            setting.key_id = None
+            setting.nonce = None
+            setting.ciphertext = None
+            setting.version += 1
+            setting.updated_at = updated_at
+
+    def get_public(self, key: str) -> PublicSetting | None:
+        with self._session_factory() as session:
+            setting = session.get(EncryptedSetting, key)
+            if (
+                setting is None
+                or setting.public_value is None
+                or setting.public_value == _CLEARED_SECRET
+            ):
+                return None
+            return PublicSetting(
+                key=setting.key,
+                value=setting.public_value,
+                version=setting.version,
+                updated_at=setting.updated_at,
+            )
+
+    def set_public(self, key: str, value: object) -> PublicSetting:
+        self._context(key)
+        updated_at = self._now()
+        with self._session_factory.begin() as session:
+            setting = session.get(EncryptedSetting, key, with_for_update=True)
+            if setting is None:
+                setting = EncryptedSetting(
+                    key=key,
+                    public_value=value,
+                    key_id=None,
+                    nonce=None,
+                    ciphertext=None,
+                    version=1,
+                    updated_at=updated_at,
+                )
+                session.add(setting)
+            elif setting.public_value is None:
+                raise ConcurrentSettingUpdate
+            else:
+                setting.public_value = value
+                setting.version += 1
+                setting.updated_at = updated_at
+            session.flush()
+            return PublicSetting(
+                key=setting.key,
+                value=setting.public_value,
+                version=setting.version,
+                updated_at=setting.updated_at,
             )
 
     @staticmethod

@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from sakuraplayer.catalog import models as catalog_models
 from sakuraplayer.discovery import models as discovery_models
+from sakuraplayer.events import models as event_models
 from sakuraplayer.resources import models as resource_models
 from sakuraplayer.shared.redaction import install_redaction_filters
 
@@ -18,6 +19,7 @@ target_metadata = resource_models.Base.metadata
 assert catalog_models.MetadataJob.metadata is target_metadata
 assert discovery_models.Favorite.metadata is target_metadata
 assert discovery_models.RankingSyncRequest.metadata is target_metadata
+assert event_models.DomainEvent.metadata is target_metadata
 
 
 def run_migrations_offline() -> None:
