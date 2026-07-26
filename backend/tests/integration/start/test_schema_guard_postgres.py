@@ -146,6 +146,7 @@ def test_upgrade_to_head_is_idempotent_and_creates_expected_tables(
             "resource_source_label",
             "source_rejection",
             "tag",
+            "translation_record",
         ]
     engine.dispose()
 

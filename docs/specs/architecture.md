@@ -379,6 +379,7 @@ contracts/
 - Actor Mapping 使用 defusedxml 0.7.1 拒绝 DTD、实体和外部网络；GFriends 路径拒绝绝对路径、scheme、反斜杠和 `.`/`..` 路径段。
 - 永久图片只接受 JPEG/PNG/WebP，单图最多 8 MiB、最多 3 次逐跳校验的重定向、单边最多 12,000 像素且总像素最多 40,000,000，使用 Pillow 11.2.1 完整解码后写入同目录临时文件并原子替换。
 - OpenAI 兼容 `base_url` 由管理员配置，但连接测试与请求日志不得输出 API key。
+- TASK-010 的 `ai.configuration` 加密载荷归身份与配置上下文所有；目录与元数据只通过 typed snapshot 消费，并在自身上下文保存 translation reservation/record。HTTP 调用前先持久提交 dispatched，未知付费结果不自动重派。
 - 自动测试默认使用固定 fixture 和 fake adapter；真实外部测试必须显式标记。
 
 ## 5. AI 实现护栏

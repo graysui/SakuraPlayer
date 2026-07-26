@@ -88,6 +88,10 @@
 | 任务 | `provider_snapshot_unavailable` | 对应 provider 从未有成功快照；可选阶段 warning，不隐藏核心影片 |
 | 502 | `translation_upstream_error` | AI 翻译失败，不隐藏核心影片 |
 | 任务 | `translation_guardrail_failed` | AI 改写 protected 字段或返回非法结构，拒绝译文并保留原文 |
+| 任务 | `translation_not_configured` | AI 配置缺失或非法；不访问 provider，管理员配置后可显式重试 translation |
+| 任务 | `translation_input_too_large` | 待翻译原文超过 32,000 个 Unicode 字符；不访问 provider |
+| 任务 | `translation_dispatch_in_progress` | 同一业务键已有尚未 dispatch 的有效 reservation；本 attempt 不并发付费 |
+| 任务 | `translation_result_unavailable` | 同一业务键已有 dispatched/rejected/unknown 事实且无可复用译文；不得自动再次派发 |
 | 503 | `ranking_snapshot_unavailable` | 所选榜单/年份从未有成功快照；details 说明凭据未配置或同步尚未成功 |
 
 ## 5. 115 与缓存

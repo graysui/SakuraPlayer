@@ -32,6 +32,12 @@ from sakuraplayer.catalog.providers.javdb import (
     JavdbProvider,
     MetadataProviderProblem,
 )
+from sakuraplayer.catalog.translation.adapter import OpenAiTranslationAdapter
+from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
+from sakuraplayer.catalog.translation.service import (
+    TranslationService,
+    TranslationServiceError,
+)
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.models import Movie
@@ -39,7 +45,6 @@ from sakuraplayer.shared.config import Settings
 
 
 CATALOG_IMAGE_ROOT = Path("/var/lib/sakuraplayer/catalog-images")
-_FUTURE_OPTIONAL_STAGES = frozenset({"translation"})
 _SNAPSHOT_STAGE_MODELS = {
     "actor_map": ActorMappingSnapshot,
     "gfriends": GfriendsSnapshot,
@@ -56,6 +61,8 @@ class CatalogMetadataStageExecutor:
         image_store: PermanentImageStore,
         core_importer: CoreMetadataImporter,
         credential_store: EncryptedJavdbCredentialStore | None,
+        translation_configuration_store: EncryptedAiConfigurationStore | None,
+        translation_service: TranslationService | None,
         now: Callable[[], datetime],
     ) -> None:
         self._session_factory = session_factory
@@ -64,11 +71,19 @@ class CatalogMetadataStageExecutor:
         self._image_store = image_store
         self._core_importer = core_importer
         self._credential_store = credential_store
+        self._translation_configuration_store = translation_configuration_store
+        self._translation_service = translation_service
         self._now = now
 
     @property
     def credential_store(self) -> EncryptedJavdbCredentialStore | None:
         return self._credential_store
+
+    @property
+    def translation_configuration_store(
+        self,
+    ) -> EncryptedAiConfigurationStore | None:
+        return self._translation_configuration_store
 
     def execute(self, stage: str, claim: MetadataClaim) -> None:
         if stage == "javdb_core":
@@ -83,8 +98,9 @@ class CatalogMetadataStageExecutor:
         if stage in _SNAPSHOT_STAGE_MODELS:
             self._require_snapshot(claim, stage)
             return
-        if stage in _FUTURE_OPTIONAL_STAGES:
-            raise MetadataStageExecutionError("metadata_optional_stage_unavailable")
+        if stage == "translation":
+            self._execute_translation(claim)
+            return
         raise ValueError("invalid metadata stage")
 
     def _execute_core(self, claim: MetadataClaim) -> None:
@@ -209,6 +225,14 @@ class CatalogMetadataStageExecutor:
         except CoreImportProblem as error:
             raise MetadataStageExecutionError(error.code) from None
 
+    def _execute_translation(self, claim: MetadataClaim) -> None:
+        if self._translation_service is None:
+            raise MetadataStageExecutionError("translation_not_configured")
+        try:
+            self._translation_service.execute(claim)
+        except TranslationServiceError as error:
+            raise MetadataStageExecutionError(error.code) from None
+
     def _utc_now(self) -> datetime:
         current = self._now()
         if current.tzinfo is None:
@@ -228,6 +252,8 @@ def build_metadata_stage_executor(
     image_store = PermanentImageStore(root=image_root, http_client=http_client)
     placeholder = image_store.ensure_placeholder()
     credential_store = None
+    translation_configuration_store = None
+    translation_service = None
     if settings.settings_key is not None:
         cipher = SecretCipher(
             SettingsSecretKeyProvider(
@@ -235,8 +261,16 @@ def build_metadata_stage_executor(
                 key=settings.settings_key,
             )
         )
-        credential_store = EncryptedJavdbCredentialStore(
-            EncryptedSettingRepository(session_factory, cipher)
+        setting_repository = EncryptedSettingRepository(session_factory, cipher)
+        credential_store = EncryptedJavdbCredentialStore(setting_repository)
+        translation_configuration_store = EncryptedAiConfigurationStore(
+            setting_repository
+        )
+        translation_service = TranslationService(
+            session_factory=session_factory,
+            configuration_store=translation_configuration_store,
+            adapter=OpenAiTranslationAdapter(http_client),
+            now=clock,
         )
     return CatalogMetadataStageExecutor(
         session_factory=session_factory,
@@ -249,6 +283,8 @@ def build_metadata_stage_executor(
             now=clock,
         ),
         credential_store=credential_store,
+        translation_configuration_store=translation_configuration_store,
+        translation_service=translation_service,
         now=clock,
     )
 

@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 import uuid
+import json
 
 import httpx
 from PIL import Image
@@ -22,6 +23,7 @@ from sakuraplayer.catalog.models import (
 )
 from sakuraplayer.catalog.core_import import CoreImportProblem
 from sakuraplayer.catalog.providers.runtime import build_metadata_stage_executor
+from sakuraplayer.catalog.translation.config import AiConfiguration
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.config import Settings
@@ -88,7 +90,12 @@ def context():
     return engine, factory, queue, movie, outcome, claim
 
 
-def fake_client(*, image_status: int = 200, dmm_status: int = 200) -> httpx.Client:
+def fake_client(
+    *,
+    image_status: int = 200,
+    dmm_status: int = 200,
+    ai_requests: list[dict] | None = None,
+) -> httpx.Client:
     image = png_bytes()
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -107,6 +114,29 @@ def fake_client(*, image_status: int = 200, dmm_status: int = 200) -> httpx.Clie
                 200,
                 headers={"Content-Type": "image/png"},
                 content=image,
+            )
+        if request.url.host == "ai.example.test":
+            body = json.loads(request.content)
+            user = json.loads(body["messages"][1]["content"])
+            if ai_requests is not None:
+                ai_requests.append(user)
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "schema_version": 1,
+                                        "translated_text": f"ZH:{user['source_text']}",
+                                        "protected": user["protected"],
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                },
             )
         raise AssertionError(f"unexpected fake request: {request.url}")
 
@@ -148,9 +178,7 @@ def test_runtime_commits_core_and_isolates_unimplemented_optional_stages(
         assert stages["dmm"].status == "succeeded"
         assert stages["actor_map"].failure_code == "provider_snapshot_unavailable"
         assert stages["gfriends"].failure_code == "provider_snapshot_unavailable"
-        assert stages["translation"].failure_code == (
-            "metadata_optional_stage_unavailable"
-        )
+        assert stages["translation"].failure_code == "translation_not_configured"
         assert all(image.status == "ready" for image in images)
         assert all((tmp_path / image.relative_path).is_file() for image in images)
     finally:
@@ -354,9 +382,56 @@ def test_runtime_succeeds_snapshot_stages_when_current_snapshots_exist(
             }
         assert stages["actor_map"].status == "succeeded"
         assert stages["gfriends"].status == "succeeded"
-        assert stages["translation"].failure_code == (
-            "metadata_optional_stage_unavailable"
+        assert stages["translation"].failure_code == "translation_not_configured"
+    finally:
+        client.close()
+        engine.dispose()
+
+
+def test_runtime_executes_configured_translation_stage(tmp_path: Path) -> None:
+    engine, factory, queue, movie, outcome, claim = context()
+    ai_requests: list[dict] = []
+    client = fake_client(ai_requests=ai_requests)
+    try:
+        executor = build_metadata_stage_executor(
+            settings=settings(),
+            session_factory=factory,
+            http_client=client,
+            image_root=tmp_path,
+            now=lambda: NOW,
         )
+        assert executor.translation_configuration_store is not None
+        executor.translation_configuration_store.save(
+            AiConfiguration(
+                base_url="https://ai.example.test",
+                api_key="fixture-key",
+                model="fixture-model",
+                timeout_seconds=60,
+            ),
+            expected_version=0,
+        )
+
+        result = MetadataChildRunner(queue=queue, executor=executor).run(claim)
+
+        assert result == "completed_with_warnings"
+        assert [item["kind"] for item in ai_requests] == [
+            "movie_title",
+            "movie_description",
+        ]
+        with factory() as session:
+            persisted = session.get(Movie, movie.id)
+            stages = {
+                item.stage: item
+                for item in session.scalars(
+                    select(MetadataStage).where(MetadataStage.job_id == outcome.job_id)
+                )
+            }
+        assert persisted is not None
+        assert persisted.title_zh == "ZH:Fixture Original Title"
+        assert persisted.description_zh == (
+            "ZH:Fixture first line. Fixture second line."
+        )
+        assert stages["translation"].status == "succeeded"
     finally:
         client.close()
         engine.dispose()

@@ -169,6 +169,7 @@ class ActorMappingReconciler:
                 actor.name_zh = entry.name_zh
             if entry.bio_zh:
                 actor.bio_zh = entry.bio_zh
+                actor.bio_zh_source = "actor_mapping"
             actor.updated_at = timestamp
             desired: dict[str, str] = {}
             for alias in entry.aliases:

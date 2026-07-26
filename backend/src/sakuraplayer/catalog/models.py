@@ -210,6 +210,11 @@ class Actor(Base):
             name="ck_actor_gender",
         ),
         UniqueConstraint("javdb_id", name="uq_actor_javdb_id"),
+        CheckConstraint(
+            "(bio_zh IS NULL AND bio_zh_source IS NULL) OR "
+            "(bio_zh IS NOT NULL AND bio_zh_source IN ('actor_mapping', 'ai'))",
+            name="ck_actor_bio_zh_source",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
@@ -218,6 +223,7 @@ class Actor(Base):
     name_zh: Mapped[str | None] = mapped_column(String(255))
     bio_original: Mapped[str | None] = mapped_column(Text)
     bio_zh: Mapped[str | None] = mapped_column(Text)
+    bio_zh_source: Mapped[str | None] = mapped_column(String(16))
     gender: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -520,6 +526,85 @@ class GfriendsActorAsset(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class TranslationRecord(Base):
+    __tablename__ = "translation_record"
+    __table_args__ = (
+        CheckConstraint(
+            "owner_type IN ('movie_title', 'movie_description', 'actor_bio')",
+            name="ck_translation_record_owner_type",
+        ),
+        CheckConstraint(
+            "length(source_text) BETWEEN 1 AND 32000",
+            name="ck_translation_record_source_text",
+        ),
+        CheckConstraint(
+            "length(source_hash) = 64 AND lower(source_hash) = source_hash",
+            name="ck_translation_record_source_hash",
+        ),
+        CheckConstraint(
+            "source_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_translation_record_source_hash_format",
+        ).ddl_if(dialect="postgresql"),
+        CheckConstraint(
+            "length(model) BETWEEN 1 AND 255",
+            name="ck_translation_record_model",
+        ),
+        CheckConstraint(
+            "length(prompt_version) BETWEEN 1 AND 64",
+            name="ck_translation_record_prompt_version",
+        ),
+        CheckConstraint(
+            "translated_text IS NULL OR length(translated_text) BETWEEN 1 AND 32000",
+            name="ck_translation_record_translated_text",
+        ),
+        CheckConstraint(
+            "status IN ('reserved', 'dispatched', 'completed', 'rejected', 'unknown')",
+            name="ck_translation_record_status",
+        ),
+        CheckConstraint(
+            "(status = 'reserved' AND translated_text IS NULL "
+            "AND claim_token IS NOT NULL AND claim_expires_at IS NOT NULL "
+            "AND dispatch_started_at IS NULL AND failure_code IS NULL) OR "
+            "(status = 'dispatched' AND translated_text IS NULL "
+            "AND claim_token IS NOT NULL AND claim_expires_at IS NULL "
+            "AND dispatch_started_at IS NOT NULL AND failure_code IS NULL) OR "
+            "(status = 'completed' AND translated_text IS NOT NULL "
+            "AND claim_token IS NULL AND claim_expires_at IS NULL "
+            "AND dispatch_started_at IS NOT NULL AND failure_code IS NULL) OR "
+            "(status IN ('rejected', 'unknown') AND translated_text IS NULL "
+            "AND claim_token IS NULL AND claim_expires_at IS NULL "
+            "AND dispatch_started_at IS NOT NULL AND failure_code IS NOT NULL)",
+            name="ck_translation_record_state",
+        ),
+        UniqueConstraint(
+            "owner_type",
+            "owner_id",
+            "source_hash",
+            "model",
+            "prompt_version",
+            name="uq_translation_record_business_key",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    owner_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    owner_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    source_text: Mapped[str] = mapped_column(Text, nullable=False)
+    source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    translated_text: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(String(255), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    claim_token: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    dispatch_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    failure_code: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "Actor",
     "ActorAlias",
@@ -534,4 +619,5 @@ __all__ = [
     "MovieTag",
     "ProviderSnapshotRequest",
     "Tag",
+    "TranslationRecord",
 ]

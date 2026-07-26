@@ -67,16 +67,23 @@ store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
 
 ## 5. OpenAI-compatible 翻译
 
-HTTP 边界固定为兼容 `POST {base_url}/v1/chat/completions` 的适配器 `(derived)`。配置包含 `base_url`、`api_key`、`model` 和超时。
+完整安全与付费幂等边界由 [TASK-010 翻译协议与付费幂等边界](../changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结。
 
-输入必须把不可改写字段放入结构化保护区：
+配置从身份与配置上下文以短生命周期 typed snapshot 提供。`ai.configuration` 是一个 AES-GCM JSON 载荷，原子包含 `base_url/api_key/model/timeout_seconds`；缺失或非法配置记录 `translation_not_configured` warning，不访问网络。
+
+HTTP 边界固定为 `POST {base_url}/v1/chat/completions`。每次只翻译一个字段；prompt version 固定为 `sakuraplayer-zh-v1`，system prompt 为：
+
+```text
+Translate only source_text into Simplified Chinese. Return exactly one JSON object matching schema_version 1. Copy protected without changing, omitting, or adding values. Never translate identifiers, actor names, maker, series, or tags.
+```
+
+user message 是以下 JSON；`kind` 只允许 `movie_title/movie_description/actor_bio`：
 
 ```json
 {
-  "translatable": {
-    "title": "...",
-    "description": "..."
-  },
+  "schema_version": 1,
+  "kind": "movie_title",
+  "source_text": "...",
   "protected": {
     "number": "ABP-123",
     "actors": ["..."],
@@ -87,7 +94,28 @@ HTTP 边界固定为兼容 `POST {base_url}/v1/chat/completions` 的适配器 `(
 }
 ```
 
-适配器只接受 JSON 结构化结果；若 protected 字段被改变，结果拒绝落库并记录 `translation_guardrail_failed`。`source_hash + model + prompt_version` 命中时直接复用。
+请求 body 还固定包含 `model`、system/user messages、`temperature=0` 和 `response_format={"type":"json_object"}`。只接受 `choices[0].message.content` 中严格符合下列 schema 且无额外字段的 JSON：
+
+```json
+{
+  "schema_version": 1,
+  "translated_text": "...",
+  "protected": {
+    "number": "ABP-123",
+    "actors": ["..."],
+    "maker": "...",
+    "series": "...",
+    "tags": ["..."]
+  }
+}
+```
+
+- source_text/translated_text 各最多 32,000 个 Unicode 字符，序列化完整请求最多 512 KiB，完整响应最多 256 KiB；空 source 直接跳过。
+- protected 字符串按 NFKC、trim、连续空白折叠、casefold 比较；actors/tags 逐项规范化后排序并保留重复项。比较不改变展示原文。
+- `source_hash` 是原始 source_text UTF-8 的 SHA-256。唯一业务键为 `owner_type + owner_id + source_hash + model + prompt_version`。
+- completed 命中直接复用。HTTP 前必须先提交 dispatched；dispatched/completed/rejected/unknown 不自动再次派发，只有尚未 dispatched 的过期 reserved 可回收。
+- 合法结果只在 owner 当前原文仍完全一致时更新译文字段；新的 source/model/prompt 可替换同字段旧 AI 译文。Actor Mapping 写 `bio_zh_source=actor_mapping` 并优先于 AI，AI 只写非 mapping 演员简介并标记 `bio_zh_source=ai`。guard 失败写 rejected，上游/超时/崩溃等不确定结果写 unknown 或保留 dispatched。
+- 一部影片内各字段独立处理，单项失败继续其他项，stage 最后保存首个稳定 warning；任何 AI 失败都不回滚 `core_ready`。
 
 ## 6. 超时与重试边界
 
@@ -99,6 +127,7 @@ HTTP 边界固定为兼容 `POST {base_url}/v1/chat/completions` 的适配器 `(
 - 原 `completed_with_warnings` job 和 stage 保持不可变，新尝试保存 `parent_job_id`、`retry_mode=missing_enrichment` 和阶段白名单。
 - 当前 attempt 的 `javdb_core` 已成功提交后超时或异常退出形成的 `failed + core_ready` job，可由管理员显式选择尚未成功的可选阶段创建 `missing_enrichment`；旧 attempt 留下的 `core_ready` 不满足该条件，完整 retry 入口仍可由管理员主动选择。
 - 可重试资格沿 attempt 父链读取最近的非 `skipped` stage 事实；阶段一旦 succeeded，不能借中间富化 attempt 的 skipped 状态再次调用，尤其不能重复调用已成功的付费翻译。
+- `translation_not_configured` 可在管理员完成配置后显式重试；同一翻译业务键已经 dispatched/rejected/unknown 时，新的 metadata attempt 只能观察既有事实，不得再次派发。
 
 ### 6.1 Worker/child Port
 

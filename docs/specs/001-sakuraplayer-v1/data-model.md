@@ -267,6 +267,7 @@ Domain aggregate 1 --- N DomainEvent
 | `name_zh` | varchar(255) | 可空 | AC-050/076 |
 | `bio_original` | text | 可空 | AC-050 |
 | `bio_zh` | text | 可空 | AC-050/055 |
+| `bio_zh_source` | enum | `actor_mapping/ai`；与 bio_zh 同时为空或非空 | AC-050/055 |
 | `gender` | enum | `female/male/unknown` | `(derived)` |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 | `updated_at` | timestamptz | 非空 | `(derived)` |
@@ -359,12 +360,20 @@ Domain aggregate 1 --- N DomainEvent
 | `owner_id` | UUID | 非空 | `(derived)` |
 | `source_text` | text | 原文 | AC-057 |
 | `source_hash` | char(64) | 内容摘要 | AC-057 |
-| `translated_text` | text | 译文 | AC-057 |
+| `translated_text` | text | 可空；completed 时非空译文 | AC-057 |
 | `model` | varchar(255) | 非空 | AC-054/057 |
 | `prompt_version` | varchar(64) | 非空 | AC-057 |
+| `status` | enum | `reserved/dispatched/completed/rejected/unknown` | AC-057 |
+| `claim_token` | UUID | reserved/dispatched 时非空 | `(derived)` |
+| `claim_expires_at` | timestamptz | 仅 reserved 非空 | `(derived)` |
+| `dispatch_started_at` | timestamptz | dispatched 及其终态非空 | AC-057 |
+| `failure_code` | varchar(128) | rejected/unknown 时非空 | AC-057 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
+| `updated_at` | timestamptz | 非空 | `(derived)` |
 
-唯一键 `(owner_type, owner_id, source_hash, model, prompt_version)`，命中时复用，不重复付费。
+唯一键 `(owner_type, owner_id, source_hash, model, prompt_version)`。`source_hash` 固定为未规范化 source_text UTF-8 的 SHA-256。reserved 在 lease 过期且尚未进入 dispatched 时可用新 token 回收；进入 dispatched 前必须先提交事务。dispatched/completed/rejected/unknown 均不得由自动任务重新派发。completed 命中直接复用；rejected/unknown 保存付费或可能付费但不可用的事实。
+
+状态形状：reserved 只有 claim token/expiry；dispatched 有 token 和 dispatch time、无 expiry；completed 有译文且无 failure；rejected/unknown 有 dispatch time 和 failure code、无译文。数据库 check 约束状态形状，trigger 禁止 dispatched 及其终态回到 reserved，并禁止 completed/rejected/unknown 被修改。
 
 ### 5.7 上游索引快照
 
@@ -683,7 +692,7 @@ completed -> in_progress (下次从头播放且产生新进度)
 | 任务目录唯一 | `task_dir_cid` 唯一非空 | AC-080/081 |
 | 清理不误删 | 归属证明检查 + 审计 | AC-081/098 |
 | 影片进度唯一 | `movie_id` 主键 | AC-111 |
-| 翻译不重复付费 | source/model/prompt 复合唯一 | AC-057 |
+| 翻译不重复付费 | owner/source/model/prompt 唯一 + reserved/dispatched 持久 CAS | AC-057 |
 
 搜索索引 `(derived)`:
 

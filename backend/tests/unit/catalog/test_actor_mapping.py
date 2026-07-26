@@ -108,6 +108,7 @@ def test_actor_mapping_rebuilds_only_unique_javdb_actor_and_preserves_javdb_alia
         assert actor.name_ja == "Current JavDB Name"
         assert actor.name_zh == "演员一"
         assert actor.bio_zh == "演员一简介"
+        assert actor.bio_zh_source == "actor_mapping"
         aliases = list(
             session.scalars(
                 select(ActorAlias)
