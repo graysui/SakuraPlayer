@@ -24,6 +24,7 @@
 - 每完成一个 `TASK-xxx`，必须在同一提交中更新 `SESSION-HANDOFF.md` 的当前阶段、已完成任务、下一任务、阻塞项和未完成外部门禁。
 - `SESSION-HANDOFF.md` 只记录恢复工作所需的当前状态，不复制完整规格、研究资料或提交历史；提交记录以 Git 为准。
 - 正式实施任务以 `docs/specs/001-sakuraplayer-v1/tasks/TASK-xxx.md` 为唯一依据，不得用本地规划文件替代。
+- 本仓库不使用 Superpowers 插件，也不得调用或依赖任何 `superpowers:*` 技能；规划、TDD、调试、评审、验证和 Git 收尾均以仓库文档与现有工具为准。
 - 预计超过 5 次工具调用、包含多个实施阶段或可能跨会话的任务，使用 `planning-with-files-zh` 的文件规划方式。
 - 使用文件规划方式时，临时执行记录放在 `.planning/TASK-xxx/`；`task_plan.md` 只记录执行阶段，外部资料写入 `findings.md`，操作、错误和测试结果写入 `progress.md`。
 - `.planning/` 是本地工作记忆，不是冻结规格；如其内容与正式任务文件冲突，以正式任务文件为准。该目录不得包含凭据，也不得纳入任务提交。

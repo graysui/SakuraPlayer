@@ -42,7 +42,7 @@
 - **当前任务门禁阶段**: TASK-008 已完成；下一任务为 TASK-009。
 - **最近绿色快速门禁**: TASK-008 Fast 为 293 passed、7 deselected；TASK-008 PostgreSQL/Schema 为 38 passed；只读 compileall 与宿主 Docker 配置断言通过。
 - **最终门禁状态**: TASK-008 Compose Final 尝试 1 通过；自包含 293 passed、7 deselected，PostgreSQL/Compose 67 passed、12 deselected；迁移、五服务健康、重启恢复和隔离资源清理全部完成。
-- **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final。
+- **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
 
