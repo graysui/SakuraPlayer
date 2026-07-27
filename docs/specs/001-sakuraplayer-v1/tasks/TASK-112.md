@@ -38,7 +38,8 @@ provides: [cache events, notifications, snapshots, cache admin API, startup reco
 
 - 事件 resource 是脱敏任务快照；60 秒结束无事件。TASK-112 复用 TASK-013 的全局 sequence、水位和 30 天保留，不另建游标体系。
 - startup reconciliation 先锁 job 再查 remote/task directory，状态不能倒退。
-- 操作 API 复用业务用例，不在诊断路由直接改状态。
+- 操作 API 复用 TASK-104 cancellation 与 TASK-107 cleanup 业务用例，不在诊断路由直接改状态。
+- TASK-104 只写持久状态；queued 开始、后台完成的版本化事件和通知由本任务统一发布。
 
 ## 实现文件（仅文件名）
 

@@ -207,12 +207,13 @@ HTTP 层允许在单次 provider 请求内部对 `408/429/5xx` 做有限瞬时�
 ```text
 queued
   -> submitting
-  -> offlining
-  -> resolving
-  -> awaiting_selection -> ready
-                       \-> ready (可自动识别主视频)
+       |-> offlining -> resolving
+       |                 |-> awaiting_selection -> ready
+       |                 \-> ready (可自动识别主视频)
+       \-> submit_uncertain -> cancelling
+                                \-> submit_uncertain (对账仍无唯一匹配，不自动重提)
 
-queued/submitting/offlining -> cancelling -> cleaning -> cleaned
+queued/submitting/offlining/resolving -> cancelling -> cleaning -> cleaned
 任一执行态 -> failed
 ready -> cleaning -> cleaned
 cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
@@ -225,6 +226,8 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
 - 获得运行槽的响应为 `started`，客户端进入全屏等待；排队响应为 `queued`，客户端立即退出等待。
 - 60 秒只由客户端倒计时。倒计时结束不写任务失败状态。
 - worker 提交前创建任务目录。115 返回的 `info_hash` 与本地任务 ID 分开保存。
+- worker 在外部提交前持久化 `submit_started_at`；结果不确定且对账无唯一匹配时进入
+  `submit_uncertain`，保留 running 容量并禁止自动重提。
 - 完成后递归枚举视频和字幕；视频最低 256 MiB `(derived)`，广告/样片规则和连续分段规则必须由 fixture 测试固定。
 - 多个无法确定主文件的候选进入 `awaiting_selection`，客户端选择后才 `ready`。
 - 就绪默认 TTL 24 小时，可配置 1 到 168 小时；每次创建播放会话刷新。

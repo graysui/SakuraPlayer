@@ -4,6 +4,8 @@ import os
 import signal
 import socket
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Event, Thread
@@ -24,6 +26,11 @@ from sakuraplayer.catalog.providers.javdb import (
     EncryptedJavdbCredentialStore,
     JavdbProvider,
 )
+from sakuraplayer.cloud_cache.binding_service import BindingService
+from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
+from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Port
+from sakuraplayer.cloud_cache.worker.claim import CacheJobClaim, CacheJobClaimQueue
+from sakuraplayer.cloud_cache.worker.offline import CacheOfflineWorker, OfflineWorker
 from sakuraplayer.discovery.ranking_sync import (
     RankingSnapshotSynchronizer,
     RankingSyncQueue,
@@ -35,6 +42,7 @@ from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
 from sakuraplayer.resources.avdb_worker import AvdbWorkerConsumer
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
 from sakuraplayer.resources.source_importer import SourceImporter
+from sakuraplayer.resources.source_submission import SourceSubmissionService
 from sakuraplayer.resources.sync_service import (
     AvdbSyncQueue,
     AvdbSyncService,
@@ -90,6 +98,7 @@ class WorkerRuntime:
     metadata_supervisor: MetadataSupervisor
     metadata_seeder: MetadataQueueSeeder
     ranking_consumer: RankingConsumer | None = None
+    cache_consumer: OfflineWorker | None = None
 
     def close(self) -> None:
         try:
@@ -126,6 +135,21 @@ def consume_provider_snapshot_requests(
 ) -> None:
     if not worker_id or len(worker_id) > 64 or idle_wait_seconds < 0:
         raise ValueError("invalid provider snapshot worker loop configuration")
+    while not stop_event.is_set():
+        outcome = consumer.run_once(worker_id=worker_id)
+        if outcome == "idle":
+            stop_event.wait(idle_wait_seconds)
+
+
+def consume_cache_requests(
+    *,
+    consumer: OfflineWorker,
+    stop_event: StopEvent,
+    worker_id: str,
+    idle_wait_seconds: float = IDLE_WAIT_SECONDS,
+) -> None:
+    if not worker_id or len(worker_id) > 64 or idle_wait_seconds < 0:
+        raise ValueError("invalid cache worker loop configuration")
     while not stop_event.is_set():
         outcome = consumer.run_once(worker_id=worker_id)
         if outcome == "idle":
@@ -190,9 +214,8 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             ),
         )
         ranking_queue = RankingSyncQueue(factory)
-        credential_store = EncryptedJavdbCredentialStore(
-            EncryptedSettingRepository(factory, cipher)
-        )
+        secret_repository = EncryptedSettingRepository(factory, cipher)
+        credential_store = EncryptedJavdbCredentialStore(secret_repository)
         ranking_consumer = RankingConsumer(
             queue=ranking_queue,
             synchronizer=RankingSnapshotSynchronizer(
@@ -200,6 +223,32 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
                 JavdbProvider(http_client=http_client),
                 credentials=credential_store.load,
             ),
+        )
+
+        @asynccontextmanager
+        async def cloud115_scope(
+            cookies: str | None,
+        ) -> AsyncIterator[Cloud115Port]:
+            async with Cloud115Adapter(cookies) as cloud:
+                yield cloud
+
+        binding_service = BindingService(factory, secret_repository, cloud115_scope)
+
+        @asynccontextmanager
+        async def cache_cloud_scope(
+            claim: CacheJobClaim,
+        ) -> AsyncIterator[Cloud115Port]:
+            async with binding_service.cache_operation_scope(
+                binding_id=claim.binding_id,
+                account_key=claim.account_key,
+                cache_root_cid=claim.cache_root_cid,
+            ) as cloud:
+                yield cloud
+
+        cache_consumer = CacheOfflineWorker(
+            CacheJobClaimQueue(factory),
+            SourceSubmissionService(factory, cipher=cipher),
+            cache_cloud_scope,
         )
         return WorkerRuntime(
             consumer=consumer,
@@ -210,6 +259,7 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             metadata_supervisor=metadata_supervisor,
             metadata_seeder=metadata_seeder,
             ranking_consumer=ranking_consumer,
+            cache_consumer=cache_consumer,
         )
     except Exception:
         http_client.close()
@@ -231,7 +281,9 @@ def run_worker(
     seeder_started = Event()
     snapshot_consumer_started = Event()
     ranking_consumer_started = Event()
+    cache_consumer_started = Event()
     ranking_consumer = getattr(runtime, "ranking_consumer", None)
+    cache_consumer = getattr(runtime, "cache_consumer", None)
 
     def run_avdb_consumer() -> None:
         try:
@@ -280,6 +332,19 @@ def run_worker(
             background_errors.append(error)
             stop_event.set()
 
+    def run_cache_consumer() -> None:
+        cache_consumer_started.set()
+        assert cache_consumer is not None
+        try:
+            consume_cache_requests(
+                consumer=cache_consumer,
+                stop_event=stop_event,
+                worker_id=worker_id,
+            )
+        except BaseException as error:
+            background_errors.append(error)
+            stop_event.set()
+
     avdb_thread = Thread(
         target=run_avdb_consumer,
         name="avdb-consumer",
@@ -304,12 +369,22 @@ def run_worker(
                 daemon=True,
             )
         )
+    if cache_consumer is not None:
+        threads.append(
+            Thread(
+                target=run_cache_consumer,
+                name="cache-consumer",
+                daemon=True,
+            )
+        )
     for thread in threads:
         thread.start()
     seeder_started.wait(thread_join_seconds)
     snapshot_consumer_started.wait(thread_join_seconds)
     if ranking_consumer is not None:
         ranking_consumer_started.wait(thread_join_seconds)
+    if cache_consumer is not None:
+        cache_consumer_started.wait(thread_join_seconds)
     loop_error: BaseException | None = None
     shutdown_error: BaseException | None = None
     try:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -43,6 +44,126 @@ def test_credential_scope_repr_is_secret_safe() -> None:
     rendered = repr(scope)
     for secret in ("private-cookie", "account-private", "root-private"):
         assert secret not in rendered
+
+
+@pytest.mark.asyncio
+async def test_cache_operation_scope_refreshes_cookie_with_cas(tmp_path) -> None:
+    fakes = [
+        FakeCloud115(
+            directories=[RemoteDirectory("root-1", "0", "SakuraPlayer-Cache")]
+        ),
+        FakeCloud115(credential_snapshot="UID=refreshed"),
+    ]
+    service, secrets, factory, engine = _service(tmp_path, fakes)
+    try:
+        await service.bind(QrLoginResult("account-1", "UID=old"))
+        with factory() as session:
+            binding = session.scalar(select(Cloud115Binding))
+            assert binding is not None
+            binding_id = binding.id
+
+        async with service.cache_operation_scope(
+            binding_id=binding_id,
+            account_key="account-1",
+            cache_root_cid="root-1",
+        ) as cloud:
+            assert cloud is fakes[1]
+
+        assert secrets.get_secret("cloud115.cookie").value == b"UID=refreshed"
+        assert service.get().status == "active"
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("problem", "expected_status"),
+    [
+        (Cloud115Problem("cloud115_credentials_expired"), "expired"),
+        (Cloud115Problem("cloud115_unavailable"), "unavailable"),
+    ],
+)
+async def test_cache_operation_scope_updates_only_matching_binding_problem(
+    tmp_path,
+    problem,
+    expected_status,
+) -> None:
+    fakes = [
+        FakeCloud115(
+            directories=[RemoteDirectory("root-1", "0", "SakuraPlayer-Cache")]
+        ),
+        FakeCloud115(),
+    ]
+    service, _secrets, factory, engine = _service(tmp_path, fakes)
+    try:
+        await service.bind(QrLoginResult("account-1", "UID=old"))
+        with factory() as session:
+            binding = session.scalar(select(Cloud115Binding))
+            assert binding is not None
+            binding_id = binding.id
+
+        with pytest.raises(Cloud115Problem) as raised:
+            async with service.cache_operation_scope(
+                binding_id=binding_id,
+                account_key="account-1",
+                cache_root_cid="root-1",
+            ):
+                raise problem
+
+        assert raised.value.code == problem.code
+        assert service.get().status == expected_status
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_cache_operation_scope_rejects_historic_binding_identity(
+    tmp_path,
+) -> None:
+    fakes = [
+        FakeCloud115(directories=[RemoteDirectory("root-1", "0", "SakuraPlayer-Cache")])
+    ]
+    service, _secrets, _factory, engine = _service(tmp_path, fakes)
+    try:
+        await service.bind(QrLoginResult("account-1", "UID=old"))
+        with pytest.raises(Cloud115Problem) as raised:
+            async with service.cache_operation_scope(
+                binding_id=uuid.uuid4(),
+                account_key="account-1",
+                cache_root_cid="root-1",
+            ):
+                pytest.fail("historic binding must not open a cloud scope")
+        assert raised.value.code == "cloud115_directory_not_found"
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_cache_operation_scope_maps_credential_version_drift_to_cloud_problem(
+    tmp_path,
+) -> None:
+    fakes = [
+        FakeCloud115(directories=[RemoteDirectory("root-1", "0", "SakuraPlayer-Cache")])
+    ]
+    service, _secrets, factory, engine = _service(tmp_path, fakes)
+    try:
+        await service.bind(QrLoginResult("account-1", "UID=old"))
+        with factory.begin() as session:
+            binding = session.scalar(select(Cloud115Binding))
+            assert binding is not None
+            binding_id = binding.id
+            binding.credential_version += 1
+
+        with pytest.raises(Cloud115Problem) as raised:
+            async with service.cache_operation_scope(
+                binding_id=binding_id,
+                account_key="account-1",
+                cache_root_cid="root-1",
+            ):
+                pytest.fail("invalid credentials must not open a cloud scope")
+        assert raised.value.code == "cloud115_protocol_error"
+    finally:
+        engine.dispose()
 
 
 def _service(tmp_path, fakes, *, active=False):

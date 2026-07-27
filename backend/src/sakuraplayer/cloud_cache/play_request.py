@@ -23,6 +23,7 @@ from sakuraplayer.cloud_cache.models import (
     CachePlayRequest,
     Cloud115Binding,
 )
+from sakuraplayer.cloud_cache.play_disposition import play_disposition
 from sakuraplayer.resources.source_submission import (
     SourceSubmissionPort,
     SourceSubmissionProblem,
@@ -33,6 +34,7 @@ _ACTIVE_STATUSES = (
     "queued",
     "submitting",
     "offlining",
+    "submit_uncertain",
     "resolving",
     "awaiting_selection",
     "ready",
@@ -68,6 +70,7 @@ class CacheJobView:
 class PlayRequestResult:
     disposition: Literal["started", "queued", "ready", "reused"]
     job: CacheJobView
+    wait_deadline: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,7 +111,7 @@ class PlayRequestService:
                 job = session.get(CacheJob, prior.cache_job_id)
                 if job is None:
                     raise CacheProblem(status_code=409, code="state_conflict")
-                return self._result(job, replay=True)
+                return self._result(job, now=self._now(), replayed=True)
 
             binding = session.scalar(select(Cloud115Binding).with_for_update())
             self._require_active_binding(binding)
@@ -146,17 +149,15 @@ class PlayRequestService:
                     )
                 )
                 session.flush()
-                return self._result(existing)
+                return self._result(existing, now=now)
 
             snapshot = capacity_snapshot(session)
             if snapshot.running < RUNNING_CAPACITY:
                 status = "submitting"
                 capacity_class = "running"
-                disposition: Literal["started", "queued"] = "started"
             elif snapshot.queued < QUEUED_CAPACITY:
                 status = "queued"
                 capacity_class = "queued"
-                disposition = "queued"
             else:
                 raise CacheProblem(status_code=409, code="cache_queue_full")
 
@@ -186,7 +187,12 @@ class PlayRequestService:
                 )
             )
             session.flush()
-            return PlayRequestResult(disposition=disposition, job=_view(job))
+            resolved = play_disposition(job.status, created=True, now=now)
+            return PlayRequestResult(
+                disposition=resolved.name,
+                job=_view(job),
+                wait_deadline=resolved.wait_deadline,
+            )
 
     def get(self, job_id: uuid.UUID) -> CacheJobView:
         with self._session_factory() as session:
@@ -265,11 +271,23 @@ class PlayRequestService:
             raise CacheProblem(status_code=409, code="state_conflict")
 
     @staticmethod
-    def _result(job: CacheJob, *, replay: bool = False) -> PlayRequestResult:
-        disposition: Literal["ready", "reused"] = (
-            "ready" if job.status == "ready" and not replay else "reused"
+    def _result(
+        job: CacheJob,
+        *,
+        now: datetime,
+        replayed: bool = False,
+    ) -> PlayRequestResult:
+        resolved = play_disposition(
+            job.status,
+            created=False,
+            replayed=replayed,
+            now=now,
         )
-        return PlayRequestResult(disposition=disposition, job=_view(job))
+        return PlayRequestResult(
+            disposition=resolved.name,
+            job=_view(job),
+            wait_deadline=resolved.wait_deadline,
+        )
 
 
 def _view(job: CacheJob) -> CacheJobView:

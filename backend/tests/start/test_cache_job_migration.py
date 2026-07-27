@@ -22,6 +22,7 @@ def test_cache_job_models_are_registered_with_exact_task_103_shape() -> None:
         "task_dir_cid",
         "task_dir_name",
         "remote_info_hash",
+        "submit_started_at",
         "remote_percent",
         "ready_at",
         "last_accessed_at",
@@ -67,3 +68,20 @@ def test_task_103_migration_is_linear_and_owns_only_job_and_request_schema() -> 
         '"cache_job_media_selection"',
     ):
         assert deferred not in source
+
+
+def test_task_104_migration_adds_dispatch_and_claim_fencing_shape() -> None:
+    path = BACKEND_ROOT / "alembic" / "versions" / "0016_cache_offline.py"
+    source = path.read_text(encoding="utf-8")
+    assert 'revision: str = "0016_cache_offline"' in source
+    assert (
+        'down_revision: Union[str, Sequence[str], None] = "0015_cache_jobs"' in source
+    )
+    for expected in (
+        '"submit_started_at"',
+        "submit_uncertain",
+        "ck_cache_job_claim_shape",
+        "ck_cache_job_submission_shape",
+        "cloud115_submit_uncertain",
+    ):
+        assert expected in source

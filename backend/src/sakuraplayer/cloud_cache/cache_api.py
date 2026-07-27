@@ -162,6 +162,7 @@ def _capacity_output(snapshot: CacheCapacitySnapshot) -> CacheCapacityOutput:
 def _play_request_output(result: PlayRequestResult) -> PlayRequestOutput:
     return PlayRequestOutput(
         disposition=result.disposition,
+        wait_deadline=result.wait_deadline,
         cache_job=_job_output(result.job),
     )
 

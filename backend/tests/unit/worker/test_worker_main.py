@@ -9,6 +9,7 @@ import pytest
 from sakuraplayer.resources.sync_service import BatchStats
 from sakuraplayer.worker.__main__ import (
     consume_avdb_requests,
+    consume_cache_requests,
     consume_provider_snapshot_requests,
     run_worker,
 )
@@ -94,6 +95,21 @@ def test_snapshot_consumer_loop_waits_only_when_idle() -> None:
 
     assert consumer.worker_ids == ["worker-fixture", "worker-fixture"]
     assert stop_event.waits == [2.5]
+
+
+def test_cache_consumer_loop_waits_only_when_idle() -> None:
+    consumer = RecordingSnapshotConsumer()
+    stop_event = StopAfterIdleWait()
+
+    consume_cache_requests(
+        consumer=consumer,
+        stop_event=stop_event,
+        worker_id="cache-worker",
+        idle_wait_seconds=0.25,
+    )
+
+    assert consumer.worker_ids == ["cache-worker", "cache-worker"]
+    assert stop_event.waits == [0.25]
 
 
 class RuntimeSeeder:
@@ -241,6 +257,7 @@ def test_worker_runtime_polls_seeder_and_metadata_supervisor() -> None:
     stop_event = Event()
     seeder = RuntimeSeeder()
     snapshot_consumer = RuntimeSnapshotConsumer()
+    cache_consumer = RuntimeSnapshotConsumer()
     supervisor = RuntimeSupervisor(stop_event)
     runtime = SimpleNamespace(
         consumer=IdleConsumer(),
@@ -248,6 +265,7 @@ def test_worker_runtime_polls_seeder_and_metadata_supervisor() -> None:
         provider_snapshot_consumer=snapshot_consumer,
         metadata_seeder=seeder,
         metadata_supervisor=supervisor,
+        cache_consumer=cache_consumer,
     )
 
     run_worker(
@@ -258,6 +276,7 @@ def test_worker_runtime_polls_seeder_and_metadata_supervisor() -> None:
 
     assert seeder.calls == 1
     assert snapshot_consumer.calls == 1
+    assert cache_consumer.calls == 1
     assert supervisor.ticks == ["worker-runtime"]
     assert supervisor.shutdown_called is True
 

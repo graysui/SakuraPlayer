@@ -521,6 +521,7 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `task_dir_cid` | varchar(64) | 提交前创建，可空 | AC-080/081 |
 | `task_dir_name` | varchar(128) | 随机且不可由标题控制 | `(derived)` |
 | `remote_info_hash` | varchar(128) | 115 远端任务 ID，可空 | `(derived)` |
+| `submit_started_at` | timestamptz | 可空；外部提交前持久化，非空后禁止自动重提 | `(derived)` |
 | `remote_percent` | numeric(5,2) | 0..100 | `(derived)` |
 | `ready_at` | timestamptz | 可空 | AC-094 |
 | `last_accessed_at` | timestamptz | 可空 | AC-094/095 |
@@ -539,6 +540,9 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 - 状态与 `capacity_class` 使用 check constraint 固定形状；`cancelling` 保留原类别。
 - PostgreSQL advisory transaction lock 内计数保证 running 最多 2、queued 最多 10。
 - `task_dir_cid` 非空时唯一。
+- claim owner/token/expiry 必须同时为空或同时非空；claim 写入使用未过期 token CAS。
+- `remote_info_hash` 要求任务目录和提交开始事实均存在；`submit_uncertain` 要求无 remote ID、
+  固定错误码并保留 running 容量。
 - TASK-105 增加 ready 至少一个有效 `remote_media` 和有序选择归属约束。
 - 60 秒等待不保存为任务状态。
 
@@ -739,6 +743,7 @@ queued -> running -> completed
 
 ```text
 queued -> submitting -> offlining -> resolving -> awaiting_selection -> ready
+                     \-> submit_uncertain --(confirmed cancel/reconcile)--> cancelling
                                       resolving ---------------------> ready
 
 queued/submitting/offlining/resolving -> cancelling -> cleaning -> cleaned
@@ -752,15 +757,17 @@ cleaning ----------------------------> cleanup_failed
 
 | 分组 | 状态 | 用途 |
 |---|---|---|
-| 运行槽 | `submitting/offlining/resolving` | 固定最多 2 |
+| 运行槽 | `submitting/offlining/submit_uncertain/resolving` | 固定最多 2 |
 | 排队槽 | `queued` | 固定最多 10 |
 | 就绪容量 | `awaiting_selection/ready/cleaning/cleanup_failed` | 清理成功前不释放 |
-| 活动复用 | 除 `failed/cleaned/detached` 外 | 同来源重复点击复用 |
+| 活动复用 | 除 `failed/cleaned/detached` 外 | 同来源重复点击复用；不确定提交也不得重提 |
 | 终态 | `failed/cleaned/detached` | 不再自动推进 |
 
 持久 `capacity_class` 固定状态分组。`cancelling` 在安全清理完成前保留进入取消前的
 queued/running/ready 类别，防止通过取消绕过上限；进入 `cleaning` 后归入 ready，只有终态
 使用 released。`started` 是公开响应 disposition，不是持久状态。
+`submit_uncertain` 不由自动 worker 领取；显式取消可重新进入 `cancelling` 做一次只读对账，
+仍无远端证据时回到不确定状态。
 
 ### 10.3 影片进度
 

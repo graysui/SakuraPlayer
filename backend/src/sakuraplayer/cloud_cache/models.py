@@ -86,7 +86,8 @@ class CacheJob(Base):
     __tablename__ = "cache_job"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('queued', 'submitting', 'offlining', 'resolving', "
+            "status IN ('queued', 'submitting', 'offlining', 'submit_uncertain', "
+            "'resolving', "
             "'awaiting_selection', 'ready', 'cancelling', 'cleaning', "
             "'cleanup_failed', 'failed', 'cleaned', 'detached')",
             name="ck_cache_job_status",
@@ -97,7 +98,8 @@ class CacheJob(Base):
         ),
         CheckConstraint(
             "(status = 'queued' AND capacity_class = 'queued') OR "
-            "(status IN ('submitting', 'offlining', 'resolving') "
+            "(status IN ('submitting', 'offlining', 'submit_uncertain', "
+            "'resolving') "
             "AND capacity_class = 'running') OR "
             "(status IN ('awaiting_selection', 'ready', 'cleaning', "
             "'cleanup_failed') AND capacity_class = 'ready') OR "
@@ -127,6 +129,23 @@ class CacheJob(Base):
             "length(task_dir_name) BETWEEN 1 AND 128",
             name="ck_cache_job_task_dir_name",
         ),
+        CheckConstraint(
+            "(claim_owner IS NULL AND claim_token IS NULL "
+            "AND claim_expires_at IS NULL) OR "
+            "(claim_owner IS NOT NULL AND claim_token IS NOT NULL "
+            "AND claim_expires_at IS NOT NULL)",
+            name="ck_cache_job_claim_shape",
+        ),
+        CheckConstraint(
+            "(submit_started_at IS NULL OR task_dir_cid IS NOT NULL) AND "
+            "(remote_info_hash IS NULL OR "
+            "(task_dir_cid IS NOT NULL AND submit_started_at IS NOT NULL)) AND "
+            "(status <> 'submit_uncertain' OR "
+            "(task_dir_cid IS NOT NULL AND submit_started_at IS NOT NULL "
+            "AND remote_info_hash IS NULL "
+            "AND failure_code = 'cloud115_submit_uncertain'))",
+            name="ck_cache_job_submission_shape",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
@@ -150,6 +169,7 @@ class CacheJob(Base):
     task_dir_cid: Mapped[str | None] = mapped_column(String(64))
     task_dir_name: Mapped[str] = mapped_column(String(128), nullable=False)
     remote_info_hash: Mapped[str | None] = mapped_column(String(128))
+    submit_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     remote_percent: Mapped[float] = mapped_column(
         Numeric(5, 2), nullable=False, default=0
     )
@@ -173,6 +193,7 @@ _ACTIVE_CACHE_STATUSES = (
     "queued",
     "submitting",
     "offlining",
+    "submit_uncertain",
     "resolving",
     "awaiting_selection",
     "ready",

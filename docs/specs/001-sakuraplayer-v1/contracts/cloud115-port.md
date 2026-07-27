@@ -161,10 +161,14 @@ hostname、无 userinfo，并限制最多 3 跳。普通日志只记录稳定操
 
 - 找到属于任务目录的既有任务：保存 `info_hash`，继续 `offlining`。
 - 上游明确 invalid/quota：保存相应稳定失败，不自动重提。
-- 无法确认：保存 `cloud115_submit_uncertain`，等待人工产品操作。
+- 无法确认：进入持久 `submit_uncertain`，保留 running 容量与活动复用，等待人工产品操作。
+- 对账固定使用 `page_size=1000` 完整读取上游声明页，只接受唯一 `task_cid` 匹配；分页形状
+  异常、超过 1000 页或多个匹配均为 `cloud115_protocol_error`。
 
 取消只按 `info_hash` 调用上游，并固定 `delete_source_files=False`。远端明确不存在映射
 `cloud115_offline_task_not_found`；调用方结合本地状态决定是否视为幂等完成。
+没有 `info_hash` 的不确定提交在显式取消时只做一次分页对账；仍找不到不能伪装成已取消，
+必须回到 `submit_uncertain`。
 
 ## 8. 安全删除前置条件
 

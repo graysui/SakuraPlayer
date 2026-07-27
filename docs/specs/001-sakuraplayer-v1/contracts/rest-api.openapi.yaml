@@ -1733,6 +1733,7 @@ components:
         - queued
         - submitting
         - offlining
+        - submit_uncertain
         - resolving
         - awaiting_selection
         - ready
@@ -1865,7 +1866,7 @@ components:
         wait_deadline:
           type: [string, 'null']
           format: date-time
-          description: Present only for started; at most 60 seconds from response.
+          description: Present only for a newly created started disposition; exactly 60 seconds from the server response clock and never persisted.
         cache_job:
           $ref: '#/components/schemas/CacheJob'
     PlaybackManifest:

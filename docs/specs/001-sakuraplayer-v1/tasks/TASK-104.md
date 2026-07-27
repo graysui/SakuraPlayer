@@ -3,7 +3,7 @@ id: TASK-104
 title: "离线提交、对账、取消与等待语义"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: completed
 dependencies: [TASK-103]
 ac-mapping: [AC-084, AC-086, AC-087, AC-088, AC-089, AC-090, AC-091, AC-097]
 imp-requirements: [REQ-017, REQ-018]
@@ -13,6 +13,8 @@ provides: [cache worker claim, offline submit reconcile poll cancel]
 ---
 
 **实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
+
+**确定性边界**: [TASK-104 离线执行与取消确定性边界](../changes/2026-07-27--task-104-offline-execution-determinism.md)
 
 # TASK-104: 离线提交、对账、取消与等待语义
 
@@ -28,23 +30,27 @@ provides: [cache worker claim, offline submit reconcile poll cancel]
 
 ## 验收条件
 
-- [ ] 获得运行槽的任务返回最多 60 秒 wait_deadline，排队任务立即返回且开始/完成只通知不自动播放；对应 AC-086 至 AC-089。
-- [ ] 60 秒未完成不标失败，任务继续后台执行；稍后 ready 只缓存并通知；对应 AC-088、AC-090。
-- [ ] 取消需确认，运行任务可取消但不参加 TTL/LRU；对应 AC-086、AC-097。
-- [ ] 重复播放请求不重复提交 115；对应 AC-091。
+- [x] 获得运行槽的任务返回最多 60 秒 wait_deadline，排队任务立即返回且开始/完成只通知不自动播放；对应 AC-086 至 AC-089。
+- [x] 60 秒未完成不标失败，任务继续后台执行；稍后 ready 只缓存并通知；对应 AC-088、AC-090。
+- [x] 取消需确认，运行任务可取消但不参加 TTL/LRU；对应 AC-086、AC-097。
+- [x] 重复播放请求不重复提交 115；对应 AC-091。
 
 ## Definition of Ready
 
-- [ ] TASK-103 状态机/容量和 TASK-102 根目录可用。
-- [ ] 提交不确定与取消错误码在 Cloud115Port 固定。
-- [ ] 客户端 60 秒只是响应字段，不创建后端 timer 状态。
+- [x] TASK-103 状态机/容量、SourceSubmissionPort 和 TASK-102 根目录可用。
+- [x] 提交不确定、claim fencing 与取消/清理职责由确定性边界和 Cloud115Port 固定。
+- [x] 客户端 60 秒只是响应字段，不创建后端 timer 状态。
 
 ## 技术上下文
 
 - worker `SKIP LOCKED` 领取，创建随机任务子目录后才解密 source 磁力提交。
 - 远端 `info_hash` 与 CacheJob ID 分开保存；对账只使用类型化 `OfflineTaskPage`，不得依赖磁力/source URL 或 raw response。
 - 取消固定 `delete_source_files=False`；not-found、invalid、quota、rate-limit、unavailable 与 submit-uncertain 按 Cloud115Port 稳定错误分别处理。
-- 取消流程进入 cancelling，只有远端取消/安全清理确认后终结。
+- `submit_started_at` 在外部提交前持久化；`submit_uncertain` 占 running 容量且禁止自动重提。
+- 取消流程进入 cancelling；TASK-104 确认无远端副作用或完成远端取消，存在任务目录时转
+  `cleaning`，TASK-107 证明式删除后才终结。
+- TASK-112 后续发布开始/完成通知；TASK-104 只保证 queued 提升、后台完成和 60 秒经过都
+  不创建播放会话或自动导航事实。
 
 ## 实现文件（仅文件名）
 
@@ -66,7 +72,8 @@ provides: [cache worker claim, offline submit reconcile poll cancel]
 
 **集成测试**:
 
-- Fake 115 60 秒前完成自动可播、60 秒后完成只通知、queued 开始/完成不自动播放。
+- Fake 115 验证 60 秒经过不改变任务状态、queued 提升和后台完成不创建播放会话；客户端
+  截止前自动播放与截止后通知由 TASK-209/TASK-309/TASK-112 验证。
 - 提交超时但远端已受理时对账复用；明确未受理不自动重提。
 
 **边界条件**:
@@ -75,9 +82,18 @@ provides: [cache worker claim, offline submit reconcile poll cancel]
 
 ## Definition of Done
 
-- [ ] 提交、对账、轮询、取消和等待语义完成。
-- [ ] 60 秒结束不会写 failed。
-- [ ] 无重复提交或自动播放后台完成任务。
+- [x] 提交、对账、轮询、取消和等待语义完成。
+- [x] 60 秒结束不会写 failed。
+- [x] 无重复提交或自动播放后台完成任务。
+
+## 完成证据
+
+- Focused 最终回归 117 项通过；审计修复后 Fast 为 624 passed、8 deselected，Ruff 全仓
+  format/lint、TASK-104 六个生产模块 mypy、宿主 Docker 配置和完整差异检查通过。
+- Schema/并发、API/安全与代码质量只读审计无剩余 P0/P1/P2。
+- Compose Final 首次尝试通过：自包含 624 passed、8 deselected，PostgreSQL
+  integration/E2E 99 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、
+  重启持久性、ready 降级恢复和隔离资源清理全部完成，默认测试未访问真实 115。
 
 **依赖**: TASK-103
 

@@ -44,6 +44,8 @@ provides: [sliding TTL, ready LRU, playback lease, ownership verifier, cleanup w
 - LRU 查询排除 lease、running、cleaning，并锁住被选 job。
 - 目录 parent 不符进入 detached，不追踪新位置删除。
 - cleanup_failed 仍计入 ready capacity，手动 retry 复用同一清理器。
+- TASK-104 只确认远端离线取消并把仍有任务目录的 job 交到 `cleaning`；本任务独占目录归属
+  证明、远端删除和 `cleaned/cleanup_failed/detached` 终结。
 
 ## 实现文件（仅文件名）
 

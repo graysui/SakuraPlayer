@@ -8,6 +8,7 @@ class CacheJobStatus(str, Enum):
     QUEUED = "queued"
     SUBMITTING = "submitting"
     OFFLINING = "offlining"
+    SUBMIT_UNCERTAIN = "submit_uncertain"
     RESOLVING = "resolving"
     AWAITING_SELECTION = "awaiting_selection"
     READY = "ready"
@@ -41,6 +42,7 @@ _CAPACITY_BY_STATUS = {
     CacheJobStatus.QUEUED: CapacityClass.QUEUED,
     CacheJobStatus.SUBMITTING: CapacityClass.RUNNING,
     CacheJobStatus.OFFLINING: CapacityClass.RUNNING,
+    CacheJobStatus.SUBMIT_UNCERTAIN: CapacityClass.RUNNING,
     CacheJobStatus.RESOLVING: CapacityClass.RUNNING,
     CacheJobStatus.AWAITING_SELECTION: CapacityClass.READY,
     CacheJobStatus.READY: CapacityClass.READY,
@@ -62,6 +64,7 @@ _LEGAL_TRANSITIONS = {
     CacheJobStatus.SUBMITTING: frozenset(
         {
             CacheJobStatus.OFFLINING,
+            CacheJobStatus.SUBMIT_UNCERTAIN,
             CacheJobStatus.CANCELLING,
             CacheJobStatus.FAILED,
             CacheJobStatus.DETACHED,
@@ -75,6 +78,7 @@ _LEGAL_TRANSITIONS = {
             CacheJobStatus.DETACHED,
         }
     ),
+    CacheJobStatus.SUBMIT_UNCERTAIN: frozenset({CacheJobStatus.CANCELLING}),
     CacheJobStatus.RESOLVING: frozenset(
         {
             CacheJobStatus.AWAITING_SELECTION,
@@ -102,6 +106,7 @@ _LEGAL_TRANSITIONS = {
     CacheJobStatus.CANCELLING: frozenset(
         {
             CacheJobStatus.CLEANING,
+            CacheJobStatus.SUBMIT_UNCERTAIN,
             CacheJobStatus.FAILED,
             CacheJobStatus.DETACHED,
         }

@@ -17,6 +17,7 @@ LEGAL_TRANSITIONS = {
     },
     CacheJobStatus.SUBMITTING: {
         CacheJobStatus.OFFLINING,
+        CacheJobStatus.SUBMIT_UNCERTAIN,
         CacheJobStatus.CANCELLING,
         CacheJobStatus.FAILED,
         CacheJobStatus.DETACHED,
@@ -26,6 +27,9 @@ LEGAL_TRANSITIONS = {
         CacheJobStatus.CANCELLING,
         CacheJobStatus.FAILED,
         CacheJobStatus.DETACHED,
+    },
+    CacheJobStatus.SUBMIT_UNCERTAIN: {
+        CacheJobStatus.CANCELLING,
     },
     CacheJobStatus.RESOLVING: {
         CacheJobStatus.AWAITING_SELECTION,
@@ -47,6 +51,7 @@ LEGAL_TRANSITIONS = {
     },
     CacheJobStatus.CANCELLING: {
         CacheJobStatus.CLEANING,
+        CacheJobStatus.SUBMIT_UNCERTAIN,
         CacheJobStatus.FAILED,
         CacheJobStatus.DETACHED,
     },
@@ -73,6 +78,7 @@ def _capacity(status: CacheJobStatus) -> CapacityClass:
     if status in {
         CacheJobStatus.SUBMITTING,
         CacheJobStatus.OFFLINING,
+        CacheJobStatus.SUBMIT_UNCERTAIN,
         CacheJobStatus.RESOLVING,
     }:
         return CapacityClass.RUNNING
@@ -164,3 +170,14 @@ def test_unlisted_transition_is_rejected() -> None:
             CacheJobStatus.OFFLINING,
             CapacityClass.RUNNING,
         ).transition(CacheJobStatus.READY)
+
+
+def test_submit_uncertain_retains_running_capacity_until_confirmed_cancel() -> None:
+    uncertain = CacheJobState(
+        CacheJobStatus.SUBMITTING,
+        CapacityClass.RUNNING,
+    ).transition(CacheJobStatus.SUBMIT_UNCERTAIN)
+
+    assert uncertain.capacity_class is CapacityClass.RUNNING
+    cancelling = uncertain.transition(CacheJobStatus.CANCELLING)
+    assert cancelling.capacity_class is CapacityClass.RUNNING

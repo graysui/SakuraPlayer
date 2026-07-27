@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -204,6 +204,51 @@ class BindingService:
             scope, status=status, snapshot=snapshot, verified=verified
         )
 
+    @asynccontextmanager
+    async def cache_operation_scope(
+        self,
+        *,
+        binding_id: uuid.UUID,
+        account_key: str,
+        cache_root_cid: str,
+    ) -> AsyncIterator[Cloud115Port]:
+        scope = self._credential_scope(
+            binding_id=binding_id,
+            account_key=account_key,
+            cache_root_cid=cache_root_cid,
+        )
+        assert scope is not None
+        cloud: Cloud115Port | None = None
+        try:
+            async with self._cloud_factory(scope.cookies) as cloud:
+                yield cloud
+        except Cloud115Problem as error:
+            snapshot = cloud.credential_snapshot() if cloud is not None else None
+            if error.code == "cloud115_credentials_expired":
+                status = "expired"
+                verified = True
+            elif error.code in {"cloud115_unavailable", "cloud115_rate_limited"}:
+                status = "unavailable"
+                verified = False
+            else:
+                status = "active"
+                verified = True
+            self._finish_scope(
+                scope,
+                status=status,
+                snapshot=snapshot,
+                verified=verified,
+            )
+            raise
+        else:
+            assert cloud is not None
+            self._finish_scope(
+                scope,
+                status="active",
+                snapshot=cloud.credential_snapshot(),
+                verified=True,
+            )
+
     def remove(self) -> None:
         with self._session_factory() as session, session.begin():
             self._lock(session)
@@ -219,17 +264,42 @@ class BindingService:
             )
             session.delete(binding)
 
-    def _credential_scope(self) -> CredentialScope | None:
+    def _credential_scope(
+        self,
+        *,
+        binding_id: uuid.UUID | None = None,
+        account_key: str | None = None,
+        cache_root_cid: str | None = None,
+    ) -> CredentialScope | None:
         with self._session_factory() as session:
             binding = self._binding(session)
             if binding is None:
+                if binding_id is not None:
+                    raise Cloud115Problem("cloud115_directory_not_found")
                 return None
+            if binding_id is not None and (
+                binding.id != binding_id
+                or binding.account_key != account_key
+                or binding.cache_root_cid != cache_root_cid
+            ):
+                raise Cloud115Problem("cloud115_directory_not_found")
+            if binding_id is not None:
+                if binding.status == "expired":
+                    raise Cloud115Problem("cloud115_credentials_expired")
+                if binding.status == "detached":
+                    raise Cloud115Problem("cloud115_directory_not_found")
+                if binding.status not in {"active", "unavailable"}:
+                    raise Cloud115Problem("cloud115_protocol_error")
             setting = self._secrets.get_secret_in_session(session, COOKIE_SETTING_KEY)
             if setting is None or setting.version != binding.credential_version:
+                if binding_id is not None:
+                    raise Cloud115Problem("cloud115_protocol_error")
                 raise BindingProblem("state_conflict", 409)
             try:
                 cookies = setting.value.decode("utf-8")
             except UnicodeDecodeError:
+                if binding_id is not None:
+                    raise Cloud115Problem("cloud115_protocol_error") from None
                 raise BindingProblem("cloud115_protocol_error", 502) from None
             return CredentialScope(
                 cookies=cookies,
@@ -322,4 +392,5 @@ __all__ = [
     "BindingService",
     "BindingView",
     "Cloud115ScopeFactory",
+    "CredentialScope",
 ]

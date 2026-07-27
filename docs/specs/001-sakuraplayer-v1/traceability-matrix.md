@@ -34,6 +34,12 @@
   binding 解绑历史、CacheJob/媒体迁移归属和复数媒体选择由
   [TASK-103 缓存容量与幂等确定性边界](changes/2026-07-27--task-103-cache-capacity-idempotency.md)
   冻结；TASK-103 实现创建与容量，TASK-104/105 分别消费提交载荷和媒体 Schema。
+- AC-084、AC-086 至 AC-091、AC-097 的提交派发事实、`submit_uncertain`、claim fencing、
+  disposition 和取消/清理/通知职责由
+  [TASK-104 离线执行与取消确定性边界](changes/2026-07-27--task-104-offline-execution-determinism.md)
+  冻结；TASK-104 实现离线执行与远端取消，自动证据位于 `test_offline_worker.py`、
+  `test_play_disposition.py` 和 `test_cache_job_migration.py`；TASK-107/112 分别完成安全清理和
+  事件通知。
 
 ## 逐条追踪
 
