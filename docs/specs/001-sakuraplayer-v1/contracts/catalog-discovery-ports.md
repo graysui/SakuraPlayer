@@ -15,7 +15,11 @@
 SourceAvailabilityPort.get_many(source_ids) -> {source_id: SourceAvailability}
 ```
 
-`SourceAvailability` 只允许 `available/queued/running/ready/failed/rejected`，可选携带 `video_file_size_bytes`。未返回的活动来源按 `available` 处理；只有 `ready` 满足 `playable=true`。TASK-011 提供空实现，TASK-103/105 后续提供 PostgreSQL 适配器。
+`SourceAvailability` 只允许 `available/queued/running/ready/failed/rejected`，可选携带
+`video_file_size_bytes`。未返回的活动来源按 `available` 处理；只有 CacheJob 持久状态为
+`ready` 才投影 `ready` 并满足 `playable=true`，真实大小是有序选择媒体的总和。
+`awaiting_selection` 仍投影 `running`，不得按 ready 容量类别提前声明可播放。TASK-011
+提供空实现，TASK-103/105 后续提供 PostgreSQL 适配器。
 
 ## 3. 影片进度
 

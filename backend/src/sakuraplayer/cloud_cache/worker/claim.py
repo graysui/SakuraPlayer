@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from sqlalchemy import case, or_, select
+from sqlalchemy import case, delete, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.cloud_cache.capacity import (
@@ -18,8 +18,17 @@ from sakuraplayer.cloud_cache.domain.cache_job import (
     CacheJobStatus,
     CapacityClass,
 )
-from sakuraplayer.cloud_cache.models import CacheJob
+from sakuraplayer.cloud_cache.file_scanner import file_extension
+from sakuraplayer.cloud_cache.media_selection import MediaSelectionPlan
+from sakuraplayer.cloud_cache.models import (
+    CacheJob,
+    CacheJobMediaSelection,
+    RemoteMedia,
+    RemoteSubtitle,
+)
 from sakuraplayer.cloud_cache.ports.cloud115 import OfflineStatus, OfflineTaskSnapshot
+from sakuraplayer.cloud_cache.subtitle_locator import LocatedSubtitle
+from sakuraplayer.resources.models import Movie
 
 DEFAULT_CLAIM_LEASE = timedelta(seconds=90)
 DEFAULT_RETRY_DELAY = timedelta(seconds=5)
@@ -111,6 +120,167 @@ class CacheJobClaimQueue:
             job.updated_at = current
             session.flush()
             return self._claim(job)
+
+    def claim_resolving(self, *, worker_id: str) -> CacheJobClaim | None:
+        if not worker_id or len(worker_id) > 128:
+            raise ValueError("worker_id must be 1..128 characters")
+        current = self._utc_now()
+        with self._session_factory.begin() as session:
+            job = session.scalar(
+                select(CacheJob)
+                .where(
+                    CacheJob.status == CacheJobStatus.RESOLVING.value,
+                    or_(
+                        CacheJob.claim_owner.is_(None),
+                        CacheJob.claim_expires_at <= current,
+                    ),
+                )
+                .order_by(CacheJob.created_at, CacheJob.id)
+                .with_for_update(skip_locked=True)
+                .limit(1)
+            )
+            if job is None:
+                return None
+            job.claim_owner = worker_id
+            job.claim_token = uuid.uuid4()
+            job.claim_expires_at = current + self._lease
+            job.updated_at = current
+            session.flush()
+            return self._claim(job)
+
+    def resolution_movie_number(self, claim: CacheJobClaim) -> str:
+        current = self._utc_now()
+        with self._session_factory.begin() as session:
+            job = self._claimed_job(session, claim, current=current)
+            if job.status != CacheJobStatus.RESOLVING.value:
+                raise CacheJobClaimLost
+            movie = session.get(Movie, job.movie_id)
+            if movie is None:
+                raise CacheJobClaimLost
+            job.claim_expires_at = current + self._lease
+            job.updated_at = current
+            return movie.normalized_number
+
+    def complete_resolution(
+        self,
+        claim: CacheJobClaim,
+        plan: MediaSelectionPlan,
+        subtitles: tuple[LocatedSubtitle, ...],
+    ) -> None:
+        if not plan.media:
+            raise ValueError("resolution requires media")
+        current = self._utc_now()
+        with self._session_factory.begin() as session:
+            job = self._claimed_job(session, claim, current=current)
+            if job.status != CacheJobStatus.RESOLVING.value:
+                raise CacheJobClaimLost
+            session.execute(
+                delete(CacheJobMediaSelection).where(
+                    CacheJobMediaSelection.cache_job_id == job.id
+                )
+            )
+            session.execute(
+                delete(RemoteSubtitle).where(RemoteSubtitle.cache_job_id == job.id)
+            )
+            session.execute(
+                delete(RemoteMedia).where(RemoteMedia.cache_job_id == job.id)
+            )
+
+            candidate_ids = {
+                media_item.candidate_key: uuid.uuid5(
+                    job.id, f"candidate:{media_item.candidate_key}"
+                )
+                for media_item in plan.media
+            }
+            media_ids = {
+                media_item.file.file_id: uuid.uuid5(
+                    job.id, f"media:{media_item.file.file_id}"
+                )
+                for media_item in plan.media
+            }
+            for media_item in plan.media:
+                session.add(
+                    RemoteMedia(
+                        id=media_ids[media_item.file.file_id],
+                        cache_job_id=job.id,
+                        file_id=media_item.file.file_id,
+                        pickcode=media_item.file.pickcode,
+                        parent_cid=media_item.file.parent_cid,
+                        name=media_item.file.name,
+                        size_bytes=media_item.file.size_bytes,
+                        duration_seconds=media_item.file.duration_seconds,
+                        candidate_id=candidate_ids[media_item.candidate_key],
+                        sequence_no=media_item.sequence_no,
+                        selection_score=media_item.selection_score,
+                        selection_evidence=[
+                            {"reason": reason, "value": value}
+                            for reason, value in media_item.selection_evidence
+                        ],
+                        is_valid=True,
+                        created_at=current,
+                    )
+                )
+            session.flush()
+            for subtitle_item in subtitles:
+                session.add(
+                    RemoteSubtitle(
+                        id=uuid.uuid5(job.id, f"subtitle:{subtitle_item.file.file_id}"),
+                        cache_job_id=job.id,
+                        media_id=(
+                            media_ids[subtitle_item.media_file_id]
+                            if subtitle_item.media_file_id is not None
+                            else None
+                        ),
+                        file_id=subtitle_item.file.file_id,
+                        pickcode=subtitle_item.file.pickcode,
+                        parent_cid=subtitle_item.file.parent_cid,
+                        name=subtitle_item.file.name,
+                        extension=file_extension(subtitle_item.file.name),
+                        size_bytes=subtitle_item.file.size_bytes,
+                        match_score=subtitle_item.match_score,
+                        match_evidence=list(subtitle_item.match_evidence),
+                        created_at=current,
+                    )
+                )
+            if plan.selected_candidate_key is not None:
+                selected = sorted(
+                    (
+                        media_item
+                        for media_item in plan.media
+                        if media_item.candidate_key == plan.selected_candidate_key
+                    ),
+                    key=lambda media_item: media_item.sequence_no,
+                )
+                for sequence_no, selected_item in enumerate(selected):
+                    session.add(
+                        CacheJobMediaSelection(
+                            cache_job_id=job.id,
+                            sequence_no=sequence_no,
+                            media_id=media_ids[selected_item.file.file_id],
+                        )
+                    )
+                target = CacheJobStatus.READY
+                job.ready_at = current
+            else:
+                target = CacheJobStatus.AWAITING_SELECTION
+                job.ready_at = None
+            self._apply_state(job, target)
+            self._clear_claim(job)
+            job.failure_code = None
+            job.failure_detail = None
+            job.updated_at = current
+
+    def detach(self, claim: CacheJobClaim) -> None:
+        current = self._utc_now()
+        with self._session_factory.begin() as session:
+            job = self._claimed_job(session, claim, current=current)
+            if job.status != CacheJobStatus.RESOLVING.value:
+                raise CacheJobClaimLost
+            self._apply_state(job, CacheJobStatus.DETACHED)
+            self._clear_claim(job)
+            job.failure_code = "cache_ownership_mismatch"
+            job.failure_detail = None
+            job.updated_at = current
 
     def renew(self, claim: CacheJobClaim) -> CacheJobClaim:
         current = self._utc_now()

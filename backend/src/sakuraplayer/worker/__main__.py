@@ -31,6 +31,10 @@ from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
 from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Port
 from sakuraplayer.cloud_cache.worker.claim import CacheJobClaim, CacheJobClaimQueue
 from sakuraplayer.cloud_cache.worker.offline import CacheOfflineWorker, OfflineWorker
+from sakuraplayer.cloud_cache.worker.resolution import (
+    CacheMediaResolver,
+    CacheWorkerPipeline,
+)
 from sakuraplayer.discovery.ranking_sync import (
     RankingSnapshotSynchronizer,
     RankingSyncQueue,
@@ -245,10 +249,15 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             ) as cloud:
                 yield cloud
 
-        cache_consumer = CacheOfflineWorker(
-            CacheJobClaimQueue(factory),
+        cache_queue = CacheJobClaimQueue(factory)
+        offline_consumer = CacheOfflineWorker(
+            cache_queue,
             SourceSubmissionService(factory, cipher=cipher),
             cache_cloud_scope,
+        )
+        cache_consumer = CacheWorkerPipeline(
+            offline_consumer,
+            CacheMediaResolver(cache_queue, cache_cloud_scope),
         )
         return WorkerRuntime(
             consumer=consumer,

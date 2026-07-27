@@ -228,7 +228,9 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
 - worker 提交前创建任务目录。115 返回的 `info_hash` 与本地任务 ID 分开保存。
 - worker 在外部提交前持久化 `submit_started_at`；结果不确定且对账无唯一匹配时进入
   `submit_uncertain`，保留 running 容量并禁止自动重提。
-- 完成后递归枚举视频和字幕；视频最低 256 MiB `(derived)`，广告/样片规则和连续分段规则必须由 fixture 测试固定。
+- 完成后按 [TASK-105 媒体解析确定性边界](changes/2026-07-27--task-105-media-resolution-determinism.md)
+  有界递归枚举视频和字幕；视频最低 256 MiB（包含边界），白名单、广告/样片词元、连续分段、
+  可解释评分和保守自动选择规则由固定 fixture 验证。
 - 多个无法确定主文件的候选进入 `awaiting_selection`，客户端选择后才 `ready`。
 - 就绪默认 TTL 24 小时，可配置 1 到 168 小时；每次创建播放会话刷新。
 - LRU 只选择 `ready`、无有效租约、非清理中的最久未访问记录。

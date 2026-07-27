@@ -571,12 +571,15 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `name` | text | 文件名 | AC-093 |
 | `size_bytes` | bigint | 真实视频文件大小 | AC-035 |
 | `duration_seconds` | bigint | 可空 | `(derived)` |
-| `sequence_no` | integer | 分段顺序，默认 0 | AC-093 |
+| `candidate_id` | UUID | 同一连续分段共享候选组，单文件独立 | AC-093 |
+| `sequence_no` | integer | 候选组内分段顺序，从 0 开始 | AC-093 |
 | `selection_score` | integer | 广告/样片/番号等评分 | `(derived)` |
+| `selection_evidence` | jsonb | 稳定 reason/value 列表，不含短链或外部正文 | `(derived)` |
 | `is_valid` | boolean | 通过扩展名和排除规则 | AC-092 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 
-唯一键 `(cache_job_id, file_id)`。禁止保存原画/HLS URL。
+唯一键 `(cache_job_id, file_id)` 和 `(cache_job_id, candidate_id, sequence_no)`。禁止保存
+原画/HLS URL。
 
 `cache_job_media_selection` 由 TASK-105 迁移，主键 `(cache_job_id, sequence_no)`，并唯一
 `(cache_job_id, media_id)`；它是 OpenAPI `selected_media_ids` 的有序来源。
@@ -587,7 +590,7 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 |---|---|---|---|
 | `id` | UUID | 主键 | `(derived)` |
 | `cache_job_id` | UUID | 外键 | AC-108 |
-| `media_id` | UUID | 可空，同名匹配到具体视频 | AC-109 |
+| `media_id` | UUID | 可空，同名匹配到同一 `cache_job_id` 的具体视频 | AC-109 |
 | `file_id` | varchar(64) | 115 文件 ID | `(derived)` |
 | `pickcode` | varchar(128) | 字幕下载定位 | `(derived)` |
 | `parent_cid` | varchar(64) | 受管目录内 | AC-108 |
@@ -595,6 +598,8 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `extension` | enum | `srt/ass/ssa/vtt` | AC-108 |
 | `size_bytes` | bigint | 下载上限检查 | `(derived)` |
 | `match_score` | integer | 同名优先 | AC-109 |
+| `match_evidence` | jsonb | 稳定同名/同目录证据 | AC-109 |
+| `created_at` | timestamptz | 非空 | `(derived)` |
 
 数据库不保存字幕正文和客户端副本路径。
 

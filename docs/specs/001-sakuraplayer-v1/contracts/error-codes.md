@@ -120,6 +120,7 @@
 | 404 | `cache_job_not_found` | 缓存任务不存在 |
 | 409 | `cache_job_not_ready` | 尚不能创建播放会话 |
 | 409 | `cache_media_selection_required` | 多个候选需要用户选择 |
+| 任务 | `cache_no_valid_media` | 递归解析完成但没有通过白名单、大小和排除规则的视频 |
 | 409 | `cache_cancel_confirmation_required` | 客户端必须完成二次确认后重提 |
 | 409 | `cache_active_lease` | 正在播放，拒绝立即清理 |
 | 409 | `cache_ownership_mismatch` | 受管目录证明不成立，标记 detached，不删除 |

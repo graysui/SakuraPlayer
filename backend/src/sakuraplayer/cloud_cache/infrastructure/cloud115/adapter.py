@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import deque
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -73,6 +74,10 @@ _MAX_DIRECTORY_PAGE_SIZE = 1150
 _MAX_JSON_BYTES = 4 * 1024 * 1024
 _MAX_PLAYLIST_BYTES = 1024 * 1024
 _MAX_QR_IMAGE_BYTES = 2 * 1024 * 1024
+_RECURSIVE_PAGE_SIZE = 1000
+_MAX_RECURSIVE_DEPTH = 16
+_MAX_RECURSIVE_DIRECTORIES = 1024
+_MAX_RECURSIVE_FILES = 100_000
 
 
 class _LongPollTimeout(Exception):
@@ -384,7 +389,50 @@ class Cloud115Adapter:
 
     async def list_files_recursive(self, cid: str) -> AsyncIterator[RemoteFile]:
         self._require_nonempty(cid, "cid")
+        pending: deque[tuple[str, int]] = deque([(cid, 0)])
+        directory_ids = {cid}
+        file_ids: set[str] = set()
+        files: list[RemoteFile] = []
+        while pending:
+            directory_cid, depth = pending.popleft()
+            entries = await self._list_directory_entries(
+                directory_cid,
+                max_entries=(
+                    _MAX_RECURSIVE_FILES
+                    - len(files)
+                    + _MAX_RECURSIVE_DIRECTORIES
+                    - len(directory_ids)
+                ),
+            )
+            for entry in entries:
+                if entry.parent_cid != directory_cid:
+                    raise Cloud115Problem("cloud115_protocol_error")
+                if entry.is_directory:
+                    if (
+                        entry.file_id in directory_ids
+                        or depth >= _MAX_RECURSIVE_DEPTH
+                        or len(directory_ids) >= _MAX_RECURSIVE_DIRECTORIES
+                    ):
+                        raise Cloud115Problem("cloud115_protocol_error")
+                    directory_ids.add(entry.file_id)
+                    pending.append((entry.file_id, depth + 1))
+                    continue
+                if entry.file_id in file_ids or len(files) >= _MAX_RECURSIVE_FILES:
+                    raise Cloud115Problem("cloud115_protocol_error")
+                file_ids.add(entry.file_id)
+                files.append(entry)
+        for entry in files:
+            yield entry
+
+    async def _list_directory_entries(
+        self,
+        cid: str,
+        *,
+        max_entries: int,
+    ) -> list[RemoteFile]:
         offset = 0
+        expected_total: int | None = None
+        entries: list[RemoteFile] = []
         while True:
             payload = await self._json_request(
                 "GET",
@@ -393,8 +441,8 @@ class Cloud115Adapter:
                     "aid": 1,
                     "cid": cid,
                     "offset": offset,
-                    "limit": 1000,
-                    "show_dir": 0,
+                    "limit": _RECURSIVE_PAGE_SIZE,
+                    "show_dir": 1,
                     "cur": 0,
                     "o": "file_name",
                     "asc": 1,
@@ -403,14 +451,24 @@ class Cloud115Adapter:
             )
             self._require_state(payload, "file_list")
             batch = self._data_list(payload)
-            for raw in batch:
-                yield self.parse_remote_file(raw)
+            if len(batch) > _RECURSIVE_PAGE_SIZE:
+                raise Cloud115Problem("cloud115_protocol_error")
             total = self._integer(payload.get("count", len(batch)))
+            if (
+                total < 0
+                or total > max_entries
+                or (expected_total is not None and total != expected_total)
+            ):
+                raise Cloud115Problem("cloud115_protocol_error")
+            expected_total = total
+            entries.extend(self.parse_remote_file(raw) for raw in batch)
             offset += len(batch)
             if not batch and offset < total:
                 raise Cloud115Problem("cloud115_protocol_error")
             if offset >= total:
-                return
+                if offset != total:
+                    raise Cloud115Problem("cloud115_protocol_error")
+                return entries
 
     async def resolve_original(
         self,

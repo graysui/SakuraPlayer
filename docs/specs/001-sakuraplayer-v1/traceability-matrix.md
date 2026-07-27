@@ -40,6 +40,12 @@
   冻结；TASK-104 实现离线执行与远端取消，自动证据位于 `test_offline_worker.py`、
   `test_play_disposition.py` 和 `test_cache_job_migration.py`；TASK-107/112 分别完成安全清理和
   事件通知。
+- AC-035、AC-092、AC-093、AC-108、AC-109 的有界递归、媒体/字幕白名单、分段、评分、
+  保守自动选择、字幕匹配和真实大小投影由
+  [TASK-105 媒体解析确定性边界](changes/2026-07-27--task-105-media-resolution-determinism.md)
+  冻结；TASK-105 实现持久媒体候选、有序选择与 `awaiting_selection -> ready`，自动证据位于
+  `test_media_selection.py`、`test_file_resolution.py`、`test_adapter_contract.py` 和
+  `test_cache_api.py`。
 
 ## 逐条追踪
 

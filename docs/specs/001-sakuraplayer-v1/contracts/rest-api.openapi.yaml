@@ -674,11 +674,14 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [media_ids]
               properties:
                 media_ids:
                   type: array
                   minItems: 1
+                  maxItems: 100
+                  uniqueItems: true
                   items:
                     type: string
                     format: uuid
@@ -1745,9 +1748,12 @@ components:
         - detached
     RemoteMedia:
       type: object
-      required: [id, name, size_bytes, sequence_no, is_valid]
+      required: [id, candidate_id, name, size_bytes, sequence_no, is_valid]
       properties:
         id:
+          type: string
+          format: uuid
+        candidate_id:
           type: string
           format: uuid
         name:
@@ -1764,7 +1770,7 @@ components:
           type: boolean
     SubtitleOption:
       type: object
-      required: [id, name, format]
+      required: [id, name, format, selected_by_default]
       properties:
         id:
           type: string
@@ -1781,7 +1787,7 @@ components:
     CacheJob:
       type: object
       required:
-        [id, movie_id, source_id, status, remote_percent, media_candidates, subtitles, created_at, updated_at]
+        [id, movie_id, source_id, status, remote_percent, media_candidates, selected_media_ids, subtitles, created_at, updated_at]
       properties:
         id:
           type: string

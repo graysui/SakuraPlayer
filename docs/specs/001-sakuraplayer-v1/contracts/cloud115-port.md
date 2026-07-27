@@ -95,6 +95,11 @@ HlsInfo { pickcode, variants }
 非敏感小写蛇形值。短期 URL 只能存在于调用栈、播放会话内存对象和 `302` 构造中，禁止
 进入 repository、事件、普通日志、异常或测试快照。
 
+`list_files_recursive` 必须真正遍历直接子目录，只 yield 文件并逐目录校验分页声明和
+`parent_cid`；固定最多 16 层、1024 个目录和 100000 个文件。重复目录 CID、目录环、空页
+未达声明总数或超限均映射 `cloud115_protocol_error`，不能返回部分成功结果。TASK-105
+resolver 在遍历前后重新验证任务目录仍是缓存根的直接子目录。
+
 ## 4. 稳定错误
 
 适配器只抛 `Cloud115Problem(code, retry_after_seconds=None)`。异常字符串等于稳定 code，

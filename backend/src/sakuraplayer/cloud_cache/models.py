@@ -4,21 +4,30 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sakuraplayer.identity.models import Base
+
+_JSON_VALUE = JSON(none_as_null=True).with_variant(
+    JSONB(none_as_null=True),
+    "postgresql",
+)
 
 
 class Cloud115Binding(Base):
@@ -221,6 +230,118 @@ Index("ix_cache_job_status_created", CacheJob.status, CacheJob.created_at)
 Index("ix_cache_job_capacity_created", CacheJob.capacity_class, CacheJob.created_at)
 
 
+class RemoteMedia(Base):
+    __tablename__ = "remote_media"
+    __table_args__ = (
+        CheckConstraint(
+            "length(file_id) BETWEEN 1 AND 64", name="ck_remote_media_file_id"
+        ),
+        CheckConstraint(
+            "length(pickcode) BETWEEN 1 AND 128", name="ck_remote_media_pickcode"
+        ),
+        CheckConstraint(
+            "length(parent_cid) BETWEEN 1 AND 64", name="ck_remote_media_parent_cid"
+        ),
+        CheckConstraint("length(name) >= 1", name="ck_remote_media_name"),
+        CheckConstraint("size_bytes >= 0", name="ck_remote_media_size"),
+        CheckConstraint(
+            "duration_seconds IS NULL OR duration_seconds >= 0",
+            name="ck_remote_media_duration",
+        ),
+        CheckConstraint("sequence_no >= 0", name="ck_remote_media_sequence"),
+        CheckConstraint("selection_score >= 0", name="ck_remote_media_score"),
+        UniqueConstraint("cache_job_id", "file_id", name="uq_remote_media_job_file"),
+        UniqueConstraint("cache_job_id", "id", name="uq_remote_media_job_id"),
+        UniqueConstraint(
+            "cache_job_id",
+            "candidate_id",
+            "sequence_no",
+            name="uq_remote_media_candidate_sequence",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    cache_job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cache_job.id", ondelete="CASCADE"), nullable=False
+    )
+    file_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    pickcode: Mapped[str] = mapped_column(String(128), nullable=False)
+    parent_cid: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    duration_seconds: Mapped[int | None] = mapped_column(BigInteger)
+    candidate_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    sequence_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    selection_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    selection_evidence: Mapped[list[dict[str, object]]] = mapped_column(
+        _JSON_VALUE, nullable=False
+    )
+    is_valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class RemoteSubtitle(Base):
+    __tablename__ = "remote_subtitle"
+    __table_args__ = (
+        CheckConstraint(
+            "extension IN ('srt', 'ass', 'ssa', 'vtt')",
+            name="ck_remote_subtitle_extension",
+        ),
+        CheckConstraint(
+            "size_bytes BETWEEN 1 AND 8388608", name="ck_remote_subtitle_size"
+        ),
+        CheckConstraint("match_score >= 0", name="ck_remote_subtitle_score"),
+        ForeignKeyConstraint(
+            ["cache_job_id", "media_id"],
+            ["remote_media.cache_job_id", "remote_media.id"],
+            name="fk_remote_subtitle_owned_media",
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("cache_job_id", "file_id", name="uq_remote_subtitle_job_file"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    cache_job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cache_job.id", ondelete="CASCADE"), nullable=False
+    )
+    media_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    file_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    pickcode: Mapped[str] = mapped_column(String(128), nullable=False)
+    parent_cid: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    extension: Mapped[str] = mapped_column(String(8), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    match_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    match_evidence: Mapped[list[str]] = mapped_column(_JSON_VALUE, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class CacheJobMediaSelection(Base):
+    __tablename__ = "cache_job_media_selection"
+    __table_args__ = (
+        CheckConstraint("sequence_no >= 0", name="ck_cache_selection_sequence"),
+        ForeignKeyConstraint(
+            ["cache_job_id", "media_id"],
+            ["remote_media.cache_job_id", "remote_media.id"],
+            name="fk_cache_selection_owned_media",
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint(
+            "cache_job_id", "media_id", name="uq_cache_selection_job_media"
+        ),
+    )
+
+    cache_job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cache_job.id", ondelete="CASCADE"), primary_key=True
+    )
+    sequence_no: Mapped[int] = mapped_column(Integer, primary_key=True)
+    media_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+
+
 class CachePlayRequest(Base):
     __tablename__ = "cache_play_request"
     __table_args__ = (
@@ -249,4 +370,11 @@ class CachePlayRequest(Base):
     )
 
 
-__all__ = ["CacheJob", "CachePlayRequest", "Cloud115Binding"]
+__all__ = [
+    "CacheJob",
+    "CacheJobMediaSelection",
+    "CachePlayRequest",
+    "Cloud115Binding",
+    "RemoteMedia",
+    "RemoteSubtitle",
+]

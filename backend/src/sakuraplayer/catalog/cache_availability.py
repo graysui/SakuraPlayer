@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.catalog.ports import SourceAvailability
-from sakuraplayer.cloud_cache.models import CacheJob
+from sakuraplayer.cloud_cache.models import (
+    CacheJob,
+    CacheJobMediaSelection,
+    RemoteMedia,
+)
 from sakuraplayer.resources.models import ResourceSource
 
 
@@ -35,6 +39,24 @@ class CacheSourceAvailabilityPort:
                     .order_by(CacheJob.created_at.desc(), CacheJob.id.desc())
                 )
             )
+            selected_sizes: dict[uuid.UUID, int] = {
+                job_id: int(total_size)
+                for job_id, total_size in session.execute(
+                    select(
+                        CacheJobMediaSelection.cache_job_id,
+                        func.sum(RemoteMedia.size_bytes),
+                    )
+                    .join(
+                        RemoteMedia, RemoteMedia.id == CacheJobMediaSelection.media_id
+                    )
+                    .where(
+                        CacheJobMediaSelection.cache_job_id.in_(
+                            tuple(job.id for job in jobs)
+                        )
+                    )
+                    .group_by(CacheJobMediaSelection.cache_job_id)
+                ).all()
+            }
         latest: dict[uuid.UUID, CacheJob] = {}
         active: dict[uuid.UUID, CacheJob] = {}
         for job in jobs:
@@ -49,10 +71,21 @@ class CacheSourceAvailabilityPort:
             latest_job = active.get(source_id) or latest.get(source_id)
             if latest_job is None or latest_job.status in {"cleaned", "detached"}:
                 result[source_id] = SourceAvailability()
-            elif latest_job.status == "failed":
+            elif latest_job.status in {"failed", "cleanup_failed"}:
                 result[source_id] = SourceAvailability(state="failed")
+            elif latest_job.status == "ready":
+                result[source_id] = SourceAvailability(
+                    state="ready",
+                    video_file_size_bytes=(
+                        int(selected_sizes[latest_job.id])
+                        if latest_job.id in selected_sizes
+                        else None
+                    ),
+                )
+            elif latest_job.status == "queued":
+                result[source_id] = SourceAvailability(state="queued")
             else:
-                result[source_id] = SourceAvailability(state=latest_job.capacity_class)
+                result[source_id] = SourceAvailability(state="running")
         return result
 
 

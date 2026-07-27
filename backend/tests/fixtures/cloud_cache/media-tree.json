@@ -1,0 +1,24 @@
+{
+  "movie_number": "IPX-001",
+  "files": [
+    {"file_id": "video-main", "parent_cid": "task", "name": "IPX-001.mkv", "size_bytes": 2147483648, "pickcode": "pick-main", "is_video": true, "duration_seconds": 7200, "blocked": false},
+    {"file_id": "video-other", "parent_cid": "task", "name": "bonus-feature.mkv", "size_bytes": 1610612736, "pickcode": "pick-other", "is_video": true, "duration_seconds": 3600, "blocked": false},
+    {"file_id": "video-threshold", "parent_cid": "nested", "name": "threshold.mp4", "size_bytes": 268435456, "pickcode": "pick-threshold", "is_video": false, "duration_seconds": null, "blocked": false},
+    {"file_id": "video-small", "parent_cid": "nested", "name": "too-small.mp4", "size_bytes": 268435455, "pickcode": "pick-small", "is_video": true, "duration_seconds": 1800, "blocked": false},
+    {"file_id": "video-ad", "parent_cid": "task", "name": "IPX-001-advertisement.mp4", "size_bytes": 1073741824, "pickcode": "pick-ad", "is_video": true, "duration_seconds": 300, "blocked": false},
+    {"file_id": "video-sample", "parent_cid": "task", "name": "IPX-001-sample.mp4", "size_bytes": 1073741824, "pickcode": "pick-sample", "is_video": true, "duration_seconds": 300, "blocked": false},
+    {"file_id": "video-word", "parent_cid": "task", "name": "cmake-documentary.mp4", "size_bytes": 1073741824, "pickcode": "pick-word", "is_video": true, "duration_seconds": 3600, "blocked": false},
+    {"file_id": "video-blocked", "parent_cid": "task", "name": "IPX-001-blocked.mp4", "size_bytes": 1073741824, "pickcode": "pick-blocked", "is_video": true, "duration_seconds": 3600, "blocked": true},
+    {"file_id": "duplicate-a", "parent_cid": "nested-a", "name": "duplicate-feature.mkv", "size_bytes": 536870912, "pickcode": "pick-duplicate-a", "is_video": true, "duration_seconds": 1800, "blocked": false},
+    {"file_id": "duplicate-b", "parent_cid": "nested-b", "name": "duplicate-feature.mkv", "size_bytes": 536870912, "pickcode": "pick-duplicate-b", "is_video": true, "duration_seconds": 1800, "blocked": false},
+    {"file_id": "part-1", "parent_cid": "segments", "name": "IPX-001-CD1.mkv", "size_bytes": 1073741824, "pickcode": "pick-part-1", "is_video": true, "duration_seconds": 3600, "blocked": false},
+    {"file_id": "part-2", "parent_cid": "segments", "name": "IPX-001-CD2.mkv", "size_bytes": 1073741824, "pickcode": "pick-part-2", "is_video": true, "duration_seconds": 3600, "blocked": false},
+    {"file_id": "gap-1", "parent_cid": "gapped", "name": "Feature-part1.mp4", "size_bytes": 805306368, "pickcode": "pick-gap-1", "is_video": true, "duration_seconds": 2400, "blocked": false},
+    {"file_id": "gap-3", "parent_cid": "gapped", "name": "Feature-part3.mp4", "size_bytes": 805306368, "pickcode": "pick-gap-3", "is_video": true, "duration_seconds": 2400, "blocked": false},
+    {"file_id": "sub-srt", "parent_cid": "task", "name": "IPX-001.srt", "size_bytes": 4096, "pickcode": "pick-sub-srt", "is_video": false, "duration_seconds": null, "blocked": false},
+    {"file_id": "sub-ass", "parent_cid": "task", "name": "IPX-001.zh.ass", "size_bytes": 8192, "pickcode": "pick-sub-ass", "is_video": false, "duration_seconds": null, "blocked": false},
+    {"file_id": "sub-ssa", "parent_cid": "nested", "name": "commentary.ssa", "size_bytes": 2048, "pickcode": "pick-sub-ssa", "is_video": false, "duration_seconds": null, "blocked": false},
+    {"file_id": "sub-vtt", "parent_cid": "nested", "name": "commentary.vtt", "size_bytes": 2048, "pickcode": "pick-sub-vtt", "is_video": false, "duration_seconds": null, "blocked": false},
+    {"file_id": "sub-large", "parent_cid": "task", "name": "IPX-001-large.srt", "size_bytes": 8388609, "pickcode": "pick-sub-large", "is_video": false, "duration_seconds": null, "blocked": false}
+  ]
+}

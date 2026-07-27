@@ -4,6 +4,7 @@ import base64
 import json
 import re
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Literal
@@ -18,10 +19,17 @@ from sakuraplayer.cloud_cache.capacity import (
     acquire_capacity_lock,
     capacity_snapshot,
 )
+from sakuraplayer.cloud_cache.media_selection_api import (
+    MediaSelectionResult,
+    MediaSelectionService,
+)
 from sakuraplayer.cloud_cache.models import (
     CacheJob,
+    CacheJobMediaSelection,
     CachePlayRequest,
     Cloud115Binding,
+    RemoteMedia,
+    RemoteSubtitle,
 )
 from sakuraplayer.cloud_cache.play_disposition import play_disposition
 from sakuraplayer.resources.source_submission import (
@@ -52,6 +60,26 @@ class CacheProblem(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class RemoteMediaView:
+    id: uuid.UUID
+    candidate_id: uuid.UUID
+    name: str
+    size_bytes: int
+    duration_seconds: int | None
+    sequence_no: int
+    is_valid: bool
+
+
+@dataclass(frozen=True, slots=True)
+class SubtitleView:
+    id: uuid.UUID
+    name: str
+    format: str
+    language: str | None
+    selected_by_default: bool
+
+
+@dataclass(frozen=True, slots=True)
 class CacheJobView:
     id: uuid.UUID
     movie_id: uuid.UUID
@@ -64,6 +92,9 @@ class CacheJobView:
     failure_code: str | None
     created_at: datetime
     updated_at: datetime
+    media_candidates: tuple[RemoteMediaView, ...] = ()
+    selected_media_ids: tuple[uuid.UUID, ...] = ()
+    subtitles: tuple[SubtitleView, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +122,10 @@ class PlayRequestService:
         self._session_factory = session_factory
         self._source_port = source_port
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._media_selection = MediaSelectionService(
+            session_factory,
+            now=self._now,
+        )
 
     def create(
         self,
@@ -111,7 +146,9 @@ class PlayRequestService:
                 job = session.get(CacheJob, prior.cache_job_id)
                 if job is None:
                     raise CacheProblem(status_code=409, code="state_conflict")
-                return self._result(job, now=self._now(), replayed=True)
+                return self._result(
+                    job, now=self._now(), replayed=True, session=session
+                )
 
             binding = session.scalar(select(Cloud115Binding).with_for_update())
             self._require_active_binding(binding)
@@ -149,7 +186,7 @@ class PlayRequestService:
                     )
                 )
                 session.flush()
-                return self._result(existing, now=now)
+                return self._result(existing, now=now, session=session)
 
             snapshot = capacity_snapshot(session)
             if snapshot.running < RUNNING_CAPACITY:
@@ -199,7 +236,16 @@ class PlayRequestService:
             job = session.get(CacheJob, job_id)
             if job is None:
                 raise CacheProblem(status_code=404, code="resource_not_found")
-            return _view(job)
+            projection = _media_projection(session, (job.id,))
+            return _view(job, projection=projection.get(job.id))
+
+    def select_media(
+        self,
+        *,
+        job_id: uuid.UUID,
+        media_ids: tuple[uuid.UUID, ...],
+    ) -> MediaSelectionResult:
+        return self._media_selection.select(job_id=job_id, media_ids=media_ids)
 
     def list(
         self,
@@ -241,6 +287,7 @@ class PlayRequestService:
             )
             has_more = len(jobs) > limit
             jobs = jobs[:limit]
+            projections = _media_projection(session, tuple(job.id for job in jobs))
             next_cursor = None
             if has_more and jobs:
                 last = jobs[-1]
@@ -250,7 +297,7 @@ class PlayRequestService:
                     statuses=normalized_statuses,
                 )
             return CacheJobPage(
-                items=[_view(job) for job in jobs],
+                items=[_view(job, projection=projections.get(job.id)) for job in jobs],
                 capacity=capacity_snapshot(session),
                 next_cursor=next_cursor,
             )
@@ -276,6 +323,7 @@ class PlayRequestService:
         *,
         now: datetime,
         replayed: bool = False,
+        session: Session | None = None,
     ) -> PlayRequestResult:
         resolved = play_disposition(
             job.status,
@@ -285,12 +333,27 @@ class PlayRequestService:
         )
         return PlayRequestResult(
             disposition=resolved.name,
-            job=_view(job),
+            job=_view(
+                job,
+                projection=(
+                    _media_projection(session, (job.id,)).get(job.id)
+                    if session is not None
+                    else None
+                ),
+            ),
             wait_deadline=resolved.wait_deadline,
         )
 
 
-def _view(job: CacheJob) -> CacheJobView:
+MediaProjection = tuple[
+    tuple[RemoteMediaView, ...],
+    tuple[uuid.UUID, ...],
+    tuple[SubtitleView, ...],
+]
+
+
+def _view(job: CacheJob, *, projection: MediaProjection | None = None) -> CacheJobView:
+    media, selected, subtitles = projection or ((), (), ())
     return CacheJobView(
         id=job.id,
         movie_id=job.movie_id,
@@ -303,7 +366,101 @@ def _view(job: CacheJob) -> CacheJobView:
         failure_code=job.failure_code,
         created_at=job.created_at,
         updated_at=job.updated_at,
+        media_candidates=media,
+        selected_media_ids=selected,
+        subtitles=subtitles,
     )
+
+
+def _media_projection(
+    session: Session,
+    job_ids: tuple[uuid.UUID, ...],
+) -> dict[uuid.UUID, MediaProjection]:
+    if not job_ids:
+        return {}
+    media_by_job: dict[uuid.UUID, list[RemoteMedia]] = defaultdict(list)
+    for media_row in session.scalars(
+        select(RemoteMedia).where(RemoteMedia.cache_job_id.in_(job_ids))
+    ):
+        media_by_job[media_row.cache_job_id].append(media_row)
+    selected_by_job: dict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+    for selection_row in session.scalars(
+        select(CacheJobMediaSelection)
+        .where(CacheJobMediaSelection.cache_job_id.in_(job_ids))
+        .order_by(
+            CacheJobMediaSelection.cache_job_id,
+            CacheJobMediaSelection.sequence_no,
+        )
+    ):
+        selected_by_job[selection_row.cache_job_id].append(selection_row.media_id)
+    subtitles_by_job: dict[uuid.UUID, list[RemoteSubtitle]] = defaultdict(list)
+    for subtitle_row in session.scalars(
+        select(RemoteSubtitle).where(RemoteSubtitle.cache_job_id.in_(job_ids))
+    ):
+        subtitles_by_job[subtitle_row.cache_job_id].append(subtitle_row)
+
+    result: dict[uuid.UUID, MediaProjection] = {}
+    extension_order = {"srt": 0, "ass": 1, "ssa": 2, "vtt": 3}
+    for job_id in job_ids:
+        media_rows = media_by_job[job_id]
+        group_rank: dict[uuid.UUID, tuple[int, int]] = {}
+        for item in media_rows:
+            score, size = group_rank.get(item.candidate_id, (0, 0))
+            group_rank[item.candidate_id] = (
+                max(score, item.selection_score),
+                size + item.size_bytes,
+            )
+        media_rows.sort(
+            key=lambda item: (
+                -group_rank[item.candidate_id][0],
+                -group_rank[item.candidate_id][1],
+                str(item.candidate_id),
+                item.sequence_no,
+                item.id,
+            )
+        )
+        media_views = tuple(
+            RemoteMediaView(
+                id=item.id,
+                candidate_id=item.candidate_id,
+                name=item.name,
+                size_bytes=item.size_bytes,
+                duration_seconds=item.duration_seconds,
+                sequence_no=item.sequence_no,
+                is_valid=item.is_valid,
+            )
+            for item in media_rows
+        )
+        selected = tuple(selected_by_job[job_id])
+        subtitle_rows = subtitles_by_job[job_id]
+        subtitle_rows.sort(
+            key=lambda item: (
+                -item.match_score,
+                extension_order[item.extension],
+                item.name.casefold(),
+                item.id,
+            )
+        )
+        default_id = next(
+            (
+                item.id
+                for item in subtitle_rows
+                if item.media_id is not None and item.media_id in selected
+            ),
+            None,
+        )
+        subtitle_views = tuple(
+            SubtitleView(
+                id=item.id,
+                name=item.name,
+                format=item.extension,
+                language=None,
+                selected_by_default=item.id == default_id,
+            )
+            for item in subtitle_rows
+        )
+        result[job_id] = (media_views, selected, subtitle_views)
+    return result
 
 
 def _encode_cursor(
@@ -361,4 +518,6 @@ __all__ = [
     "CacheProblem",
     "PlayRequestResult",
     "PlayRequestService",
+    "RemoteMediaView",
+    "SubtitleView",
 ]

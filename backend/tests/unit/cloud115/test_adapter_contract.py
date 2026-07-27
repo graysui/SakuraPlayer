@@ -364,6 +364,189 @@ async def test_directory_info_recursive_files_and_managed_delete() -> None:
         await client.aclose()
 
 
+@pytest.mark.asyncio
+async def test_recursive_listing_descends_into_directories_and_only_yields_files() -> (
+    None
+):
+    requested_cids: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/files"
+        assert request.url.params["show_dir"] == "1"
+        cid = request.url.params["cid"]
+        requested_cids.append(cid)
+        if cid == "20":
+            return httpx.Response(
+                200,
+                json={
+                    "state": True,
+                    "count": 2,
+                    "data": [
+                        {"cid": "21", "pid": "20", "n": "nested"},
+                        {
+                            "fid": "30",
+                            "cid": "20",
+                            "n": "root.mkv",
+                            "s": 300_000_000,
+                            "pc": "root-pick",
+                            "iv": 1,
+                        },
+                    ],
+                },
+            )
+        if cid == "21":
+            return httpx.Response(
+                200,
+                json={
+                    "state": True,
+                    "count": 1,
+                    "data": [
+                        {
+                            "fid": "31",
+                            "cid": "21",
+                            "n": "nested.ass",
+                            "s": 1000,
+                            "pc": "nested-pick",
+                        }
+                    ],
+                },
+            )
+        raise AssertionError(f"unexpected cid: {cid}")
+
+    client = _http_client(handler)
+    adapter = Cloud115Adapter(cookies=COOKIE, http_client=client)
+    try:
+        files = [item async for item in adapter.list_files_recursive("20")]
+    finally:
+        await client.aclose()
+
+    assert requested_cids == ["20", "21"]
+    assert [item.file_id for item in files] == ["30", "31"]
+    assert all(not item.is_directory for item in files)
+
+
+@pytest.mark.asyncio
+async def test_recursive_listing_rejects_parent_cid_mismatch() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "state": True,
+                "count": 1,
+                "data": [
+                    {
+                        "fid": "30",
+                        "cid": "outside",
+                        "n": "movie.mkv",
+                        "s": 300_000_000,
+                        "pc": "pick",
+                    }
+                ],
+            },
+        )
+
+    client = _http_client(handler)
+    adapter = Cloud115Adapter(cookies=COOKIE, http_client=client)
+    try:
+        with pytest.raises(Cloud115Problem) as raised:
+            _ = [item async for item in adapter.list_files_recursive("20")]
+    finally:
+        await client.aclose()
+
+    assert raised.value.code == "cloud115_protocol_error"
+
+
+@pytest.mark.asyncio
+async def test_recursive_listing_rejects_page_larger_than_requested_limit() -> None:
+    oversized_page = [
+        {
+            "fid": str(index),
+            "cid": "20",
+            "n": f"movie-{index}.mkv",
+            "s": 300_000_000,
+            "pc": f"pick-{index}",
+        }
+        for index in range(1001)
+    ]
+    client = _http_client(
+        lambda request: httpx.Response(
+            200,
+            json={"state": True, "count": len(oversized_page), "data": oversized_page},
+        )
+    )
+    adapter = Cloud115Adapter(cookies=COOKIE, http_client=client)
+    try:
+        with pytest.raises(Cloud115Problem) as raised:
+            _ = [item async for item in adapter.list_files_recursive("20")]
+    finally:
+        await client.aclose()
+
+    assert raised.value.code == "cloud115_protocol_error"
+
+
+@pytest.mark.asyncio
+async def test_recursive_listing_rejects_declared_total_beyond_remaining_budget() -> (
+    None
+):
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        assert calls == 1
+        return httpx.Response(
+            200,
+            json={
+                "state": True,
+                "count": 101_024,
+                "data": [
+                    {
+                        "fid": "30",
+                        "cid": "20",
+                        "n": "movie.mkv",
+                        "s": 300_000_000,
+                        "pc": "pick",
+                    }
+                ],
+            },
+        )
+
+    client = _http_client(handler)
+    adapter = Cloud115Adapter(cookies=COOKIE, http_client=client)
+    try:
+        with pytest.raises(Cloud115Problem) as raised:
+            _ = [item async for item in adapter.list_files_recursive("20")]
+    finally:
+        await client.aclose()
+
+    assert raised.value.code == "cloud115_protocol_error"
+    assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_recursive_listing_rejects_directory_cycle() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        cid = request.url.params["cid"]
+        return httpx.Response(
+            200,
+            json={
+                "state": True,
+                "count": 1,
+                "data": [{"cid": "20", "pid": cid, "n": "cycle"}],
+            },
+        )
+
+    client = _http_client(handler)
+    adapter = Cloud115Adapter(cookies=COOKIE, http_client=client)
+    try:
+        with pytest.raises(Cloud115Problem) as raised:
+            _ = [item async for item in adapter.list_files_recursive("20")]
+    finally:
+        await client.aclose()
+
+    assert raised.value.code == "cloud115_protocol_error"
+
+
 def test_original_payload_is_typed_and_capability_url_is_validated() -> None:
     original = Cloud115Adapter.parse_original_payload(
         {

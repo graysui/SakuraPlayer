@@ -3,7 +3,7 @@ id: TASK-105
 title: "视频字幕解析与媒体选择"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: completed
 dependencies: [TASK-104]
 ac-mapping: [AC-035, AC-092, AC-093, AC-108, AC-109]
 imp-requirements: [REQ-007, REQ-018, REQ-020]
@@ -28,16 +28,17 @@ provides: [remote file scanner, media scorer, segment queue, subtitle locator]
 
 ## 验收条件
 
-- [ ] 完成后显示 115 真实视频文件大小，离线前仍显示资源大小；对应 AC-035。
-- [ ] 递归识别视频/字幕并排除明显广告、样片和低于阈值文件；对应 AC-092。
-- [ ] 明确主视频自动选择，多个有效候选要求选择，连续分段组成有序队列；对应 AC-093。
-- [ ] 识别 srt/ass/ssa/vtt，同名优先且多个可切换；对应 AC-108、AC-109。
+- [x] 完成后显示 115 真实视频文件大小，离线前仍显示资源大小；对应 AC-035。
+- [x] 递归识别视频/字幕并排除明显广告、样片和低于阈值文件；对应 AC-092。
+- [x] 明确主视频自动选择，多个有效候选要求选择，连续分段组成有序队列；对应 AC-093。
+- [x] 识别 srt/ass/ssa/vtt，同名优先且多个可切换；对应 AC-108、AC-109。
 
 ## Definition of Ready
 
-- [ ] TASK-104 能确认离线完成并提供 task_dir_cid。
-- [ ] 文件扩展名、256 MiB 阈值和广告/分段 fixture 已冻结。
-- [ ] TASK-103 CacheJob Schema 可用；本任务拥有 RemoteMedia、RemoteSubtitle 和有序
+- [x] TASK-104 能确认离线完成并提供 task_dir_cid。
+- [x] 文件扩展名、256 MiB 阈值和广告/分段 fixture 已由
+  [TASK-105 媒体解析确定性边界](../changes/2026-07-27--task-105-media-resolution-determinism.md) 冻结。
+- [x] TASK-103 CacheJob Schema 可用；本任务拥有 RemoteMedia、RemoteSubtitle 和有序
   `cache_job_media_selection` Schema 迁移。
 
 ## 技术上下文
@@ -67,7 +68,8 @@ provides: [remote file scanner, media scorer, segment queue, subtitle locator]
 **集成测试**:
 
 - Fake 目录解析后验证真实大小覆盖展示字段、awaiting_selection/ready 转换和选择归属校验。
-- 连续分段保存 sequence_no 并按顺序返回播放 manifest。
+- 连续分段保存 sequence_no 并在 CacheJob 中按顺序返回 `selected_media_ids`；播放 manifest
+  仍由 TASK-108 负责。
 
 **边界条件**:
 
@@ -75,9 +77,19 @@ provides: [remote file scanner, media scorer, segment queue, subtitle locator]
 
 ## Definition of Done
 
-- [ ] 文件/字幕/大小/选择/分段完成。
-- [ ] 无法明确识别时不擅自播放错误文件。
-- [ ] 真实文件树 fixture 测试通过。
+- [x] 文件/字幕/大小/选择/分段完成。
+- [x] 无法明确识别时不擅自播放错误文件。
+- [x] 真实文件树 fixture 测试通过。
+
+## 完成证据
+
+- Focused 最终相关回归 39 项通过；Fast 为 640 passed、8 deselected，全仓 Ruff
+  format/lint、11 个核心生产模块 mypy、宿主 Docker 配置和完整差异检查通过。
+- 数据库归属、claim/取消竞态、递归资源上限、实际 OpenAPI 与秘密边界审计无剩余
+  P0/P1/P2。
+- Compose Final 第二次尝试通过：自包含 640 passed、8 deselected，PostgreSQL
+  integration/E2E 101 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、
+  ready 降级恢复和隔离资源清理全部完成，默认测试未访问真实 115。
 
 **依赖**: TASK-104
 
