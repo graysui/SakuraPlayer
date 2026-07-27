@@ -42,11 +42,21 @@ class ApiProblem(RuntimeError):
         code: str,
         message: str,
         details: dict[str, object] | None = None,
+        retry_after_seconds: int | None = None,
     ) -> None:
+        if retry_after_seconds is not None and (
+            isinstance(retry_after_seconds, bool)
+            or not isinstance(retry_after_seconds, int)
+            or not 0 <= retry_after_seconds <= 86_400
+        ):
+            raise ValueError(
+                "retry_after_seconds must be an integer between 0 and 86400"
+            )
         self.status_code = status_code
         self.code = code
         self.message = message
         self.details = details
+        self.retry_after_seconds = retry_after_seconds
         super().__init__(code)
 
 

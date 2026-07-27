@@ -117,9 +117,14 @@ def test_task_boundaries_assign_snapshot_and_cas_to_the_right_tasks() -> None:
 
 
 def test_task101_adapter_has_no_database_or_source_payload_dependency() -> None:
-    source_root = REPO_ROOT / "backend/src/sakuraplayer/cloud_cache"
+    source_roots = (
+        REPO_ROOT / "backend/src/sakuraplayer/cloud_cache/ports",
+        REPO_ROOT / "backend/src/sakuraplayer/cloud_cache/infrastructure/cloud115",
+    )
     source = "\n".join(
-        path.read_text(encoding="utf-8") for path in sorted(source_root.rglob("*.py"))
+        path.read_text(encoding="utf-8")
+        for root in source_roots
+        for path in sorted(root.rglob("*.py"))
     ).lower()
 
     assert "sqlalchemy" not in source

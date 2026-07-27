@@ -53,8 +53,12 @@ def test_problem_only_retains_stable_safe_fields() -> None:
 
     with pytest.raises(ValueError):
         Cloud115Problem("Cloud URL https://example.invalid/?token=secret")
-    with pytest.raises(ValueError):
-        Cloud115Problem("cloud115_rate_limited", retry_after_seconds=-1)
+    for invalid in (-1, 86_401, True, 1.5):
+        with pytest.raises(ValueError):
+            Cloud115Problem(
+                "cloud115_rate_limited",
+                retry_after_seconds=invalid,  # type: ignore[arg-type]
+            )
 
 
 @pytest.mark.asyncio

@@ -130,6 +130,7 @@ def test_upgrade_to_head_is_idempotent_and_creates_expected_tables(
             "avdb_sync_request",
             "avdb_sync_run",
             "catalog_image",
+            "cloud115_binding",
             "connection_test_result",
             "domain_event",
             "encrypted_setting",

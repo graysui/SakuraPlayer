@@ -3,7 +3,8 @@ id: TASK-102
 title: "扫码绑定、Cookie CAS 与缓存根"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: python
-status: pending
+status: completed
+completed_date: 2026-07-27
 dependencies: [TASK-101]
 ac-mapping: [AC-013, AC-014, AC-015, AC-016, AC-079, AC-080, AC-081, AC-082]
 imp-requirements: [REQ-004, REQ-016]
@@ -28,16 +29,18 @@ provides: [single 115 binding, QR API, cookie CAS, SakuraPlayer-Cache root]
 
 ## 验收条件
 
-- [ ] 客户端可发起 QR、轮询状态和完成绑定；对应 AC-013。
-- [ ] Cookie 仅后端持有并加密，snapshot 通过版本 CAS 回写，旧请求不覆盖重扫；对应 AC-014、AC-015。
-- [ ] expired 返回稳定重扫错误，unavailable 不误标过期；对应 AC-016。
-- [ ] 首次绑定确保唯一缓存根并记录账号/root CID；系统不扫描其他目录，手动移动/删除只标失效；对应 AC-079 至 AC-082。
+- [x] 客户端可发起 QR、轮询状态和完成绑定；对应 AC-013。
+- [x] Cookie 仅后端持有并加密，snapshot 通过版本 CAS 回写，旧请求不覆盖重扫；对应 AC-014、AC-015。
+- [x] expired 返回稳定重扫错误，unavailable 不误标过期；对应 AC-016。
+- [x] 首次绑定确保唯一缓存根并记录账号/root CID；系统不扫描其他目录，手动移动/删除只标失效；对应 AC-079 至 AC-082。
 
 ## Definition of Ready
 
-- [ ] TASK-101 QR/目录/credential port 和 TASK-003 secret repository 可用。
-- [ ] active 绑定单例与 credential_version 迁移已确认。
-- [ ] 根目录同名并发 find-or-create 由事务互斥。
+- [x] TASK-101 QR/目录/credential port 和 TASK-003 secret repository 可用。
+- [x] active 绑定单例与 credential_version 迁移已由
+  [TASK-102 确定性边界](../changes/2026-07-27--task-102-binding-determinism.md) 确认。
+- [x] 根目录同名并发 find-or-create 由单 API 进程 async mutex 串行，数据库提交再使用
+  PostgreSQL advisory transaction lock。
 
 ## 技术上下文
 
@@ -74,9 +77,27 @@ provides: [single 115 binding, QR API, cookie CAS, SakuraPlayer-Cache root]
 
 ## Definition of Done
 
-- [ ] QR、绑定、CAS、状态和根目录完成。
-- [ ] 客户端响应不包含 Cookie/root 以外的敏感定位。
-- [ ] 并发重扫和目录故障测试通过。
+- [x] QR、绑定、CAS、状态和根目录完成。
+- [x] 客户端响应不包含 Cookie、account key、root CID 或上游 token。
+- [x] 并发重扫和目录故障测试通过。
+
+## Implementation Summary
+
+- 新增 0014 `cloud115_binding` 整表单例迁移、固定 `cloud115.cookie` 外键、状态/版本约束，
+  并扩展加密设置仓储的调用方事务内 get/CAS/delete，使密文版本与 binding 镜像原子提交。
+- 新增进程内 5 分钟/8 会话 QR 状态机和认证 REST；创建响应只返回随机 UUID 与 QR PNG，
+  后续响应不返回 Cookie、account key、root CID 或上游 token，终态、过期和成功消费立即
+  销毁敏感材料。
+- 同账号扫码支持凭据轮换，不同账号必须先解绑；旧探活 snapshot 通过版本 CAS 丢弃。
+  `SakuraPlayer-Cache` 仅在顶层 CID `0` 的直接子级 find-or-create，并以 async mutex、
+  PostgreSQL advisory transaction lock 与行锁收敛并发；移动或删除后标记 `detached`。
+- 最终 Fast 为 `533 passed, 8 deselected`，隔离 PostgreSQL 聚焦为 `5 passed`；Ruff
+  format/lint、5 文件渐进 mypy、宿主 Docker 配置、完整差异与秘密审计通过。
+- Compose Final 第一次在 PostgreSQL 完整集成中发现 head 精确表清单遗漏新表；第二次
+  通过后，提交前全暂存差异检查又发现新迁移末尾空白行并按严格规则使证据失效。删除
+  空白行并重过 PostgreSQL/Fast/审计后，第三次通过自包含 `533 passed, 8 deselected` 和
+  PostgreSQL integration/E2E `92 passed, 15 deselected`。迁移、五服务健康、认证 canary、
+  秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成，未访问真实 115。
 
 **依赖**: TASK-101
 

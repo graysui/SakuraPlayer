@@ -4,6 +4,7 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from sakuraplayer.catalog import models as catalog_models
+from sakuraplayer.cloud_cache import models as cloud_cache_models
 from sakuraplayer.discovery import models as discovery_models
 from sakuraplayer.events import models as event_models
 from sakuraplayer.resources import models as resource_models
@@ -16,6 +17,7 @@ if config.config_file_name is not None:
 
 target_metadata = resource_models.Base.metadata
 assert catalog_models.MetadataJob.metadata is target_metadata
+assert cloud_cache_models.Cloud115Binding.metadata is target_metadata
 assert discovery_models.Favorite.metadata is target_metadata
 assert discovery_models.RankingSyncRequest.metadata is target_metadata
 assert event_models.DomainEvent.metadata is target_metadata

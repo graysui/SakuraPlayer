@@ -111,6 +111,10 @@
 | 404 | `cloud115_file_not_found` | 115 文件明确不存在；不得由 transport failure 推断 |
 | 413 | `cloud115_small_file_too_large` | 小文件超过调用方字节上限；不继续读取 |
 | 409 | `cloud115_rebind_has_active_jobs` | 有活动任务时禁止重绑 |
+| 404 | `cloud115_qr_session_not_found` | QR 会话不存在或 API 重启后已丢失，客户端重新创建 |
+| 409 | `cloud115_qr_session_not_confirmed` | QR 尚未在 115 确认，不完成绑定 |
+| 409 | `cloud115_qr_session_consumed` | QR 已成功消费，禁止重复换取 Cookie |
+| 429 | `cloud115_qr_session_capacity` | 当前 QR 会话已达固定 8 个上限，过期清理后重试 |
 | 409 | `cache_queue_full` | 固定 10 个排队任务已满，提示切换已缓存资源或稍后再试 |
 | 404 | `cache_job_not_found` | 缓存任务不存在 |
 | 409 | `cache_job_not_ready` | 尚不能创建播放会话 |

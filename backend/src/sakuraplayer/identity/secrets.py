@@ -116,18 +116,45 @@ class EncryptedSettingRepository:
         expected_version: int,
         value: bytes,
     ) -> SecretSetting:
+        with self._session_factory.begin() as session:
+            return self.compare_and_set_secret_in_session(
+                session,
+                key,
+                expected_version=expected_version,
+                value=value,
+            )
+
+    def compare_and_set_secret_in_session(
+        self,
+        session: Session,
+        key: str,
+        *,
+        expected_version: int,
+        value: bytes,
+    ) -> SecretSetting:
         context = self._context(key)
         envelope = self._cipher.encrypt(value, context=context)
         updated_at = self._now()
-        with self._session_factory.begin() as session:
-            setting = session.get(EncryptedSetting, key, with_for_update=True)
-            if (
-                setting is None
-                or setting.version != expected_version
-                or (
-                    setting.public_value is not None
-                    and setting.public_value != _CLEARED_SECRET
-                )
+        setting = session.get(EncryptedSetting, key, with_for_update=True)
+        if setting is None:
+            if expected_version != 0:
+                raise ConcurrentSettingUpdate
+            setting = EncryptedSetting(
+                key=key,
+                public_value=None,
+                key_id=envelope.key_id,
+                nonce=envelope.nonce,
+                ciphertext=envelope.ciphertext,
+                version=1,
+                updated_at=updated_at,
+            )
+            session.add(setting)
+            session.flush()
+            version = 1
+        else:
+            if setting.version != expected_version or (
+                setting.public_value is not None
+                and setting.public_value != _CLEARED_SECRET
             ):
                 raise ConcurrentSettingUpdate
             setting.public_value = None
@@ -136,11 +163,36 @@ class EncryptedSettingRepository:
             setting.ciphertext = envelope.ciphertext
             setting.version += 1
             setting.updated_at = updated_at
+            version = setting.version
         return SecretSetting(
-            key=key,
+            key=key, value=value, version=version, updated_at=updated_at
+        )
+
+    def get_secret_in_session(
+        self, session: Session, key: str, *, with_for_update: bool = False
+    ) -> SecretSetting | None:
+        setting = session.get(EncryptedSetting, key, with_for_update=with_for_update)
+        if (
+            setting is None
+            or setting.public_value is not None
+            or setting.key_id is None
+            or setting.nonce is None
+            or setting.ciphertext is None
+        ):
+            return None
+        value = self._cipher.decrypt(
+            EncryptedEnvelope(
+                key_id=setting.key_id,
+                nonce=setting.nonce,
+                ciphertext=setting.ciphertext,
+            ),
+            context=self._context(key),
+        )
+        return SecretSetting(
+            key=setting.key,
             value=value,
-            version=expected_version + 1,
-            updated_at=updated_at,
+            version=setting.version,
+            updated_at=setting.updated_at,
         )
 
     def get_secret(self, key: str) -> SecretSetting | None:
@@ -192,21 +244,28 @@ class EncryptedSettingRepository:
             )
 
     def delete_secret(self, key: str, *, expected_version: int) -> None:
-        updated_at = self._now()
         with self._session_factory.begin() as session:
-            setting = session.get(EncryptedSetting, key, with_for_update=True)
-            if (
-                setting is None
-                or setting.version != expected_version
-                or setting.public_value is not None
-            ):
-                raise ConcurrentSettingUpdate
-            setting.public_value = dict(_CLEARED_SECRET)
-            setting.key_id = None
-            setting.nonce = None
-            setting.ciphertext = None
-            setting.version += 1
-            setting.updated_at = updated_at
+            self.delete_secret_in_session(
+                session, key, expected_version=expected_version
+            )
+
+    def delete_secret_in_session(
+        self, session: Session, key: str, *, expected_version: int
+    ) -> None:
+        updated_at = self._now()
+        setting = session.get(EncryptedSetting, key, with_for_update=True)
+        if (
+            setting is None
+            or setting.version != expected_version
+            or setting.public_value is not None
+        ):
+            raise ConcurrentSettingUpdate
+        setting.public_value = dict(_CLEARED_SECRET)
+        setting.key_id = None
+        setting.nonce = None
+        setting.ciphertext = None
+        setting.version += 1
+        setting.updated_at = updated_at
 
     def get_public(self, key: str) -> PublicSetting | None:
         with self._session_factory() as session:

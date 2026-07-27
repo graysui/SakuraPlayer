@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -10,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.api.app import create_app
 from sakuraplayer.api.diagnostics import DiagnosticsService
-from sakuraplayer.api.settings import SettingsService
+from sakuraplayer.api.settings import ProbeResult, SettingsService
 from sakuraplayer.catalog.metadata_api import MetadataAdminService
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.providers.javdb import (
@@ -19,6 +21,9 @@ from sakuraplayer.catalog.providers.javdb import (
 )
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
+from sakuraplayer.cloud_cache.binding_service import BindingService
+from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
+from sakuraplayer.cloud_cache.qr_service import QrSessionService
 from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.ranking_query import RankingQueryService
 from sakuraplayer.discovery.search_service import SearchService
@@ -79,11 +84,31 @@ def main() -> None:
     event_log = EventLog(factory)
     metadata_queue = MetadataQueue(factory, event_writer=event_writer)
     credential_store = EncryptedJavdbCredentialStore(secret_repository)
+
+    @asynccontextmanager
+    async def cloud115_scope(cookies: str | None):
+        async with Cloud115Adapter(cookies) as cloud:
+            yield cloud
+
+    binding_service = BindingService(factory, secret_repository, cloud115_scope)
+    qr_service = QrSessionService(cloud115_scope)
+
+    def probe_cloud115() -> ProbeResult:
+        view = asyncio.run(binding_service.probe())
+        if view.status == "active":
+            return ProbeResult("available")
+        if view.status == "expired":
+            return ProbeResult("credentials_invalid", "cloud115_credentials_expired")
+        if view.status == "unbound":
+            return ProbeResult("not_configured")
+        return ProbeResult("unavailable", "cloud115_unavailable")
+
     settings_service = SettingsService(
         factory,
         secret_repository,
         credential_store,
         EncryptedAiConfigurationStore(secret_repository),
+        probes={"cloud115": probe_cloud115},
     )
 
     def credential_status() -> str:
@@ -122,6 +147,8 @@ def main() -> None:
         event_log=event_log,
         settings_service=settings_service,
         diagnostics_service=DiagnosticsService(factory, settings_service),
+        cloud115_binding_service=binding_service,
+        cloud115_qr_service=qr_service,
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

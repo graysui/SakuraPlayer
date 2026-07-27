@@ -13,6 +13,9 @@ from sakuraplayer.catalog.metadata_api import (
     create_metadata_api,
 )
 from sakuraplayer.catalog.query_service import CatalogQueryService
+from sakuraplayer.cloud_cache.binding_api import create_cloud115_binding_api
+from sakuraplayer.cloud_cache.binding_service import BindingService
+from sakuraplayer.cloud_cache.qr_service import QrSessionService
 from sakuraplayer.discovery.api import create_discovery_api
 from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.ranking_api import create_ranking_api
@@ -53,6 +56,8 @@ def create_app(
     event_log: EventLog | None = None,
     settings_service: SettingsService | None = None,
     diagnostics_service: DiagnosticsService | None = None,
+    cloud115_binding_service: BindingService | None = None,
+    cloud115_qr_service: QrSessionService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -65,6 +70,7 @@ def create_app(
             or request.url.path.startswith("/api/v1/settings")
             or request.url.path.startswith("/api/v1/admin/")
             or request.url.path.startswith("/api/v1/events/")
+            or request.url.path.startswith("/api/v1/cloud115/")
             or request.url.path == "/api/v1/rankings"
         ):
             response.headers["Cache-Control"] = "no-store"
@@ -82,6 +88,11 @@ def create_app(
         return JSONResponse(
             payload,
             status_code=error.status_code,
+            headers=(
+                {"Retry-After": str(error.retry_after_seconds)}
+                if error.retry_after_seconds is not None
+                else None
+            ),
         )
 
     @app.exception_handler(RequestValidationError)
@@ -195,6 +206,16 @@ def create_app(
                     current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
+        if cloud115_binding_service is not None and cloud115_qr_service is not None:
+            app.include_router(
+                create_cloud115_binding_api(
+                    cloud115_binding_service,
+                    cloud115_qr_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+        elif cloud115_binding_service is not None or cloud115_qr_service is not None:
+            raise ValueError("Cloud115 API requires binding and QR services")
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
@@ -207,6 +228,8 @@ def create_app(
         or event_log is not None
         or settings_service is not None
         or diagnostics_service is not None
+        or cloud115_binding_service is not None
+        or cloud115_qr_service is not None
     ):
         raise ValueError("admin APIs require identity service")
 

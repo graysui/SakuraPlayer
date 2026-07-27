@@ -516,6 +516,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QrSession'
+        '429':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/Conflict'
   /cloud115/qr-sessions/{qr_session_id}:
     get:
       tags: [Cloud115]
@@ -534,6 +540,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QrSession'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/Conflict'
   /cloud115/qr-sessions/{qr_session_id}/confirm:
     post:
       tags: [Cloud115]
@@ -553,6 +567,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cloud115Binding'
         '409':
+          $ref: '#/components/responses/Conflict'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/Conflict'
+        '503':
           $ref: '#/components/responses/Conflict'
 
   /cache-jobs:
@@ -1668,7 +1690,7 @@ components:
               $ref: '#/components/schemas/RankingUnavailableDetails'
     Cloud115Binding:
       type: object
-      required: [bound, status]
+      required: [bound, status, cache_root_ready]
       properties:
         bound:
           type: boolean

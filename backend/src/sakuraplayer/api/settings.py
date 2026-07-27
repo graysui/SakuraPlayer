@@ -22,6 +22,7 @@ from sakuraplayer.catalog.translation.config import (
     EncryptedAiConfigurationStore,
     TranslationConfigurationError,
 )
+from sakuraplayer.cloud_cache.models import Cloud115Binding
 from sakuraplayer.identity.api import ApiProblem
 from sakuraplayer.identity.models import ConnectionTestResult
 from sakuraplayer.identity.secrets import (
@@ -216,7 +217,7 @@ class SettingsService:
             ai=ai,
             providers={
                 "cloud115": self._provider_state(
-                    configured=False,
+                    configured=self._is_configured("cloud115"),
                     result=connection_results.get("cloud115"),
                 ),
                 "dmm": self._provider_state(
@@ -399,6 +400,13 @@ class SettingsService:
         )
 
     def _is_configured(self, target: str) -> bool:
+        if target == "cloud115":
+            status = self._repository.get_status("cloud115.cookie")
+            if status is None or not status.configured:
+                return False
+            with self._session_factory() as session:
+                binding = session.scalar(select(Cloud115Binding).limit(1))
+            return binding is not None and binding.credential_version == status.version
         if target == "javdb":
             status = self._repository.get_status("javdb.credentials")
             return status is not None and status.configured

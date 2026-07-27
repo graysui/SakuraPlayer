@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-27
 
-**当前阶段**: Phase 1 后端基础与元数据及 TASK-101 已完成；下一任务为 TASK-102。
+**当前阶段**: Phase 1 后端基础与元数据及 TASK-102 已完成；下一任务为 TASK-103。
 
 ## 1. 当前成果
 
@@ -60,12 +60,15 @@
 - TASK-101 已交付精确 Cloud115Port/frozen DTO、稳定错误、安全协议适配器、可编排 Fake、无网络 fixture 和显式真实 115 只读探针；只选择性适配固定 revision 的 downurl RSA/XOR，并完成 GPLv3 来源声明。
 - Cloud115 适配器覆盖 QR 四步、Cookie snapshot、凭据三态、目录、离线分页、递归枚举、原画、HLS、小文件和受管删除；逐跳 HTTPS 主机校验、响应上限、逐操作错误映射与秘密脱敏已冻结，数据库 credential CAS 仍由 TASK-102 拥有。
 - TASK-101 Focused 为 38 项通过，镜像 readiness 为 6 项通过，Fast 为 504 项通过；Compose Final 第二次尝试通过 504 项自包含和 88 项 PostgreSQL integration/E2E，迁移、健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部完成，默认测试未访问真实 115。
+- TASK-102 已交付进程内有界 QR 会话、认证 binding API、加密 Cookie 单事务 CAS、整表单例 `cloud115_binding` 与顶层 `SakuraPlayer-Cache` 确定性根目录。
+- Cookie 固定使用 `encrypted_setting.key=cloud115.cookie` 并以 setting version 为唯一版本真相；同账号重扫允许轮换，不同账号禁止覆盖，旧探活 snapshot 不覆盖重扫，移动/删除根只标记 `detached`。
+- TASK-102 Fast 为 533 项通过，隔离 PostgreSQL 聚焦为 5 项通过；Compose Final 第三次尝试通过 533 项自包含和 92 项 PostgreSQL integration/E2E，迁移、健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部完成，默认测试未访问真实 115。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-101 已完成；下一任务为 TASK-102。
-- **最近绿色快速门禁**: TASK-101 Fast 为 504 passed、8 deselected；Focused 38 项、镜像 readiness 6 项、Ruff format/lint、3 文件渐进 mypy、宿主 Docker 配置和完整差异审计通过，无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-101 Compose Final 第二次尝试通过；自包含 504 passed、8 deselected，PostgreSQL integration/E2E 88 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启恢复、ready 降级恢复和隔离资源清理全部完成。第一次尝试因 test image 缺少正式 specs 退出，修复后已完整重过受影响门禁。
+- **当前任务门禁阶段**: TASK-102 已完成；下一任务为 TASK-103。
+- **最近绿色快速门禁**: TASK-102 Fast 为 533 passed、8 deselected；隔离 PostgreSQL 聚焦 5 项、Ruff format/lint、5 文件渐进 mypy、宿主 Docker 配置和完整差异审计通过，无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-102 Compose Final 第三次尝试通过；自包含 533 passed、8 deselected，PostgreSQL integration/E2E 92 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。第一次因 head 精确表清单遗漏 `cloud115_binding` 退出；第二次通过后被提交前发现的迁移末尾空白行使证据失效；修复并重过门禁后的第三次为当前有效结果。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -82,18 +85,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101。
-- **下一任务**: TASK-102 扫码绑定、Cookie CAS 与缓存根。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102。
+- **下一任务**: TASK-103 缓存任务状态机与 2/10 容量。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-102 开始：
+下一会话从 TASK-103 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-102.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-103.md"
 ```
 
-TASK-101 的实现、测试和文档已同步并按根目录 `AGENTS.md` 创建中文 Git 提交。TASK-102 开始前读取其 DoR、Cloud115Port 契约、加密设置仓储和 credential CAS 边界；默认自动测试仍不得访问真实 115。
+TASK-102 的实现、测试和文档已同步，待按根目录 `AGENTS.md` 创建中文 Git 提交。TASK-103 开始前读取其 DoR、binding/root 接口、CacheJob 数据模型和 2/10 容量边界；默认自动测试仍不得访问真实 115。
 
 ## 4. 必读契约
 

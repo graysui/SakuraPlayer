@@ -108,6 +108,7 @@ Domain aggregate 1 --- N DomainEvent
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
 | `id` | UUID | 单例主键 | AC-001/079 |
+| `singleton_key` | boolean | 固定 true 且唯一，数据库级限制整表最多一行 | `(derived)` |
 | `account_key` | varchar(128) | 由 UID 等稳定字段派生，不是 Cookie | AC-080 |
 | `display_name` | varchar(128) | 可空、脱敏展示 | `(derived)` |
 | `cookie_setting_key` | varchar(128) | 指向加密设置 | AC-014 |
@@ -119,7 +120,9 @@ Domain aggregate 1 --- N DomainEvent
 | `created_at` | timestamptz | 非空 | `(derived)` |
 | `updated_at` | timestamptz | 非空 | `(derived)` |
 
-**不变量**: 最多一条 `active` 绑定。Cookie 快照回写必须以 `credential_version` 为 CAS 条件，防止旧请求覆盖重新扫码。
+**不变量**: 整表最多一行；Cookie 固定使用 `encrypted_setting.key=cloud115.cookie`，
+`encrypted_setting.version` 是唯一凭据版本真相，`credential_version` 在同一事务中镜像相同
+值。快照写回同时比较两处起始版本，防止旧请求覆盖重新扫码。
 
 ## 4. AVdb 资源接入
 
@@ -754,7 +757,7 @@ completed -> in_progress (下次从头播放且产生新进度)
 | 不变量 | 实现建议 | 来源 |
 |---|---|---|
 | 全局只有一个管理员 | 单例约束/引导锁 | AC-001 |
-| 全局只有一个活动 115 绑定 | 部分唯一索引 | REQ-001/AC-013 |
+| 全局最多一个 115 绑定 | 固定 `singleton_key=true` 唯一约束 | REQ-001/AC-013 |
 | 来源帖子幂等 | 唯一 `(website, external_post_id)` | AC-023/031 |
 | 影片按番号唯一 | 唯一 `normalized_number` | AC-030 |
 | 拒绝来源不可重建 | 同来源唯一拒绝 + 导入前 anti-join | AC-036 |

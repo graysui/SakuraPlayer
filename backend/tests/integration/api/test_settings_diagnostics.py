@@ -14,6 +14,7 @@ from sakuraplayer.api.settings import ProbeResult, SettingsService
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
 from sakuraplayer.catalog.providers.javdb import EncryptedJavdbCredentialStore
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
+from sakuraplayer.cloud_cache.models import Cloud115Binding
 from sakuraplayer.identity.crypto import (
     SecretCipher,
     SettingsSecretKeyProvider,
@@ -267,6 +268,29 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
 
             settings_response = client.get("/api/v1/settings", headers=headers)
             assert settings_response.headers["Cache-Control"] == "no-store"
+
+            credential = repository.create_secret(
+                "cloud115.cookie", b"UID=detached-cookie"
+            )
+            with factory.begin() as session:
+                session.add(
+                    Cloud115Binding(
+                        id=uuid.uuid4(),
+                        singleton_key=True,
+                        account_key="detached-account",
+                        display_name=None,
+                        cookie_setting_key="cloud115.cookie",
+                        login_app="alipaymini",
+                        cache_root_cid="moved-root",
+                        status="detached",
+                        credential_version=credential.version,
+                        last_verified_at=NOW,
+                        created_at=NOW,
+                        updated_at=NOW,
+                    )
+                )
+            detached = client.get("/api/v1/settings", headers=headers)
+            assert detached.json()["providers"]["cloud115"]["configured"] is True
 
         with factory() as session:
             encrypted = list(session.scalars(select(EncryptedSetting)))

@@ -130,6 +130,16 @@ unavailable 后自动重提。
 5. TASK-102 仅在数据库版本仍等于作用域起始版本时加密 CAS 写回并递增版本。
 6. CAS 失败表示重新扫码或另一请求先更新；丢弃旧 snapshot，不覆盖新凭据。
 7. `unavailable` 不得把绑定状态改成 `expired`。
+8. Cookie 固定使用 `encrypted_setting.key=cloud115.cookie`；setting version 是唯一版本真相，
+   binding `credential_version` 只在同一事务中镜像。
+
+## 5.1 TASK-102 调用作用域
+
+- 应用组合根以 `cookies: str | None -> async Cloud115Port context` 工厂创建短生命周期调用
+  作用域；领域/应用服务不得直接 import 具体适配器。
+- QR token 和 PNG 只保存在 API 进程内有界 store，固定 5 分钟、最多 8 个，不入数据库。
+- 缓存根固定从顶层 CID `0` 的直接子级查找；v1 单 API 进程以 async mutex 串行远端
+  find-or-create，短数据库提交再使用 PostgreSQL advisory transaction lock。
 
 ## 6. 协议主机与秘密边界
 
