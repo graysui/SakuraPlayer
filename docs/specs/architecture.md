@@ -323,6 +323,7 @@ contracts/
 | AVdb 输入 | [avdb-source.md](001-sakuraplayer-v1/contracts/avdb-source.md) |
 | 运维健康 | [operational-health.md](001-sakuraplayer-v1/contracts/operational-health.md)；内部探针不进入业务 OpenAPI |
 | 目录/发现端口 | [catalog-discovery-ports.md](001-sakuraplayer-v1/contracts/catalog-discovery-ports.md)；Phase 1 不提前建立 cache/playback 表 |
+| Phase 1 E2E | [backend-metadata-e2e.md](001-sakuraplayer-v1/contracts/backend-metadata-e2e.md)；真实 PostgreSQL/服务组合与 Compose 进程门禁分工 |
 
 ### 3.8 已批准的参考代码接口
 

@@ -21,4 +21,4 @@ def test_test_image_and_compose_workflow_include_task002_suites() -> None:
     ):
         assert path in dockerfile
         assert path in compose_workflow
-    assert "tests/integration -m 'integration'" in compose_workflow
+    assert "tests/integration tests/e2e -m 'integration'" in compose_workflow

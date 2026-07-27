@@ -28,6 +28,7 @@
 - AC-054 至 AC-057 的加密配置快照、单字段 JSON、固定 prompt、protected 规范化、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结，并由 TASK-010 实现。
 - AC-063 至 AC-068、AC-074 至 AC-078 的同来源筛选、稳定键集游标、Phase 1 空状态端口、搜索队列提升、收藏 Schema、安全 DTO 与集合上限由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，并由 TASK-011 实现。
 - AC-028/AC-029 的搜索字段、键集游标、安全响应和原子手动关联由 [待识别查询与关联确定性](changes/2026-07-25--pending-identification-pagination.md) 冻结，并由 TASK-005 实现。
+- TASK-014 只验证 TASK-001 至 TASK-013 已交付的 Phase 1 后端切片；真实 PostgreSQL、应用服务组合、fixture、600 秒/性能证据复用和 Final runner 边界由 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md) 冻结。其 `ac-mapping` 是验证范围，不转移前序任务实现所有权，也不覆盖 115、客户端或外部门禁。自动证据位于 `test_catalog_metadata_e2e.py`、`test_avdb_idempotency_e2e.py` 和 `test_metadata_failure_isolation_e2e.py`，正式评审结论为 `passed`。
 
 ## 逐条追踪
 

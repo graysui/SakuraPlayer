@@ -230,8 +230,8 @@ try {
 
     $env:SAKURAPLAYER_TEST_DATABASE_URL = 'postgresql+psycopg://sakuraplayer@postgres:5432/postgres'
     $env:SAKURAPLAYER_TEST_DATABASE_PASSWORD = $postgresPassword
-    & docker run --rm --network "${projectName}_default" -e SAKURAPLAYER_TEST_DATABASE_URL -e SAKURAPLAYER_TEST_DATABASE_PASSWORD --entrypoint python $testImage -m pytest tests/integration -m 'integration' -q
-    if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL integration tests failed' }
+    & docker run --rm --network "${projectName}_default" -e SAKURAPLAYER_TEST_DATABASE_URL -e SAKURAPLAYER_TEST_DATABASE_PASSWORD --entrypoint python $testImage -m pytest tests/integration tests/e2e -m 'integration' -q
+    if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL integration and E2E tests failed' }
 
     Invoke-Compose restart
     Invoke-Compose up -d --wait --wait-timeout 120

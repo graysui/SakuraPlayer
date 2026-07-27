@@ -118,6 +118,14 @@ def test_compose_cleanup_uses_unambiguous_volume_and_image_flags() -> None:
     assert "docker image rm $testImage" in source
 
 
+def test_final_postgres_step_collects_task014_e2e_once() -> None:
+    source = RUN_COMPOSE_SCRIPT.read_text(encoding="utf-8")
+
+    command = "-m pytest tests/integration tests/e2e -m 'integration' -q"
+    assert source.count(command) == 1
+    assert source.count("Invoke-Compose up -d --build") == 1
+
+
 def test_compose_cleanup_verifies_only_project_scoped_resources_are_gone() -> None:
     source = RUN_COMPOSE_SCRIPT.read_text(encoding="utf-8")
 
@@ -160,5 +168,6 @@ if __name__ == "__main__":
     test_entrypoint_percent_encodes_database_password()
     test_powershell_verbose_alias_consumes_short_volume_flag()
     test_compose_cleanup_uses_unambiguous_volume_and_image_flags()
+    test_final_postgres_step_collects_task014_e2e_once()
     test_compose_cleanup_verifies_only_project_scoped_resources_are_gone()
     test_compose_finally_covers_secret_setup_and_skips_down_without_env_file()

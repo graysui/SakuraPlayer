@@ -6,7 +6,7 @@ The repository uses three verification levels. Focused and Fast shorten feedback
 |---|---|---|
 | Focused | One behavior or implementation batch | Reused test image with the current repository mounted read-only |
 | Fast | Broad self-contained regression and host configuration assertions | Reused test image plus host checks |
-| Final | Full isolated PostgreSQL and five-service operational evidence | `backend/tests/run-compose.ps1` |
+| Final | Full isolated PostgreSQL, Phase 1 E2E, and five-service operational evidence | `backend/tests/run-compose.ps1` |
 
 ## Focused
 
@@ -69,6 +69,8 @@ pwsh -NoProfile -File backend/tests/run-compose.ps1
 ```
 
 `run-compose.ps1` currently has no parameters and is the Final entry point. It builds the test and application images, runs all required self-contained and PostgreSQL integration tests, starts API/worker/scheduler/PostgreSQL with migration, performs the authentication canary and secret log scan, verifies restart persistence and ready degradation/recovery, then removes temporary containers, networks, volumes, images, and secret files in `finally`.
+
+`tests/e2e` is collected together with `tests/integration` in that single PostgreSQL step. The E2E suite uses a unique migrated database per test and production service composition with deterministic external adapters. Real API/worker/scheduler process health, restart persistence, and readiness degradation remain owned by the surrounding Compose workflow, so E2E does not launch a second process tree or a second Compose run.
 
 Run complete Compose at most once per Final attempt. If it fails, leave Final, fix the cause, rerun affected Fast checks and audits, and start a new Final attempt. Any later change to production code, tests, migrations, configuration, Dockerfiles, or verification scripts invalidates the previous Final result.
 
