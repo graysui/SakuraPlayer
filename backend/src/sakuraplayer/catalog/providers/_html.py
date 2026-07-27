@@ -38,7 +38,23 @@ class HtmlNode:
 
 
 class _TreeParser(HTMLParser):
-    _VOID_TAGS = frozenset({"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"})
+    _VOID_TAGS = frozenset(
+        {
+            "area",
+            "base",
+            "br",
+            "col",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "link",
+            "meta",
+            "source",
+            "track",
+            "wbr",
+        }
+    )
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -46,7 +62,9 @@ class _TreeParser(HTMLParser):
         self._stack = [self.root]
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        node = HtmlNode(tag.lower(), {name.lower(): value or "" for name, value in attrs})
+        node = HtmlNode(
+            tag.lower(), {name.lower(): value or "" for name, value in attrs}
+        )
         self._stack[-1].children.append(node)
         if node.tag not in self._VOID_TAGS:
             self._stack.append(node)

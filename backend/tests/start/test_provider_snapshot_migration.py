@@ -3,7 +3,6 @@ from pathlib import Path
 from sakuraplayer.catalog import models as catalog_models
 from sakuraplayer.identity.models import Base
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 

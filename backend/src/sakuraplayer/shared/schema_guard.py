@@ -69,7 +69,9 @@ def validate_schema_for_migration(
         raise SchemaGuardError("schema_revision_unknown")
 
 
-def _load_revision_graph(alembic_ini: str | Path) -> tuple[frozenset[str], frozenset[str]]:
+def _load_revision_graph(
+    alembic_ini: str | Path,
+) -> tuple[frozenset[str], frozenset[str]]:
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
@@ -144,7 +146,9 @@ def _read_schema_state(connection) -> SchemaState:
             has_user_tables=has_user_objects,
             version_table_valid=False,
         )
-    rows = list(connection.execute(text("SELECT version_num FROM public.alembic_version")))
+    rows = list(
+        connection.execute(text("SELECT version_num FROM public.alembic_version"))
+    )
     return SchemaState(
         current_revisions=frozenset(row[0] for row in rows),
         has_user_tables=has_user_objects,

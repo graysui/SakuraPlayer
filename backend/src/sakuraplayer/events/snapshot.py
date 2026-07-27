@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from typing import Protocol
-import uuid
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from sakuraplayer.catalog.metadata_api import MetadataAdminService, MetadataJobView
 from sakuraplayer.catalog.models import MetadataJob
 from sakuraplayer.events.outbox import EventLog
-
 
 SNAPSHOT_ITEM_LIMIT = 100
 

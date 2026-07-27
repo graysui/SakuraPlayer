@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-import os
 from pathlib import Path
 from threading import Barrier
-import uuid
 
 import pytest
 from sqlalchemy import create_engine, func, select, text, update
@@ -29,7 +29,6 @@ from sakuraplayer.resources.sync_service import (
     BatchStats,
 )
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]

@@ -3,7 +3,6 @@ from pathlib import Path
 from sakuraplayer.catalog import models as catalog_models
 from sakuraplayer.identity.models import Base
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -19,7 +18,7 @@ def test_translation_migration_creates_paid_dispatch_facts() -> None:
     source = migration.read_text(encoding="utf-8")
     assert 'revision: str = "0010_translation"' in source
     assert (
-        'down_revision: Union[str, Sequence[str], None] = '
+        "down_revision: Union[str, Sequence[str], None] = "
         '"0009_provider_snapshots"' in source
     )
     assert '"translation_record"' in source

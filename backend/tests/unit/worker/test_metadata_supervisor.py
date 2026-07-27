@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -18,7 +18,6 @@ from sakuraplayer.worker.metadata_supervisor import (
     MetadataSupervisor,
     SubprocessGroupLauncher,
 )
-
 
 NOW = datetime(2026, 7, 25, 10, 0, tzinfo=timezone.utc)
 
@@ -237,7 +236,9 @@ def test_child_exit_cannot_silently_leave_a_running_job() -> None:
     snapshot = supervisor.tick(worker_id="worker-fixture")
 
     assert snapshot.running == 0
-    assert queue.failed == [(next(iter(launcher.processes)), "metadata_child_incomplete")]
+    assert queue.failed == [
+        (next(iter(launcher.processes)), "metadata_child_incomplete")
+    ]
 
 
 def test_completed_child_is_reaped_without_creating_an_attempt() -> None:

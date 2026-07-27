@@ -2,25 +2,24 @@ from __future__ import annotations
 
 import base64
 import csv
-from dataclasses import dataclass, field
-from datetime import date, datetime
-from hashlib import pbkdf2_hmac, sha256
 import hmac
 import io
 import json
 import logging
 import os
-from pathlib import Path, PurePosixPath
 import re
 import stat
 import tempfile
+from dataclasses import dataclass, field
+from datetime import date, datetime
+from hashlib import pbkdf2_hmac, sha256
+from pathlib import Path, PurePosixPath
 from typing import Iterator
 from urllib.parse import urlparse
-from zipfile import BadZipFile, ZIP_DEFLATED, ZIP_STORED, ZipFile, ZipInfo
+from zipfile import ZIP_DEFLATED, ZIP_STORED, BadZipFile, ZipFile, ZipInfo
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-
 
 PUBLIC_PASSWORD_DIGEST = (
     "ca42e687df5818e2e88da0ff5b9fd2c60f7e22721f682b66c3e50485a00d06d5"
@@ -50,9 +49,7 @@ _REQUIRED_FIELDS = {
     "update_time",
 }
 _INCREMENTAL_NAME = re.compile(r"30D_[0-9]{8,14}\.zip")
-_FULL_NAME = re.compile(
-    r"All_(?:sehuatang|X1080X)_[1-9][0-9]*_[0-9]{8,14}\.zip"
-)
+_FULL_NAME = re.compile(r"All_(?:sehuatang|X1080X)_[1-9][0-9]*_[0-9]{8,14}\.zip")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _MANIFEST_FIELDS = frozenset(
     {"salt", "nonce", "tag", "iterations", "algorithm", "kdf", "key_length"}
@@ -217,10 +214,13 @@ def decrypt_asset_file(
                 modes.GCM(manifest["nonce"], manifest["tag"]),
             ).decryptor()
             plaintext_size = 0
-            with archive.open(encrypted_info) as encrypted, os.fdopen(
-                inner_descriptor,
-                "wb",
-            ) as plaintext:
+            with (
+                archive.open(encrypted_info) as encrypted,
+                os.fdopen(
+                    inner_descriptor,
+                    "wb",
+                ) as plaintext,
+            ):
                 while True:
                     chunk = encrypted.read(1024 * 1024)
                     if not chunk:

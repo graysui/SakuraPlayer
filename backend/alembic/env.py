@@ -1,14 +1,13 @@
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from sakuraplayer.catalog import models as catalog_models
 from sakuraplayer.discovery import models as discovery_models
 from sakuraplayer.events import models as event_models
 from sakuraplayer.resources import models as resource_models
 from sakuraplayer.shared.redaction import install_redaction_filters
-
 
 config = context.config
 if config.config_file_name is not None:

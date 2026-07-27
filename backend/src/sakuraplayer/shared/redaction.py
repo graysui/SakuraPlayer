@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 import logging
 import re
+from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
-
 
 REDACTED = "[REDACTED]"
 
@@ -62,9 +61,7 @@ _URL = re.compile(
     r"(?P<url>(?:https?|postgresql(?:\+psycopg)?):\/\/[^\s]+)",
     re.I,
 )
-_RELATIVE_QUERY = re.compile(
-    r"(?P<path>\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)\?[^\s]+"
-)
+_RELATIVE_QUERY = re.compile(r"(?P<path>\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)\?[^\s]+")
 _MAGNET = re.compile(r"magnet:\?[^\s]+", re.I)
 _COOKIE_HEADER = re.compile(r"(?im)\b(cookie|set-cookie)\s*[:=]\s*[^\r\n]*")
 _AUTH_HEADER = re.compile(

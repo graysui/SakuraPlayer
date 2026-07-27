@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from datetime import date
 from typing import Literal
-import uuid
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse

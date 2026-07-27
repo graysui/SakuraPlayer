@@ -73,7 +73,7 @@ def test_production_rejects_missing_required_values(
 
 
 def test_production_rejects_non_postgresql_database(
-    production_env: dict[str, str]
+    production_env: dict[str, str],
 ) -> None:
     production_env["SAKURAPLAYER_DATABASE_URL"] = "sqlite:///local.db"
 

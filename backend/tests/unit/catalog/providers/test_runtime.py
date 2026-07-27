@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import json
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
-import uuid
-import json
 
 import httpx
-from PIL import Image
 import pytest
+from PIL import Image
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from sakuraplayer.catalog.core_import import CoreImportProblem
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.models import (
     ActorMappingSnapshot,
@@ -21,14 +22,12 @@ from sakuraplayer.catalog.models import (
     MetadataJob,
     MetadataStage,
 )
-from sakuraplayer.catalog.core_import import CoreImportProblem
 from sakuraplayer.catalog.providers.runtime import build_metadata_stage_executor
 from sakuraplayer.catalog.translation.config import AiConfiguration
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.config import Settings
 from sakuraplayer.worker.metadata_child import MetadataChildRunner
-
 
 NOW = datetime(2026, 7, 26, 9, 0, tzinfo=timezone.utc)
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "metadata"
@@ -171,7 +170,9 @@ def test_runtime_commits_core_and_isolates_unimplemented_optional_stages(
             }
             images = list(session.scalars(select(CatalogImage)))
         assert persisted is not None and persisted.catalog_state == "core_ready"
-        assert persisted.description_original == "Fixture first line. Fixture second line."
+        assert (
+            persisted.description_original == "Fixture first line. Fixture second line."
+        )
         assert job is not None and job.status == "completed_with_warnings"
         assert stages["javdb_core"].status == "succeeded"
         assert stages["images"].status == "succeeded"
@@ -233,7 +234,9 @@ def test_dmm_and_image_failures_do_not_roll_back_core_and_retry_succeeds(
             persisted = session.get(Movie, movie.id)
             images = list(session.scalars(select(CatalogImage)))
         assert persisted is not None
-        assert persisted.description_original == "Fixture first line. Fixture second line."
+        assert (
+            persisted.description_original == "Fixture first line. Fixture second line."
+        )
         assert all(image.status == "ready" for image in images)
     finally:
         failing_client.close()

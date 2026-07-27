@@ -3,14 +3,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_resource_import_migration_creates_movie_and_source_tables() -> None:
-    migration_path = (
-        BACKEND_ROOT / "alembic" / "versions" / "0005_resource_import.py"
-    )
+    migration_path = BACKEND_ROOT / "alembic" / "versions" / "0005_resource_import.py"
     source = migration_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
 
@@ -23,4 +20,7 @@ def test_resource_import_migration_creates_movie_and_source_tables() -> None:
     assert "ck_resource_source_section" in source
     assert "ck_resource_source_identification" in source
     assert "ck_resource_source_rejected_secret" in source
-    assert any(isinstance(node, ast.FunctionDef) and node.name == "downgrade" for node in tree.body)
+    assert any(
+        isinstance(node, ast.FunctionDef) and node.name == "downgrade"
+        for node in tree.body
+    )

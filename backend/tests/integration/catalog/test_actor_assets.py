@@ -1,21 +1,21 @@
 from __future__ import annotations
 
+import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-import os
 from pathlib import Path
 from threading import Barrier
-import uuid
 
-from alembic import command
-from alembic.config import Config
 import httpx
 import pytest
+from alembic.config import Config
 from sqlalchemy import create_engine, func, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
+from alembic import command
 from sakuraplayer.catalog.gfriends import GfriendsAssetReconciler, GfriendsEntry
 from sakuraplayer.catalog.models import (
     Actor,
@@ -33,7 +33,6 @@ from sakuraplayer.catalog.provider_snapshots import (
     ProviderSnapshotRefreshService,
 )
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -54,7 +53,9 @@ def database_url() -> str:
     with admin_engine.connect() as connection:
         connection.execute(text(f'CREATE DATABASE "{database_name}"'))
     admin_engine.dispose()
-    test_url = base_url.set(database=database_name).render_as_string(hide_password=False)
+    test_url = base_url.set(database=database_name).render_as_string(
+        hide_password=False
+    )
     try:
         upgrade_database(test_url, ALEMBIC_INI)
         yield test_url
@@ -266,8 +267,7 @@ def test_refresh_fallback_rebuild_cleanup_and_catalog_image_isolation(
     gfriends_initial = (FIXTURES / "gfriends.json").read_bytes()
     gfriends_invalid = b'{"Content":[]}'
     gfriends_updated = (
-        b'{"Content":{"fixture-source":{"Actor One.jpg":'
-        b'"Actor One.jpg?t=1700000000"}}}'
+        b'{"Content":{"fixture-source":{"Actor One.jpg":"Actor One.jpg?t=1700000000"}}}'
     )
     payloads = {
         ACTOR_MAPPING_SOURCE.url: [actor_initial, actor_invalid, actor_updated],
@@ -294,12 +294,15 @@ def test_refresh_fallback_rebuild_cleanup_and_catalog_image_isolation(
     assert first.failures == ()
     assert actor_current is not None and gfriends_current is not None
     with factory() as session:
-        assert session.scalar(
-            select(func.count(ActorAlias.normalized_alias)).where(
-                ActorAlias.normalized_alias == "alias one",
-                ActorAlias.authority == "actor_mapping",
+        assert (
+            session.scalar(
+                select(func.count(ActorAlias.normalized_alias)).where(
+                    ActorAlias.normalized_alias == "alias one",
+                    ActorAlias.authority == "actor_mapping",
+                )
             )
-        ) == 1
+            == 1
+        )
         assert session.scalar(select(func.count(GfriendsActorAsset.id))) == 2
 
     failed = service.refresh_all()
@@ -308,8 +311,13 @@ def test_refresh_fallback_rebuild_cleanup_and_catalog_image_isolation(
         ("actor_mapping", "provider_snapshot_invalid"),
         ("gfriends", "provider_snapshot_invalid"),
     )
-    assert service.registry.current("actor_mapping").snapshot_id == actor_current.snapshot_id
-    assert service.registry.current("gfriends").snapshot_id == gfriends_current.snapshot_id
+    assert (
+        service.registry.current("actor_mapping").snapshot_id
+        == actor_current.snapshot_id
+    )
+    assert (
+        service.registry.current("gfriends").snapshot_id == gfriends_current.snapshot_id
+    )
     with factory() as session:
         assert session.scalar(select(func.count(GfriendsActorAsset.id))) == 2
 

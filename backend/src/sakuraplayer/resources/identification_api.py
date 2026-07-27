@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import base64
+import json
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-import json
 from typing import Any
-import uuid
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel

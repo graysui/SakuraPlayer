@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from conftest import E2eContext, fetched_release
 from sqlalchemy import func, select
 
 from sakuraplayer.resources.models import (
@@ -11,9 +12,6 @@ from sakuraplayer.resources.models import (
     ResourceSource,
     SourceRejection,
 )
-
-from conftest import E2eContext, fetched_release
-
 
 pytestmark = pytest.mark.integration
 

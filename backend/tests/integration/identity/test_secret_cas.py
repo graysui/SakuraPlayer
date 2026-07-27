@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-import os
 from pathlib import Path
 from threading import Barrier
-import uuid
 
 import pytest
 from sqlalchemy import create_engine, select, text
@@ -19,7 +19,6 @@ from sakuraplayer.identity.secrets import (
     EncryptedSettingRepository,
 )
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -98,9 +97,7 @@ def test_secret_is_encrypted_and_status_never_returns_recoverable_data(
     assert not hasattr(status, "value")
     with factory() as session:
         stored = session.scalar(
-            select(EncryptedSetting).where(
-                EncryptedSetting.key == "cloud115.cookie"
-            )
+            select(EncryptedSetting).where(EncryptedSetting.key == "cloud115.cookie")
         )
         assert stored is not None
         assert stored.key_id == "test-v1"

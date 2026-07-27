@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Protocol
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -96,7 +96,10 @@ def _validate_rejection_input(
         or not -(2**63) <= external_post_id < 2**63
         or not reason_code
         or len(reason_code) > 128
-        or not all(character.islower() or character.isdigit() or character == "_" for character in reason_code)
+        or not all(
+            character.islower() or character.isdigit() or character == "_"
+            for character in reason_code
+        )
     ):
         raise SourceRejectionProblem(status_code=422, code="validation_failed")
 

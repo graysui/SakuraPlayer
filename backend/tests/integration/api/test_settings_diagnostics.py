@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
@@ -11,8 +11,8 @@ from sqlalchemy.pool import StaticPool
 from sakuraplayer.api.app import create_app
 from sakuraplayer.api.diagnostics import DiagnosticsService
 from sakuraplayer.api.settings import ProbeResult, SettingsService
-from sakuraplayer.catalog.providers.javdb import EncryptedJavdbCredentialStore
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
+from sakuraplayer.catalog.providers.javdb import EncryptedJavdbCredentialStore
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
 from sakuraplayer.identity.crypto import (
     SecretCipher,
@@ -22,7 +22,6 @@ from sakuraplayer.identity.models import Base, EncryptedSetting
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=timezone.utc)
 BOOTSTRAP_TOKEN = b"bootstrap-token-with-at-least-32-bytes"
@@ -201,9 +200,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
                     ]
                 )
 
-            diagnostics = client.get(
-                "/api/v1/admin/diagnostics", headers=headers
-            )
+            diagnostics = client.get("/api/v1/admin/diagnostics", headers=headers)
             assert diagnostics.status_code == 200
             assert diagnostics.headers["Cache-Control"] == "no-store"
             components = {

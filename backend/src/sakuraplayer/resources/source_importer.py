@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from urllib.parse import urlparse
-import uuid
 
 from sqlalchemy import case, delete, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
@@ -18,10 +18,9 @@ from sakuraplayer.resources.models import (
     SourceRejection,
 )
 from sakuraplayer.resources.number_normalizer import normalize_movie_number
-from sakuraplayer.resources.source_lock import lock_source_keys
 from sakuraplayer.resources.source_labels import derive_source_labels
+from sakuraplayer.resources.source_lock import lock_source_keys
 from sakuraplayer.resources.sync_service import BatchStats
-
 
 TARGET_SECTIONS = frozenset(
     {"亚洲有码", "亚洲无码", "中文字幕", "4K原版", "素人有码", "FC2"}

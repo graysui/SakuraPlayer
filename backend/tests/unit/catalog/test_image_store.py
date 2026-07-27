@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+import uuid
 from io import BytesIO
 from pathlib import Path
-import uuid
 
 import httpx
-from PIL import Image
 import pytest
+from PIL import Image
 
 import sakuraplayer.catalog.image_store as image_store_module
 from sakuraplayer.catalog.image_store import ImageStoreProblem, PermanentImageStore
-
 
 URL = "https://c0.jdbstatic.com/images/fixture.png"
 
@@ -52,7 +51,9 @@ def test_downloads_valid_image_to_server_generated_atomic_path(tmp_path: Path) -
     assert stored.content_type == "image/png"
     assert stored.width == 2 and stored.height == 2
     assert stored.created_new is True
-    assert stored.relative_path.startswith("movie/00000000-0000-0000-0000-000000000123/")
+    assert stored.relative_path.startswith(
+        "movie/00000000-0000-0000-0000-000000000123/"
+    )
     assert not list(tmp_path.rglob("*.part-*"))
 
 
@@ -202,7 +203,9 @@ def test_revalidates_every_redirect_and_limits_hops(tmp_path: Path) -> None:
     assert too_many.value.code == "image_download_failed"
 
 
-def test_rejects_mime_mismatch_and_stream_size_limit(tmp_path: Path, monkeypatch) -> None:
+def test_rejects_mime_mismatch_and_stream_size_limit(
+    tmp_path: Path, monkeypatch
+) -> None:
     jpeg = image_bytes("JPEG")
     mismatch = store(
         tmp_path,
@@ -267,7 +270,9 @@ def test_rejects_mime_mismatch_and_stream_size_limit(tmp_path: Path, monkeypatch
     assert not list(tmp_path.rglob("*.part-*"))
 
 
-def test_rejects_dimensions_and_cleans_interrupted_partial(tmp_path: Path, monkeypatch) -> None:
+def test_rejects_dimensions_and_cleans_interrupted_partial(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(image_store_module, "MAX_IMAGE_DIMENSION", 1)
     dimensions = store(
         tmp_path,

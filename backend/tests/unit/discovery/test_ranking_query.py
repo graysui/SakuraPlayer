@@ -1,5 +1,5 @@
-from datetime import date, datetime, timedelta, timezone
 import uuid
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -9,11 +9,13 @@ from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.models import MetadataJob
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.discovery.models import RankingEntry, RankingSnapshot
-from sakuraplayer.discovery.ranking_query import RankingQueryProblem, RankingQueryService
+from sakuraplayer.discovery.ranking_query import (
+    RankingQueryProblem,
+    RankingQueryService,
+)
 from sakuraplayer.discovery.ranking_sync import RankingSyncQueue
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie, ResourceSource
-
 
 NOW = datetime(2026, 7, 26, 8, 0, tzinfo=timezone.utc)
 

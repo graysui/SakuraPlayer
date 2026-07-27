@@ -43,7 +43,6 @@ from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.config import Settings
 
-
 CATALOG_IMAGE_ROOT = Path("/var/lib/sakuraplayer/catalog-images")
 _SNAPSHOT_STAGE_MODELS = {
     "actor_map": ActorMappingSnapshot,
@@ -219,9 +218,7 @@ class CatalogMetadataStageExecutor:
                     select(model.id).where(model.status == "current")
                 )
                 if snapshot_id is None:
-                    raise MetadataStageExecutionError(
-                        "provider_snapshot_unavailable"
-                    )
+                    raise MetadataStageExecutionError("provider_snapshot_unavailable")
         except CoreImportProblem as error:
             raise MetadataStageExecutionError(error.code) from None
 

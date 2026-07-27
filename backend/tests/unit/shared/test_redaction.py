@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from io import StringIO
 import logging
+from io import StringIO
 
 from sakuraplayer.shared.redaction import (
     REDACTED,
@@ -173,7 +173,7 @@ def test_plain_non_sensitive_values_are_preserved() -> None:
 def test_redacts_database_dsn_and_relative_access_log_query() -> None:
     message = (
         "dsn=postgresql+psycopg://user:private-password@db/app "
-        'GET /play/stream?signature=private-signature&token=private-token HTTP/1.1'
+        "GET /play/stream?signature=private-signature&token=private-token HTTP/1.1"
     )
 
     result = redact_text(message)

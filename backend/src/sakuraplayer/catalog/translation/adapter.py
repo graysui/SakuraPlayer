@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from typing import Literal
 
 import httpx
@@ -13,7 +13,6 @@ from sakuraplayer.catalog.translation.guard import (
     TranslationGuardrailError,
     require_unchanged_protected,
 )
-
 
 PROMPT_VERSION = "sakuraplayer-zh-v1"
 SYSTEM_PROMPT = (

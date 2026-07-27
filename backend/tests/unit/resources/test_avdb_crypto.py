@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import base64
-from datetime import date, datetime
-from hashlib import pbkdf2_hmac
 import io
 import json
 import logging
-from pathlib import Path
 import stat
-from zipfile import ZIP_DEFLATED, ZipFile
-from zipfile import ZipInfo
+from datetime import date, datetime
+from hashlib import pbkdf2_hmac
+from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -20,7 +19,6 @@ from sakuraplayer.resources.avdb_crypto import (
     validate_asset_name,
     verify_asset_digest,
 )
-
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "avdb"
 
@@ -216,9 +214,7 @@ def test_invalid_date_becomes_null_and_preserves_a_safe_field_error() -> None:
     )
 
     row = next(
-        decrypt_asset(
-            encrypted_asset(csv_content_override=csv_content)
-        ).iter_rows()
+        decrypt_asset(encrypted_asset(csv_content_override=csv_content)).iter_rows()
     )
 
     assert row["publish_date"] is None

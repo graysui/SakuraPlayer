@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Protocol
-import uuid
 
 from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.catalog.metadata_state import (
     ALL_STAGES,
-    MetadataStateError,
     OPTIONAL_STAGES,
+    MetadataStateError,
     priority_for_reason,
     stage_plan,
     validate_enrichment_stages,
@@ -21,7 +21,6 @@ from sakuraplayer.catalog.models import MetadataJob, MetadataStage
 from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.redaction import redact_text, stable_error_code
-
 
 MAX_RUNNING_JOBS = 3
 _SLOT_LOCK_KEY = 0x53414B5552410007
@@ -530,7 +529,9 @@ class MetadataQueue:
                 claim_expires_at=job.claim_expires_at,
                 elapsed_ms=_elapsed_ms(job.started_at, current),
                 pending_stages=tuple(
-                    stage for stage in ALL_STAGES if stage_statuses.get(stage) == "pending"
+                    stage
+                    for stage in ALL_STAGES
+                    if stage_statuses.get(stage) == "pending"
                 ),
                 has_warnings=any(
                     status in {"warning", "failed"}
@@ -670,7 +671,9 @@ class MetadataQueue:
                     status_code=409,
                     code="metadata_stage_conflict",
                 )
-            has_warnings = any(stage.status in {"warning", "failed"} for stage in stages)
+            has_warnings = any(
+                stage.status in {"warning", "failed"} for stage in stages
+            )
             if has_warnings != with_warnings:
                 raise MetadataQueueProblem(
                     status_code=409,
@@ -1020,7 +1023,11 @@ def retryable_enrichment_stages(
 ) -> tuple[str, ...]:
     if job.status == "completed_with_warnings":
         pass
-    elif job.status == "failed" and movie is not None and movie.catalog_state == "core_ready":
+    elif (
+        job.status == "failed"
+        and movie is not None
+        and movie.catalog_state == "core_ready"
+    ):
         core_status = session.scalar(
             select(MetadataStage.status).where(
                 MetadataStage.job_id == job.id,

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from datetime import date
-import uuid
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field

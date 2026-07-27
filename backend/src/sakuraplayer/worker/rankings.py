@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from datetime import timedelta
 import logging
 import threading
+from collections.abc import Callable
+from datetime import timedelta
 from typing import Protocol
 
 from sakuraplayer.discovery.ranking_sync import (
     RankingClaim,
-    RankingSnapshotSynchronizer,
     RankingSyncQueue,
 )
 from sakuraplayer.shared.redaction import stable_error_code
-
 
 _LOGGER = logging.getLogger(__name__)
 

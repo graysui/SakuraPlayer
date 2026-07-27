@@ -1,15 +1,14 @@
 from __future__ import annotations
 
+import os
+import uuid
+import warnings
 from dataclasses import dataclass
 from hashlib import sha256
-import os
 from pathlib import Path
-import warnings
-import uuid
 
 import httpx
 from PIL import Image, UnidentifiedImageError
-
 
 ALLOWED_IMAGE_HOST = "c0.jdbstatic.com"
 ALLOWED_CONTENT_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
@@ -104,7 +103,12 @@ class PermanentImageStore:
         try:
             response = self._fetch(current_url)
             try:
-                declared_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                declared_type = (
+                    response.headers.get("Content-Type", "")
+                    .split(";", 1)[0]
+                    .strip()
+                    .lower()
+                )
                 if declared_type not in ALLOWED_CONTENT_TYPES:
                     raise ImageStoreProblem("image_content_type_invalid")
                 declared_length = response.headers.get("Content-Length")
@@ -226,7 +230,13 @@ def _validate_image(path: Path, declared_type: str) -> tuple[str, int, int]:
                 image.load()
     except ImageStoreProblem:
         raise
-    except (UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning, OSError, ValueError):
+    except (
+        UnidentifiedImageError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+        OSError,
+        ValueError,
+    ):
         raise ImageStoreProblem("image_download_failed") from None
     return format_name, width, height
 

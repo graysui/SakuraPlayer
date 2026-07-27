@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import uuid
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 
+import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from argon2.low_level import Type
-import jwt
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session

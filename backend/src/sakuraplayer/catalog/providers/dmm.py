@@ -5,7 +5,6 @@ import httpx
 from sakuraplayer.catalog.providers._html import parse_html
 from sakuraplayer.catalog.providers.javdb import MetadataProviderProblem
 
-
 _BASE_URL = "https://www.dmm.co.jp"
 _MAX_HTML_BYTES = 2 * 1024 * 1024
 

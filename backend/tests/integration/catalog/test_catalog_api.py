@@ -1,27 +1,26 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
 import os
+import uuid
+from datetime import date, datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import uuid
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.api.app import create_app
+from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.models import Actor, ActorAlias, CatalogImage, MovieActor
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.search_service import SearchService
-from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.models import Movie, ResourceSource, ResourceSourceLabel
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -262,9 +261,7 @@ def test_postgres_catalog_filters_cursor_details_and_images_are_safe(
         params={"labels": "subtitle,4k", "min_resource_size_mb": 1400},
         headers=headers,
     )
-    first_page = client.get(
-        "/api/v1/movies", params={"limit": 1}, headers=headers
-    )
+    first_page = client.get("/api/v1/movies", params={"limit": 1}, headers=headers)
     second_page = client.get(
         "/api/v1/movies",
         params={"limit": 1, "cursor": first_page.json()["next_cursor"]},
@@ -321,9 +318,7 @@ def test_postgres_catalog_rejects_cursor_reuse_across_filters(api_context) -> No
     with factory.begin() as session:
         session.add_all([first_movie, second_movie, first_source, second_source])
     headers = _auth_headers(client)
-    first = client.get(
-        "/api/v1/movies", params={"limit": 1}, headers=headers
-    )
+    first = client.get("/api/v1/movies", params={"limit": 1}, headers=headers)
     reused = client.get(
         "/api/v1/movies",
         params={"limit": 1, "labels": "4k", "cursor": first.json()["next_cursor"]},

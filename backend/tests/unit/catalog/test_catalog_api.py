@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import uuid
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -18,7 +18,6 @@ from sakuraplayer.discovery.search_service import SearchService
 from sakuraplayer.identity.models import Base
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.models import Movie, ResourceSource
-
 
 NOW = datetime(2026, 7, 26, 9, 0, tzinfo=timezone.utc)
 BOOTSTRAP_TOKEN = b"bootstrap-token-with-at-least-32-bytes"

@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import timedelta
 import os
 import signal
 import subprocess
+import uuid
+from dataclasses import dataclass
+from datetime import timedelta
 from time import monotonic
 from typing import Callable, Mapping, Protocol, Sequence
-import uuid
 
 from sakuraplayer.catalog.metadata_queue import MetadataClaim, MetadataQueueProblem
-
 
 MAX_METADATA_CHILDREN = 3
 HARD_TIMEOUT_SECONDS = 600
@@ -149,7 +148,9 @@ class SubprocessGroupLauncher:
 
     def start(self, claim: MetadataClaim) -> SubprocessGroupProcess:
         command = tuple(self._command_factory(claim))
-        if not command or any(not isinstance(part, str) or not part for part in command):
+        if not command or any(
+            not isinstance(part, str) or not part for part in command
+        ):
             raise ValueError("invalid metadata child command")
         environment = os.environ.copy()
         if self._environment is not None:
@@ -162,7 +163,9 @@ class SubprocessGroupLauncher:
         parent_watch_read: int | None = None
         parent_watch_write: int | None = None
         if os.name == "nt":
-            raise RuntimeError("metadata child launcher requires the Linux container runtime")
+            raise RuntimeError(
+                "metadata child launcher requires the Linux container runtime"
+            )
         else:
             parent_watch_read, parent_watch_write = os.pipe()
             os.set_inheritable(parent_watch_read, True)

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import base64
+import json
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-import json
 from typing import Any, Literal
-import uuid
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -22,7 +22,6 @@ from sakuraplayer.catalog.metadata_state import ALL_STAGES
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
 from sakuraplayer.identity.api import ApiProblem
 from sakuraplayer.resources.models import Movie
-
 
 MetadataStatus = Literal[
     "queued",
@@ -147,9 +146,7 @@ class MetadataAdminService:
             job.id: {} for job in jobs
         }
         for stage in session.scalars(
-            select(MetadataStage).where(
-                MetadataStage.job_id.in_(stages_by_job)
-            )
+            select(MetadataStage).where(MetadataStage.job_id.in_(stages_by_job))
         ):
             stages_by_job[stage.job_id][stage.stage] = stage
         return [
@@ -266,6 +263,8 @@ class MetadataJobOutput(BaseModel):
     stages: list[MetadataStageOutput]
     retryable_stages: list[str]
     created_at: datetime
+
+
 class MetadataJobPageOutput(BaseModel):
     items: list[MetadataJobOutput]
     next_cursor: str | None
@@ -308,7 +307,9 @@ def create_metadata_api(
             next_cursor=page.next_cursor,
         )
 
-    @router.post("/{metadata_job_id}/retry", response_model=MetadataJobOutput, status_code=201)
+    @router.post(
+        "/{metadata_job_id}/retry", response_model=MetadataJobOutput, status_code=201
+    )
     def retry_metadata_job(metadata_job_id: uuid.UUID) -> MetadataJobOutput:
         try:
             view = service.retry(metadata_job_id)

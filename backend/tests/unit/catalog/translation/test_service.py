@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
-import uuid
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -34,7 +34,6 @@ from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.models import Base
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=timezone.utc)
 
@@ -238,9 +237,7 @@ def test_missing_configuration_fails_before_provider_call() -> None:
 
 
 def test_existing_mapping_bio_skips_actor_translation() -> None:
-    engine, factory, _, _, _, claim, config_store = context(
-        actor_has_chinese_bio=True
-    )
+    engine, factory, _, _, _, claim, config_store = context(actor_has_chinese_bio=True)
     adapter = FakeAdapter()
     try:
         service(factory, config_store, adapter).execute(claim)

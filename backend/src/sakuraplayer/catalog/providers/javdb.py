@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
-from dataclasses import dataclass, field
-from decimal import Decimal
 import json
 import re
 import uuid
+from dataclasses import dataclass, field
+from datetime import date
+from decimal import Decimal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -14,7 +14,6 @@ from sakuraplayer.catalog.providers._html import HtmlNode, parse_html
 from sakuraplayer.identity.crypto import SecretDecryptionError
 from sakuraplayer.identity.secrets import EncryptedSettingRepository, SecretSetting
 from sakuraplayer.resources.number_normalizer import normalize_movie_number
-
 
 _BASE_URL = "https://javdb.com"
 _MAX_HTML_BYTES = 2 * 1024 * 1024
@@ -105,7 +104,10 @@ class EncryptedJavdbCredentialStore:
             raise MetadataProviderProblem("javdb_credentials_invalid")
         try:
             payload = json.loads(setting.value.decode("utf-8"))
-            if not isinstance(payload, dict) or set(payload) != {"username", "password"}:
+            if not isinstance(payload, dict) or set(payload) != {
+                "username",
+                "password",
+            }:
                 raise ValueError
             username_text = payload["username"]
             password_text = payload["password"]
@@ -509,7 +511,11 @@ class JavdbProvider:
                 if panel is None:
                     continue
                 value_node = next(
-                    (node for node in panel.descendants("span") if "value" in node.classes()),
+                    (
+                        node
+                        for node in panel.descendants("span")
+                        if "value" in node.classes()
+                    ),
                     None,
                 )
                 if value_node is not None:
@@ -526,7 +532,9 @@ class JavdbProvider:
         actor_panel = panels.get("演員") or panels.get("演员")
         if actor_panel is not None:
             for anchor in actor_panel.descendants("a"):
-                actor_id = anchor.attrs.get("href", "").removeprefix("/actors/").strip("/")
+                actor_id = (
+                    anchor.attrs.get("href", "").removeprefix("/actors/").strip("/")
+                )
                 if not _STABLE_ID.fullmatch(actor_id):
                     continue
                 aliases = tuple(
@@ -545,7 +553,9 @@ class JavdbProvider:
         tags: list[str] = []
         tag_panel = panels.get("類別") or panels.get("类别")
         if tag_panel is not None:
-            tags = [anchor.text() for anchor in tag_panel.descendants("a") if anchor.text()]
+            tags = [
+                anchor.text() for anchor in tag_panel.descendants("a") if anchor.text()
+            ]
 
         cover_url = None
         for meta in root.descendants("meta"):

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     Index,
-    JSON,
     String,
     UniqueConstraint,
     Uuid,
@@ -18,7 +18,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sakuraplayer.identity.models import Base
-
 
 _JSON_VALUE = JSON(none_as_null=True).with_variant(
     JSONB(none_as_null=True),
@@ -41,8 +40,7 @@ class EventStreamVersion(Base):
     __tablename__ = "event_stream_version"
     __table_args__ = (
         CheckConstraint(
-            "stream IN ('metadata', 'cache', 'credential', 'catalog', "
-            "'notification')",
+            "stream IN ('metadata', 'cache', 'credential', 'catalog', 'notification')",
             name="ck_event_stream_version_stream",
         ),
         CheckConstraint(
@@ -61,8 +59,7 @@ class DomainEvent(Base):
     __table_args__ = (
         CheckConstraint("sequence > 0", name="ck_domain_event_sequence"),
         CheckConstraint(
-            "stream IN ('metadata', 'cache', 'credential', 'catalog', "
-            "'notification')",
+            "stream IN ('metadata', 'cache', 'credential', 'catalog', 'notification')",
             name="ck_domain_event_stream",
         ),
         CheckConstraint("stream_version > 0", name="ck_domain_event_stream_version"),

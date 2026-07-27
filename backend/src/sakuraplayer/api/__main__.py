@@ -88,7 +88,11 @@ def main() -> None:
 
     def credential_status() -> str:
         try:
-            return "configured" if credential_store.load() is not None else "not_configured"
+            return (
+                "configured"
+                if credential_store.load() is not None
+                else "not_configured"
+            )
         except MetadataProviderProblem:
             return "invalid"
 

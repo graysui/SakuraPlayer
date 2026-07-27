@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+import uuid
 from collections import defaultdict
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import datetime, timezone
-import json
 from urllib.parse import parse_qsl, quote, unquote, urlsplit
-import uuid
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -18,7 +18,6 @@ from sakuraplayer.catalog.models import (
     GfriendsActorAsset,
     GfriendsSnapshot,
 )
-
 
 GFRIENDS_CONTENT_BASE_URL = (
     "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content"
@@ -181,7 +180,9 @@ class GfriendsAssetReconciler:
         )
         if snapshot is None:
             raise GfriendsProblem
-        actors = list(session.scalars(select(Actor).order_by(Actor.id).with_for_update()))
+        actors = list(
+            session.scalars(select(Actor).order_by(Actor.id).with_for_update())
+        )
         aliases = list(session.scalars(select(ActorAlias)))
         name_index: dict[str, set[uuid.UUID]] = defaultdict(set)
         for actor in actors:

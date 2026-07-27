@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import signal
+from collections.abc import Callable
 from threading import Event
 
 from apscheduler.schedulers.background import BackgroundScheduler

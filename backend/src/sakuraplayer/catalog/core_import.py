@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import uuid
 
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
@@ -15,11 +15,11 @@ from sakuraplayer.catalog.models import (
     Actor,
     ActorAlias,
     CatalogImage,
+    MetadataJob,
+    MetadataStage,
     MovieActor,
     MovieTag,
     Tag,
-    MetadataJob,
-    MetadataStage,
 )
 from sakuraplayer.catalog.providers.javdb import CoreMovieMetadata
 from sakuraplayer.resources.models import Movie
@@ -48,7 +48,9 @@ class CoreMetadataImporter:
         placeholder_relative_path: str,
         now: Callable[[], datetime] | None = None,
     ) -> None:
-        if not placeholder_relative_path or placeholder_relative_path.startswith(("/", "\\")):
+        if not placeholder_relative_path or placeholder_relative_path.startswith(
+            ("/", "\\")
+        ):
             raise ValueError("placeholder path must be relative")
         self._session_factory = session_factory
         self._placeholder_relative_path = placeholder_relative_path

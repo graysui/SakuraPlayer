@@ -1,24 +1,24 @@
 from __future__ import annotations
 
+import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
-import os
 from pathlib import Path
 from threading import Barrier
-import uuid
 
-from alembic import command
-from alembic.config import Config
 import httpx
-from PIL import Image
 import pytest
+from alembic.config import Config
+from PIL import Image
 from sqlalchemy import create_engine, func, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
+from alembic import command
 from sakuraplayer.catalog.core_import import (
     CoreImportProblem,
     CoreMetadataImporter,
@@ -40,7 +40,6 @@ from sakuraplayer.shared.config import Settings
 from sakuraplayer.shared.migration import upgrade_database
 from sakuraplayer.worker.metadata_child import MetadataChildRunner
 
-
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
 ALEMBIC_INI = BACKEND_ROOT / "alembic.ini"
@@ -60,7 +59,9 @@ def database_url() -> str:
     with admin_engine.connect() as connection:
         connection.execute(text(f'CREATE DATABASE "{database_name}"'))
     admin_engine.dispose()
-    test_url = base_url.set(database=database_name).render_as_string(hide_password=False)
+    test_url = base_url.set(database=database_name).render_as_string(
+        hide_password=False
+    )
     try:
         upgrade_database(test_url, ALEMBIC_INI)
         yield test_url

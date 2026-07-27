@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
 
 from sakuraplayer.catalog.metadata_queue import MetadataClaim
 from sakuraplayer.worker.metadata_child import (

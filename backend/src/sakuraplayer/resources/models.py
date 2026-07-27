@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
-import uuid
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     Index,
-    JSON,
     LargeBinary,
     Numeric,
     String,
@@ -24,7 +24,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from sakuraplayer.identity.crypto import EncryptedEnvelope
 from sakuraplayer.identity.models import Base
-
 
 _JSON_VALUE = JSON(none_as_null=True).with_variant(
     JSONB(none_as_null=True),
@@ -245,8 +244,7 @@ class ResourceSource(Base):
             name="ck_resource_source_section",
         ),
         CheckConstraint(
-            "identification_status IN "
-            "('identified', 'pending', 'manual', 'rejected')",
+            "identification_status IN ('identified', 'pending', 'manual', 'rejected')",
             name="ck_resource_source_identification_status",
         ),
         CheckConstraint(
@@ -334,7 +332,9 @@ class ResourceSourceLabel(Base):
             "label IN ('subtitle', 'cracked', '4k', 'censored')",
             name="ck_resource_source_label_value",
         ),
-        CheckConstraint("length(evidence) >= 1", name="ck_resource_source_label_evidence"),
+        CheckConstraint(
+            "length(evidence) >= 1", name="ck_resource_source_label_evidence"
+        ),
     )
 
     source_id: Mapped[uuid.UUID] = mapped_column(
@@ -352,7 +352,9 @@ class ResourceSourceLabel(Base):
 class SourceRejection(Base):
     __tablename__ = "source_rejection"
     __table_args__ = (
-        CheckConstraint("length(reason_code) >= 1", name="ck_source_rejection_reason_code"),
+        CheckConstraint(
+            "length(reason_code) >= 1", name="ck_source_rejection_reason_code"
+        ),
         UniqueConstraint(
             "website",
             "external_post_id",

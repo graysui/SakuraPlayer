@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import base64
+import json
+import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-import json
 from pathlib import Path
 from typing import Any
-import uuid
 
 from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.orm import sessionmaker
@@ -34,7 +34,6 @@ from sakuraplayer.catalog.ports import (
 )
 from sakuraplayer.resources.models import Movie, ResourceSource, ResourceSourceLabel
 from sakuraplayer.resources.number_normalizer import normalize_movie_number
-
 
 MAX_PAGE_SIZE = 100
 _ACTIVE_SOURCE_STATES = ("identified", "manual")
@@ -217,7 +216,11 @@ class CatalogQueryService:
                     )
                 )
             }
-            visible = [movies_by_id[movie_id] for movie_id in requested if movie_id in movies_by_id]
+            visible = [
+                movies_by_id[movie_id]
+                for movie_id in requested
+                if movie_id in movies_by_id
+            ]
             if not visible:
                 return []
             visible_ids = tuple(movie.id for movie in visible)
@@ -271,9 +274,11 @@ class CatalogQueryService:
             .subquery()
         )
         publish_key = qualifying_sources.c.publish_key
-        statement = select(Movie, publish_key.label("publish_key")).where(
-            Movie.catalog_state == "core_ready"
-        ).join(qualifying_sources, qualifying_sources.c.movie_id == Movie.id)
+        statement = (
+            select(Movie, publish_key.label("publish_key"))
+            .where(Movie.catalog_state == "core_ready")
+            .join(qualifying_sources, qualifying_sources.c.movie_id == Movie.id)
+        )
         if normalized.favorite:
             statement = statement.where(Movie.id.in_(favorite_ids))
         with self._session_factory() as session:
@@ -590,12 +595,14 @@ class CatalogQueryService:
                         )
                     )
                     if session.scalar(
-                        select(exists().where(
-                            ResourceSource.movie_id == exact.id,
-                            ResourceSource.identification_status.in_(
-                                _ACTIVE_SOURCE_STATES
-                            ),
-                        ))
+                        select(
+                            exists().where(
+                                ResourceSource.movie_id == exact.id,
+                                ResourceSource.identification_status.in_(
+                                    _ACTIVE_SOURCE_STATES
+                                ),
+                            )
+                        )
                     ):
                         raw_candidate = RawMetadataCandidate(
                             movie_id=exact.id,

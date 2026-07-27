@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import uuid
 from datetime import timedelta
 from pathlib import Path
-import uuid
 
 import pytest
+from conftest import (
+    NOW,
+    E2eContext,
+    app_settings,
+    fake_metadata_client,
+    fetched_release,
+)
 from sqlalchemy import func, select
 
 from sakuraplayer.catalog.metadata_seeder import MetadataQueueSeeder
@@ -14,15 +21,6 @@ from sakuraplayer.discovery.models import RankingEntry, RankingSnapshot
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
 from sakuraplayer.resources.models import Movie, ResourceSource
 from sakuraplayer.worker.metadata_child import MetadataChildRunner
-
-from conftest import (
-    NOW,
-    E2eContext,
-    app_settings,
-    fake_metadata_client,
-    fetched_release,
-)
-
 
 pytestmark = pytest.mark.integration
 
@@ -145,7 +143,8 @@ def test_phase1_catalog_metadata_chain(
     assert components["avdb"]["status"] == "healthy"
 
     combined_response = "".join(
-        response.text for response in (movies, search, ranking, events, settings, diagnostics)
+        response.text
+        for response in (movies, search, ranking, events, settings, diagnostics)
     )
     assert "urn:e2e-resource" not in combined_response
     with e2e_context.factory() as session:

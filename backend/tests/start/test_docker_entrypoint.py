@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 try:
     import pytest
@@ -88,8 +88,8 @@ def test_entrypoint_percent_encodes_database_password() -> None:
 
     assert "urllib.parse" in source
     assert "quote(" in source
-    assert 'sys.argv[2]' in source
-    assert 'sys.argv[3]' in source
+    assert "sys.argv[2]" in source
+    assert "sys.argv[3]" in source
 
 
 def test_powershell_verbose_alias_consumes_short_volume_flag() -> None:

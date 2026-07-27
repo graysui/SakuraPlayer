@@ -1,19 +1,19 @@
 from __future__ import annotations
 
+import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-import os
 from pathlib import Path
 from threading import Barrier
-import uuid
 
-from alembic import command
-from alembic.config import Config
 import pytest
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from alembic import command
 from sakuraplayer.events.models import DomainEvent
 from sakuraplayer.events.outbox import (
     DomainEventWriter,
@@ -22,7 +22,6 @@ from sakuraplayer.events.outbox import (
 )
 from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -134,9 +133,12 @@ def test_postgres_event_migration_sequence_and_recovery(database_url: str) -> No
         )
     assert after_rollback.sequence == 9
     with factory() as session:
-        assert session.scalar(
-            select(DomainEvent).where(DomainEvent.aggregate_id == rollback_id)
-        ) is None
+        assert (
+            session.scalar(
+                select(DomainEvent).where(DomainEvent.aggregate_id == rollback_id)
+            )
+            is None
+        )
 
     event_log = EventLog(factory, now=lambda: NOW)
     snapshot = EventSnapshotService(factory, event_log).get()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -15,7 +15,6 @@ from sakuraplayer.catalog.models import MetadataJob, MetadataStage
 from sakuraplayer.identity.models import Base
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=timezone.utc)
 BOOTSTRAP_TOKEN = b"bootstrap-token-with-at-least-32-bytes"

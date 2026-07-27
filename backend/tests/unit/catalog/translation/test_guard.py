@@ -39,11 +39,37 @@ def test_protected_comparison_normalizes_without_mutating_display_values() -> No
 @pytest.mark.parametrize(
     "returned",
     [
-        ProtectedFields("ABP-124", ("Actor One", "Actor Two"), "Fixture Maker", None, ("Drama", "Featured")),
-        ProtectedFields("ABP-123", ("Actor One",), "Fixture Maker", None, ("Drama", "Featured")),
-        ProtectedFields("ABP-123", ("Actor One", "Actor Two"), "Other Maker", None, ("Drama", "Featured")),
-        ProtectedFields("ABP-123", ("Actor One", "Actor Two"), "Fixture Maker", "Series", ("Drama", "Featured")),
-        ProtectedFields("ABP-123", ("Actor One", "Actor Two"), "Fixture Maker", None, ("Drama", "Other")),
+        ProtectedFields(
+            "ABP-124",
+            ("Actor One", "Actor Two"),
+            "Fixture Maker",
+            None,
+            ("Drama", "Featured"),
+        ),
+        ProtectedFields(
+            "ABP-123", ("Actor One",), "Fixture Maker", None, ("Drama", "Featured")
+        ),
+        ProtectedFields(
+            "ABP-123",
+            ("Actor One", "Actor Two"),
+            "Other Maker",
+            None,
+            ("Drama", "Featured"),
+        ),
+        ProtectedFields(
+            "ABP-123",
+            ("Actor One", "Actor Two"),
+            "Fixture Maker",
+            "Series",
+            ("Drama", "Featured"),
+        ),
+        ProtectedFields(
+            "ABP-123",
+            ("Actor One", "Actor Two"),
+            "Fixture Maker",
+            None,
+            ("Drama", "Other"),
+        ),
     ],
 )
 def test_any_protected_change_is_rejected(returned: ProtectedFields) -> None:

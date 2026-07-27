@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import json
+from pathlib import Path
 from urllib.parse import parse_qs
 
 import httpx
@@ -12,9 +12,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from sakuraplayer.catalog.providers.javdb import (
-    EncryptedJavdbCredentialStore,
     CoreActorMetadata,
     CoreMovieMetadata,
+    EncryptedJavdbCredentialStore,
     JavdbCredentials,
     JavdbProvider,
     MetadataProviderProblem,
@@ -24,7 +24,6 @@ from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.models import Base, EncryptedSetting
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 
-
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "metadata"
 
 
@@ -33,7 +32,9 @@ def fixture(name: str) -> str:
 
 
 def provider(handler) -> JavdbProvider:
-    return JavdbProvider(http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+    return JavdbProvider(
+        http_client=httpx.Client(transport=httpx.MockTransport(handler))
+    )
 
 
 def test_search_requires_exact_normalized_number_and_fetches_boundary_dto() -> None:

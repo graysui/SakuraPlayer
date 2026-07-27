@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import timedelta
 import logging
 import threading
+from datetime import timedelta
 from typing import Protocol
 
 from sakuraplayer.catalog.provider_snapshots import (
@@ -11,7 +11,6 @@ from sakuraplayer.catalog.provider_snapshots import (
     ProviderSnapshotRefreshOutcome,
 )
 from sakuraplayer.shared.redaction import stable_error_code
-
 
 _LOGGER = logging.getLogger(__name__)
 

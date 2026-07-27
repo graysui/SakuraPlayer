@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TypeVar
-import uuid
 
 from fastapi import (
     APIRouter,

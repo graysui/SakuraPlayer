@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -24,7 +23,10 @@ def test_avdb_sync_migration_is_linear_and_creates_sync_tables() -> None:
     ]
 
     assert 'revision: str = "0004_avdb_sync"' in source
-    assert 'down_revision: Union[str, Sequence[str], None] = "0003_encrypted_settings"' in source
+    assert (
+        'down_revision: Union[str, Sequence[str], None] = "0003_encrypted_settings"'
+        in source
+    )
     assert tables == ["avdb_sync_request", "avdb_sync_run", "avdb_asset"]
     assert "uq_avdb_sync_request_slot" in source
     assert "uq_avdb_sync_run_release" in source

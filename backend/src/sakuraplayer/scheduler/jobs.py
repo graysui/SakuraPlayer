@@ -5,7 +5,6 @@ from collections.abc import Callable
 from apscheduler.schedulers.base import BaseScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-
 SHANGHAI_TIMEZONE = "Asia/Shanghai"
 
 

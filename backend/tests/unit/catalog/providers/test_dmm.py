@@ -8,7 +8,6 @@ import pytest
 from sakuraplayer.catalog.providers.dmm import DmmProvider
 from sakuraplayer.catalog.providers.javdb import MetadataProviderProblem
 
-
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "metadata"
 
 

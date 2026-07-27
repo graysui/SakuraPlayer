@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -25,7 +24,10 @@ def test_identity_migration_is_linear_and_creates_only_identity_tables() -> None
     ]
 
     assert 'revision: str = "0002_identity"' in source
-    assert 'down_revision: Union[str, Sequence[str], None] = "0001_initial_skeleton"' in source
+    assert (
+        'down_revision: Union[str, Sequence[str], None] = "0001_initial_skeleton"'
+        in source
+    )
     assert create_tables == ["admin_user", "refresh_session"]
     assert "bootstrap" not in source.lower()
     assert "ck_admin_user_singleton_key" in source

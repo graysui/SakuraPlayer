@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-import uuid
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -18,16 +18,15 @@ from sakuraplayer.catalog.models import (
     Actor,
     ActorAlias,
     CatalogImage,
+    MetadataJob,
+    MetadataStage,
     MovieActor,
     MovieTag,
     Tag,
-    MetadataJob,
-    MetadataStage,
 )
 from sakuraplayer.catalog.providers.javdb import CoreActorMetadata, CoreMovieMetadata
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 8, 0, tzinfo=timezone.utc)
 
@@ -67,25 +66,25 @@ def add_fence(factory: sessionmaker, movie: Movie) -> MetadataWriteFence:
         session.add_all(
             [
                 MetadataJob(
-                id=job_id,
-                movie_id=movie.id,
-                normalized_number=movie.normalized_number,
-                priority=40,
-                reason="initial",
-                sort_date=date(2026, 7, 1),
-                retry_mode="full",
-                requested_stages=[],
-                status="running",
-                attempt_no=1,
-                parent_job_id=None,
-                claim_owner=claim_owner,
-                claim_expires_at=NOW + timedelta(seconds=30),
-                started_at=NOW,
-                finished_at=None,
-                elapsed_ms=None,
-                failure_code=None,
-                failure_detail=None,
-                created_at=NOW,
+                    id=job_id,
+                    movie_id=movie.id,
+                    normalized_number=movie.normalized_number,
+                    priority=40,
+                    reason="initial",
+                    sort_date=date(2026, 7, 1),
+                    retry_mode="full",
+                    requested_stages=[],
+                    status="running",
+                    attempt_no=1,
+                    parent_job_id=None,
+                    claim_owner=claim_owner,
+                    claim_expires_at=NOW + timedelta(seconds=30),
+                    started_at=NOW,
+                    finished_at=None,
+                    elapsed_ms=None,
+                    failure_code=None,
+                    failure_detail=None,
+                    created_at=NOW,
                 ),
                 MetadataStage(
                     job_id=job_id,
@@ -106,7 +105,9 @@ def add_fence(factory: sessionmaker, movie: Movie) -> MetadataWriteFence:
     )
 
 
-def metadata(number: str = "ABP-123", javdb_id: str = "javdb-abp-123") -> CoreMovieMetadata:
+def metadata(
+    number: str = "ABP-123", javdb_id: str = "javdb-abp-123"
+) -> CoreMovieMetadata:
     return CoreMovieMetadata(
         javdb_id=javdb_id,
         normalized_number=number,

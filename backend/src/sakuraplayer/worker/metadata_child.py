@@ -1,27 +1,27 @@
 from __future__ import annotations
 
 import argparse
-from importlib import import_module
-from importlib.util import find_spec
 import os
 import signal
+import uuid
+from importlib import import_module
+from importlib.util import find_spec
 from threading import Thread
 from typing import Protocol
-import uuid
 
 import httpx
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.metadata_queue import MetadataClaim, MetadataQueue
-from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.catalog.metadata_state import (
     ALL_STAGES,
     MetadataStageExecutionError,
     validate_enrichment_stages,
 )
-from sakuraplayer.shared.redaction import stable_error_code
+from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.shared.config import Settings, load_settings
+from sakuraplayer.shared.redaction import stable_error_code
 from sakuraplayer.shared.runtime import guarded_main, require_ready
 
 

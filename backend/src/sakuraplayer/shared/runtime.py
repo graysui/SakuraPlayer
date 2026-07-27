@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from pathlib import Path
 import signal
 import sys
+from collections.abc import Callable
+from pathlib import Path
 from threading import Event
 
 from sakuraplayer.shared.config import (
@@ -12,9 +12,8 @@ from sakuraplayer.shared.config import (
     StartupConfigurationError,
     load_settings,
 )
-from sakuraplayer.shared.schema_guard import SchemaGuardError, check_schema
 from sakuraplayer.shared.redaction import RedactionFilter
-
+from sakuraplayer.shared.schema_guard import SchemaGuardError, check_schema
 
 LOG_DIRECTORY = Path("/var/log/sakuraplayer")
 

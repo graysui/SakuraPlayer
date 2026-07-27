@@ -1,6 +1,6 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-import uuid
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -18,7 +18,6 @@ from sakuraplayer.discovery.ranking_sync import (
 )
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 7, 0, tzinfo=timezone.utc)
 
@@ -95,7 +94,9 @@ def test_due_targets_skip_credentials_and_completed_history() -> None:
             ("monthly", None),
         }
         for item in public:
-            claim = queue.claim_next("public-worker", lease_duration=timedelta(minutes=5))
+            claim = queue.claim_next(
+                "public-worker", lease_duration=timedelta(minutes=5)
+            )
             assert claim is not None
             queue.fail(claim, code="fixture_done")
 
@@ -183,7 +184,9 @@ def test_snapshot_sync_atomically_switches_current_and_binds_existing_movie() ->
         with factory.begin() as session:
             session.add(movie)
         queue.enqueue("daily", year=None, scheduled_for=NOW)
-        first_claim = queue.claim_next("ranking-worker", lease_duration=timedelta(minutes=5))
+        first_claim = queue.claim_next(
+            "ranking-worker", lease_duration=timedelta(minutes=5)
+        )
         assert first_claim is not None
         first_id = sync.synchronize(first_claim)
 
@@ -229,7 +232,9 @@ def test_snapshot_sync_failure_and_empty_candidate_preserve_current() -> None:
     sync = RankingSnapshotSynchronizer(queue, provider, credentials=lambda: None)
     try:
         queue.enqueue("weekly", year=None, scheduled_for=NOW)
-        first_claim = queue.claim_next("ranking-worker", lease_duration=timedelta(minutes=5))
+        first_claim = queue.claim_next(
+            "ranking-worker", lease_duration=timedelta(minutes=5)
+        )
         assert first_claim is not None
         current_id = sync.synchronize(first_claim)
 

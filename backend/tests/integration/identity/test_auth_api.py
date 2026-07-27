@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
 
+import pytest
 from fastapi import Depends, WebSocket
 from fastapi.testclient import TestClient
-import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -16,7 +16,6 @@ from sakuraplayer.identity.api import ApiProblem
 from sakuraplayer.identity.domain import CurrentAdmin
 from sakuraplayer.identity.models import Base
 from sakuraplayer.identity.service import AuthService
-
 
 BOOTSTRAP_TOKEN = "bootstrap-token-with-at-least-32-bytes"
 PASSWORD = "correct horse battery staple"
@@ -91,7 +90,9 @@ def credentials(client_instance_id: uuid.UUID | None = None) -> dict[str, str]:
     }
 
 
-def bootstrap(client: TestClient, client_instance_id: uuid.UUID | None = None) -> dict[str, str]:
+def bootstrap(
+    client: TestClient, client_instance_id: uuid.UUID | None = None
+) -> dict[str, str]:
     response = client.post(
         "/api/v1/auth/bootstrap",
         headers={"X-Bootstrap-Token": BOOTSTRAP_TOKEN},

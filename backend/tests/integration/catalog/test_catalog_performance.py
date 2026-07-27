@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import math
 import os
+import uuid
 from pathlib import Path
 from time import perf_counter
-import uuid
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -19,7 +19,6 @@ from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.search_service import SearchService
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -129,8 +128,7 @@ def test_catalog_api_meets_real_scale_p95_and_uses_search_indexes(
         )
         title_plan = _plan(
             connection,
-            "SELECT id FROM movie "
-            "WHERE title_original ILIKE '%needle title 4999%'",
+            "SELECT id FROM movie WHERE title_original ILIKE '%needle title 4999%'",
         )
         alias_plan = _plan(
             connection,

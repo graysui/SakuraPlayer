@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-import uuid
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, sessionmaker

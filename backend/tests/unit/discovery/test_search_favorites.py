@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-import uuid
 
 import pytest
 from sqlalchemy import create_engine, func, select
@@ -17,7 +17,6 @@ from sakuraplayer.discovery.models import Favorite
 from sakuraplayer.discovery.search_service import SearchService
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie, ResourceSource
-
 
 NOW = datetime(2026, 7, 26, 8, 0, tzinfo=timezone.utc)
 

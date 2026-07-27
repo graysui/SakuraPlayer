@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import hashlib
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
@@ -10,20 +10,20 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from sakuraplayer.identity.models import AdminUser, Base, RefreshSession
 from sakuraplayer.identity.service import (
-    AuthService,
     AuthenticationError,
+    AuthService,
     BootstrapAlreadyCompleted,
     BootstrapTokenInvalid,
-    InvalidCredentials,
     IdentityValidationError,
+    InvalidCredentials,
     PasswordManager,
     RefreshTokenInvalid,
     RefreshTokenReused,
     SessionRevoked,
     TokenManager,
 )
-from sakuraplayer.identity.models import AdminUser, Base, RefreshSession
 
 
 def test_password_is_stored_as_argon2id_hash_and_wrong_password_is_rejected() -> None:
@@ -147,7 +147,10 @@ def test_access_token_rejects_bad_signature_and_none_algorithm() -> None:
     "payload_update,algorithm",
     [
         ({"typ": "refresh"}, "HS256"),
-        ({"iat": int(datetime(2026, 7, 24, 8, 1, tzinfo=timezone.utc).timestamp())}, "HS256"),
+        (
+            {"iat": int(datetime(2026, 7, 24, 8, 1, tzinfo=timezone.utc).timestamp())},
+            "HS256",
+        ),
         ({"jti": None}, "HS256"),
         ({"jti": 123}, "HS256"),
         ({"sid": 123}, "HS256"),
@@ -157,8 +160,12 @@ def test_access_token_rejects_bad_signature_and_none_algorithm() -> None:
         ({"exp": True}, "HS256"),
         (
             {
-                "iat": int(datetime(2025, 7, 24, 8, 0, tzinfo=timezone.utc).timestamp()),
-                "exp": int(datetime(2026, 7, 24, 8, 1, tzinfo=timezone.utc).timestamp()),
+                "iat": int(
+                    datetime(2025, 7, 24, 8, 0, tzinfo=timezone.utc).timestamp()
+                ),
+                "exp": int(
+                    datetime(2026, 7, 24, 8, 1, tzinfo=timezone.utc).timestamp()
+                ),
             },
             "HS256",
         ),
@@ -274,9 +281,10 @@ def test_bootstrap_creates_one_admin_and_stores_only_hashes(
         assert "correct horse battery staple" not in admin.password_hash
         assert refresh is not None
         assert refresh.client_instance_id == client_instance_id
-        assert refresh.token_hash == hashlib.sha256(
-            pair.refresh_token.encode("ascii")
-        ).digest()
+        assert (
+            refresh.token_hash
+            == hashlib.sha256(pair.refresh_token.encode("ascii")).digest()
+        )
         assert not hasattr(admin, "bootstrap_token")
 
 
@@ -503,4 +511,7 @@ def test_logout_revokes_current_client_and_other_client_can_refresh_new_epoch(
         service.authenticate_access(second_pair.access_token)
 
     recovered = service.refresh(second_pair.refresh_token)
-    assert service.authenticate_access(recovered.access_token).client_instance_id == second_client
+    assert (
+        service.authenticate_access(recovered.access_token).client_instance_id
+        == second_client
+    )

@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import os
-from pathlib import Path
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
 import pytest
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
+from alembic import command
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]

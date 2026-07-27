@@ -1,21 +1,20 @@
-from pathlib import Path
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.actor_mapping import (
-    ActorMappingReconciler,
     ActorMappingProblem,
+    ActorMappingReconciler,
     normalize_actor_alias,
     parse_actor_mapping,
 )
 from sakuraplayer.catalog.models import Actor, ActorAlias
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources import models as resource_models
-
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "catalog"
 
@@ -61,7 +60,9 @@ def test_actor_mapping_rejects_unknown_or_incomplete_structure(payload: bytes) -
     assert caught.value.code == "provider_snapshot_invalid"
 
 
-def test_actor_mapping_rebuilds_only_unique_javdb_actor_and_preserves_javdb_aliases() -> None:
+def test_actor_mapping_rebuilds_only_unique_javdb_actor_and_preserves_javdb_aliases() -> (
+    None
+):
     assert resource_models.Movie.__tablename__ == "movie"
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)

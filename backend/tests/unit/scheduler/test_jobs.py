@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
-from apscheduler.schedulers.background import BackgroundScheduler
 import pytest
+from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
-from sakuraplayer.scheduler.jobs import register_avdb_jobs
-from sakuraplayer.scheduler.__main__ import build_scheduler
-from sakuraplayer.scheduler.events import register_event_prune_job
-from sakuraplayer.scheduler.provider_snapshots import register_provider_snapshot_job
-from sakuraplayer.scheduler.rankings import RankingSchedulerJob, register_ranking_job
 from sakuraplayer.catalog.models import ProviderSnapshotRequest
 from sakuraplayer.resources.models import AvdbSyncRequest, Base
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
+from sakuraplayer.scheduler.__main__ import build_scheduler
+from sakuraplayer.scheduler.events import register_event_prune_job
+from sakuraplayer.scheduler.jobs import register_avdb_jobs
+from sakuraplayer.scheduler.provider_snapshots import register_provider_snapshot_job
+from sakuraplayer.scheduler.rankings import RankingSchedulerJob, register_ranking_job
 
 
 def test_registers_shanghai_incremental_and_weekly_full_enqueue_jobs() -> None:
@@ -28,9 +27,7 @@ def test_registers_shanghai_incremental_and_weekly_full_enqueue_jobs() -> None:
     jobs = {job.id: job for job in scheduler.get_jobs()}
     assert set(jobs) == {"avdb_incremental_30d", "avdb_full_reconcile"}
     assert str(scheduler.timezone) == "Asia/Shanghai"
-    assert str(jobs["avdb_incremental_30d"].trigger) == (
-        "cron[hour='3', minute='0']"
-    )
+    assert str(jobs["avdb_incremental_30d"].trigger) == ("cron[hour='3', minute='0']")
     assert str(jobs["avdb_full_reconcile"].trigger) == (
         "cron[day_of_week='sun', hour='4', minute='0']"
     )
@@ -185,9 +182,7 @@ def test_event_prune_job_is_daily_and_single_instance() -> None:
     register_event_prune_job(scheduler, prune)
     register_event_prune_job(scheduler, prune)
 
-    job = {item.id: item for item in scheduler.get_jobs()}[
-        "domain_events_daily_prune"
-    ]
+    job = {item.id: item for item in scheduler.get_jobs()}["domain_events_daily_prune"]
     assert str(job.trigger) == "cron[hour='2', minute='30']"
     job.func()
     assert calls == 1

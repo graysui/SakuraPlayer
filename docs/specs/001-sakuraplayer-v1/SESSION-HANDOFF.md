@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-27
 
-**当前阶段**: Phase 1 后端基础设施实施中；TASK-001 至 TASK-014 已完成并评审通过，下一任务为 TASK-015。
+**当前阶段**: Phase 1 后端基础与元数据已完成；TASK-001 至 TASK-015 已完成，下一任务为 TASK-101。
 
 ## 1. 当前成果
 
@@ -54,12 +54,15 @@
 - TASK-014 已交付真实 PostgreSQL/Alembic 与生产服务组合的 Phase 1 后端 E2E，覆盖认证、AVdb 六分类导入、首批元数据、core_ready、目录/搜索/排行榜、事件、诊断、来源幂等、故障隔离和手动 retry。
 - E2E 外部访问只使用固定 fixture 与 MockTransport；API/worker/scheduler 真实进程、重启、ready 降级和资源清理由同一次 Compose Final 验证，未新增生产测试开关、Schema 或公开 API。
 - TASK-014 自动验证覆盖 466 项自包含测试和 88 项 PostgreSQL integration/E2E；正式评审为 `passed`，最终无剩余 P0/P1/P2。
+- TASK-015 已完成后端 Python 纯卫生清理，锁定 Ruff 0.16.0/mypy 2.3.0，并建立实际 OpenAPI、13 份迁移和 SQLAlchemy 状态约束的可复现等价门禁。
+- TASK-015 清理前后基线逐项相等；除两个无用 import 和已验证的等价异常局部变量外无语义差异，历史迁移和产品契约未改动。
+- TASK-015 Fast 为 469 项通过；Compose Final 首次尝试通过 466 项自包含和 88 项 PostgreSQL integration/E2E，健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部完成。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-014 已完成并评审通过；下一任务为 TASK-015。
-- **最近绿色快速门禁**: TASK-014 Fast 为 466 passed、8 deselected；Focused PostgreSQL E2E 为 4 passed，宿主 Docker 配置、秘密模式和 `git diff --check` 通过，最终审计无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-014 Compose Final 首次尝试通过；自包含 466 passed、8 deselected，PostgreSQL integration/E2E 88 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启恢复、ready 降级恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-015 已完成；下一任务为 TASK-101。
+- **最近绿色快速门禁**: TASK-015 Fast 为 469 passed、8 deselected；Ruff format/lint、3 文件渐进 mypy、等价基线、宿主 Docker 配置和完整差异审计通过，无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-015 Compose Final 首次尝试通过；自包含 466 passed、8 deselected，PostgreSQL integration/E2E 88 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启恢复、ready 降级恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -76,18 +79,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014。
-- **下一任务**: TASK-015 后端基础与元数据代码清理。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015。
+- **下一任务**: TASK-101 Cloud115Port 与扫码会话。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-015 开始：
+下一会话从 TASK-101 开始：
 
 ```text
-/developer-kit-specs:specs-code-cleanup --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-015.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-101.md"
 ```
 
-完成 TASK-014 的实现、测试和评审后，按根目录 `AGENTS.md` 创建本次中文 Git 提交。下一任务 TASK-015 只执行纯卫生清理，不改变逻辑或公共签名。
+完成 TASK-015 的实现、测试和文档同步后，按根目录 `AGENTS.md` 创建本次中文 Git 提交。TASK-101 开始前读取其 DoR、Cloud115Port 契约和真实 115 安全边界；默认自动测试仍不得访问真实 115。
 
 ## 4. 必读契约
 

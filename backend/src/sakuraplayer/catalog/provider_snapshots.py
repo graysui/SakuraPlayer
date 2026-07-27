@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import hashlib
+import os
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-import hashlib
-import os
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
-import uuid
 
 import httpx
 from sqlalchemy import or_, select, update
@@ -30,7 +30,6 @@ from sakuraplayer.catalog.models import (
     ProviderSnapshotRequest,
 )
 from sakuraplayer.shared.redaction import stable_error_code
-
 
 ACTOR_MAPPING_URL = (
     "https://raw.githubusercontent.com/li-peifeng/"
@@ -223,7 +222,11 @@ class ProviderSnapshotRegistry:
     ) -> uuid.UUID:
         model = self._model(downloaded.source.name)
         path = Path(relative_path)
-        if path.is_absolute() or not path.parts or any(part == ".." for part in path.parts):
+        if (
+            path.is_absolute()
+            or not path.parts
+            or any(part == ".." for part in path.parts)
+        ):
             raise SnapshotProblem
         current = self._utc_now()
         with self._session_factory.begin() as session:
@@ -319,15 +322,19 @@ class ProviderSnapshotRefreshService:
                 downloaded = self._downloader.fetch(source)
                 relative_path = self._store.store(downloaded)
                 if source.name == "actor_mapping":
-                    apply = lambda session, snapshot_id: self._actor_mapping.rebuild_in_session(
-                        session,
-                        downloaded.validation,
+                    apply = lambda session, snapshot_id: (
+                        self._actor_mapping.rebuild_in_session(
+                            session,
+                            downloaded.validation,
+                        )
                     )
                 else:
-                    apply = lambda session, snapshot_id: self._gfriends.rebuild_in_session(
-                        session,
-                        downloaded.validation,
-                        snapshot_id=snapshot_id,
+                    apply = lambda session, snapshot_id: (
+                        self._gfriends.rebuild_in_session(
+                            session,
+                            downloaded.validation,
+                            snapshot_id=snapshot_id,
+                        )
                     )
                 snapshot_id = self.registry.activate(
                     downloaded,

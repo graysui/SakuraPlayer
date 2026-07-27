@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-
 ALL_STAGES = (
     "javdb_core",
     "images",
@@ -62,8 +61,7 @@ def stage_plan(
         raise MetadataStateError("invalid metadata retry mode")
     selected = set(validate_enrichment_stages(requested))
     return {
-        stage: "pending" if stage in selected else "skipped"
-        for stage in ALL_STAGES
+        stage: "pending" if stage in selected else "skipped" for stage in ALL_STAGES
     }
 
 

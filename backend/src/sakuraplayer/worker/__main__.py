@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import os
 import signal
 import socket
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 from threading import Event, Thread
 from typing import Protocol
 
@@ -57,7 +57,6 @@ from sakuraplayer.worker.metadata_supervisor import (
 )
 from sakuraplayer.worker.provider_snapshots import ProviderSnapshotConsumer
 from sakuraplayer.worker.rankings import RankingConsumer
-
 
 PROVIDER_CACHE_DIRECTORY = Path("/var/lib/sakuraplayer/provider-cache")
 IDLE_WAIT_SECONDS = 5.0

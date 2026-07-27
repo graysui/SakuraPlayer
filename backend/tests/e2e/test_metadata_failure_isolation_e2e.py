@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 from pathlib import Path
-import uuid
 
 import pytest
+from conftest import (
+    NOW,
+    E2eContext,
+    app_settings,
+    fake_metadata_client,
+)
 from sqlalchemy import func, select
 
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
@@ -12,14 +18,6 @@ from sakuraplayer.catalog.providers.runtime import build_metadata_stage_executor
 from sakuraplayer.discovery.models import RankingEntry, RankingSnapshot
 from sakuraplayer.resources.models import Movie, ResourceSource
 from sakuraplayer.worker.metadata_child import MetadataChildRunner
-
-from conftest import (
-    NOW,
-    E2eContext,
-    app_settings,
-    fake_metadata_client,
-)
-
 
 pytestmark = pytest.mark.integration
 

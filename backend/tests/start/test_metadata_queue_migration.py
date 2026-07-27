@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -11,7 +10,7 @@ def test_metadata_queue_migration_owns_persistent_jobs_and_stages() -> None:
 
     assert 'revision: str = "0007_metadata_queue"' in source
     assert (
-        'down_revision: Union[str, Sequence[str], None] = '
+        "down_revision: Union[str, Sequence[str], None] = "
         '"0006_movie_source_management"'
     ) in source
     assert '"metadata_job"' in source

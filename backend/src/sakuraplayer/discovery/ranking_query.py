@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import base64
+import json
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import json
 from typing import Any, Protocol
-import uuid
 
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -19,7 +19,6 @@ from sakuraplayer.discovery.models import (
 )
 from sakuraplayer.discovery.ranking_sync import validate_ranking_scope
 from sakuraplayer.resources.models import Movie, ResourceSource
-
 
 _ACTIVE_SOURCE_STATES = ("identified", "manual")
 _CREDENTIAL_STATUSES = {"configured", "not_configured", "invalid"}

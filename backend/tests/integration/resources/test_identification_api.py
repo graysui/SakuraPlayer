@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import base64
-from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -20,7 +20,6 @@ from sakuraplayer.resources.identification_api import IdentificationService
 from sakuraplayer.resources.models import Movie, ResourceSource
 from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -183,17 +182,21 @@ def test_pending_list_requires_auth_and_uses_safe_query_bound_cursor(
         params={"q": "Alpha", "cursor": cursor},
         headers=headers,
     )
-    malformed_payload = base64.urlsafe_b64encode(
-        json.dumps(
-            {
-                "id": 7,
-                "imported_at": NOW.isoformat(),
-                "q": "",
-                "status": "pending",
-                "v": 1,
-            }
-        ).encode("utf-8")
-    ).rstrip(b"=").decode("ascii")
+    malformed_payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "id": 7,
+                    "imported_at": NOW.isoformat(),
+                    "q": "",
+                    "status": "pending",
+                    "v": 1,
+                }
+            ).encode("utf-8")
+        )
+        .rstrip(b"=")
+        .decode("ascii")
+    )
     malformed_cursor = client.get(
         "/api/v1/admin/resources",
         params={"cursor": malformed_payload},

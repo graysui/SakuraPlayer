@@ -29,6 +29,7 @@
 - AC-063 至 AC-068、AC-074 至 AC-078 的同来源筛选、稳定键集游标、Phase 1 空状态端口、搜索队列提升、收藏 Schema、安全 DTO 与集合上限由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，并由 TASK-011 实现。
 - AC-028/AC-029 的搜索字段、键集游标、安全响应和原子手动关联由 [待识别查询与关联确定性](changes/2026-07-25--pending-identification-pagination.md) 冻结，并由 TASK-005 实现。
 - TASK-014 只验证 TASK-001 至 TASK-013 已交付的 Phase 1 后端切片；真实 PostgreSQL、应用服务组合、fixture、600 秒/性能证据复用和 Final runner 边界由 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md) 冻结。其 `ac-mapping` 是验证范围，不转移前序任务实现所有权，也不覆盖 115、客户端或外部门禁。自动证据位于 `test_catalog_metadata_e2e.py`、`test_avdb_idempotency_e2e.py` 和 `test_metadata_failure_isolation_e2e.py`，正式评审结论为 `passed`。
+- TASK-015 不新增或接管产品 AC；其清理清单、锁定静态工具和 OpenAPI/迁移/状态机等价门禁由 [TASK-015 清理范围与等价门禁](changes/2026-07-27--task-015-cleanup-gates.md) 冻结。行为回归继续归属 TASK-001 至 TASK-014 的既有 AC 与完整 Final。
 
 ## 逐条追踪
 

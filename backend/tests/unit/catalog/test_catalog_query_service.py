@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import base64
-from datetime import date, datetime, timezone
 import json
-from pathlib import Path
 import uuid
+from datetime import date, datetime, timezone
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
@@ -29,7 +29,6 @@ from sakuraplayer.catalog.query_service import (
 )
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie, ResourceSource, ResourceSourceLabel
-
 
 NOW = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
 
@@ -477,9 +476,13 @@ def test_publish_cursor_rejects_invalid_date_and_version_types(
         "v": version,
         "website": None,
     }
-    cursor = base64.urlsafe_b64encode(
-        json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    ).rstrip(b"=").decode("ascii")
+    cursor = (
+        base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        )
+        .rstrip(b"=")
+        .decode("ascii")
+    )
 
     with pytest.raises(CatalogProblem, match="validation_failed"):
         service.list_movies(filters=MovieFilters(), cursor=cursor, limit=24)

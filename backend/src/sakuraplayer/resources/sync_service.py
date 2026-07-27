@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import re
+import uuid
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-import re
 from typing import Protocol
-import uuid
 
 from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from sakuraplayer.resources.avdb_release import FetchedAsset, FetchedRelease
 from sakuraplayer.resources.models import AvdbAsset, AvdbSyncRequest, AvdbSyncRun
 from sakuraplayer.shared.redaction import stable_error_code
-
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _EMPTY_STATS = {"inserted": 0, "pending": 0, "skipped": 0, "updated": 0}
@@ -420,10 +419,7 @@ class AvdbSyncService:
                 repository=run.repository,
                 release_id=run.release_id,
                 cursor=dict(run.cursor),
-                stats={
-                    key: int(value)
-                    for key, value in run.stats.items()
-                },
+                stats={key: int(value) for key, value in run.stats.items()},
                 completed_at=run.completed_at,
             )
 
@@ -700,7 +696,8 @@ class AvdbSyncService:
         claim_token: uuid.UUID,
     ) -> None:
         owner = session.scalar(
-            select(AvdbSyncRun.id).where(
+            select(AvdbSyncRun.id)
+            .where(
                 AvdbSyncRun.id == run_id,
                 AvdbSyncRun.status == "running",
                 AvdbSyncRun.claim_token == claim_token,

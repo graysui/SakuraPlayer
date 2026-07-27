@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import uuid
+from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
+from alembic import command
 from sakuraplayer.shared.migration import upgrade_database
 from sakuraplayer.shared.schema_guard import SchemaGuardError, check_schema
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]

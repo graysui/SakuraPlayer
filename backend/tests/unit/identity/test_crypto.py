@@ -37,8 +37,7 @@ def test_encrypts_with_a_random_96_bit_nonce_and_authenticated_context() -> None
     [
         lambda envelope: replace(
             envelope,
-            ciphertext=envelope.ciphertext[:-1]
-            + bytes([envelope.ciphertext[-1] ^ 1]),
+            ciphertext=envelope.ciphertext[:-1] + bytes([envelope.ciphertext[-1] ^ 1]),
         ),
         lambda envelope: replace(envelope, nonce=b"n" * 12),
         lambda envelope: replace(envelope, key_id="retired"),

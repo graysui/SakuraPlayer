@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
 import unicodedata
-
+from dataclasses import dataclass
 
 _WHITESPACE = re.compile(r"\s+")
 
@@ -32,8 +31,7 @@ def require_unchanged_protected(
         _normalize(expected.number) != _normalize(returned.number)
         or _normalize_many(expected.actors) != _normalize_many(returned.actors)
         or _normalize_optional(expected.maker) != _normalize_optional(returned.maker)
-        or _normalize_optional(expected.series)
-        != _normalize_optional(returned.series)
+        or _normalize_optional(expected.series) != _normalize_optional(returned.series)
         or _normalize_many(expected.tags) != _normalize_many(returned.tags)
     ):
         raise TranslationGuardrailError

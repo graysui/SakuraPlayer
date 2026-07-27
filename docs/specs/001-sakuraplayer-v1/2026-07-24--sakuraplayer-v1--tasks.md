@@ -22,7 +22,7 @@
 | 工作流 | 实现任务 | E2E | 清理 | 进入条件 | 索引 |
 |---|---:|---:|---:|---|---|
 | 后端基础与元数据 | 13 | 1 | 1 | 无 | [任务列表](2026-07-24--backend-foundation-metadata--tasks.md) |
-| 115 缓存与播放后端 | 12 | 1 | 1 | TASK-014 完成 | [任务列表](2026-07-24--cloud115-cache-playback--tasks.md) |
+| 115 缓存与播放后端 | 12 | 1 | 1 | TASK-015 完成 | [任务列表](2026-07-24--cloud115-cache-playback--tasks.md) |
 | Windows 客户端 | 12 | 1 | 1 | 后端契约冻结；可用 Fake 115 | [任务列表](2026-07-24--windows-client--tasks.md) |
 | HarmonyOS 客户端 | 11 | 2 | 1 | TASK-213 和 AC-130 完成；TASK-312/AC-131 前置探针通过 | [任务列表](2026-07-24--harmonyos-client--tasks.md) |
 

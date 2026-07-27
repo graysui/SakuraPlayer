@@ -13,7 +13,6 @@ from sakuraplayer.catalog.models import MetadataJob, MetadataQueueState
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
 from sakuraplayer.resources.models import AvdbSyncRun
 
-
 INITIAL_LIMIT = 5_000
 SEED_BATCH_SIZE = 100
 _STATE_LOCK_KEY = 0x53414B5552410008

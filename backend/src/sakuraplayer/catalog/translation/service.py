@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from typing import Protocol
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -37,7 +37,6 @@ from sakuraplayer.catalog.translation.config import (
 )
 from sakuraplayer.catalog.translation.guard import ProtectedFields
 from sakuraplayer.resources.models import Movie
-
 
 _RESERVATION_LEASE = timedelta(seconds=30)
 
@@ -126,8 +125,7 @@ class TranslationService:
             protected = ProtectedFields(
                 number=movie.normalized_number,
                 actors=tuple(
-                    actor.name_ja or actor.name_zh or actor.javdb_id
-                    for actor in actors
+                    actor.name_ja or actor.name_zh or actor.javdb_id for actor in actors
                 ),
                 maker=movie.maker,
                 series=movie.series,
@@ -365,9 +363,7 @@ class TranslationService:
             translated_field = (
                 "title_zh" if item.owner_type == "movie_title" else "description_zh"
             )
-            if (
-                getattr(movie, source_field) == item.source_text
-            ):
+            if getattr(movie, source_field) == item.source_text:
                 setattr(movie, translated_field, translated_text)
                 movie.updated_at = current
             return

@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import uuid
+from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
 import pytest
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
+from alembic import command
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -101,10 +100,13 @@ def test_postgres_upgrades_0010_and_empty_database_to_catalog_discovery(
                 )
             )
         }
-        assert not {
-            "ix_movie_title_original_trgm",
-            "ix_actor_alias_normalized_trgm",
-        } & remaining
+        assert (
+            not {
+                "ix_movie_title_original_trgm",
+                "ix_actor_alias_normalized_trgm",
+            }
+            & remaining
+        )
     engine.dispose()
 
     upgrade_database(database_url, ALEMBIC_INI)

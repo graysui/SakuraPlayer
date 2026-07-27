@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
-import uuid
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -13,7 +13,6 @@ from sakuraplayer.events.models import (
     EventStreamVersion,
 )
 from sakuraplayer.shared.redaction import redact_value, stable_error_code
-
 
 EVENT_RETENTION = timedelta(days=30)
 EVENT_STREAMS = frozenset(

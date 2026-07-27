@@ -3,7 +3,6 @@ from pathlib import Path
 from sakuraplayer.events import models as event_models
 from sakuraplayer.identity.models import Base
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -21,10 +20,7 @@ def test_event_models_are_registered() -> None:
 
 def test_task_013_migration_owns_event_schema() -> None:
     migration = (
-        BACKEND_ROOT
-        / "alembic"
-        / "versions"
-        / "0013_events_settings_diagnostics.py"
+        BACKEND_ROOT / "alembic" / "versions" / "0013_events_settings_diagnostics.py"
     )
 
     assert migration.exists()

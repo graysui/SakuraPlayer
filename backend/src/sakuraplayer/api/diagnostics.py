@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Literal
-import uuid
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -17,7 +17,6 @@ from sakuraplayer.api.settings import (
 )
 from sakuraplayer.catalog.metadata_state import ALL_STAGES
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
-
 
 ComponentName = Literal[
     "api",
@@ -101,9 +100,7 @@ class DiagnosticsService:
                 session.scalars(
                     select(MetadataJob)
                     .where(
-                        MetadataJob.status.in_(
-                            ("failed", "completed_with_warnings")
-                        )
+                        MetadataJob.status.in_(("failed", "completed_with_warnings"))
                     )
                     .order_by(
                         MetadataJob.finished_at.desc(),
@@ -170,8 +167,7 @@ class DiagnosticsService:
                 metadata_running=counts.get("running", 0),
             ),
             recent_failures=[
-                self._failure_output(job, stages_by_job[job.id])
-                for job in failures
+                self._failure_output(job, stages_by_job[job.id]) for job in failures
             ],
             connection_tests=list(self._settings.connection_results().values())[:5],
         )

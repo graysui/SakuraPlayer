@@ -1,22 +1,22 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from hashlib import pbkdf2_hmac, sha256
 import io
 import json
 import os
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from hashlib import pbkdf2_hmac, sha256
 from pathlib import Path
 from typing import Iterator
-import uuid
 from zipfile import ZIP_DEFLATED, ZipFile
 
+import httpx
+import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi.testclient import TestClient
-import httpx
 from PIL import Image
-import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
@@ -48,7 +48,6 @@ from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.resources.sync_service import AvdbSyncService
 from sakuraplayer.shared.config import Settings
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -265,9 +264,7 @@ def fake_metadata_client(*, fail_optional: bool) -> httpx.Client:
             if fail_optional:
                 return httpx.Response(503)
             output = io.BytesIO()
-            Image.new("RGB", (2, 2), color=(120, 30, 60)).save(
-                output, format="PNG"
-            )
+            Image.new("RGB", (2, 2), color=(120, 30, 60)).save(output, format="PNG")
             return httpx.Response(
                 200,
                 headers={"Content-Type": "image/png"},

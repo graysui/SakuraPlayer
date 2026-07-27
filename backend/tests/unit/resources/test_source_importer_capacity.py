@@ -4,7 +4,6 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.resources.sync_service import AvdbSyncService
 
-
 TARGET_RESOURCE_COUNT = 289_858
 
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import uuid
+from datetime import datetime, timedelta, timezone
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -17,7 +17,6 @@ from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.identity.models import Base
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 9, 0, tzinfo=timezone.utc)
 BOOTSTRAP_TOKEN = b"bootstrap-token-with-at-least-32-bytes"
@@ -70,9 +69,7 @@ def test_authenticated_snapshot_is_bounded_and_websocket_resumes() -> None:
                 )
             events = event_log.read_after(None)
 
-            snapshot = client.get(
-                "/api/v1/events/snapshot", headers=headers
-            )
+            snapshot = client.get("/api/v1/events/snapshot", headers=headers)
             assert snapshot.status_code == 200
             assert snapshot.headers["Cache-Control"] == "no-store"
             body = snapshot.json()

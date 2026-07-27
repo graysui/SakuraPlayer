@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import uuid
 from collections import defaultdict
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import datetime, timezone
-import uuid
 
 from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
@@ -12,7 +12,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.catalog.models import Actor, ActorAlias
-
 
 _REQUIRED_ATTRIBUTES = frozenset({"zh_cn", "zh_tw", "jp", "keyword"})
 _OPTIONAL_ATTRIBUTES = frozenset({"tmdb_id", "verified", "bio_graphy"})
@@ -69,7 +68,9 @@ def _parse_entry(element) -> ActorMappingEntry:
     ):
         raise ActorMappingProblem
     values = {key: value.strip() for key, value in element.attrib.items()}
-    if any(not values[key] or len(values[key]) > 255 for key in ("jp", "zh_cn", "zh_tw")):
+    if any(
+        not values[key] or len(values[key]) > 255 for key in ("jp", "zh_cn", "zh_tw")
+    ):
         raise ActorMappingProblem
     if len(values["keyword"]) > 4096 or len(values.get("bio_graphy", "")) > 4096:
         raise ActorMappingProblem
@@ -131,7 +132,9 @@ class ActorMappingReconciler:
         timestamp = current or self._utc_now()
         if timestamp.tzinfo is None:
             raise ValueError("actor mapping clock must be timezone-aware")
-        actors = list(session.scalars(select(Actor).order_by(Actor.id).with_for_update()))
+        actors = list(
+            session.scalars(select(Actor).order_by(Actor.id).with_for_update())
+        )
         aliases = list(session.scalars(select(ActorAlias)))
         identity_index: dict[str, set[uuid.UUID]] = defaultdict(set)
         javdb_aliases: dict[uuid.UUID, set[str]] = defaultdict(set)
@@ -147,7 +150,9 @@ class ActorMappingReconciler:
         entries_by_name: dict[str, list[ActorMappingEntry]] = defaultdict(list)
         for entry in entry_values:
             entries_by_name[normalize_actor_alias(entry.name_ja)].append(entry)
-        candidates_by_actor: dict[uuid.UUID, list[ActorMappingEntry]] = defaultdict(list)
+        candidates_by_actor: dict[uuid.UUID, list[ActorMappingEntry]] = defaultdict(
+            list
+        )
         for normalized_name, grouped in entries_by_name.items():
             actor_ids = identity_index.get(normalized_name, set())
             if len(grouped) == 1 and len(actor_ids) == 1:

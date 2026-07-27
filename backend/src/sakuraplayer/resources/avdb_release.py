@@ -1,26 +1,25 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from hashlib import sha256
 import hmac
 import logging
 import os
-from pathlib import Path
 import re
 import shutil
+import uuid
+from collections.abc import Callable
+from dataclasses import dataclass
+from hashlib import sha256
+from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
-import uuid
 
 import httpx
 
 from sakuraplayer.resources.avdb_crypto import (
-    AvdbAssetError,
     MAX_OUTER_BYTES,
+    AvdbAssetError,
     validate_asset_name,
 )
-
 
 PRIMARY_REPOSITORY = "li-peifeng/AVdb-Only"
 BACKUP_REPOSITORY = "jzdxjk/AVdb-Only"
@@ -241,10 +240,14 @@ class GitHubAvdbReleaseClient:
             if descriptor.logical_name in selected:
                 raise AvdbAssetError()
             selected[descriptor.logical_name] = descriptor
-        required = {"incremental"} if mode == "incremental_30d" else {
-            "sehuatang",
-            "x1080x",
-        }
+        required = (
+            {"incremental"}
+            if mode == "incremental_30d"
+            else {
+                "sehuatang",
+                "x1080x",
+            }
+        )
         if (
             mode not in {"incremental_30d", "full_reconcile"}
             or set(selected) != required
@@ -481,6 +484,7 @@ class GitHubAvdbReleaseClient:
                 )
             os.replace(staging_directory, final_directory)
         except Exception as error:
+            commit_error = error
             if final_directory.exists():
                 try:
                     committed = GitHubAvdbReleaseClient._reuse_committed(
@@ -489,7 +493,7 @@ class GitHubAvdbReleaseClient:
                     )
                 except AvdbAssetError as reuse_error:
                     committed = []
-                    error = reuse_error
+                    commit_error = reuse_error
                 else:
                     GitHubAvdbReleaseClient._cleanup(assets)
                     if staging_directory.exists():
@@ -505,7 +509,7 @@ class GitHubAvdbReleaseClient:
             GitHubAvdbReleaseClient._cleanup(assets)
             if staging_directory.exists():
                 shutil.rmtree(staging_directory)
-            if isinstance(error, AvdbAssetError):
+            if isinstance(commit_error, AvdbAssetError):
                 raise
             raise AvdbAssetError("internal_error") from None
         return FetchedRelease(

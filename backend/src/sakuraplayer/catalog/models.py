@@ -1,29 +1,28 @@
 from __future__ import annotations
 
-from datetime import date, datetime
 import uuid
+from datetime import date, datetime
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     Index,
-    JSON,
     Integer,
     SmallInteger,
     String,
     Text,
     UniqueConstraint,
     Uuid,
-    Boolean,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sakuraplayer.identity.models import Base
-
 
 _JSON_VALUE = JSON(none_as_null=True).with_variant(
     JSONB(none_as_null=True),
@@ -42,8 +41,12 @@ class MetadataQueueState(Base):
     initial_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class MetadataJob(Base):
@@ -67,7 +70,7 @@ class MetadataJob(Base):
             "AND jsonb_typeof(requested_stages) = 'array' "
             "AND jsonb_array_length(requested_stages) > 0 "
             "AND requested_stages <@ "
-            "'[\"images\",\"dmm\",\"actor_map\",\"gfriends\",\"translation\"]'::jsonb "
+            '\'["images","dmm","actor_map","gfriends","translation"]\'::jsonb '
             "AND NOT requested_stages ? 'javdb_core')",
             name="ck_metadata_job_retry_shape",
         ).ddl_if(dialect="postgresql"),
@@ -225,8 +228,12 @@ class Actor(Base):
     bio_zh: Mapped[str | None] = mapped_column(Text)
     bio_zh_source: Mapped[str | None] = mapped_column(String(16))
     gender: Mapped[str] = mapped_column(String(16), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class ActorAlias(Base):
@@ -346,7 +353,9 @@ class CatalogImage(Base):
     relative_path: Mapped[str] = mapped_column(Text, nullable=False)
     sha256: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(16), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 Index("ix_catalog_image_owner", CatalogImage.owner_type, CatalogImage.owner_id)
@@ -359,7 +368,9 @@ class ProviderSnapshotRequest(Base):
             "status IN ('queued', 'claimed', 'completed', 'failed')",
             name="ck_provider_snapshot_request_status",
         ),
-        CheckConstraint("attempt_count >= 0", name="ck_provider_snapshot_request_attempt"),
+        CheckConstraint(
+            "attempt_count >= 0", name="ck_provider_snapshot_request_attempt"
+        ),
         CheckConstraint(
             "(status = 'queued' AND claim_owner IS NULL AND claim_token IS NULL "
             "AND claim_expires_at IS NULL AND completed_at IS NULL "
@@ -391,7 +402,9 @@ class ProviderSnapshotRequest(Base):
     claim_token: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failure_code: Mapped[str | None] = mapped_column(String(128))
 
@@ -424,7 +437,9 @@ class ActorMappingSnapshot(Base):
     byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     relative_path: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
-    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     activated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -468,7 +483,9 @@ class GfriendsSnapshot(Base):
     byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     relative_path: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
-    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     activated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -523,7 +540,9 @@ class GfriendsActorAsset(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
     match_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class TranslationRecord(Base):
@@ -601,8 +620,12 @@ class TranslationRecord(Base):
         DateTime(timezone=True)
     )
     failure_code: Mapped[str | None] = mapped_column(String(128))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 __all__ = [

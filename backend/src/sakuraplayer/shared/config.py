@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import base64
+import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-import os
 from pathlib import Path
-import re
 
 
 class StartupConfigurationError(RuntimeError):
@@ -70,7 +70,9 @@ def _read_secret_text(values: Mapping[str, str], name: str) -> str | None:
         try:
             return Path(file_value).read_text(encoding="ascii").strip()
         except (OSError, UnicodeError):
-            raise StartupConfigurationError(file_name, "secret file is unreadable") from None
+            raise StartupConfigurationError(
+                file_name, "secret file is unreadable"
+            ) from None
     if plain_value is None:
         return None
     return plain_value.strip()
@@ -99,7 +101,9 @@ def _decode_key(
     valid_length = len(decoded) == minimum if exact else len(decoded) >= minimum
     if not valid_length:
         requirement = f"exactly {minimum}" if exact else f"at least {minimum}"
-        raise StartupConfigurationError(name, f"secret must decode to {requirement} bytes")
+        raise StartupConfigurationError(
+            name, f"secret must decode to {requirement} bytes"
+        )
     return decoded, encoded
 
 
@@ -153,7 +157,9 @@ def load_settings(environment: Mapping[str, str] | None = None) -> Settings:
     try:
         api_port = int(raw_port)
     except ValueError:
-        raise StartupConfigurationError("SAKURAPLAYER_API_PORT", "invalid port") from None
+        raise StartupConfigurationError(
+            "SAKURAPLAYER_API_PORT", "invalid port"
+        ) from None
     if not 1 <= api_port <= 65535:
         raise StartupConfigurationError("SAKURAPLAYER_API_PORT", "invalid port")
 

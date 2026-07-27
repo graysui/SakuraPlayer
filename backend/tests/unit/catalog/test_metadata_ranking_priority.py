@@ -1,5 +1,5 @@
-from datetime import date, datetime, timedelta, timezone
 import uuid
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
@@ -8,7 +8,6 @@ from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.models import MetadataJob
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 7, 0, tzinfo=timezone.utc)
 SORT_DATE = date(2026, 7, 25)

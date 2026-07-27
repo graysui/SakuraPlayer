@@ -1,17 +1,17 @@
-from collections.abc import Callable
 import uuid
+from collections.abc import Callable
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from sakuraplayer.api.diagnostics import DiagnosticsService, create_diagnostics_api
+from sakuraplayer.api.settings import SettingsService, create_settings_api
+from sakuraplayer.catalog.api import create_catalog_api
 from sakuraplayer.catalog.metadata_api import (
     MetadataAdminService,
     create_metadata_api,
 )
-from sakuraplayer.api.diagnostics import DiagnosticsService, create_diagnostics_api
-from sakuraplayer.api.settings import SettingsService, create_settings_api
-from sakuraplayer.catalog.api import create_catalog_api
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.discovery.api import create_discovery_api
 from sakuraplayer.discovery.favorites import FavoriteService
@@ -26,11 +26,11 @@ from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.admin_api import (
     create_movie_source_admin_api,
 )
-from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.resources.identification_api import (
     IdentificationService,
     create_identification_api,
 )
+from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.shared.redaction import (
     redact_mapping,
     redact_text,
@@ -90,8 +90,7 @@ def create_app(
         error: RequestValidationError,
     ) -> JSONResponse:
         fields = [
-            ".".join(str(part) for part in item["loc"])
-            for item in error.errors()
+            ".".join(str(part) for part in item["loc"]) for item in error.errors()
         ]
         return JSONResponse(
             {
@@ -123,9 +122,7 @@ def create_app(
         identity_api = create_identity_api(identity_service)
         app.include_router(identity_api.router)
         app.state.current_admin_dependency = identity_api.current_admin_dependency
-        app.state.websocket_admin_dependency = (
-            identity_api.websocket_admin_dependency
-        )
+        app.state.websocket_admin_dependency = identity_api.websocket_admin_dependency
         app.state.access_authenticator = identity_api.access_authenticator
 
         if identification_service is not None:

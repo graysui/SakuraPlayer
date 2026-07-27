@@ -6,8 +6,8 @@ import httpx
 import pytest
 
 from sakuraplayer.catalog.translation.adapter import (
-    MAX_RESPONSE_BYTES,
     MAX_REQUEST_BYTES,
+    MAX_RESPONSE_BYTES,
     PROMPT_VERSION,
     SYSTEM_PROMPT,
     OpenAiTranslationAdapter,
@@ -116,18 +116,53 @@ def test_adapter_uses_frozen_prompt_and_strict_single_field_json() -> None:
     [
         (lambda request: httpx.Response(401), "translation_upstream_error"),
         (timeout_response, "translation_upstream_error"),
-        (lambda request: httpx.Response(200, content=b"not-json"), "translation_guardrail_failed"),
-        (lambda request: httpx.Response(200, json={"choices": []}), "translation_guardrail_failed"),
-        (lambda request: chat_response("not-an-object"), "translation_guardrail_failed"),
-        (lambda request: chat_response(response_content(extra=True)), "translation_guardrail_failed"),
-        (lambda request: chat_response(response_content(translated_text="")), "translation_guardrail_failed"),
-        (lambda request: chat_response(response_content(translated_text="   \t")), "translation_guardrail_failed"),
-        (lambda request: chat_response(response_content(translated_text="x" * 32001)), "translation_guardrail_failed"),
-        (lambda request: chat_response(response_content(protected={"number": "ABP-123"})), "translation_guardrail_failed"),
-        (lambda request: httpx.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1)), "translation_guardrail_failed"),
+        (
+            lambda request: httpx.Response(200, content=b"not-json"),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: httpx.Response(200, json={"choices": []}),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: chat_response("not-an-object"),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: chat_response(response_content(extra=True)),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: chat_response(response_content(translated_text="")),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: chat_response(response_content(translated_text="   \t")),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: chat_response(
+                response_content(translated_text="x" * 32001)
+            ),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: chat_response(
+                response_content(protected={"number": "ABP-123"})
+            ),
+            "translation_guardrail_failed",
+        ),
+        (
+            lambda request: httpx.Response(
+                200, content=b"x" * (MAX_RESPONSE_BYTES + 1)
+            ),
+            "translation_guardrail_failed",
+        ),
     ],
 )
-def test_adapter_maps_http_and_schema_failures_to_stable_codes(handler, code: str) -> None:
+def test_adapter_maps_http_and_schema_failures_to_stable_codes(
+    handler, code: str
+) -> None:
     client = httpx.Client(transport=httpx.MockTransport(handler))
     try:
         with pytest.raises(TranslationAdapterError) as error:

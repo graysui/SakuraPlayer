@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import os
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import Barrier
-import uuid
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -22,11 +22,10 @@ from sakuraplayer.resources.models import (
     ResourceSourceLabel,
     SourceRejection,
 )
-from sakuraplayer.resources.rejection import SourceRejectionService
 from sakuraplayer.resources.movie_source_service import MovieSourceService
+from sakuraplayer.resources.rejection import SourceRejectionService
 from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -133,7 +132,9 @@ def auth_headers(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def test_import_persists_overlapping_labels_and_rejection_blocks_reimport(context) -> None:
+def test_import_persists_overlapping_labels_and_rejection_blocks_reimport(
+    context,
+) -> None:
     _, factory, importer, rejection_service = context
     importer.import_batch(
         "labels.zip",
@@ -147,11 +148,15 @@ def test_import_persists_overlapping_labels_and_rejection_blocks_reimport(contex
 
     with factory() as session:
         labels = {
-            source.external_post_id: {(label.label, label.evidence) for label in session.scalars(
-                select(ResourceSourceLabel).join(ResourceSource).where(
-                    ResourceSource.id == ResourceSourceLabel.source_id
+            source.external_post_id: {
+                (label.label, label.evidence)
+                for label in session.scalars(
+                    select(ResourceSourceLabel)
+                    .join(ResourceSource)
+                    .where(ResourceSource.id == ResourceSourceLabel.source_id)
                 )
-            ) if label.source_id == source.id}
+                if label.source_id == source.id
+            }
             for source in session.scalars(select(ResourceSource))
         }
     assert labels[1] == {("subtitle", "section=中文字幕")}
@@ -159,12 +164,18 @@ def test_import_persists_overlapping_labels_and_rejection_blocks_reimport(contex
     assert labels[3] == {("4k", "section=4K原版"), ("censored", "category=有码")}
     assert labels[4] == set()
 
-    rejection_service.reject(website="sehuatang", external_post_id=1, reason_code="offline_invalid")
-    rejection_service.reject(website="sehuatang", external_post_id=1, reason_code="offline_invalid")
+    rejection_service.reject(
+        website="sehuatang", external_post_id=1, reason_code="offline_invalid"
+    )
+    rejection_service.reject(
+        website="sehuatang", external_post_id=1, reason_code="offline_invalid"
+    )
     stats = importer.import_batch("rejected.zip", (row(1, number="ABP-001"),))
 
     with factory() as session:
-        source = session.scalar(select(ResourceSource).where(ResourceSource.external_post_id == 1))
+        source = session.scalar(
+            select(ResourceSource).where(ResourceSource.external_post_id == 1)
+        )
         rejection = session.scalar(select(SourceRejection))
         rejection_count = session.scalar(select(func.count(SourceRejection.id)))
     assert source is not None and rejection is not None
@@ -183,8 +194,12 @@ def test_admin_merge_and_split_are_transactional_and_safe(context) -> None:
     )
     headers = auth_headers(client)
     with factory() as session:
-        movies = {movie.normalized_number: movie for movie in session.scalars(select(Movie))}
-        first_source = session.scalar(select(ResourceSource).where(ResourceSource.external_post_id == 10))
+        movies = {
+            movie.normalized_number: movie for movie in session.scalars(select(Movie))
+        }
+        first_source = session.scalar(
+            select(ResourceSource).where(ResourceSource.external_post_id == 10)
+        )
     assert first_source is not None
 
     merged = client.post(
@@ -208,7 +223,11 @@ def test_admin_merge_and_split_are_transactional_and_safe(context) -> None:
     assert split.json()["number"] == "IPX-012"
 
     with factory() as session:
-        sources = list(session.scalars(select(ResourceSource).order_by(ResourceSource.external_post_id)))
+        sources = list(
+            session.scalars(
+                select(ResourceSource).order_by(ResourceSource.external_post_id)
+            )
+        )
         movies_after = list(session.scalars(select(Movie)))
     assert len(movies_after) == 2
     assert sources[0].normalized_number == "IPX-012"
@@ -241,7 +260,9 @@ def test_admin_merge_rejects_invalid_or_conflicting_requests(context) -> None:
     assert conflict_split.json()["code"] == "movie_merge_conflict"
 
 
-def test_concurrent_rejection_and_import_never_restore_a_rejected_source(context) -> None:
+def test_concurrent_rejection_and_import_never_restore_a_rejected_source(
+    context,
+) -> None:
     _, factory, importer, rejection_service = context
     importer.import_batch("initial.zip", (row(30, number="ABP-030"),))
     barrier = Barrier(2)
@@ -264,8 +285,12 @@ def test_concurrent_rejection_and_import_never_restore_a_rejected_source(context
         list(executor.map(lambda action: action(), (reject, reimport)))
 
     with factory() as session:
-        source = session.scalar(select(ResourceSource).where(ResourceSource.external_post_id == 30))
-        rejection = session.scalar(select(SourceRejection).where(SourceRejection.external_post_id == 30))
+        source = session.scalar(
+            select(ResourceSource).where(ResourceSource.external_post_id == 30)
+        )
+        rejection = session.scalar(
+            select(SourceRejection).where(SourceRejection.external_post_id == 30)
+        )
     assert source is not None and rejection is not None
     assert source.identification_status == "rejected"
     assert source.magnet_envelope is None

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import timedelta
 import logging
-from pathlib import Path
 import time
 import uuid
+from dataclasses import dataclass
+from datetime import timedelta
+from pathlib import Path
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
@@ -211,10 +211,13 @@ def test_consumer_heartbeats_request_during_slow_release_fetch(tmp_path) -> None
         heartbeat_interval=timedelta(milliseconds=20),
     )
 
-    assert consumer.run_once(
-        worker_id="worker-1",
-        importer=lambda asset_name, rows: BatchStats(inserted=len(rows)),
-    ) == "completed"
+    assert (
+        consumer.run_once(
+            worker_id="worker-1",
+            importer=lambda asset_name, rows: BatchStats(inserted=len(rows)),
+        )
+        == "completed"
+    )
     assert stolen == [None]
     engine.dispose()
 
@@ -234,10 +237,13 @@ def test_consumer_sweeps_only_owned_stale_plaintext_directories(tmp_path) -> Non
         plaintext_directory=tmp_path,
     )
 
-    assert consumer.run_once(
-        worker_id="worker-1",
-        importer=lambda asset_name, rows: BatchStats(),
-    ) == "idle"
+    assert (
+        consumer.run_once(
+            worker_id="worker-1",
+            importer=lambda asset_name, rows: BatchStats(),
+        )
+        == "idle"
+    )
     assert not stale.exists()
     assert unrelated.exists()
     engine.dispose()
@@ -249,9 +255,7 @@ def test_consumer_does_not_sweep_another_active_claim_directory(tmp_path) -> Non
     queue.enqueue("incremental_30d")
     claim = queue.claim_next("worker-1", lease_duration=timedelta(minutes=5))
     assert claim is not None
-    active = tmp_path / (
-        f".avdb-plaintext-{claim.request_id}-{claim.claim_token.hex}"
-    )
+    active = tmp_path / (f".avdb-plaintext-{claim.request_id}-{claim.claim_token.hex}")
     active.mkdir()
     (active / "fixture.inner.zip").write_bytes(b"active plaintext")
     consumer = AvdbWorkerConsumer(
@@ -262,10 +266,13 @@ def test_consumer_does_not_sweep_another_active_claim_directory(tmp_path) -> Non
         plaintext_directory=tmp_path,
     )
 
-    assert consumer.run_once(
-        worker_id="worker-2",
-        importer=lambda asset_name, rows: BatchStats(inserted=len(rows)),
-    ) == "idle"
+    assert (
+        consumer.run_once(
+            worker_id="worker-2",
+            importer=lambda asset_name, rows: BatchStats(inserted=len(rows)),
+        )
+        == "idle"
+    )
     assert active.exists()
     engine.dispose()
 
@@ -291,10 +298,13 @@ def test_consumer_rejects_symlink_plaintext_root_before_release_fetch(tmp_path) 
         plaintext_directory=plaintext_root,
     )
 
-    assert consumer.run_once(
-        worker_id="worker-1",
-        importer=lambda asset_name, rows: BatchStats(),
-    ) == "failed"
+    assert (
+        consumer.run_once(
+            worker_id="worker-1",
+            importer=lambda asset_name, rows: BatchStats(),
+        )
+        == "failed"
+    )
     assert list(outside.iterdir()) == []
     with factory() as session:
         saved = session.get(AvdbSyncRequest, request.request_id)

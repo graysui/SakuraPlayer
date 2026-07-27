@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date, timedelta
-import uuid
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -133,9 +133,7 @@ class InitialScopeSelector:
             candidates.c.publish_date,
         )
         if exclude_movie_ids is not None:
-            statement = statement.where(
-                candidates.c.movie_id.not_in(exclude_movie_ids)
-            )
+            statement = statement.where(candidates.c.movie_id.not_in(exclude_movie_ids))
         statement = statement.order_by(
             candidates.c.publish_date.desc().nulls_last(),
             candidates.c.normalized_number.asc(),

@@ -32,7 +32,7 @@
 | [TASK-012](tasks/TASK-012.md) | JavDB 排行榜快照 | 日/周/月/TOP250/年份 | TASK-007,TASK-008,TASK-011 | 是 | 是 |
 | [TASK-013](tasks/TASK-013.md) | 管理设置、诊断与持久事件 | 设置、任务管理、有界 REST snapshot/WS | TASK-002,TASK-003,TASK-007,TASK-011,TASK-012 | 是 | 否 |
 | [TASK-014](tasks/TASK-014.md) | 后端基础与元数据 E2E | Phase 1 全链路和 `[SEF]` 故障隔离 | TASK-001..013 | 是 | 是 |
-| [TASK-015](tasks/TASK-015.md) | 后端基础与元数据清理 | specs-code-cleanup | TASK-014 | 否 | 否 |
+| [TASK-015](tasks/TASK-015.md) | 后端基础与元数据清理 | 固定 Git 清单、锁定静态工具与等价基线 | TASK-014 | 否 | 否 |
 
 ## 数量检查
 
@@ -42,4 +42,4 @@
 
 ## 文件冲突结论
 
-TASK-001 创建所有模块的空 composition skeleton；TASK-002 至 TASK-012 填充各自模块和独立测试路径。TASK-013 负责事件网关和管理聚合，并只通过显式 `DomainEventWriter` 端口接入既有元数据事务，不改变其状态机语义。TASK-014 新增 E2E/fixture，并只修改 Final runner、测试说明和验证契约，不修改产品行为、Schema 或公开 API。
+TASK-001 创建所有模块的空 composition skeleton；TASK-002 至 TASK-012 填充各自模块和独立测试路径。TASK-013 负责事件网关和管理聚合，并只通过显式 `DomainEventWriter` 端口接入既有元数据事务，不改变其状态机语义。TASK-014 新增 E2E/fixture，并只修改 Final runner、测试说明和验证契约，不修改产品行为、Schema 或公开 API。TASK-015 按固定 Git 区间重建 Python 清理清单，并以锁定工具和清理前后等价基线约束机械卫生修改。

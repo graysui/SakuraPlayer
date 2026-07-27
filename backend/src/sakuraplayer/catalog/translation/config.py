@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
-
 
 _CONFIGURATION_KEY = "ai.configuration"
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from typing import Protocol
-import uuid
 
 from sakuraplayer.catalog.query_service import (
     ActorSummaryView,

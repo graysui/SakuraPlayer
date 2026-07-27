@@ -2,6 +2,10 @@
 
 The repository uses three verification levels. Focused and Fast shorten feedback; only Final is completion evidence for a backend task.
 
+The Python 3.10.16 test image also locks Ruff 0.16.0 and mypy 2.3.0. Run
+quality checks through that image so host Python and globally installed tools do not affect
+the result.
+
 | Level | Purpose | Current entry point |
 |---|---|---|
 | Focused | One behavior or implementation batch | Reused test image with the current repository mounted read-only |
@@ -31,6 +35,49 @@ docker run --rm `
 The mount is the source of truth. Do not use an old image without the mount for source-only verification, because it may execute the image's stale copy of `src`, tests, migrations, or documentation.
 
 ## Fast
+
+For TASK-015, capture the read-only interface baseline before cleanup and compare it after
+Fast and audit convergence. The files under `.planning/` are local evidence and are never
+committed:
+
+```powershell
+$repoRoot = (Resolve-Path .).Path
+docker run --rm `
+  --mount "type=bind,source=$repoRoot,target=/workspace,readonly" `
+  --mount "type=bind,source=$repoRoot/.planning,target=/workspace/.planning" `
+  --workdir /workspace/backend `
+  --entrypoint python `
+  sakuraplayer-test `
+  tests/quality/task015_cleanup_gate.py capture `
+  /workspace/.planning/TASK-015/cleanup-baseline-before.json
+```
+
+The writable `.planning` overlay is only for local generated evidence; the repository
+itself remains read-only. The same script provides `manifest` and
+`compare <before> <after>` commands. Its capture
+contains the actual composed FastAPI OpenAPI, all migration file digests, SQLAlchemy check
+constraints, and metadata stage/priority definitions.
+
+Run the locked static gates from the same image and read-only mount:
+
+```powershell
+docker run --rm `
+  --mount "type=bind,source=$repoRoot,target=/workspace,readonly" `
+  --workdir /workspace/backend `
+  --entrypoint ruff `
+  sakuraplayer-test format --no-cache --check src tests alembic/env.py
+
+docker run --rm `
+  --mount "type=bind,source=$repoRoot,target=/workspace,readonly" `
+  --workdir /workspace/backend `
+  --entrypoint ruff `
+  sakuraplayer-test check --no-cache src tests alembic/env.py
+```
+
+TASK-015 uses a gradual mypy gate for production files that receive semantic cleanup;
+the exact file list is recorded in the task. Formatting and import sorting alone do not
+expand that list. Use `--cache-dir=/tmp/task015-mypy-cache` because the repository mount
+is read-only.
 
 Run the broad self-contained suite from the same mounted image:
 

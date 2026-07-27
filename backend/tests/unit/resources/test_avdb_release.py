@@ -6,10 +6,9 @@ from pathlib import Path
 import httpx
 import pytest
 
-from sakuraplayer.resources.avdb_crypto import AvdbAssetError
 import sakuraplayer.resources.avdb_release as release_module
+from sakuraplayer.resources.avdb_crypto import AvdbAssetError
 from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
-
 
 PRIMARY = "li-peifeng/AVdb-Only"
 BACKUP = "jzdxjk/AVdb-Only"

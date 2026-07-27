@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
@@ -12,7 +12,6 @@ from sakuraplayer.events.models import DomainEvent
 from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie
-
 
 NOW = datetime(2026, 7, 26, 9, 0, tzinfo=timezone.utc)
 

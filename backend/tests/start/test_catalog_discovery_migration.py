@@ -3,7 +3,6 @@ from pathlib import Path
 from sakuraplayer.discovery import models as discovery_models
 from sakuraplayer.identity.models import Base
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -19,11 +18,10 @@ def test_catalog_discovery_migration_owns_search_and_favorite_schema() -> None:
     source = migration.read_text(encoding="utf-8")
     assert 'revision: str = "0011_catalog_discovery"' in source
     assert (
-        'down_revision: Union[str, Sequence[str], None] = "0010_translation"'
-        in source
+        'down_revision: Union[str, Sequence[str], None] = "0010_translation"' in source
     )
     for expected in (
-        'CREATE EXTENSION IF NOT EXISTS pg_trgm',
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm",
         '"favorite"',
         "uq_favorite_target",
         "ix_movie_title_original_trgm",

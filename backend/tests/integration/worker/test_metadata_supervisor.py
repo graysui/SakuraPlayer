@@ -1,31 +1,30 @@
 from __future__ import annotations
 
+import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-import os
 from pathlib import Path
 from threading import Barrier, BrokenBarrierError
-import uuid
 
 import pytest
 from sqlalchemy import create_engine, func, inspect, select, text, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
+from sakuraplayer.catalog import metadata_seeder as metadata_seeder_module
 from sakuraplayer.catalog.metadata_queue import (
     MetadataQueue,
     MetadataQueueProblem,
 )
-from sakuraplayer.catalog import metadata_seeder as metadata_seeder_module
 from sakuraplayer.catalog.metadata_seeder import MetadataQueueSeeder, SeedOutcome
 from sakuraplayer.catalog.models import MetadataJob, MetadataQueueState, MetadataStage
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
 from sakuraplayer.resources.models import Movie, ResourceSource
 from sakuraplayer.shared.migration import upgrade_database
 from sakuraplayer.worker.metadata_supervisor import MetadataSupervisor
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -87,7 +86,9 @@ class RecordingLauncher:
 
 
 class QueueProbe:
-    def __init__(self, delegate: MetadataQueue, *, barrier: Barrier | None = None) -> None:
+    def __init__(
+        self, delegate: MetadataQueue, *, barrier: Barrier | None = None
+    ) -> None:
         self.delegate = delegate
         self.barrier = barrier
         self.calls: list[uuid.UUID] = []
@@ -159,7 +160,9 @@ def add_movie(factory: sessionmaker, number: str) -> Movie:
     return movie
 
 
-def add_source(factory: sessionmaker, movie: Movie, tid: int, publish_date: date) -> None:
+def add_source(
+    factory: sessionmaker, movie: Movie, tid: int, publish_date: date
+) -> None:
     with factory.begin() as session:
         session.add(
             ResourceSource(
@@ -223,9 +226,7 @@ def test_migration_creates_metadata_constraints_and_indexes(queue_context) -> No
     _, _, _, engine = queue_context
     with engine.connect() as connection:
         inspector = inspect(connection)
-        assert {"metadata_job", "metadata_stage"}.issubset(
-            inspector.get_table_names()
-        )
+        assert {"metadata_job", "metadata_stage"}.issubset(inspector.get_table_names())
         indexes = {item["name"]: item for item in inspector.get_indexes("metadata_job")}
         assert indexes["uq_metadata_job_active_number"]["unique"] is True
         assert "ix_metadata_job_claim" in indexes
@@ -396,11 +397,14 @@ def test_priority_date_order_and_fixed_database_slots(queue_context) -> None:
     ]
     assert claims[3] is None
     with factory() as session:
-        assert list(
-            session.scalars(
-                select(MetadataJob.status).order_by(MetadataJob.normalized_number)
-            )
-        ).count("running") == 3
+        assert (
+            list(
+                session.scalars(
+                    select(MetadataJob.status).order_by(MetadataJob.normalized_number)
+                )
+            ).count("running")
+            == 3
+        )
     assert all(outcome.created for outcome in outcomes)
 
 
@@ -550,9 +554,7 @@ def test_failed_job_only_retries_through_explicit_new_attempt(queue_context) -> 
     assert retry.created is True
     with factory() as session:
         jobs = list(
-            session.scalars(
-                select(MetadataJob).order_by(MetadataJob.attempt_no)
-            )
+            session.scalars(select(MetadataJob).order_by(MetadataJob.attempt_no))
         )
     assert [(job.status, job.attempt_no) for job in jobs] == [
         ("failed", 1),

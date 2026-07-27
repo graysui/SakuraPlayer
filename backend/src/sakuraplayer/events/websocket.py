@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
-import uuid
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ConfigDict

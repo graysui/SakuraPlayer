@@ -31,7 +31,6 @@ from sakuraplayer.identity.secrets import (
 from sakuraplayer.resources.models import AvdbSyncRequest, AvdbSyncRun
 from sakuraplayer.shared.redaction import stable_error_code
 
-
 ConnectionTarget = Literal["cloud115", "javdb", "dmm", "gfriends", "ai"]
 ConnectionStatus = Literal[
     "available", "unavailable", "credentials_invalid", "not_configured"
@@ -243,9 +242,7 @@ class SettingsService:
         if "javdb" in command.model_fields_set:
             assert command.javdb is not None
             if isinstance(command.javdb, SettingClearInput):
-                self._javdb_store.clear(
-                    expected_version=command.javdb.expected_version
-                )
+                self._javdb_store.clear(expected_version=command.javdb.expected_version)
             else:
                 self._javdb_store.save(
                     JavdbCredentials(command.javdb.username, command.javdb.password),
@@ -287,7 +284,8 @@ class SettingsService:
                     code = stable_error_code(getattr(error, "code", None))
                     result = ProbeResult(
                         "credentials_invalid"
-                        if code in {
+                        if code
+                        in {
                             "javdb_credentials_invalid",
                             "cloud115_credentials_expired",
                         }
@@ -358,7 +356,9 @@ class SettingsService:
             version=(
                 snapshot.version
                 if snapshot is not None
-                else status.version if status is not None else 0
+                else status.version
+                if status is not None
+                else 0
             ),
         )
 
@@ -392,7 +392,9 @@ class SettingsService:
             version=(
                 snapshot.version
                 if snapshot is not None
-                else status.version if status is not None else 0
+                else status.version
+                if status is not None
+                else 0
             ),
         )
 

@@ -1,6 +1,6 @@
-from pathlib import Path
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -21,10 +21,7 @@ from sakuraplayer.catalog.models import (
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources import models as resource_models
 
-
-FIXTURE = (
-    Path(__file__).resolve().parents[2] / "fixtures" / "catalog" / "gfriends.json"
-)
+FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "catalog" / "gfriends.json"
 
 
 def test_gfriends_parses_fixed_content_urls_without_downloading_images() -> None:
@@ -69,9 +66,7 @@ def test_gfriends_parses_fixed_content_urls_without_downloading_images() -> None
 )
 def test_gfriends_rejects_unsafe_content_value(value: str) -> None:
     payload = (
-        '{"Content":{"source":{"Actor.jpg":'
-        + repr(value).replace("'", '"')
-        + "}}}"
+        '{"Content":{"source":{"Actor.jpg":' + repr(value).replace("'", '"') + "}}}"
     ).encode()
 
     with pytest.raises(GfriendsProblem) as caught:

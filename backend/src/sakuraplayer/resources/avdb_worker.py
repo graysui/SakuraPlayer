@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import timedelta
 import logging
-from pathlib import Path
 import re
 import shutil
 import threading
-from typing import Protocol
 import uuid
+from datetime import timedelta
+from pathlib import Path
+from typing import Protocol
 
 from sakuraplayer.resources.avdb_crypto import AvdbAssetError, decrypt_asset_file
 from sakuraplayer.resources.avdb_release import FetchedRelease
@@ -18,7 +18,6 @@ from sakuraplayer.resources.sync_service import (
     Importer,
 )
 from sakuraplayer.shared.redaction import stable_error_code
-
 
 _LOGGER = logging.getLogger(__name__)
 _MANAGED_PLAINTEXT_DIRECTORY = re.compile(

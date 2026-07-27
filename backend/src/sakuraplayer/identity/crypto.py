@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass, field
 import re
 import secrets
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from cryptography.exceptions import InvalidTag
@@ -51,8 +51,7 @@ class InMemorySecretKeyProvider:
     def __init__(self, *, active_key_id: str, keys: Mapping[str, bytes]) -> None:
         self._active_key_id = _validate_key_id(active_key_id)
         self._keys = {
-            _validate_key_id(key_id): _validate_key(key)
-            for key_id, key in keys.items()
+            _validate_key_id(key_id): _validate_key(key) for key_id, key in keys.items()
         }
         if self._active_key_id not in self._keys:
             raise SecretKeyConfigurationError("active key id is not configured")

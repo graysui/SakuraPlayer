@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, timezone
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from sakuraplayer.discovery.ranking_sync import RankingClaim
 from sakuraplayer.worker.rankings import RankingConsumer

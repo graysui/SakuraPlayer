@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 
+from alembic import command
+from sakuraplayer.shared.config import load_settings
+from sakuraplayer.shared.runtime import guarded_main
 from sakuraplayer.shared.schema_guard import (
     _load_revision_graph,
     inspect_schema,
     validate_schema_for_migration,
 )
-from sakuraplayer.shared.config import load_settings
-from sakuraplayer.shared.runtime import guarded_main
 
 
 def upgrade_database(database_url: str, alembic_ini: str | Path) -> None:

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
-import uuid
 
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
@@ -17,7 +17,6 @@ from sakuraplayer.discovery.models import (
 )
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.redaction import stable_error_code
-
 
 RANKING_BOARDS = ("daily", "weekly", "monthly", "top250")
 TOP250_START_YEAR = 2008
@@ -400,8 +399,10 @@ def validate_ranking_scope(
         raise ValueError("invalid ranking scope")
     if board != "top250" and year is not None:
         raise ValueError("invalid ranking scope")
-    if board == "top250" and year is not None and not (
-        TOP250_START_YEAR <= year <= current_year
+    if (
+        board == "top250"
+        and year is not None
+        and not (TOP250_START_YEAR <= year <= current_year)
     ):
         raise ValueError("invalid ranking scope")
 

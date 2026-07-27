@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
 import os
-from pathlib import Path
 import uuid
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
@@ -18,7 +18,6 @@ from sakuraplayer.catalog.models import MetadataJob
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.migration import upgrade_database
-
 
 pytestmark = pytest.mark.integration
 BACKEND_ROOT = Path(__file__).resolve().parents[3]

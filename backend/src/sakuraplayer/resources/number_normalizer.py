@@ -3,10 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-
-_FC2_NUMBER = re.compile(
-    r"^FC2[\s._/-]*(?:PPV[\s._/-]*)?(?P<number>[0-9]{5,10})$"
-)
+_FC2_NUMBER = re.compile(r"^FC2[\s._/-]*(?:PPV[\s._/-]*)?(?P<number>[0-9]{5,10})$")
 _SEPARATED_STANDARD_NUMBER = re.compile(
     r"^(?P<prefix>[A-Z][A-Z0-9]{1,15})[\s._/-]+(?P<number>[0-9]{2,10})$"
 )
