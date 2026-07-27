@@ -2,11 +2,15 @@
 
 SakuraPlayer is distributed under GPL-3.0-only. Binary distributions must include the applicable license text, this notice, and the source notices for reused code.
 
-## Current Sources
+## Cloud115 protocol adapter
 
-No source code has been copied from the `avmedia/sakuramediabe` reference project through TASK-008.
+TASK-101 adapts selected protocol behavior and the downurl RSA/XOR helpers from
+`sakuramediabe`, available at <https://github.com/tinypinglite/sakuramediabe.git>, fixed
+at revision `670ca75b2d35b606ffc0caa6fd47fd04c4c95870` under GPL-3.0-only. Consulted files are
+`src/lib/cloud115/qrlogin.py`, `client.py`, `types.py`, `exceptions.py`, and `cipher.py`.
 
-Future tasks that copy or adapt source must record the component, upstream source URL, upstream revision, files used, and license before the code is committed.
+The exact retained symbols and explicitly excluded upload/copy/media-library code are
+listed in `backend/src/sakuraplayer/cloud_cache/infrastructure/cloud115/NOTICE.md`.
 
 ## Pillow
 

@@ -41,9 +41,11 @@ packages = ["src/sakuraplayer"]
 addopts = "-ra --strict-markers"
 pythonpath = ["src"]
 testpaths = ["tests"]
+norecursedirs = ["tests/real115"]
 markers = [
   "host_docker: requires the host Docker CLI",
   "integration: requires the isolated PostgreSQL test container",
+  "real115: requires explicit real 115 credentials and an application-managed test root",
 ]
 
 [tool.ruff]

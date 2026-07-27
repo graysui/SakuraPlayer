@@ -102,7 +102,14 @@
 | 422 | `cloud115_credentials_expired` | 明确提示重新扫码，不当作播放失败 |
 | 503 | `cloud115_unavailable` | 上游暂不可用，不把 Cookie 标过期 |
 | 429 | `cloud115_rate_limited` | 服从 `Retry-After` |
+| 502 | `cloud115_protocol_error` | 上游返回未知状态、非法字段/errno 或密文无法解码；停止自动操作并保留安全诊断 |
 | 404 | `cloud115_directory_not_found` | 根或任务目录不存在 |
+| 409 | `cloud115_directory_ambiguous` | 同一父目录存在多个受管同名目录；禁止任选或删除，等待管理员处理 |
+| 422 | `cloud115_offline_invalid` | 115 明确拒绝离线载荷；不得把磁力写入错误 details |
+| 409 | `cloud115_offline_quota_exceeded` | 115 月度离线配额不足；不自动重试 |
+| 404 | `cloud115_offline_task_not_found` | 远端离线任务明确不存在；调用方按本地状态决定幂等收敛 |
+| 404 | `cloud115_file_not_found` | 115 文件明确不存在；不得由 transport failure 推断 |
+| 413 | `cloud115_small_file_too_large` | 小文件超过调用方字节上限；不继续读取 |
 | 409 | `cloud115_rebind_has_active_jobs` | 有活动任务时禁止重绑 |
 | 409 | `cache_queue_full` | 固定 10 个排队任务已满，提示切换已缓存资源或稍后再试 |
 | 404 | `cache_job_not_found` | 缓存任务不存在 |

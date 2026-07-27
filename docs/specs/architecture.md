@@ -2,7 +2,7 @@
 
 **创建日期**: 2026-07-24
 
-**最后更新**: 2026-07-24
+**最后更新**: 2026-07-27
 
 **状态**: Frozen for v1
 
@@ -327,13 +327,18 @@ contracts/
 
 ### 3.8 已批准的参考代码接口
 
-以下接口来自 `avmedia/sakuramediabe/src/lib/cloud115`，允许在保留 GPLv3 来源说明后移植。实现任务必须先用真实协议测试验证签名；不得凭名称猜测行为。
+以下接口来自 `avmedia/sakuramediabe/src/lib/cloud115` 固定 revision `670ca75b2d35b606ffc0caa6fd47fd04c4c95870`，允许在保留 GPLv3 来源说明后选择性适配。实现任务先核对固定 revision、历史真实证据和无网络 fixture；当前真实调用必须通过显式 `real115` 门禁，发布级真实门禁由 TASK-213 负责。不得凭名称猜测行为或整文件复制。
 
 | 接口 | 已核验签名 | 用途 |
 |---|---|---|
+| `Cloud115QrLogin.get_token` | `async () -> QrCodeToken` | 创建扫码 token |
+| `Cloud115QrLogin.get_qrcode_image` | `async (uid) -> bytes` | 获取扫码 PNG |
+| `Cloud115QrLogin.get_qrcode_status` | `async (token) -> QrStatus` | 长轮询扫码状态 |
+| `Cloud115QrLogin.fetch_result` | `async (uid, app='alipaymini') -> QrLoginResult` | 扫码完成后换取 Cookie snapshot |
 | `Cloud115Client.probe_cookies_status` | `async () -> Cloud115CookieStatus` | 区分有效、过期、上游不可用 |
-| `Cloud115Client.snapshot_cookies` | `() -> str` | 持久化 `Set-Cookie` 合并结果 |
+| `Cloud115Client.snapshot_cookies` | `() -> str` | 导出 `Set-Cookie` 合并结果供 TASK-102 CAS |
 | `Cloud115Client.list_dir` | `async (cid, offset=0, limit=1000) -> (entries,total)` | 确认目录和分页枚举 |
+| `Cloud115Client.dir_info` | `async (cid) -> DirMeta` | 目录自身、父 CID 和路径自查 |
 | `Cloud115Client.mkdir` | `async (pid, name) -> str` | 创建专属根目录与任务目录 |
 | `Cloud115Client.iter_files_recursive` | `async (cid, page_size=1000) -> AsyncIterator[DirEntry]` | 离线完成后递归解析文件 |
 | `Cloud115Client.add_offline_urls` | `async (urls, save_dir_id) -> list[OfflineTaskAddResult]` | 用户点击后提交离线 |
@@ -343,7 +348,6 @@ contracts/
 | `Cloud115Client.get_video_info` | `async (pickcode) -> VideoInfo` | HLS master 与清晰度列表 |
 | `Cloud115Client.download_bytes` | `async (pickcode, user_agent, max_bytes) -> bytes` | 有上限地下载字幕 |
 | `Cloud115Client.delete_files` | `async (fids, pid=None) -> None` | 通过安全清理器删除受管目录内容 |
-| `Cloud115QrLogin.fetch_result` | `async (uid, app='alipaymini') -> QrLoginResult` | 扫码完成后换取 Cookie |
 
 关键限制：获取直链或 HLS 时使用的 User-Agent 必须与播放器后续请求一致；同一原画 URL 的并发 Range 应保持接近 1，禁止突发 5 个以上请求。
 

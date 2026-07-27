@@ -42,7 +42,7 @@ provides: [single 115 binding, QR API, cookie CAS, SakuraPlayer-Cache root]
 ## 技术上下文
 
 - 重新绑定前检查活动缓存任务；旧账号任务不能用新 Cookie 清理。
-- Cookie client context 退出时 snapshot CAS；CAS 丢失直接丢弃旧快照。
+- TASK-101 适配器只返回 snapshot；本任务在应用/仓储事务中使用起始 credential_version 加密 CAS，CAS 丢失直接丢弃旧快照。
 - 根目录只通过持久 CID 使用，不按名称全盘扫描。
 
 ## 实现文件（仅文件名）

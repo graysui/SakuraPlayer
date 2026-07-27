@@ -1,6 +1,9 @@
 *
 !backend/
 !backend/**
+!docs/
+!docs/specs/
+!docs/specs/**
 !LICENSE
 !THIRD_PARTY_NOTICES.md
 backend/secrets/

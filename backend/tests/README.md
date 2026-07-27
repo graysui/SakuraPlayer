@@ -123,6 +123,21 @@ Run complete Compose at most once per Final attempt. If it fails, leave Final, f
 
 Final does not access real 115, JavDB writes, or paid AI. Those remain explicit gates in their designated E2E tasks.
 
+## Real 115 protocol probes
+
+TASK-101 fixture tests live under `tests/unit/cloud115` and are always part of the normal
+self-contained Fast/Final collection. Real 115 probes live under `tests/real115`, which is
+excluded by `norecursedirs` and marked `real115`. They may only be invoked with that path
+explicitly when all of these external values are present:
+
+- `SAKURAPLAYER_RUN_REAL115=1`
+- `SAKURAPLAYER_115_COOKIE` supplied outside Git and ordinary logs
+- `SAKURAPLAYER_115_TEST_ROOT_CID` identifying an application-managed test root
+
+The probe must validate that every cleanup target is below that managed root before any
+delete request. Ordinary pytest, Fast, and no-argument Compose Final never collect this
+directory. TASK-213 owns release-level real 115 evidence.
+
 ## Planned runner optimization
 
 When the test infrastructure is changed, it must preserve these contracts:

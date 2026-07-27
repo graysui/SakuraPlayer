@@ -42,7 +42,8 @@ provides: [cache worker claim, offline submit reconcile poll cancel]
 ## 技术上下文
 
 - worker `SKIP LOCKED` 领取，创建随机任务子目录后才解密 source 磁力提交。
-- 远端 info_hash 与 CacheJob ID 分开保存。
+- 远端 `info_hash` 与 CacheJob ID 分开保存；对账只使用类型化 `OfflineTaskPage`，不得依赖磁力/source URL 或 raw response。
+- 取消固定 `delete_source_files=False`；not-found、invalid、quota、rate-limit、unavailable 与 submit-uncertain 按 Cloud115Port 稳定错误分别处理。
 - 取消流程进入 cancelling，只有远端取消/安全清理确认后终结。
 
 ## 实现文件（仅文件名）

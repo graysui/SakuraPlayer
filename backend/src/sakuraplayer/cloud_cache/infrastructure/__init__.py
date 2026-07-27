@@ -1,0 +1,1 @@
+"""Cloud cache infrastructure adapters."""

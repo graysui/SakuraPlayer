@@ -10,7 +10,7 @@
 
 ## 代码库分析摘要
 
-- 可移植参考项目的 Cloud115 SDK、扫码、Cookie CAS、原画/HLS 和小文件下载原语。
+- 可按固定 revision 和符号允许清单适配参考项目的 Cloud115 扫码、Cookie snapshot、目录、离线、原画/HLS 和小文件下载原语；TASK-102 才拥有数据库 CAS。
 - 必须删除旧 MediaLibrary 永久库语义，改为单绑定、单专属缓存根和每任务目录。
 - 资源拒绝、事件发布通过后端基础工作流发布的应用端口调用，不直接跨上下文改表。
 
@@ -18,7 +18,7 @@
 
 | ID | 标题 | 主要焦点 | 依赖 | 跨边界 | 外部风险 |
 |---|---|---|---|---|---|
-| [TASK-101](tasks/TASK-101.md) | Cloud115Port、适配器与 Fake | 协议类型、错误、fixture、来源声明 | TASK-015 | 否 | 是 |
+| [TASK-101](tasks/TASK-101.md) | Cloud115Port、适配器与 Fake | 精确 Protocol/DTO、snapshot、错误、fixture、来源声明 | TASK-015 | 否 | 是 |
 | [TASK-102](tasks/TASK-102.md) | 扫码绑定、Cookie CAS 与缓存根 | 单账号、加密回写、`SakuraPlayer-Cache` | TASK-101 | 否 | 是 |
 | [TASK-103](tasks/TASK-103.md) | 缓存任务状态机与 2/10 容量 | Schema、幂等、事务 claim | TASK-102 | 否 | 否 |
 | [TASK-104](tasks/TASK-104.md) | 离线提交、对账、取消与等待语义 | 用户触发、60 秒、后台继续 | TASK-103 | 否 | 是 |
@@ -41,4 +41,4 @@
 
 ## 文件冲突结论
 
-Cloud115 适配器只由 TASK-101/TASK-102 按职责分文件；缓存状态、执行器、解析、清理、播放、字幕、进度和事件分别拥有独立模块文件。TASK-106 只调用 `SourceRejectionPort`，不修改资源接入表实现。
+Cloud115 协议适配器只由 TASK-101 拥有，TASK-102 只编排扫码、加密绑定和 snapshot CAS；缓存状态、执行器、解析、清理、播放、字幕、进度和事件分别拥有独立模块文件。TASK-106 只调用 `SourceRejectionPort`，不修改资源接入表实现。
