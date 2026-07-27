@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from sakuraplayer.api.app import create_app
 from sakuraplayer.api.diagnostics import DiagnosticsService
 from sakuraplayer.api.settings import ProbeResult, SettingsService
+from sakuraplayer.catalog.cache_availability import CacheSourceAvailabilityPort
 from sakuraplayer.catalog.metadata_api import MetadataAdminService
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.providers.javdb import (
@@ -22,7 +23,9 @@ from sakuraplayer.catalog.providers.javdb import (
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
 from sakuraplayer.cloud_cache.binding_service import BindingService
+from sakuraplayer.cloud_cache.capacity import active_cache_jobs
 from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
+from sakuraplayer.cloud_cache.play_request import PlayRequestService
 from sakuraplayer.cloud_cache.qr_service import QrSessionService
 from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.ranking_query import RankingQueryService
@@ -34,6 +37,7 @@ from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.identification_api import IdentificationService
 from sakuraplayer.resources.movie_source_service import MovieSourceService
+from sakuraplayer.resources.source_submission import SourceSubmissionService
 from sakuraplayer.shared.config import StartupConfigurationError, load_settings
 from sakuraplayer.shared.runtime import (
     configure_component_logging,
@@ -71,15 +75,13 @@ def main() -> None:
         token_key=settings.token_key,
         bootstrap_token=settings.bootstrap_token,
     )
-    secret_repository = EncryptedSettingRepository(
-        factory,
-        SecretCipher(
-            SettingsSecretKeyProvider(
-                key_id=settings.settings_key_id,
-                key=settings.settings_key,
-            )
-        ),
+    secret_cipher = SecretCipher(
+        SettingsSecretKeyProvider(
+            key_id=settings.settings_key_id,
+            key=settings.settings_key,
+        )
     )
+    secret_repository = EncryptedSettingRepository(factory, secret_cipher)
     event_writer = DomainEventWriter()
     event_log = EventLog(factory)
     metadata_queue = MetadataQueue(factory, event_writer=event_writer)
@@ -90,8 +92,17 @@ def main() -> None:
         async with Cloud115Adapter(cookies) as cloud:
             yield cloud
 
-    binding_service = BindingService(factory, secret_repository, cloud115_scope)
+    binding_service = BindingService(
+        factory,
+        secret_repository,
+        cloud115_scope,
+        active_cache_jobs=active_cache_jobs,
+    )
     qr_service = QrSessionService(cloud115_scope)
+    cache_service = PlayRequestService(
+        factory,
+        SourceSubmissionService(factory, cipher=secret_cipher),
+    )
 
     def probe_cloud115() -> ProbeResult:
         view = asyncio.run(binding_service.probe())
@@ -125,6 +136,7 @@ def main() -> None:
     catalog_query_service = CatalogQueryService(
         factory,
         favorite_port=favorite_service,
+        availability_port=CacheSourceAvailabilityPort(factory),
         image_root=Path("/var/lib/sakuraplayer/catalog-images"),
     )
     app = create_app(
@@ -149,6 +161,7 @@ def main() -> None:
         diagnostics_service=DiagnosticsService(factory, settings_service),
         cloud115_binding_service=binding_service,
         cloud115_qr_service=qr_service,
+        cache_service=cache_service,
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

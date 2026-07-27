@@ -1,0 +1,1 @@
+"""Cloud cache domain types."""

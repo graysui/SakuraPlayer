@@ -37,7 +37,8 @@ provides: [remote file scanner, media scorer, segment queue, subtitle locator]
 
 - [ ] TASK-104 能确认离线完成并提供 task_dir_cid。
 - [ ] 文件扩展名、256 MiB 阈值和广告/分段 fixture 已冻结。
-- [ ] RemoteMedia/RemoteSubtitle Schema 已迁移。
+- [ ] TASK-103 CacheJob Schema 可用；本任务拥有 RemoteMedia、RemoteSubtitle 和有序
+  `cache_job_media_selection` Schema 迁移。
 
 ## 技术上下文
 

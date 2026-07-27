@@ -99,6 +99,7 @@
 | HTTP/位置 | code | 语义/客户端行为 |
 |---|---|---|
 | 409 | `cloud115_binding_exists` | 已有活动单账号绑定 |
+| 409 | `cloud115_binding_required` | 尚未绑定 115；客户端进入扫码绑定流程后重试播放 |
 | 422 | `cloud115_credentials_expired` | 明确提示重新扫码，不当作播放失败 |
 | 503 | `cloud115_unavailable` | 上游暂不可用，不把 Cookie 标过期 |
 | 429 | `cloud115_rate_limited` | 服从 `Retry-After` |

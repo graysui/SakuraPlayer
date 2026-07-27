@@ -15,6 +15,8 @@ from sakuraplayer.catalog.metadata_api import (
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.cloud_cache.binding_api import create_cloud115_binding_api
 from sakuraplayer.cloud_cache.binding_service import BindingService
+from sakuraplayer.cloud_cache.cache_api import create_cache_api
+from sakuraplayer.cloud_cache.play_request import PlayRequestService
 from sakuraplayer.cloud_cache.qr_service import QrSessionService
 from sakuraplayer.discovery.api import create_discovery_api
 from sakuraplayer.discovery.favorites import FavoriteService
@@ -58,6 +60,7 @@ def create_app(
     diagnostics_service: DiagnosticsService | None = None,
     cloud115_binding_service: BindingService | None = None,
     cloud115_qr_service: QrSessionService | None = None,
+    cache_service: PlayRequestService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -71,6 +74,8 @@ def create_app(
             or request.url.path.startswith("/api/v1/admin/")
             or request.url.path.startswith("/api/v1/events/")
             or request.url.path.startswith("/api/v1/cloud115/")
+            or request.url.path.startswith("/api/v1/cache-jobs")
+            or request.url.path.endswith("/play-requests")
             or request.url.path == "/api/v1/rankings"
         ):
             response.headers["Cache-Control"] = "no-store"
@@ -216,6 +221,13 @@ def create_app(
             )
         elif cloud115_binding_service is not None or cloud115_qr_service is not None:
             raise ValueError("Cloud115 API requires binding and QR services")
+        if cache_service is not None:
+            app.include_router(
+                create_cache_api(
+                    cache_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
@@ -230,6 +242,7 @@ def create_app(
         or diagnostics_service is not None
         or cloud115_binding_service is not None
         or cloud115_qr_service is not None
+        or cache_service is not None
     ):
         raise ValueError("admin APIs require identity service")
 

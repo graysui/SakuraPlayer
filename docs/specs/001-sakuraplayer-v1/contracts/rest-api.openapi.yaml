@@ -308,7 +308,9 @@ paths:
         The only operation that may create a 115 offline job. The source_id must
         belong to the movie and be an active AVdb source. A started disposition
         allows at most 60 seconds of client blocking; the backend job continues
-        after that client wait expires.
+        after that client wait expires. Replaying the same Idempotency-Key with
+        the same movie/source returns the original job in any state; reusing the
+        key for another payload returns idempotency_conflict.
       parameters:
         - $ref: '#/components/parameters/MovieId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -318,6 +320,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [source_id]
               properties:
                 source_id:
@@ -340,6 +343,10 @@ paths:
           $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
   /search:
     get:
@@ -1222,6 +1229,7 @@ components:
         type: string
         minLength: 16
         maxLength: 128
+        pattern: '^[A-Za-z0-9._~-]{16,128}$'
   headers:
     NoStore:
       description: Authentication state and credentials must never be cached.

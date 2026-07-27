@@ -66,7 +66,7 @@
 | `cache.job.created.v1` | 播放请求创建任务 | `id,movie_id,source_id,status,disposition` |
 | `cache.job.updated.v1` | 离线/解析进度变化 | `id,status,remote_percent,error_code,updated_at` |
 | `cache.job.selection_required.v1` | 多视频需选择 | `id,status,media_candidates` |
-| `cache.job.ready.v1` | 可播放 | `id,status,selected_media_id,expires_at` |
+| `cache.job.ready.v1` | 可播放 | `id,status,selected_media_ids,expires_at` |
 | `cache.job.failed.v1` | 确定性失败 | `id,status,error_code,rejected_source` |
 | `cache.job.cancelled.v1` | 取消并清理完成 | `id,status` |
 | `cache.job.cleaned.v1` | TTL/LRU/手动清理完成 | `id,status` |

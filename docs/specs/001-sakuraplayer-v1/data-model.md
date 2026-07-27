@@ -513,20 +513,20 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `id` | UUID | 主键 | `(derived)` |
 | `movie_id` | UUID | 外键 | AC-084 |
 | `source_id` | UUID | 外键，只能来自 AVdb | AC-083/084 |
-| `binding_id` | UUID | 外键 | AC-080 |
+| `binding_id` | UUID | 可空外键；活动时非空，解绑后 `ON DELETE SET NULL` | AC-080 |
 | `status` | enum | 见 10.2 | AC-085..098 |
-| `idempotency_key` | varchar(128) | 客户端重复点击键 | AC-091 |
+| `capacity_class` | enum | `queued/running/ready/released`，见 10.2 | AC-085 |
 | `account_key` | varchar(128) | 创建时快照 | AC-080/081 |
 | `cache_root_cid` | varchar(64) | 创建时快照 | AC-080/081 |
 | `task_dir_cid` | varchar(64) | 提交前创建，可空 | AC-080/081 |
 | `task_dir_name` | varchar(128) | 随机且不可由标题控制 | `(derived)` |
 | `remote_info_hash` | varchar(128) | 115 远端任务 ID，可空 | `(derived)` |
 | `remote_percent` | numeric(5,2) | 0..100 | `(derived)` |
-| `selected_media_id` | UUID | 可空 | AC-093 |
 | `ready_at` | timestamptz | 可空 | AC-094 |
 | `last_accessed_at` | timestamptz | 可空 | AC-094/095 |
 | `expires_at` | timestamptz | 可空 | AC-094 |
 | `claim_owner` | varchar(128) | 可空 | `(derived)` |
+| `claim_token` | UUID | 可空；隔离过期 worker | `(derived)` |
 | `claim_expires_at` | timestamptz | 可空 | `(derived)` |
 | `failure_code` | varchar(128) | 可空 | AC-098/121 |
 | `failure_detail` | text | 可空、脱敏 | AC-121 |
@@ -536,10 +536,24 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 **索引和约束**:
 
 - 同一 `source_id + binding_id` 最多一个活动状态任务，保证重复点击复用。
-- 数据库事务保证运行态最多 2、`queued` 最多 10；状态分类见 10.2。
+- 状态与 `capacity_class` 使用 check constraint 固定形状；`cancelling` 保留原类别。
+- PostgreSQL advisory transaction lock 内计数保证 running 最多 2、queued 最多 10。
 - `task_dir_cid` 非空时唯一。
-- `ready` 必须有至少一个有效 `remote_media`，且 `selected_media_id` 属于本任务。
+- TASK-105 增加 ready 至少一个有效 `remote_media` 和有序选择归属约束。
 - 60 秒等待不保存为任务状态。
+
+### 7.1.1 `cache_play_request`
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `idempotency_key` | varchar(128) | 主键；固定安全 ASCII | AC-091 |
+| `movie_id` | UUID | 请求影片 | AC-084/091 |
+| `source_id` | UUID | 请求来源 | AC-083/091 |
+| `cache_job_id` | UUID | 返回的任务，RESTRICT | AC-091 |
+| `created_at` | timestamptz | 非空 | `(derived)` |
+
+同 key、同 movie/source 永久返回同一任务；同 key 不同 payload 返回
+`idempotency_conflict`。不同 key 复用同一活动任务时各自保留请求事实。
 
 ### 7.2 `remote_media`
 
@@ -559,6 +573,9 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `created_at` | timestamptz | 非空 | `(derived)` |
 
 唯一键 `(cache_job_id, file_id)`。禁止保存原画/HLS URL。
+
+`cache_job_media_selection` 由 TASK-105 迁移，主键 `(cache_job_id, sequence_no)`，并唯一
+`(cache_job_id, media_id)`；它是 OpenAPI `selected_media_ids` 的有序来源。
 
 ### 7.3 `remote_subtitle`
 
@@ -724,7 +741,7 @@ queued -> running -> completed
 queued -> submitting -> offlining -> resolving -> awaiting_selection -> ready
                                       resolving ---------------------> ready
 
-queued/submitting/offlining -> cancelling -> cleaning -> cleaned
+queued/submitting/offlining/resolving -> cancelling -> cleaning -> cleaned
 ready -------------------------------> cleaning -> cleaned
 任一非终态 --------------------------> failed
 cleaning ----------------------------> cleanup_failed
@@ -741,7 +758,9 @@ cleaning ----------------------------> cleanup_failed
 | 活动复用 | 除 `failed/cleaned/detached` 外 | 同来源重复点击复用 |
 | 终态 | `failed/cleaned/detached` | 不再自动推进 |
 
-`cancelling` 在安全清理完成前仍占原槽位或容量，防止通过取消绕过上限。
+持久 `capacity_class` 固定状态分组。`cancelling` 在安全清理完成前保留进入取消前的
+queued/running/ready 类别，防止通过取消绕过上限；进入 `cleaning` 后归入 ready，只有终态
+使用 released。`started` 是公开响应 disposition，不是持久状态。
 
 ### 10.3 影片进度
 
@@ -766,7 +785,8 @@ completed -> in_progress (下次从头播放且产生新进度)
 | 同榜单/年份一个 current 快照 | normalized year 部分唯一索引 | AC-069/073 |
 | 同榜单/年份一个活动同步请求 | normalized year 部分唯一索引 + claim fencing | AC-069/073 |
 | 同来源一个活动缓存任务 | 部分唯一索引 | AC-091 |
-| 115 运行 2/排队 10 | 事务计数或槽位行锁 | AC-085 |
+| 播放请求 key 永久幂等 | `cache_play_request.idempotency_key` 主键 | AC-091 |
+| 115 运行 2/排队 10 | advisory transaction lock + 事务计数 | AC-085 |
 | 任务目录唯一 | `task_dir_cid` 唯一非空 | AC-080/081 |
 | 清理不误删 | 归属证明检查 + 审计 | AC-081/098 |
 | 影片进度唯一 | `movie_id` 主键 | AC-111 |

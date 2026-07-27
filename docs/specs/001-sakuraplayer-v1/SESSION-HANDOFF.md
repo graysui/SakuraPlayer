@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-27
 
-**当前阶段**: Phase 1 后端基础与元数据及 TASK-102 已完成；下一任务为 TASK-103。
+**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-103 已完成；下一任务为 TASK-104。
 
 ## 1. 当前成果
 
@@ -63,12 +63,15 @@
 - TASK-102 已交付进程内有界 QR 会话、认证 binding API、加密 Cookie 单事务 CAS、整表单例 `cloud115_binding` 与顶层 `SakuraPlayer-Cache` 确定性根目录。
 - Cookie 固定使用 `encrypted_setting.key=cloud115.cookie` 并以 setting version 为唯一版本真相；同账号重扫允许轮换，不同账号禁止覆盖，旧探活 snapshot 不覆盖重扫，移动/删除根只标记 `detached`。
 - TASK-102 Fast 为 533 项通过，隔离 PostgreSQL 聚焦为 5 项通过；Compose Final 第三次尝试通过 533 项自包含和 92 项 PostgreSQL integration/E2E，迁移、健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部完成，默认测试未访问真实 115。
+- TASK-103 已交付 CacheJob 状态机、持久容量类别、全局请求幂等事实、固定 2 个 running/10 个 queued、来源安全端口、受认证缓存 API 和 Catalog availability 适配器。
+- 创建、复用、状态推进与解绑 guard 共享 PostgreSQL advisory transaction lock；同 key 终态重放、同来源活动任务复用、binding 解绑历史和随机任务目录均由 Schema 与并发测试固定。
+- TASK-103 Fast 为 596 项通过，隔离 PostgreSQL 聚焦为 17 项通过；Compose Final 通过 596 项自包含和 94 项 PostgreSQL integration/E2E，迁移、健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部完成，默认测试未访问真实 115。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-102 已完成；下一任务为 TASK-103。
-- **最近绿色快速门禁**: TASK-102 Fast 为 533 passed、8 deselected；隔离 PostgreSQL 聚焦 5 项、Ruff format/lint、5 文件渐进 mypy、宿主 Docker 配置和完整差异审计通过，无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-102 Compose Final 第三次尝试通过；自包含 533 passed、8 deselected，PostgreSQL integration/E2E 92 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。第一次因 head 精确表清单遗漏 `cloud115_binding` 退出；第二次通过后被提交前发现的迁移末尾空白行使证据失效；修复并重过门禁后的第三次为当前有效结果。
+- **当前任务门禁阶段**: TASK-103 已完成；下一任务为 TASK-104。
+- **最近绿色快速门禁**: TASK-103 Fast 为 596 passed、8 deselected；隔离 PostgreSQL 聚焦 17 项、Ruff format/lint、5 个新增模块 mypy、宿主 Docker 配置和完整差异审计通过，无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-103 Compose Final 首次尝试通过；自包含 596 passed、8 deselected，PostgreSQL integration/E2E 94 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -85,18 +88,18 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102。
-- **下一任务**: TASK-103 缓存任务状态机与 2/10 容量。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103。
+- **下一任务**: TASK-104 离线提交、对账、取消与等待语义。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-103 开始：
+下一会话从 TASK-104 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-103.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-104.md"
 ```
 
-TASK-102 的实现、测试和文档已同步，待按根目录 `AGENTS.md` 创建中文 Git 提交。TASK-103 开始前读取其 DoR、binding/root 接口、CacheJob 数据模型和 2/10 容量边界；默认自动测试仍不得访问真实 115。
+TASK-103 的实现、测试和文档已同步；提交事实以 Git 为准。TASK-104 开始前读取其 DoR、Cloud115Port、SourceSubmissionPort、CacheJob 状态/容量和 60 秒等待边界；默认自动测试仍不得访问真实 115。
 
 ## 4. 必读契约
 
