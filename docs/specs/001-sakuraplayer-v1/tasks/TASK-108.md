@@ -35,7 +35,7 @@ provides: [playback session signing, original resolver, 302 stream endpoint]
 
 ## Definition of Ready
 
-- [ ] TASK-105 有 ready media/pickcode，TASK-107 ownership/lease 可用。
+- [ ] TASK-105 有 ready media/pickcode，TASK-107 最小 session Schema、ownership/lease 可用。
 - [ ] 播放 HMAC 使用 `contracts/runtime-configuration.md` 中独立的 playback key，不复用设置或 JWT key；stream endpoint 能在无 Bearer header 时验证会话能力。
 - [ ] Windows/HarmonyOS UA 常量已冻结。
 
@@ -43,7 +43,9 @@ provides: [playback session signing, original resolver, 302 stream endpoint]
 
 - 签名载荷包含 session ID、epoch、mode、UA hash、expires；完整上游 URL 不落库/日志。
 - stream endpoint 只返回 redirect，NAS 不转发视频 Range。
-- 创建播放会话刷新 CacheJob last_accessed/expires 并创建租约。
+- 消费 TASK-107 已迁移的 playback_session/lease Schema；创建播放会话刷新 CacheJob
+  last_accessed/expires 并创建租约。本任务不重复创建表。
+- 创建会话和租约必须锁 CacheJob 并复核仍为 ready，与 TASK-107 清理选择串行化。
 
 ## 实现文件（仅文件名）
 

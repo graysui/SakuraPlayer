@@ -651,6 +651,10 @@ paths:
     post:
       tags: [Cache]
       operationId: cleanupCacheJob
+      description: >-
+        Requests the same proof-based cleanup used by maintenance. Ready and
+        awaiting-selection jobs enter cleaning; cleanup_failed retries create a
+        new fenced attempt. Active playback leases reject the request.
       parameters:
         - $ref: '#/components/parameters/CacheJobId'
       responses:

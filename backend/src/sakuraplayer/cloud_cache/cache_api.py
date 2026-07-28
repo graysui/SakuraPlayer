@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Header, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from sakuraplayer.cloud_cache.capacity import CacheCapacitySnapshot
+from sakuraplayer.cloud_cache.cleanup import CleanupProblem, CleanupQueue
 from sakuraplayer.cloud_cache.media_selection_api import MediaSelectionProblem
 from sakuraplayer.cloud_cache.play_request import (
     CacheJobView,
@@ -101,6 +102,7 @@ def create_cache_api(
     service: PlayRequestService,
     *,
     current_admin_dependency: Callable[..., object],
+    cleanup_service: CleanupQueue | None = None,
 ) -> APIRouter:
     router = APIRouter(
         prefix="/api/v1",
@@ -175,6 +177,22 @@ def create_cache_api(
             raise _selection_api_problem(error) from None
         except CacheProblem as error:
             raise _api_problem(error) from None
+
+    if cleanup_service is not None:
+
+        @router.post(
+            "/cache-jobs/{cache_job_id}/cleanup",
+            response_model=CacheJobOutput,
+            status_code=202,
+        )
+        def cleanup_cache_job(cache_job_id: uuid.UUID) -> CacheJobOutput:
+            try:
+                cleanup_service.request(cache_job_id)
+                return _job_output(service.get(cache_job_id))
+            except CleanupProblem as error:
+                raise _cleanup_api_problem(error) from None
+            except CacheProblem as error:
+                raise _api_problem(error) from None
 
     return router
 
@@ -260,6 +278,14 @@ def _selection_api_problem(error: MediaSelectionProblem) -> ApiProblem:
         status_code=error.status_code,
         code=error.code,
         message="Media selection failed",
+    )
+
+
+def _cleanup_api_problem(error: CleanupProblem) -> ApiProblem:
+    return ApiProblem(
+        status_code=error.status_code,
+        code=error.code,
+        message="Cache cleanup request failed",
     )
 
 

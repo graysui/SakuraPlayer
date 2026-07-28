@@ -90,6 +90,17 @@ class CacheServiceStub:
         return MediaSelectionResult(status="ready", selected_media_ids=media_ids)
 
 
+class CleanupServiceStub:
+    def __init__(self, job_id: uuid.UUID) -> None:
+        self.job_id = job_id
+        self.calls = 0
+
+    def request(self, job_id: uuid.UUID):
+        assert job_id == self.job_id
+        self.calls += 1
+        return None
+
+
 def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
     engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'api.db'}")
     Base.metadata.create_all(engine)
@@ -101,10 +112,12 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
         now=lambda: NOW,
     )
     cache = CacheServiceStub()
+    cleanup = CleanupServiceStub(cache.job.id)
     app = create_app(
         readiness_probe=lambda: True,
         identity_service=auth,
         cache_service=cache,
+        cache_cleanup_service=cleanup,  # type: ignore[arg-type]
     )
     schema = app.openapi()
     selection_path = schema["paths"][
@@ -121,6 +134,9 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
         "uniqueItems": True,
         "title": "Media Ids",
     }
+    assert schema["paths"]["/api/v1/cache-jobs/{cache_job_id}/cleanup"]["post"][
+        "security"
+    ] == [{"HTTPBearer": []}]
     try:
         with TestClient(app) as client:
             path = f"/api/v1/movies/{cache.job.movie_id}/play-requests"
@@ -179,6 +195,13 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
                 headers=headers,
                 json={"media_ids": [str(cache.job.selected_media_ids[0])]},
             )
+            unauthenticated_cleanup = client.post(
+                f"/api/v1/cache-jobs/{cache.job.id}/cleanup"
+            )
+            cleanup_response = client.post(
+                f"/api/v1/cache-jobs/{cache.job.id}/cleanup",
+                headers=headers,
+            )
     finally:
         engine.dispose()
 
@@ -189,6 +212,10 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
     assert invalid_selection.status_code == 422
     assert duplicate_selection.status_code == 422
     assert selection.status_code == 200
+    assert unauthenticated_cleanup.status_code == 401
+    assert cleanup_response.status_code == 202
+    assert cleanup_response.headers["cache-control"] == "no-store"
+    assert cleanup.calls == 1
     assert selection.json()["selected_media_ids"] == [
         str(cache.job.selected_media_ids[0])
     ]

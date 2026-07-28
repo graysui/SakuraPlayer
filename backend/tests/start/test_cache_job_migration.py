@@ -76,6 +76,20 @@ def test_task_103_migration_is_linear_and_owns_only_job_and_request_schema() -> 
         assert deferred not in source
 
 
+def test_task_107_migration_owns_lifecycle_lease_and_cleanup_schema() -> None:
+    path = BACKEND_ROOT / "alembic" / "versions" / "0018_cache_lifecycle.py"
+    source = path.read_text(encoding="utf-8")
+
+    assert 'down_revision = "0017_cache_media"' in source
+    assert '"playback_session"' in source
+    assert '"playback_lease"' in source
+    assert '"cache_cleanup_attempt"' in source
+    assert "uq_playback_lease_session_client" in source
+    assert "uq_cache_cleanup_running_job" in source
+    assert "ix_cache_job_lifecycle_lru" in source
+    assert "UPDATE cache_job" in source
+
+
 def test_task_104_migration_adds_dispatch_and_claim_fencing_shape() -> None:
     path = BACKEND_ROOT / "alembic" / "versions" / "0016_cache_offline.py"
     source = path.read_text(encoding="utf-8")

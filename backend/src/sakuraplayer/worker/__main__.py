@@ -27,6 +27,7 @@ from sakuraplayer.catalog.providers.javdb import (
     JavdbProvider,
 )
 from sakuraplayer.cloud_cache.binding_service import BindingService
+from sakuraplayer.cloud_cache.cleanup import CleanupClaim, CleanupQueue, CleanupWorker
 from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
 from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Port
 from sakuraplayer.cloud_cache.source_rejection_client import SourceRejectionClient
@@ -251,7 +252,29 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             ) as cloud:
                 yield cloud
 
-        cache_queue = CacheJobClaimQueue(factory)
+        @asynccontextmanager
+        async def cleanup_cloud_scope(
+            claim: CleanupClaim,
+        ) -> AsyncIterator[Cloud115Port]:
+            async with binding_service.cache_operation_scope(
+                binding_id=claim.binding_id,
+                account_key=claim.account_key,
+                cache_root_cid=claim.cache_root_cid,
+            ) as cloud:
+                yield cloud
+
+        def cache_ttl_hours() -> int:
+            setting = secret_repository.get_public("cache.ttl_hours")
+            value = setting.value if setting is not None else 24
+            if (
+                isinstance(value, int)
+                and not isinstance(value, bool)
+                and 1 <= value <= 168
+            ):
+                return value
+            return 24
+
+        cache_queue = CacheJobClaimQueue(factory, ttl_hours=cache_ttl_hours)
         source_submission = SourceSubmissionService(factory, cipher=cipher)
         source_rejection = SourceRejectionClient(
             source_submission,
@@ -266,6 +289,7 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
         cache_consumer = CacheWorkerPipeline(
             offline_consumer,
             CacheMediaResolver(cache_queue, source_rejection, cache_cloud_scope),
+            CleanupWorker(CleanupQueue(factory), cleanup_cloud_scope),
         )
         return WorkerRuntime(
             consumer=consumer,

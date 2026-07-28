@@ -155,6 +155,12 @@ class CacheJob(Base):
             "AND failure_code = 'cloud115_submit_uncertain'))",
             name="ck_cache_job_submission_shape",
         ),
+        CheckConstraint(
+            "status NOT IN ('awaiting_selection', 'ready') OR "
+            "(ready_at IS NOT NULL AND last_accessed_at IS NOT NULL "
+            "AND expires_at IS NOT NULL AND expires_at > last_accessed_at)",
+            name="ck_cache_job_materialized_timestamps",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
@@ -228,6 +234,14 @@ Index(
 )
 Index("ix_cache_job_status_created", CacheJob.status, CacheJob.created_at)
 Index("ix_cache_job_capacity_created", CacheJob.capacity_class, CacheJob.created_at)
+Index(
+    "ix_cache_job_lifecycle_lru",
+    CacheJob.status,
+    CacheJob.last_accessed_at,
+    CacheJob.ready_at,
+    CacheJob.created_at,
+    CacheJob.id,
+)
 
 
 class RemoteMedia(Base):
@@ -340,6 +354,53 @@ class CacheJobMediaSelection(Base):
     )
     sequence_no: Mapped[int] = mapped_column(Integer, primary_key=True)
     media_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+
+
+class CacheCleanupAttempt(Base):
+    __tablename__ = "cache_cleanup_attempt"
+    __table_args__ = (
+        CheckConstraint("attempt_no >= 1", name="ck_cache_cleanup_attempt_no"),
+        CheckConstraint(
+            "status IN ('running', 'succeeded', 'failed', 'detached')",
+            name="ck_cache_cleanup_status",
+        ),
+        CheckConstraint(
+            "(status = 'running' AND finished_at IS NULL "
+            "AND failure_code IS NULL) OR "
+            "(status IN ('succeeded', 'detached') AND finished_at IS NOT NULL "
+            "AND failure_code IS NULL) OR "
+            "(status = 'failed' AND finished_at IS NOT NULL "
+            "AND failure_code IS NOT NULL)",
+            name="ck_cache_cleanup_result_shape",
+        ),
+        UniqueConstraint(
+            "cache_job_id", "attempt_no", name="uq_cache_cleanup_job_attempt"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    cache_job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cache_job.id", ondelete="CASCADE"), nullable=False
+    )
+    attempt_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    ownership_evidence: Mapped[dict[str, object]] = mapped_column(
+        _JSON_VALUE, nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    failure_code: Mapped[str | None] = mapped_column(String(128))
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+Index(
+    "uq_cache_cleanup_running_job",
+    CacheCleanupAttempt.cache_job_id,
+    unique=True,
+    postgresql_where=CacheCleanupAttempt.status == "running",
+    sqlite_where=CacheCleanupAttempt.status == "running",
+)
 
 
 class CachePlayRequest(Base):

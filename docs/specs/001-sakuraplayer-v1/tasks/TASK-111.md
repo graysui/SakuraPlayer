@@ -29,7 +29,7 @@ provides: [movie playback state, heartbeat API, completion rule]
 
 ## Definition of Ready
 
-- [ ] TASK-108 Session/Lease 可用，MoviePlaybackState 迁移存在。
+- [ ] TASK-107 Lease 服务和 TASK-108 Session 行为可用，MoviePlaybackState 迁移存在。
 - [ ] 心跳携带 client_instance_id、version、position/duration。
 - [ ] 服务端时钟和完成阈值已冻结。
 

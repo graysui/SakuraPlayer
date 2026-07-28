@@ -50,6 +50,11 @@
   冻结；TASK-105 实现持久媒体候选、有序选择与 `awaiting_selection -> ready`，自动证据位于
   `test_media_selection.py`、`test_file_resolution.py`、`test_adapter_contract.py` 和
   `test_cache_api.py`。
+- AC-094 至 AC-098 的 materialized cache 首次 TTL、设置变更、20 个安全收敛目标、稳定 LRU、
+  playback lease 最小 Schema、清理 claim/attempt 和证明式删除恢复由
+  [TASK-107 缓存生命周期确定性边界](changes/2026-07-28--task-107-cache-lifecycle-determinism.md)
+  冻结；TASK-107 创建 lease 外键所需最小 playback session Schema，TASK-108 仍独占会话签名
+  与播放 API，TASK-111 消费 lease 做心跳续期。
 
 ## 逐条追踪
 

@@ -16,6 +16,7 @@ from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.cloud_cache.binding_api import create_cloud115_binding_api
 from sakuraplayer.cloud_cache.binding_service import BindingService
 from sakuraplayer.cloud_cache.cache_api import create_cache_api
+from sakuraplayer.cloud_cache.cleanup import CleanupQueue
 from sakuraplayer.cloud_cache.play_request import PlayRequestService
 from sakuraplayer.cloud_cache.qr_service import QrSessionService
 from sakuraplayer.discovery.api import create_discovery_api
@@ -61,6 +62,7 @@ def create_app(
     cloud115_binding_service: BindingService | None = None,
     cloud115_qr_service: QrSessionService | None = None,
     cache_service: PlayRequestService | None = None,
+    cache_cleanup_service: CleanupQueue | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -226,6 +228,7 @@ def create_app(
                 create_cache_api(
                     cache_service,
                     current_admin_dependency=identity_api.current_admin_dependency,
+                    cleanup_service=cache_cleanup_service,
                 )
             )
     elif (

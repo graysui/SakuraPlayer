@@ -24,6 +24,7 @@ from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
 from sakuraplayer.cloud_cache.binding_service import BindingService
 from sakuraplayer.cloud_cache.capacity import active_cache_jobs
+from sakuraplayer.cloud_cache.cleanup import CleanupQueue
 from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
 from sakuraplayer.cloud_cache.play_request import PlayRequestService
 from sakuraplayer.cloud_cache.qr_service import QrSessionService
@@ -102,7 +103,9 @@ def main() -> None:
     cache_service = PlayRequestService(
         factory,
         SourceSubmissionService(factory, cipher=secret_cipher),
+        ttl_hours=lambda: _cache_ttl_hours(secret_repository),
     )
+    cache_cleanup_service = CleanupQueue(factory)
 
     def probe_cloud115() -> ProbeResult:
         view = asyncio.run(binding_service.probe())
@@ -162,6 +165,7 @@ def main() -> None:
         cloud115_binding_service=binding_service,
         cloud115_qr_service=qr_service,
         cache_service=cache_service,
+        cache_cleanup_service=cache_cleanup_service,
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository
@@ -173,6 +177,14 @@ def main() -> None:
         log_config=None,
         proxy_headers=settings.trust_proxy_headers,
     )
+
+
+def _cache_ttl_hours(repository: EncryptedSettingRepository) -> int:
+    setting = repository.get_public("cache.ttl_hours")
+    value = setting.value if setting is not None else 24
+    if isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 168:
+        return value
+    return 24
 
 
 if __name__ == "__main__":

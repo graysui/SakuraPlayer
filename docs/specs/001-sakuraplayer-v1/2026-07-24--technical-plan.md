@@ -231,9 +231,14 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
 - 完成后按 [TASK-105 媒体解析确定性边界](changes/2026-07-27--task-105-media-resolution-determinism.md)
   有界递归枚举视频和字幕；视频最低 256 MiB（包含边界），白名单、广告/样片词元、连续分段、
   可解释评分和保守自动选择规则由固定 fixture 验证。
-- 多个无法确定主文件的候选进入 `awaiting_selection`，客户端选择后才 `ready`。
-- 就绪默认 TTL 24 小时，可配置 1 到 168 小时；每次创建播放会话刷新。
-- LRU 只选择 `ready`、无有效租约、非清理中的最久未访问记录。
+- 多个无法确定主文件的候选进入 `awaiting_selection`，客户端选择后才 `ready`；两者都属于
+  materialized cache，在首次进入时初始化服务端 TTL。
+- 默认 TTL 24 小时，可配置 1 到 168 小时；设置变更只影响新缓存和下一次成功创建播放会话的
+  刷新，不批量改写已有缓存。
+- ready capacity 以 20 为安全删除后的收敛目标；TTL 到期优先，容量 LRU 再按
+  `last_accessed_at NULLS FIRST, ready_at NULLS FIRST, created_at, id` 从无租约的
+  `awaiting_selection/ready` 中稳定选择。清理中或失败的缓存继续占容量。
+- TASK-107 创建 lease 外键所需的最小 playback session Schema；TASK-108 独占签名和会话 API。
 
 ### 4.4 播放和字幕
 

@@ -118,6 +118,7 @@ class PlayRequestService:
         source_port: SourceSubmissionPort,
         *,
         now: Callable[[], datetime] | None = None,
+        ttl_hours: Callable[[], int] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._source_port = source_port
@@ -125,6 +126,7 @@ class PlayRequestService:
         self._media_selection = MediaSelectionService(
             session_factory,
             now=self._now,
+            ttl_hours=ttl_hours,
         )
 
     def create(

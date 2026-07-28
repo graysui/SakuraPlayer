@@ -125,11 +125,11 @@
 | 任务 | `cache_no_valid_media` | 递归解析完成但没有通过白名单、大小和排除规则的视频 |
 | 409 | `cache_cancel_confirmation_required` | 客户端必须完成二次确认后重提 |
 | 409 | `cache_active_lease` | 正在播放，拒绝立即清理 |
-| 409 | `cache_ownership_mismatch` | 受管目录证明不成立，标记 detached，不删除 |
+| 409 | `cache_ownership_mismatch` | 账号/root/task/parent/owner 任一证明不成立，标记 detached，不删除或追踪新位置 |
 | 502 | `cloud115_offline_failed` | 115 普通离线失败；原因不确定，不永久拒绝来源 |
 | 任务 | `cloud115_submit_uncertain` | 离线提交结果无法确认；禁止自动重复提交，等待人工重新操作 |
 | 422 | `source_permanently_unavailable` | 失效/违规/无法离线；创建拒绝标记 |
-| 500 | `cache_cleanup_failed` | 删除未确认成功，容量不释放 |
+| 500 | `cache_cleanup_failed` | 删除未确认成功，容量不释放；维护或手动 cleanup 可创建新 attempt 重试 |
 
 ## 6. 播放与字幕
 

@@ -18,6 +18,7 @@ from sakuraplayer.cloud_cache.models import (
     CacheJobMediaSelection,
     RemoteMedia,
 )
+from sakuraplayer.cloud_cache.ttl_lru import cache_timestamps
 
 
 class MediaSelectionProblem(RuntimeError):
@@ -39,9 +40,11 @@ class MediaSelectionService:
         session_factory: sessionmaker[Session],
         *,
         now: Callable[[], datetime] | None = None,
+        ttl_hours: Callable[[], int] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._ttl_hours = ttl_hours or (lambda: 24)
 
     def select(
         self,
@@ -102,7 +105,16 @@ class MediaSelectionService:
             now = self._now()
             job.status = state.status.value
             job.capacity_class = state.capacity_class.value
-            job.ready_at = now
+            timestamps = cache_timestamps(
+                now=now,
+                ttl_hours=self._ttl_hours(),
+                ready_at=job.ready_at,
+                last_accessed_at=job.last_accessed_at,
+                expires_at=job.expires_at,
+            )
+            job.ready_at = timestamps.ready_at
+            job.last_accessed_at = timestamps.last_accessed_at
+            job.expires_at = timestamps.expires_at
             job.updated_at = now
             job.failure_code = None
             job.failure_detail = None

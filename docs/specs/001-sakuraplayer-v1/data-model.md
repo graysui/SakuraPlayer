@@ -544,6 +544,10 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 - `remote_info_hash` 要求任务目录和提交开始事实均存在；`submit_uncertain` 要求无 remote ID、
   固定错误码并保留 running 容量。
 - TASK-105 增加 ready 至少一个有效 `remote_media` 和有序选择归属约束。
+- `awaiting_selection/ready` 首次物化时 `ready_at/last_accessed_at/expires_at` 必须同时非空；
+  TTL 设置变更不批量改写已有行。
+- ready capacity 的 20 是安全删除完成后的收敛目标；`cleaning/cleanup_failed` 在删除确认前继续
+  占用容量，禁止用状态预释放伪造硬上限。
 - 60 秒等待不保存为任务状态。
 
 ### 7.1.1 `cache_play_request`
@@ -609,16 +613,24 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 |---|---|---|---|
 | `id` | UUID | 主键 | `(derived)` |
 | `cache_job_id` | UUID | 外键 | AC-098 |
-| `attempt_no` | integer | 递增 | AC-098/121 |
+| `attempt_no` | integer | 每 job 从 1 递增；与 job 联合唯一 | AC-098/121 |
 | `ownership_evidence` | jsonb | 只含账号摘要和 CID，不含 Cookie | AC-081/098 |
-| `status` | enum | `running/succeeded/failed/detached` | AC-098 |
+| `status` | enum | `running/succeeded/failed/detached`；单 job 最多一个 running | AC-098 |
 | `failure_code` | varchar(128) | 可空 | AC-098 |
 | `started_at` | timestamptz | 非空 | `(derived)` |
 | `finished_at` | timestamptz | 可空 | `(derived)` |
 
+running 必须 `finished_at/failure_code` 为空；succeeded/detached 必须 finished 且无 failure；failed
+必须 finished 且有稳定 failure_code。清理执行复用 CacheJob claim owner/token/expiry fencing；删除
+后崩溃由下一 attempt 的 task directory not-found 收敛。远端确认后，同一事务先转 cleaned，再删
+selection/media/subtitle；remote media 删除级联删除对应 playback session/lease。
+
 ## 8. 播放
 
 ### 8.1 `playback_session`
+
+TASK-107 创建下表的最小持久 Schema 以解除 lease 外键依赖环；TASK-108 才提供会话签发、签名、
+stream 和公开 API 行为。
 
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
@@ -636,6 +648,8 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `revoked_at` | timestamptz | 可空 | `(derived)` |
 
 签名载荷包含 ID、owner/session epoch、模式、UA 摘要和过期时间。上游 URL 不保存。
+`(cache_job_id, media_id)` 外键保证媒体归属并使用 `ON DELETE CASCADE`；安全清理删除 media 时
+同时删除已无有效租约的 session/lease。lease 获取与清理选择共同锁 CacheJob，且只允许 ready。
 
 ### 8.2 `playback_lease`
 
@@ -648,7 +662,9 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `expires_at` | timestamptz | 非空 | AC-096 |
 | `ended_at` | timestamptz | 可空 | `(derived)` |
 
-有效租约定义为 `ended_at IS NULL AND expires_at > now()`；清理查询必须排除存在有效租约的缓存任务。
+`playback_session_id + client_instance_id` 唯一；每个 session/client 只有一行，可续期或结束。
+有效租约定义为 `ended_at IS NULL AND expires_at > now()`；清理查询必须通过 session 的
+`cache_job_id` 排除存在有效租约的缓存任务。
 
 ### 8.3 `movie_playback_state`
 

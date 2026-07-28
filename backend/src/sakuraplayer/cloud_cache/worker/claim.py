@@ -29,6 +29,7 @@ from sakuraplayer.cloud_cache.models import (
 )
 from sakuraplayer.cloud_cache.ports.cloud115 import OfflineStatus, OfflineTaskSnapshot
 from sakuraplayer.cloud_cache.subtitle_locator import LocatedSubtitle
+from sakuraplayer.cloud_cache.ttl_lru import cache_timestamps
 from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.resources.models import Movie
 
@@ -69,6 +70,7 @@ class CacheJobClaimQueue:
         session_factory: sessionmaker[Session],
         *,
         now: Callable[[], datetime] | None = None,
+        ttl_hours: Callable[[], int] | None = None,
         lease: timedelta = DEFAULT_CLAIM_LEASE,
         event_writer: DomainEventWriter | None = None,
     ) -> None:
@@ -76,6 +78,7 @@ class CacheJobClaimQueue:
             raise ValueError("claim lease must be positive")
         self._session_factory = session_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._ttl_hours = ttl_hours or (lambda: 24)
         self._lease = lease
         self._event_writer = event_writer or DomainEventWriter(now=self._now)
 
@@ -264,10 +267,18 @@ class CacheJobClaimQueue:
                         )
                     )
                 target = CacheJobStatus.READY
-                job.ready_at = current
             else:
                 target = CacheJobStatus.AWAITING_SELECTION
-                job.ready_at = None
+            timestamps = cache_timestamps(
+                now=current,
+                ttl_hours=self._ttl_hours(),
+                ready_at=job.ready_at,
+                last_accessed_at=job.last_accessed_at,
+                expires_at=job.expires_at,
+            )
+            job.ready_at = timestamps.ready_at
+            job.last_accessed_at = timestamps.last_accessed_at
+            job.expires_at = timestamps.expires_at
             self._apply_state(job, target)
             self._clear_claim(job)
             job.failure_code = None

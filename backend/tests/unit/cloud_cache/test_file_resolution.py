@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine, func, select
@@ -172,6 +172,32 @@ def test_ambiguous_media_waits_for_one_complete_candidate_selection(context) -> 
     assert selected.selected_media_ids == (candidates[0].id,)
 
 
+def test_resolver_uses_configured_ttl_for_materialized_cache(context) -> None:
+    factory, job_id = context
+    fake = FakeCloud115(
+        directory_infos=[_directory(), _directory()],
+        file_batches=[
+            (
+                _file("a", "feature-a.mkv", 1_000_000_000),
+                _file("b", "feature-b.mkv", 1_000_000_000),
+            )
+        ],
+    )
+
+    assert (
+        _resolver(factory, fake, ttl_hours=lambda: 48).run_once(
+            worker_id="resolver-ttl"
+        )
+        == "worked"
+    )
+
+    with factory() as session:
+        job = session.get(CacheJob, job_id)
+        assert job is not None and job.status == "awaiting_selection"
+        assert job.ready_at == job.last_accessed_at
+        assert job.expires_at - job.last_accessed_at == timedelta(hours=48)
+
+
 def test_resolver_directory_move_detaches_without_partial_media(context) -> None:
     factory, job_id = context
     moved = DirectoryInfo(
@@ -317,13 +343,13 @@ class RecordingRejectionClient:
         return failure
 
 
-def _resolver(factory, fake, rejection=None):
+def _resolver(factory, fake, rejection=None, ttl_hours=None):
     @asynccontextmanager
     async def cloud_scope(_claim):
         yield fake
 
     return CacheMediaResolver(
-        CacheJobClaimQueue(factory, now=lambda: NOW),
+        CacheJobClaimQueue(factory, now=lambda: NOW, ttl_hours=ttl_hours),
         rejection or RecordingRejectionClient(),
         cloud_scope,
         now=lambda: NOW,

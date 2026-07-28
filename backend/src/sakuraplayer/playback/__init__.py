@@ -1,1 +1,1 @@
-"""Playback bounded context."""
+"""Playback session and lease domain."""
