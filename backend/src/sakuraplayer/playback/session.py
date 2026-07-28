@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable, Literal, cast
 from urllib.parse import urlencode
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.cloud_cache.models import (
@@ -22,6 +22,7 @@ from sakuraplayer.identity.domain import CurrentAdmin
 from sakuraplayer.identity.models import AdminUser
 from sakuraplayer.playback.lease import DEFAULT_LEASE_DURATION
 from sakuraplayer.playback.models import PlaybackLease, PlaybackSession
+from sakuraplayer.playback.subtitle_lifecycle import create_subtitle_lifecycle
 from sakuraplayer.playback.user_agents import PlaybackPlatform, user_agent_for
 
 PLAYBACK_SESSION_DURATION = timedelta(hours=12)
@@ -49,6 +50,7 @@ class PlaybackMediaView:
 @dataclass(frozen=True, slots=True)
 class PlaybackSubtitleView:
     id: uuid.UUID
+    media_id: uuid.UUID | None
     name: str
     format: str
     language: str | None
@@ -65,11 +67,14 @@ class PlaybackQueueItem:
 @dataclass(frozen=True, slots=True)
 class PlaybackManifest:
     session_id: uuid.UUID
+    cache_job_id: uuid.UUID
     mode: PlaybackMode
     platform: PlaybackPlatform
     stream_url: str
     expires_at: datetime
+    subtitle_cache_expires_at: datetime
     required_user_agent: str
+    embedded_tracks_source: Literal["client_player"]
     media_queue: tuple[PlaybackQueueItem, ...]
     subtitles: tuple[PlaybackSubtitleView, ...]
 
@@ -212,13 +217,19 @@ class PlaybackSessionService:
                 for playback, item in zip(created, media, strict=True)
             )
             entry = next(item for item in queue if item.media.id == media_id)
+            subtitle_lifecycle = create_subtitle_lifecycle(
+                cache_job_id=job.id, session_expires_at=expires_at
+            )
             return PlaybackManifest(
                 session_id=entry.session_id,
+                cache_job_id=subtitle_lifecycle.cache_job_id,
                 mode=playback_mode,
                 platform=platform,
                 stream_url=entry.stream_url,
                 expires_at=expires_at,
+                subtitle_cache_expires_at=subtitle_lifecycle.expires_at,
                 required_user_agent=user_agent,
+                embedded_tracks_source=subtitle_lifecycle.embedded_tracks_source,
                 media_queue=queue,
                 subtitles=subtitles,
             )
@@ -356,7 +367,13 @@ def _subtitles(
     rows = list(
         session.scalars(
             select(RemoteSubtitle)
-            .where(RemoteSubtitle.cache_job_id == cache_job_id)
+            .where(
+                RemoteSubtitle.cache_job_id == cache_job_id,
+                or_(
+                    RemoteSubtitle.media_id.is_(None),
+                    RemoteSubtitle.media_id.in_(selected_media_ids),
+                ),
+            )
             .order_by(
                 RemoteSubtitle.match_score.desc(),
                 RemoteSubtitle.name,
@@ -367,6 +384,7 @@ def _subtitles(
     return tuple(
         PlaybackSubtitleView(
             id=row.id,
+            media_id=row.media_id,
             name=row.name,
             format=row.extension,
             language=None,

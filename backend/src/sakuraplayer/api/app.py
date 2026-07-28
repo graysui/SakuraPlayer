@@ -32,6 +32,8 @@ from sakuraplayer.identity.service import AuthService
 from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import PlaybackSessionService
 from sakuraplayer.playback.stream_api import create_playback_api
+from sakuraplayer.playback.subtitle_api import create_subtitle_api
+from sakuraplayer.playback.subtitles import SubtitleDownloadService
 from sakuraplayer.resources.admin_api import (
     create_movie_source_admin_api,
 )
@@ -68,6 +70,7 @@ def create_app(
     cache_cleanup_service: CleanupQueue | None = None,
     playback_session_service: PlaybackSessionService | None = None,
     playback_stream_resolver: PlaybackStreamResolver | None = None,
+    subtitle_download_service: SubtitleDownloadService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -252,6 +255,13 @@ def create_app(
             playback_session_service is not None or playback_stream_resolver is not None
         ):
             raise ValueError("playback API requires session service and resolver")
+        if subtitle_download_service is not None:
+            app.include_router(
+                create_subtitle_api(
+                    subtitle_download_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
@@ -269,6 +279,7 @@ def create_app(
         or cache_service is not None
         or playback_session_service is not None
         or playback_stream_resolver is not None
+        or subtitle_download_service is not None
     ):
         raise ValueError("admin APIs require identity service")
 

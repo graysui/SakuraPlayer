@@ -78,6 +78,8 @@
 TASK-106 只为确定性来源拒绝提前持久化 `cache.job.failed.v1`，并固定
 `rejected_source=true`；CacheJob failed 与事件在同一 claim-fenced 事务提交。TASK-112 建立
 通用 cache publisher 时不得回填或重复发布这一既有事件，其他缓存事件仍由 TASK-112 负责。
+`cache.job.cleaned.v1.resource.id` 是客户端字幕清理使用的 cache job ID；subtitle ID 集合来自
+PlaybackManifest 的映射，事件不重复携带。logout 204 和本地过期不产生资源级事件。
 
 ### 3.3 凭据和通知
 

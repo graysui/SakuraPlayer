@@ -43,6 +43,7 @@ provides: [Windows subtitle cache, track controls, progress heartbeat]
 ## 技术上下文
 
 - media_kit 使用 `SubtitleTrack.data` 或受控本地文件，不把鉴权 URL 长期交 mpv。
+- 按 manifest 的 `cache_job_id` 保存映射；logout 204 清空全部字幕，`cache.job.cleaned.v1.resource.id` 清理对应 job，且不得晚于 `subtitle_cache_expires_at` 删除本地副本。
 - position 心跳默认 15 秒，暂停/退出/完成立即 flush。
 - 本地字幕缓存与永久图片/GFriends 缓存分目录。
 

@@ -605,7 +605,8 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `match_evidence` | jsonb | 稳定同名/同目录证据 | AC-109 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 
-数据库不保存字幕正文和客户端副本路径。
+数据库不保存字幕正文和客户端副本路径。manifest 只发布 `media_id IS NULL` 或属于当前完整已选
+媒体队列的字幕；下载时非空 `media_id` 必须与 path 中 playback session 的媒体一致。
 
 ### 7.4 `cache_cleanup_attempt`
 

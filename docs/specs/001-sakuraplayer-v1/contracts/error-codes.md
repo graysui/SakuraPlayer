@@ -158,6 +158,10 @@
 自动 HLS fallback 白名单仅包含 `cloud115_original_unavailable`。其余 original 错误保持本表
 状态与 code；HLS 失败也保持自身稳定 code，不包装为原画错误。
 
+字幕 API 将远端 file/directory not-found、归属不成立和 original unavailable 收敛为
+`subtitle_not_found`，将 `cloud115_small_file_too_large` 收敛为 `subtitle_too_large`；凭据、限流、
+上游不可用和协议错误保持对应 `cloud115_*` 公开 code。
+
 ## 7. WebSocket 关闭码
 
 | close code | 含义 | 客户端动作 |

@@ -12,6 +12,7 @@ from sakuraplayer.cloud_cache.models import (
     CacheJob,
     CacheJobMediaSelection,
     RemoteMedia,
+    RemoteSubtitle,
 )
 from sakuraplayer.identity.domain import CurrentAdmin
 from sakuraplayer.identity.models import AdminUser, Base
@@ -112,6 +113,101 @@ def test_each_click_creates_new_sessions_and_refreshes_cache_ttl() -> None:
         assert job is not None
         assert _as_utc(job.last_accessed_at) == NOW
         assert _as_utc(job.expires_at) == NOW + timedelta(hours=48)
+
+
+def test_manifest_limits_subtitles_to_selected_media_and_declares_track_source() -> (
+    None
+):
+    factory, admin, job_id, media_ids = _context()
+    unselected_media_id = uuid.uuid4()
+    selected_subtitle_id = uuid.uuid4()
+    global_subtitle_id = uuid.uuid4()
+    with factory.begin() as session:
+        session.add(
+            RemoteMedia(
+                id=unselected_media_id,
+                cache_job_id=job_id,
+                file_id="unselected-file",
+                pickcode="unselected-pickcode",
+                parent_cid="task",
+                name="other.mkv",
+                size_bytes=300_000_000,
+                duration_seconds=1200,
+                candidate_id=uuid.uuid4(),
+                sequence_no=0,
+                selection_score=90,
+                selection_evidence=[],
+                is_valid=True,
+                created_at=NOW,
+            )
+        )
+        for subtitle in (
+            RemoteSubtitle(
+                id=selected_subtitle_id,
+                cache_job_id=job_id,
+                media_id=media_ids[0],
+                file_id="subtitle-selected",
+                pickcode="subtitle-pick-selected",
+                parent_cid="task",
+                name="movie.part1.srt",
+                extension="srt",
+                size_bytes=128,
+                match_score=110,
+                match_evidence=["exact_stem"],
+                created_at=NOW,
+            ),
+            RemoteSubtitle(
+                id=global_subtitle_id,
+                cache_job_id=job_id,
+                media_id=None,
+                file_id="subtitle-global",
+                pickcode="subtitle-pick-global",
+                parent_cid="task",
+                name="global.ass",
+                extension="ass",
+                size_bytes=256,
+                match_score=0,
+                match_evidence=[],
+                created_at=NOW,
+            ),
+            RemoteSubtitle(
+                id=uuid.uuid4(),
+                cache_job_id=job_id,
+                media_id=unselected_media_id,
+                file_id="subtitle-unselected",
+                pickcode="subtitle-pick-unselected",
+                parent_cid="task",
+                name="other.vtt",
+                extension="vtt",
+                size_bytes=64,
+                match_score=110,
+                match_evidence=["exact_stem"],
+                created_at=NOW,
+            ),
+        ):
+            session.add(subtitle)
+
+    manifest = PlaybackSessionService(
+        factory, signing_key=b"p" * 32, now=lambda: NOW
+    ).create(
+        admin=admin,
+        cache_job_id=job_id,
+        media_id=media_ids[0],
+        mode="original",
+        platform="windows",
+        client_instance_id=admin.client_instance_id,
+    )
+
+    assert manifest.cache_job_id == job_id
+    assert manifest.embedded_tracks_source == "client_player"
+    assert manifest.subtitle_cache_expires_at == manifest.expires_at
+    assert [
+        (item.id, item.media_id, item.selected_by_default)
+        for item in manifest.subtitles
+    ] == [
+        (selected_subtitle_id, media_ids[0], True),
+        (global_subtitle_id, None, False),
+    ]
 
 
 def test_compatibility_creates_new_sessions_with_signed_mode() -> None:

@@ -806,6 +806,10 @@ paths:
     get:
       tags: [Playback]
       operationId: downloadSubtitle
+      description: >-
+        Authenticated download for the application-private subtitle cache. The
+        server revalidates the owner, session/cache/media relation and current
+        managed remote tree before returning the original bytes.
       parameters:
         - name: playback_session_id
           in: path
@@ -824,8 +828,17 @@ paths:
           description: Subtitle bytes for client-private cache.
           headers:
             Content-Disposition:
+              required: true
               schema:
                 type: string
+                pattern: '^attachment; filename="[0-9a-f-]{36}\.(srt|ass|ssa|vtt)"$'
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              required: true
+              schema:
+                type: string
+                const: nosniff
           content:
             application/x-subrip:
               schema:
@@ -835,10 +848,12 @@ paths:
               schema:
                 type: string
                 format: binary
-            text/plain:
+            text/x-ssa:
               schema:
                 type: string
                 format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '413':
@@ -847,6 +862,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /playback/sessions/{playback_session_id}/heartbeat:
     put:
       tags: [Playback]
@@ -1790,11 +1813,15 @@ components:
           type: boolean
     SubtitleOption:
       type: object
-      required: [id, name, format, selected_by_default]
+      required: [id, media_id, name, format, selected_by_default]
       properties:
         id:
           type: string
           format: uuid
+        media_id:
+          type: [string, 'null']
+          format: uuid
+          description: Null means the subtitle is available to every media session in this manifest.
         name:
           type: string
         format:
@@ -1898,9 +1925,12 @@ components:
     PlaybackManifest:
       type: object
       required:
-        [session_id, mode, platform, stream_url, expires_at, required_user_agent, media_queue, subtitles, progress]
+        [session_id, cache_job_id, mode, platform, stream_url, expires_at, subtitle_cache_expires_at, required_user_agent, embedded_tracks_source, media_queue, subtitles, progress]
       properties:
         session_id:
+          type: string
+          format: uuid
+        cache_job_id:
           type: string
           format: uuid
         mode:
@@ -1915,8 +1945,16 @@ components:
         expires_at:
           type: string
           format: date-time
+        subtitle_cache_expires_at:
+          type: string
+          format: date-time
+          description: Client-private subtitle copies must be removed no later than this instant.
         required_user_agent:
           type: string
+        embedded_tracks_source:
+          type: string
+          const: client_player
+          description: Embedded subtitle and audio tracks are enumerated by the application player.
         media_queue:
           type: array
           minItems: 1

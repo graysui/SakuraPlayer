@@ -43,6 +43,7 @@ provides: [HarmonyOS subtitle cache, track controls, progress heartbeat]
 ## 技术上下文
 
 - Core File Kit 只操作 app cacheDir，不请求媒体库权限。
+- 按 manifest 的 `cache_job_id` 保存映射；logout 204 清空全部字幕，`cache.job.cleaned.v1.resource.id` 清理对应 job，且不得晚于 `subtitle_cache_expires_at` 删除本地副本。
 - heartbeat/flush 在 lifecycle 切换前完成；aboutToDisappear 不执行长 async，交 Store/Ability 协调。
 - 所有 AVPlayer listeners 使用命名 callback 并 off。
 

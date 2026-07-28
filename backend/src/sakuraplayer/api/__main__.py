@@ -40,6 +40,7 @@ from sakuraplayer.playback.hls import HlsStreamResolver
 from sakuraplayer.playback.original import OriginalStreamResolver
 from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import PlaybackSessionService
+from sakuraplayer.playback.subtitles import SubtitleDownloadService
 from sakuraplayer.resources.identification_api import IdentificationService
 from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.resources.source_submission import SourceSubmissionService
@@ -123,6 +124,10 @@ def main() -> None:
         OriginalStreamResolver(binding_service),
         HlsStreamResolver(binding_service),
     )
+    subtitle_download_service = SubtitleDownloadService(
+        factory,
+        binding_service,
+    )
 
     def probe_cloud115() -> ProbeResult:
         view = asyncio.run(binding_service.probe())
@@ -185,6 +190,7 @@ def main() -> None:
         cache_cleanup_service=cache_cleanup_service,
         playback_session_service=playback_session_service,
         playback_stream_resolver=playback_stream_resolver,
+        subtitle_download_service=subtitle_download_service,
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

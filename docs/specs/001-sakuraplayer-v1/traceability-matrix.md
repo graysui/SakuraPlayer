@@ -50,6 +50,12 @@
   冻结；TASK-105 实现持久媒体候选、有序选择与 `awaiting_selection -> ready`，自动证据位于
   `test_media_selection.py`、`test_file_resolution.py`、`test_adapter_contract.py` 和
   `test_cache_api.py`。
+- AC-107 至 AC-110、AC-114 的内嵌轨道责任、外置字幕授权集合、固定下载响应、实时远端归属
+  和 logout/cache-cleaned/local-expiry 清理由
+  [TASK-110 字幕下载与生命周期边界](changes/2026-07-28--task-110-subtitle-contract.md) 冻结；
+  TASK-110 已实现后端 manifest/下载，自动证据位于 `test_signature.py`、
+  `test_subtitle_options.py` 和 `test_subtitle_download.py`；TASK-112 发布 cache cleaned，
+  TASK-211/311 执行客户端清理。
 - AC-094 至 AC-098 的 materialized cache 首次 TTL、设置变更、20 个安全收敛目标、稳定 LRU、
   playback lease 最小 Schema、清理 claim/attempt 和证明式删除恢复由
   [TASK-107 缓存生命周期确定性边界](changes/2026-07-28--task-107-cache-lifecycle-determinism.md)

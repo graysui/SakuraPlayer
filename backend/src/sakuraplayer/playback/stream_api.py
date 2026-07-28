@@ -42,6 +42,7 @@ class PlaybackMediaOutput(BaseModel):
 
 class PlaybackSubtitleOutput(BaseModel):
     id: uuid.UUID
+    media_id: uuid.UUID | None
     name: str
     format: str
     language: str | None
@@ -56,11 +57,14 @@ class PlaybackQueueOutput(BaseModel):
 
 class PlaybackManifestOutput(BaseModel):
     session_id: uuid.UUID
+    cache_job_id: uuid.UUID
     mode: Literal["original", "compatibility"]
     platform: Literal["windows", "harmonyos"]
     stream_url: str
     expires_at: datetime
+    subtitle_cache_expires_at: datetime
     required_user_agent: str
+    embedded_tracks_source: Literal["client_player"]
     media_queue: list[PlaybackQueueOutput]
     subtitles: list[PlaybackSubtitleOutput]
     progress: None = None
@@ -130,11 +134,14 @@ def create_playback_api(
 def _manifest_output(manifest: PlaybackManifest) -> PlaybackManifestOutput:
     return PlaybackManifestOutput(
         session_id=manifest.session_id,
+        cache_job_id=manifest.cache_job_id,
         mode=manifest.mode,
         platform=manifest.platform,
         stream_url=manifest.stream_url,
         expires_at=manifest.expires_at,
+        subtitle_cache_expires_at=manifest.subtitle_cache_expires_at,
         required_user_agent=manifest.required_user_agent,
+        embedded_tracks_source=manifest.embedded_tracks_source,
         media_queue=[
             PlaybackQueueOutput(
                 session_id=item.session_id,
@@ -154,6 +161,7 @@ def _manifest_output(manifest: PlaybackManifest) -> PlaybackManifestOutput:
         subtitles=[
             PlaybackSubtitleOutput(
                 id=item.id,
+                media_id=item.media_id,
                 name=item.name,
                 format=item.format,
                 language=item.language,
