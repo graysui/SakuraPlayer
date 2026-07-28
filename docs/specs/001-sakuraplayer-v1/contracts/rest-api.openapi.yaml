@@ -719,7 +719,7 @@ paths:
                   format: uuid
                 mode:
                   type: string
-                  enum: [original]
+                  enum: [original, compatibility]
                 platform:
                   type: string
                   enum: [windows, harmonyos]
@@ -774,7 +774,7 @@ paths:
             type: string
       responses:
         '302':
-          description: Redirect to the original direct URL. TASK-109 adds HLS compatibility redirects.
+          description: Redirect to the original direct URL or selected highest-bandwidth HLS variant.
           headers:
             Location:
               required: true
@@ -1905,7 +1905,7 @@ components:
           format: uuid
         mode:
           type: string
-          enum: [original]
+          enum: [original, compatibility]
         platform:
           type: string
           enum: [windows, harmonyos]

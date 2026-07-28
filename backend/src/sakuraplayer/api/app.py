@@ -29,7 +29,7 @@ from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.events.websocket import create_events_api
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
-from sakuraplayer.playback.original import OriginalStreamResolver
+from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import PlaybackSessionService
 from sakuraplayer.playback.stream_api import create_playback_api
 from sakuraplayer.resources.admin_api import (
@@ -67,7 +67,7 @@ def create_app(
     cache_service: PlayRequestService | None = None,
     cache_cleanup_service: CleanupQueue | None = None,
     playback_session_service: PlaybackSessionService | None = None,
-    original_stream_resolver: OriginalStreamResolver | None = None,
+    playback_stream_resolver: PlaybackStreamResolver | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -239,17 +239,17 @@ def create_app(
             )
         if (
             playback_session_service is not None
-            and original_stream_resolver is not None
+            and playback_stream_resolver is not None
         ):
             app.include_router(
                 create_playback_api(
                     playback_session_service,
-                    original_stream_resolver,
+                    playback_stream_resolver,
                     current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
         elif (
-            playback_session_service is not None or original_stream_resolver is not None
+            playback_session_service is not None or playback_stream_resolver is not None
         ):
             raise ValueError("playback API requires session service and resolver")
     elif (
@@ -268,7 +268,7 @@ def create_app(
         or cloud115_qr_service is not None
         or cache_service is not None
         or playback_session_service is not None
-        or original_stream_resolver is not None
+        or playback_stream_resolver is not None
     ):
         raise ValueError("admin APIs require identity service")
 

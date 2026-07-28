@@ -60,6 +60,11 @@
   [TASK-108 播放会话契约闭合](changes/2026-07-28--task-108-playback-session-contract.md)
   冻结；TASK-108 实现签名会话与 302 原画入口，自动证据位于 `test_signature.py` 和
   `test_original_redirect.py`，TASK-109/111 分别扩展 HLS compatibility 与播放进度心跳。
+- AC-101、AC-103 的自动 fallback 白名单、HLS DTO 稳定选择、协议解析职责和 UA 跨任务责任由
+  [TASK-109 HLS 回退确定性边界](changes/2026-07-28--task-109-hls-fallback-boundaries.md)
+  冻结；TASK-109 实现后端 original/compatibility，TASK-210/310 实现客户端模式和 HLS 子请求，
+  TASK-213/312 保留真实链路门禁；TASK-109 自动证据位于 `test_hls_resolver.py` 和
+  `test_compatibility_redirect.py`。
 
 ## 逐条追踪
 

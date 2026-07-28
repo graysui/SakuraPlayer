@@ -24,7 +24,9 @@ from sakuraplayer.cloud_cache.ports.cloud115 import OriginalUrl
 from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.playback.hls import HlsStreamResolver
 from sakuraplayer.playback.original import OriginalStreamResolver
+from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import PlaybackSessionService
 from sakuraplayer.playback.user_agents import WINDOWS_USER_AGENT
 from sakuraplayer.resources.source_importer import SourceImporter
@@ -123,7 +125,10 @@ def test_original_redirect_uses_fixed_ua_and_never_proxies_bytes(
             signing_key=b"p" * 32,
             now=lambda: NOW,
         ),
-        original_stream_resolver=OriginalStreamResolver(CloudScopeStub(fake)),  # type: ignore[arg-type]
+        playback_stream_resolver=PlaybackStreamResolver(
+            OriginalStreamResolver(CloudScopeStub(fake)),  # type: ignore[arg-type]
+            HlsStreamResolver(CloudScopeStub(fake)),  # type: ignore[arg-type]
+        ),
     )
     client_instance_id = uuid.uuid4()
     try:

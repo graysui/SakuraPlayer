@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Problem
 from sakuraplayer.identity.api import ApiProblem
 from sakuraplayer.identity.domain import CurrentAdmin
-from sakuraplayer.playback.original import OriginalStreamResolver
+from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import (
     PlaybackManifest,
     PlaybackProblem,
@@ -25,7 +25,7 @@ class PlaybackSessionInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     media_id: uuid.UUID
-    mode: Literal["original"]
+    mode: Literal["original", "compatibility"]
     platform: Literal["windows", "harmonyos"]
     client_instance_id: uuid.UUID
 
@@ -56,7 +56,7 @@ class PlaybackQueueOutput(BaseModel):
 
 class PlaybackManifestOutput(BaseModel):
     session_id: uuid.UUID
-    mode: Literal["original"]
+    mode: Literal["original", "compatibility"]
     platform: Literal["windows", "harmonyos"]
     stream_url: str
     expires_at: datetime
@@ -68,7 +68,7 @@ class PlaybackManifestOutput(BaseModel):
 
 def create_playback_api(
     service: PlaybackSessionService,
-    resolver: OriginalStreamResolver,
+    resolver: PlaybackStreamResolver,
     *,
     current_admin_dependency: Callable[..., CurrentAdmin],
 ) -> APIRouter:
@@ -177,6 +177,9 @@ def _cloud_problem(error: Cloud115Problem) -> ApiProblem:
         "cloud115_credentials_expired": 422,
         "cloud115_file_not_found": 404,
         "cloud115_original_unavailable": 422,
+        "cloud115_hls_membership_required": 422,
+        "cloud115_hls_not_ready": 503,
+        "cloud115_hls_unavailable": 502,
         "cloud115_rate_limited": 429,
         "cloud115_unavailable": 503,
         "cloud115_protocol_error": 502,
@@ -184,7 +187,7 @@ def _cloud_problem(error: Cloud115Problem) -> ApiProblem:
     return ApiProblem(
         status_code=statuses.get(error.code, 502),
         code=error.code,
-        message="Cloud115 original stream is not available",
+        message="Cloud115 playback stream is not available",
         retry_after_seconds=error.retry_after_seconds,
     )
 

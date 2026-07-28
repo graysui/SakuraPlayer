@@ -15,7 +15,7 @@ from sakuraplayer.cloud_cache.models import (
 )
 from sakuraplayer.identity.domain import CurrentAdmin
 from sakuraplayer.identity.models import AdminUser, Base
-from sakuraplayer.playback.models import PlaybackLease
+from sakuraplayer.playback.models import PlaybackLease, PlaybackSession
 from sakuraplayer.playback.session import PlaybackProblem, PlaybackSessionService
 from sakuraplayer.playback.user_agents import WINDOWS_USER_AGENT
 from sakuraplayer.resources.models import ResourceSource  # noqa: F401
@@ -112,6 +112,35 @@ def test_each_click_creates_new_sessions_and_refreshes_cache_ttl() -> None:
         assert job is not None
         assert _as_utc(job.last_accessed_at) == NOW
         assert _as_utc(job.expires_at) == NOW + timedelta(hours=48)
+
+
+def test_compatibility_creates_new_sessions_with_signed_mode() -> None:
+    factory, admin, job_id, media_ids = _context()
+    service = PlaybackSessionService(factory, signing_key=b"p" * 32, now=lambda: NOW)
+
+    original = service.create(
+        admin=admin,
+        cache_job_id=job_id,
+        media_id=media_ids[0],
+        mode="original",
+        platform="windows",
+        client_instance_id=admin.client_instance_id,
+    )
+    compatibility = service.create(
+        admin=admin,
+        cache_job_id=job_id,
+        media_id=media_ids[0],
+        mode="compatibility",
+        platform="windows",
+        client_instance_id=admin.client_instance_id,
+    )
+
+    assert original.session_id != compatibility.session_id
+    assert compatibility.mode == "compatibility"
+    with factory() as session:
+        stored = session.get(PlaybackSession, compatibility.session_id)
+        assert stored is not None
+        assert stored.mode == "compatibility"
 
 
 def test_create_rejects_non_selected_media_and_client_mismatch() -> None:

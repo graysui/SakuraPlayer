@@ -7,7 +7,8 @@
 `sakuramediabe/src/lib/cloud115`
 
 **就绪变更**: [TASK-101 Cloud115 协议就绪边界](../changes/2026-07-27--task-101-cloud115-readiness.md)、
-[TASK-106 来源拒绝确定性边界](../changes/2026-07-28--task-106-source-rejection-determinism.md)
+[TASK-106 来源拒绝确定性边界](../changes/2026-07-28--task-106-source-rejection-determinism.md)、
+[TASK-109 HLS 回退确定性边界](../changes/2026-07-28--task-109-hls-fallback-boundaries.md)
 
 ## 1. 目标与分层
 
@@ -205,9 +206,16 @@ database owner == cache_job.id
 - Windows 固定 UA 为 `SakuraPlayer/1.0 (Windows; x64)`；HarmonyOS 固定 UA 为
   `SakuraPlayer/1.0 (HarmonyOS; API 24)`。二者均为协议常量，不接受客户端覆盖。
 - `resolve_original` 参数 UA 必须与播放器后续 Range GET 完全一致。
-- `resolve_hls` 返回的每个 variant 带相同 UA；master/variant/segment 请求必须复用它。
+- Cloud115 适配器独占 HLS video info/master 请求、master 解析和 capability URL 校验；播放层只
+  消费 `HlsInfo/HlsVariant`，不得再次解析 m3u8。
+- `resolve_hls` 返回的每个 variant 带相同 UA；播放层校验 pickcode、非空 variants 和 variant UA，
+  再按最大 bandwidth 选择首个最高项。master/variant/segment 请求必须复用该 UA。
+- original 自动 HLS fallback 白名单仅含 `cloud115_original_unavailable`；凭据失效、文件不存在、
+  限流、上游不可用和协议错误不得自动回退。显式 compatibility 会话直接调用 HLS。
 - 同一原画 URL 的 seek 串行合并，禁止 5 个以上突发并发 Range。
 - 原画/HLS 返回不得携带 115 Cookie 给客户端。
+- TASK-109 证明 master 与选中 variant 的 UA 契约；客户端 variant/segment UA 分别由
+  TASK-210/310 实现，并由 TASK-213/312 的真实链路门禁验证。
 
 ## 10. 测试替身与真实门禁
 

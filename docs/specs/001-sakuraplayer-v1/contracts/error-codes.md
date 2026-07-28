@@ -155,6 +155,9 @@
 | 422 | `subtitle_format_unsupported` | 不加载该字幕，视频继续播放 |
 | 409 | `progress_version_conflict` | 客户端拉取最新影片进度后继续 |
 
+自动 HLS fallback 白名单仅包含 `cloud115_original_unavailable`。其余 original 错误保持本表
+状态与 code；HLS 失败也保持自身稳定 code，不包装为原画错误。
+
 ## 7. WebSocket 关闭码
 
 | close code | 含义 | 客户端动作 |

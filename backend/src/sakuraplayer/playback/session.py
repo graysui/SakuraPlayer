@@ -5,7 +5,7 @@ import hmac
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Literal
+from typing import Callable, Literal, cast
 from urllib.parse import urlencode
 
 from sqlalchemy import select
@@ -25,6 +25,7 @@ from sakuraplayer.playback.models import PlaybackLease, PlaybackSession
 from sakuraplayer.playback.user_agents import PlaybackPlatform, user_agent_for
 
 PLAYBACK_SESSION_DURATION = timedelta(hours=12)
+PlaybackMode = Literal["original", "compatibility"]
 
 
 class PlaybackProblem(RuntimeError):
@@ -64,7 +65,7 @@ class PlaybackQueueItem:
 @dataclass(frozen=True, slots=True)
 class PlaybackManifest:
     session_id: uuid.UUID
-    mode: Literal["original"]
+    mode: PlaybackMode
     platform: PlaybackPlatform
     stream_url: str
     expires_at: datetime
@@ -80,6 +81,7 @@ class StreamContext:
     cache_root_cid: str
     pickcode: str
     user_agent: str
+    mode: PlaybackMode
 
 
 class PlaybackSessionService:
@@ -114,8 +116,9 @@ class PlaybackSessionService:
     ) -> PlaybackManifest:
         if client_instance_id != admin.client_instance_id:
             raise PlaybackProblem(status_code=422, code="validation_failed")
-        if mode != "original":
+        if mode not in {"original", "compatibility"}:
             raise PlaybackProblem(status_code=422, code="playback_mode_not_available")
+        playback_mode = cast(PlaybackMode, mode)
         try:
             user_agent = user_agent_for(platform)
         except ValueError:
@@ -177,7 +180,7 @@ class PlaybackSessionService:
                     movie_id=job.movie_id,
                     cache_job_id=job.id,
                     media_id=item.id,
-                    mode="original",
+                    mode=playback_mode,
                     platform=platform,
                     user_agent_hash=user_agent_hash,
                     issued_at=current,
@@ -211,7 +214,7 @@ class PlaybackSessionService:
             entry = next(item for item in queue if item.media.id == media_id)
             return PlaybackManifest(
                 session_id=entry.session_id,
-                mode="original",
+                mode=playback_mode,
                 platform=platform,
                 stream_url=entry.stream_url,
                 expires_at=expires_at,
@@ -250,6 +253,10 @@ class PlaybackSessionService:
             ):
                 raise PlaybackProblem(
                     status_code=401, code="playback_signature_expired"
+                )
+            if playback.mode not in {"original", "compatibility"}:
+                raise PlaybackProblem(
+                    status_code=401, code="playback_signature_invalid"
                 )
             admin = session.get(AdminUser, playback.admin_id)
             if admin is None or admin.session_epoch != playback.session_epoch:
@@ -304,6 +311,7 @@ class PlaybackSessionService:
                 cache_root_cid=job.cache_root_cid,
                 pickcode=media.pickcode,
                 user_agent=expected_user_agent,
+                mode=cast(PlaybackMode, playback.mode),
             )
 
     def _stream_url(self, playback: PlaybackSession, expires_at: datetime) -> str:
@@ -378,6 +386,7 @@ def _as_utc(value: datetime) -> datetime:
 
 __all__ = [
     "PlaybackManifest",
+    "PlaybackMode",
     "PlaybackProblem",
     "PlaybackQueueItem",
     "PlaybackSessionService",

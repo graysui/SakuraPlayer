@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-28
 
-**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-108 已完成；下一任务为 TASK-109。
+**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-109 已完成；下一任务为 TASK-110。
 
 ## 1. 当前成果
 
@@ -107,12 +107,19 @@
 - TASK-108 Fast 为 700 项通过；Compose Final 第四次尝试通过 700 项自包含和 104 项 PostgreSQL
   integration/E2E，迁移、五服务健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部
   完成，默认测试未访问真实 115。
+- TASK-109 已交付 original/compatibility 双模式会话、仅 original unavailable 自动回退、类型化
+  HLS DTO 校验、最高 bandwidth 稳定选择和完整 HLS 错误映射。
+- Cloud115 适配器继续独占 master 请求/解析和 capability URL 校验；播放层不重复解析 m3u8，
+  master/选中 variant UA 由后端证明，客户端子请求和真实链路仍由后续任务负责。
+- TASK-109 Fast 为 720 项通过；Compose Final 第二次尝试通过 720 项自包含和 105 项 PostgreSQL
+  integration/E2E，迁移、五服务健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部
+  完成，默认测试未访问真实 115。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-108 已完成；下一任务为 TASK-109。
-- **最近绿色快速门禁**: TASK-108 Fast 为 700 passed、8 deselected；Ruff format/lint、4 个播放生产模块 mypy、宿主 Docker 配置、完整差异和只读审计通过，无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-108 Compose Final 第四次尝试通过；自包含 700 passed、8 deselected，PostgreSQL integration/E2E 104 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-109 已完成；下一任务为 TASK-110。
+- **最近绿色快速门禁**: TASK-109 Fast 为 720 passed、8 deselected；Ruff format/lint、6 个播放生产模块 mypy、宿主 Docker 配置、完整差异和只读审计通过，无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-109 Compose Final 第二次尝试通过；自包含 720 passed、8 deselected，PostgreSQL integration/E2E 105 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -129,20 +136,20 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108。
-- **下一任务**: TASK-109 HLS fallback 与播放模式。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109。
+- **下一任务**: TASK-110 字幕下载、音轨契约与生命周期。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-109 开始：
+下一会话从 TASK-110 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-109.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-110.md"
 ```
 
-TASK-108 的实现、测试和文档已同步；提交事实以 Git 为准。TASK-109 开始前读取其 DoR、
-现有 original session/stream 行为、Cloud115 HLS 能力和 AC-101/103/106/107；默认自动测试不得
-访问真实 115，不得保存或记录完整上游签名 URL。
+TASK-109 的实现、测试和文档已同步；提交事实以 Git 为准。TASK-110 开始前读取其 DoR、
+RemoteSubtitle、PlaybackSession owner、Cloud115 小文件能力和 AC-107 至 AC-110/114；默认自动
+测试不得访问真实 115，不得保存字幕正文或记录完整上游签名 URL。
 
 ## 4. 必读契约
 

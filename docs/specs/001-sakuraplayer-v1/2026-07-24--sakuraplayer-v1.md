@@ -195,9 +195,12 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-019 安全直链播放
 
+- AC-101/103 的自动回退白名单、HLS DTO 选择、协议/播放层职责和 UA 跨任务责任由
+  [TASK-109 HLS 回退确定性边界](changes/2026-07-28--task-109-hls-fallback-boundaries.md)
+  冻结。
 - **AC-099 `[IMP]`**: 后端按媒体生成 12 小时有效的 HMAC 签名播放 URL，每次点击播放重新签发。
 - **AC-100 `[IMP]`**: Windows 和 HarmonyOS 使用各自固定的 SakuraPlayer User-Agent，后端获取 115 地址时必须使用播放器后续请求的同一 User-Agent。
-- **AC-101 `[IMP]`**: 后端优先获取 115 原画直链；TASK-108 只交付原画，TASK-109 在原画可回退失败或用户切换兼容播放时使用可用的最高码率 HLS。
+- **AC-101 `[IMP]`**: 后端优先获取 115 原画直链；只有 `cloud115_original_unavailable` 可自动回退，或用户切换兼容播放时，才使用可用的最高码率 HLS。
 - **AC-102 `[IMP]`**: 播放入口校验身份、签名、过期时间和缓存归属后返回 `302` 与 `Cache-Control: no-store`，不得代理视频字节。
 - **AC-103 `[IMP]`**: 播放器菜单只提供“原画”和“兼容播放”，不展示全部 HLS 档位。
 - **AC-104 `[IMP]`**: 首版只支持应用内播放器，不调用外部播放器。

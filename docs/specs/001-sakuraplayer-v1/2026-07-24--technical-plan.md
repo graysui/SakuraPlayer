@@ -245,8 +245,11 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
 1. 客户端调用已认证的播放会话接口，提交就绪缓存和媒体选择。
 2. 后端生成绑定固定 UA 和模式的签名入口；默认 `original`。
 3. 播放器请求入口，后端校验 HMAC、过期时间、session epoch、owner、媒体仍受管、请求 UA。
-4. 原画模式调用 `get_download_url(pickcode, same_ua)`；确定性不可用不伪装成 HLS，只有可回退取链错误才尝试 HLS。
-5. 兼容模式调用 `get_video_info`，选择 bandwidth 最大的 variant。
+4. 原画模式调用 `get_download_url(pickcode, same_ua)`；只有
+   `cloud115_original_unavailable` 自动回退 HLS，凭据、文件不存在、限流、上游不可用和协议错误
+   均保持原错误。
+5. 兼容模式直接调用 `get_video_info`；Cloud115 适配器解析 master 并校验能力 URL，播放层只
+   校验类型化 DTO 并选择 bandwidth 最大的 variant，同码率选择 master 中首项。
 6. 返回 `302` 和 `Cache-Control: no-store`，不保存上游 URL。
 7. 客户端从已认证字幕接口下载最多 8 MiB `(derived)` 的 `.srt/.ass/.ssa/.vtt` 到应用私有缓存并交给播放器。
 
