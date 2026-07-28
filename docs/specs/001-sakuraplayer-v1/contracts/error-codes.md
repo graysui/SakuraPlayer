@@ -106,7 +106,9 @@
 | 502 | `cloud115_protocol_error` | 上游返回未知状态、非法字段/errno 或密文无法解码；停止自动操作并保留安全诊断 |
 | 404 | `cloud115_directory_not_found` | 根或任务目录不存在 |
 | 409 | `cloud115_directory_ambiguous` | 同一父目录存在多个受管同名目录；禁止任选或删除，等待管理员处理 |
-| 422 | `cloud115_offline_invalid` | 115 明确拒绝离线载荷；不得把磁力写入错误 details |
+| 422 | `cloud115_offline_invalid` | 保留码；没有固定确定性 fixture 前不得由 HTTP 400/422、缺失字段、通用 request errno 或普通 failed 发出 |
+| 422 | `cloud115_source_unavailable` | 离线提交端点命中固定 not-found errno；永久拒绝来源 |
+| 422 | `cloud115_source_blocked` | 任务目录文件有明确 blocked 标记；永久拒绝来源 |
 | 409 | `cloud115_offline_quota_exceeded` | 115 月度离线配额不足；不自动重试 |
 | 404 | `cloud115_offline_task_not_found` | 远端离线任务明确不存在；调用方按本地状态决定幂等收敛 |
 | 404 | `cloud115_file_not_found` | 115 文件明确不存在；不得由 transport failure 推断 |
@@ -124,7 +126,7 @@
 | 409 | `cache_cancel_confirmation_required` | 客户端必须完成二次确认后重提 |
 | 409 | `cache_active_lease` | 正在播放，拒绝立即清理 |
 | 409 | `cache_ownership_mismatch` | 受管目录证明不成立，标记 detached，不删除 |
-| 502 | `cloud115_offline_failed` | 115 明确离线失败 |
+| 502 | `cloud115_offline_failed` | 115 普通离线失败；原因不确定，不永久拒绝来源 |
 | 任务 | `cloud115_submit_uncertain` | 离线提交结果无法确认；禁止自动重复提交，等待人工重新操作 |
 | 422 | `source_permanently_unavailable` | 失效/违规/无法离线；创建拒绝标记 |
 | 500 | `cache_cleanup_failed` | 删除未确认成功，容量不释放 |

@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.models import Base
-from sakuraplayer.resources.models import ResourceSource
+from sakuraplayer.resources.models import ResourceSource, SourceRejection
 from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.resources.source_submission import (
     SourceSubmissionProblem,
@@ -98,6 +98,36 @@ def test_decrypts_only_in_explicit_submission_payload_and_hides_repr(context) ->
 
     assert payload.magnet == "magnet:?xt=urn:btih:fixture-1"
     assert payload.magnet not in repr(payload)
+
+
+def test_loads_non_sensitive_reference_before_and_after_rejection(context) -> None:
+    factory, service = context
+    movie_id, source_id, _ = _ids(factory)
+
+    active = service.load_submission_ref(movie_id=movie_id, source_id=source_id)
+    with factory.begin() as session:
+        source = session.get(ResourceSource, source_id)
+        assert source is not None
+        source.identification_status = "rejected"
+        source.magnet_key_id = None
+        source.magnet_nonce = None
+        source.magnet_ciphertext = None
+        session.add(
+            SourceRejection(
+                id=uuid.uuid4(),
+                website=source.website,
+                external_post_id=source.external_post_id,
+                reason_code="cloud115_source_unavailable",
+                rejected_at=NOW,
+                last_seen_release_id=None,
+            )
+        )
+    rejected = service.load_submission_ref(movie_id=movie_id, source_id=source_id)
+
+    assert active.rejection_reason_code is None
+    assert rejected.rejection_reason_code == "cloud115_source_unavailable"
+    assert rejected.source_id == source_id
+    assert "magnet" not in repr(rejected).lower()
 
 
 def test_cross_movie_pending_and_unknown_sources_share_safe_not_found(context) -> None:

@@ -27,6 +27,7 @@ from sakuraplayer.cloud_cache.ports.cloud115 import (
     DirectoryInfo,
     RemoteFile,
 )
+from sakuraplayer.cloud_cache.source_rejection_client import SourceRejectionClient
 from sakuraplayer.cloud_cache.worker.claim import (
     CacheJobClaimLost,
     CacheJobClaimQueue,
@@ -35,6 +36,7 @@ from sakuraplayer.cloud_cache.worker.resolution import CacheMediaResolver
 from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.models import ResourceSource
+from sakuraplayer.resources.rejection import SourceRejectionService
 from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.resources.source_submission import SourceSubmissionService
 from sakuraplayer.shared.migration import upgrade_database
@@ -248,10 +250,24 @@ def _resolver(factory, fake):
     async def cloud_scope(_claim):
         yield fake
 
+    source_port = SourceSubmissionService(factory, cipher=_cipher())
     return CacheMediaResolver(
         CacheJobClaimQueue(factory, now=lambda: NOW),
+        SourceRejectionClient(
+            source_port,
+            SourceRejectionService(factory, now=lambda: NOW),
+        ),
         cloud_scope,
         now=lambda: NOW,
+    )
+
+
+def _cipher() -> SecretCipher:
+    return SecretCipher(
+        InMemorySecretKeyProvider(
+            active_key_id="test-v1",
+            keys={"test-v1": b"k" * 32},
+        )
     )
 
 

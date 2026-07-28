@@ -22,12 +22,15 @@ from sakuraplayer.cloud_cache.ports.cloud115 import (
     OfflineTaskSnapshot,
     RemoteDirectory,
 )
+from sakuraplayer.cloud_cache.source_rejection_client import SourceRejectionClient
 from sakuraplayer.cloud_cache.worker.claim import CacheJobClaimLost, CacheJobClaimQueue
 from sakuraplayer.cloud_cache.worker.offline import CacheOfflineWorker
+from sakuraplayer.events.models import DomainEvent
 from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.models import Base
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
-from sakuraplayer.resources.models import ResourceSource
+from sakuraplayer.resources.models import ResourceSource, SourceRejection
+from sakuraplayer.resources.rejection import SourceRejectionService
 from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.resources.source_submission import SourceSubmissionService
 from tests.fakes.cloud115 import FakeCloud115
@@ -216,6 +219,129 @@ def test_poll_missing_or_failed_remote_task_is_deterministic(
     )
     job = _job(factory, job_id)
     assert (job.status, job.failure_code) == ("failed", failure_code)
+    with factory() as session:
+        source = session.get(ResourceSource, job.source_id)
+        assert source is not None and source.identification_status == "identified"
+        assert source.magnet_envelope is not None
+        assert session.scalar(select(func.count(SourceRejection.id))) == 0
+        movie_id = source.movie_id
+        assert movie_id is not None
+    retried = play.create(
+        movie_id=movie_id,
+        source_id=job.source_id,
+        idempotency_key=f"manual-retry-{job.source_id.hex}-{failure_code}",
+    )
+    assert retried.disposition == "started"
+    assert retried.job.id != job_id
+
+
+def test_precise_submit_failure_rejects_source_and_writes_one_safe_event(
+    context,
+) -> None:
+    factory, source_port, play = context
+    job_id = _create_started(factory, play)
+    fake = FakeCloud115(
+        directories=[
+            RemoteDirectory("task-cid", "root-fixture", _task_name(factory, job_id))
+        ],
+        offline_submissions=[Cloud115Problem("cloud115_source_unavailable")],
+    )
+
+    assert (
+        _worker(factory, source_port, fake).run_once(worker_id="worker-a") == "worked"
+    )
+
+    job = _job(factory, job_id)
+    with factory() as session:
+        source = session.get(ResourceSource, job.source_id)
+        rejection = session.scalar(select(SourceRejection))
+        events = tuple(session.scalars(select(DomainEvent)))
+    assert (job.status, job.failure_code) == (
+        "failed",
+        "cloud115_source_unavailable",
+    )
+    assert source is not None and source.identification_status == "rejected"
+    assert source.magnet_envelope is None
+    assert rejection is not None
+    assert rejection.reason_code == "cloud115_source_unavailable"
+    assert len(events) == 1
+    assert events[0].event_type == "cache.job.failed.v1"
+    assert events[0].payload == {
+        "id": str(job_id),
+        "status": "failed",
+        "error_code": "cloud115_source_unavailable",
+        "rejected_source": True,
+    }
+    assert "magnet" not in repr(events[0].payload).lower()
+
+
+def test_crash_after_rejection_reclaims_and_converges_without_cloud_replay(
+    context,
+) -> None:
+    factory, source_port, play = context
+    job_id = _create_started(factory, play)
+    clock = {"now": NOW}
+    fake = FakeCloud115(
+        directories=[
+            RemoteDirectory("task-cid", "root-fixture", _task_name(factory, job_id))
+        ],
+        offline_submissions=[Cloud115Problem("cloud115_source_unavailable")],
+    )
+
+    class CrashAfterRejectionQueue(CacheJobClaimQueue):
+        def fail_rejected(self, claim, code) -> None:
+            del claim, code
+            raise RuntimeError("simulated process exit")
+
+    def worker(queue, cloud):
+        @asynccontextmanager
+        async def cloud_scope(_claim):
+            yield cloud
+
+        return CacheOfflineWorker(
+            queue,
+            source_port,
+            SourceRejectionClient(
+                source_port,
+                SourceRejectionService(factory, now=lambda: clock["now"]),
+            ),
+            cloud_scope,
+            now=lambda: clock["now"],
+        )
+
+    with pytest.raises(RuntimeError, match="simulated process exit"):
+        worker(
+            CrashAfterRejectionQueue(factory, now=lambda: clock["now"]),
+            fake,
+        ).run_once(worker_id="crashing-worker")
+
+    with factory() as session:
+        job = session.get(CacheJob, job_id)
+        source = session.get(ResourceSource, job.source_id if job is not None else None)
+        assert job is not None and job.status == "submitting"
+        assert job.claim_owner == "crashing-worker"
+        assert source is not None and source.magnet_envelope is None
+        assert session.scalar(select(func.count(SourceRejection.id))) == 1
+        assert session.scalar(select(func.count(DomainEvent.event_id))) == 0
+
+    clock["now"] += timedelta(seconds=91)
+    replay_cloud = FakeCloud115()
+    replay = worker(
+        CacheJobClaimQueue(factory, now=lambda: clock["now"]),
+        replay_cloud,
+    )
+    assert replay.run_once(worker_id="recovery-worker") == "worked"
+    assert replay.run_once(worker_id="recovery-worker") == "idle"
+
+    job = _job(factory, job_id)
+    with factory() as session:
+        assert session.scalar(select(func.count(SourceRejection.id))) == 1
+        assert session.scalar(select(func.count(DomainEvent.event_id))) == 1
+    assert (job.status, job.failure_code) == (
+        "failed",
+        "cloud115_source_unavailable",
+    )
+    assert replay_cloud.calls == []
 
 
 def test_running_remote_task_uses_claim_lease_as_poll_backoff(context) -> None:
@@ -374,6 +500,10 @@ def _worker(factory, source_port, fake):
     return CacheOfflineWorker(
         CacheJobClaimQueue(factory, now=lambda: NOW),
         source_port,
+        SourceRejectionClient(
+            source_port,
+            SourceRejectionService(factory, now=lambda: NOW),
+        ),
         cloud_scope,
         now=lambda: NOW,
     )

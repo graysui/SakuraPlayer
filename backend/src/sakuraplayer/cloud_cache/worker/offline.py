@@ -7,12 +7,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
 from sakuraplayer.cloud_cache.domain.cache_job import CacheJobStatus
+from sakuraplayer.cloud_cache.failure_classifier import classify_cloud_problem
 from sakuraplayer.cloud_cache.ports.cloud115 import (
     Cloud115Port,
     Cloud115Problem,
     OfflineTaskPage,
     OfflineTaskSnapshot,
 )
+from sakuraplayer.cloud_cache.source_rejection_client import SourceRejectionClientPort
 from sakuraplayer.cloud_cache.worker.claim import (
     CacheJobClaim,
     CacheJobClaimLost,
@@ -38,12 +40,14 @@ class CacheOfflineWorker:
         self,
         queue: CacheJobClaimQueue,
         source_port: SourceSubmissionPort,
+        rejection_client: SourceRejectionClientPort,
         cloud_factory: CloudScopeFactory,
         *,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._queue = queue
         self._source_port = source_port
+        self._rejection_client = rejection_client
         self._cloud_factory = cloud_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
 
@@ -59,6 +63,10 @@ class CacheOfflineWorker:
 
     async def _process(self, claim: CacheJobClaim) -> None:
         try:
+            existing = self._rejection_client.existing_failure(claim)
+            if existing is not None:
+                self._queue.fail_rejected(claim, existing.failure_code)
+                return
             async with self._cloud_factory(claim) as cloud:
                 if claim.status.value == "submitting":
                     await self._submit(claim, cloud)
@@ -113,6 +121,11 @@ class CacheOfflineWorker:
                 "cloud115_submit_uncertain",
                 "cloud115_protocol_error",
             }:
+                deterministic = classify_cloud_problem(error.code)
+                if deterministic is not None:
+                    rejected = self._rejection_client.reject(current, deterministic)
+                    self._queue.fail_rejected(current, rejected.failure_code)
+                    return
                 raise
             matched = await self._find_by_task_directory(cloud, current.task_dir_cid)
             if matched is None:

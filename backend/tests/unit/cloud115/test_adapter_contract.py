@@ -23,6 +23,54 @@ def _http_client(handler) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
 
+@pytest.mark.parametrize("errno", [20121, 20125, 990002, 4100003, 4100008])
+def test_offline_submit_known_not_found_errno_has_precise_stable_code(
+    errno: int,
+) -> None:
+    problem = Cloud115Adapter._payload_problem(
+        {"state": False, "errno": errno, "error": "upstream body"},
+        "offline_submit",
+    )
+
+    assert problem.code == "cloud115_source_unavailable"
+    assert "upstream body" not in str(problem)
+
+
+def test_offline_submit_generic_request_errno_is_protocol_error() -> None:
+    problem = Cloud115Adapter._payload_problem(
+        {"state": False, "errno": 990005, "error": "generic request"},
+        "offline_submit",
+    )
+
+    assert problem.code == "cloud115_protocol_error"
+
+
+@pytest.mark.parametrize("status", [400, 422])
+def test_offline_submit_ambiguous_http_status_is_protocol_error(status: int) -> None:
+    with pytest.raises(Cloud115Problem) as raised:
+        Cloud115Adapter._raise_http_problem(httpx.Response(status), "offline_submit")
+
+    assert raised.value.code == "cloud115_protocol_error"
+
+
+@pytest.mark.asyncio
+async def test_offline_submit_missing_info_hash_is_protocol_error() -> None:
+    client = _http_client(
+        lambda request: httpx.Response(
+            200,
+            json={"state": True, "result": [{}]},
+            request=request,
+        )
+    )
+    adapter = Cloud115Adapter(cookies=COOKIE, http_client=client)
+    try:
+        with pytest.raises(Cloud115Problem) as raised:
+            await adapter.submit_offline("magnet:?xt=urn:btih:redacted", "task")
+        assert raised.value.code == "cloud115_protocol_error"
+    finally:
+        await client.aclose()
+
+
 @pytest.mark.asyncio
 async def test_qr_flow_uses_fixed_hosts_and_rejects_unknown_status() -> None:
     def handler(request: httpx.Request) -> httpx.Response:

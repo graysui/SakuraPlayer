@@ -17,7 +17,11 @@
 - AC-133 的 bootstrap token 熵、规范 Base64URL 编码和固定长度摘要比较由 [Bootstrap Token 熵与比较规范](changes/2026-07-24--bootstrap-token-entropy.md) 冻结。
 - AC-127 的内部探针、容器健康检查与 Schema 门禁由 [运维健康与 Schema 门禁契约](contracts/operational-health.md) 冻结；TASK-001 负责基础门禁，TASK-013/TASK-112 负责后续任务恢复与诊断。
 - 实施验证顺序与技能边界由 [统一实施与验证工作流](implementation-workflow.md) 统一管理；该流程禁用 Superpowers 插件及其技能，保留 `planning-with-files-zh`，只约束执行与证据，不新增或删除 AC 映射。
-- AC-036 的跨上下文最小输入、确定性失败边界、原子清密文、幂等与导入 anti-join 由 [SourceRejectionPort 契约](contracts/source-rejection-port.md) 冻结，并由 TASK-006 提供、TASK-106 调用。
+- AC-036 的跨上下文最小输入、初始真实证据白名单、可恢复拒绝顺序、原子清密文、幂等、
+  导入 anti-join 与确定性失败事件所有权由
+  [TASK-106 来源拒绝确定性边界](changes/2026-07-28--task-106-source-rejection-determinism.md)
+  和 [SourceRejectionPort 契约](contracts/source-rejection-port.md) 冻结，并由 TASK-006 提供、
+  TASK-106 调用；TASK-112 不重复发布 TASK-106 已持久化的确定性失败事件。
 - AC-028/AC-030 的标准番号、FC2、保守拒绝和固定样本由 [影片番号规范化输入边界](changes/2026-07-25--movie-number-normalization.md) 冻结，并由 TASK-005 实现。
 - AC-026/AC-027 的 90 日历日边界、5000 截断、稳定排序和无上限历史候选由 [首批元数据范围边界与排序](changes/2026-07-25--initial-metadata-scope-ordering.md) 冻结，并由 TASK-005 输出、TASK-007 消费。
 - TASK-007 的元数据队列表、活动 attempt 部分唯一约束和 claim expiry 由 [元数据队列 DoR 迁移归属修正](changes/2026-07-25--metadata-queue-dor-correction.md) 明确归属 TASK-007，不改变 AC-037 至 AC-043、AC-122 或任务依赖。

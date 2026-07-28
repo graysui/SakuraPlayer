@@ -29,6 +29,7 @@ from sakuraplayer.catalog.providers.javdb import (
 from sakuraplayer.cloud_cache.binding_service import BindingService
 from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
 from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Port
+from sakuraplayer.cloud_cache.source_rejection_client import SourceRejectionClient
 from sakuraplayer.cloud_cache.worker.claim import CacheJobClaim, CacheJobClaimQueue
 from sakuraplayer.cloud_cache.worker.offline import CacheOfflineWorker, OfflineWorker
 from sakuraplayer.cloud_cache.worker.resolution import (
@@ -45,6 +46,7 @@ from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
 from sakuraplayer.resources.avdb_worker import AvdbWorkerConsumer
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
+from sakuraplayer.resources.rejection import SourceRejectionService
 from sakuraplayer.resources.source_importer import SourceImporter
 from sakuraplayer.resources.source_submission import SourceSubmissionService
 from sakuraplayer.resources.sync_service import (
@@ -250,14 +252,20 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
                 yield cloud
 
         cache_queue = CacheJobClaimQueue(factory)
+        source_submission = SourceSubmissionService(factory, cipher=cipher)
+        source_rejection = SourceRejectionClient(
+            source_submission,
+            SourceRejectionService(factory),
+        )
         offline_consumer = CacheOfflineWorker(
             cache_queue,
-            SourceSubmissionService(factory, cipher=cipher),
+            source_submission,
+            source_rejection,
             cache_cloud_scope,
         )
         cache_consumer = CacheWorkerPipeline(
             offline_consumer,
-            CacheMediaResolver(cache_queue, cache_cloud_scope),
+            CacheMediaResolver(cache_queue, source_rejection, cache_cloud_scope),
         )
         return WorkerRuntime(
             consumer=consumer,

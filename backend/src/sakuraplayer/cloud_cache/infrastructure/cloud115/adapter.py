@@ -342,7 +342,7 @@ class Cloud115Adapter:
             raise Cloud115Problem("cloud115_protocol_error")
         info_hash = str(results[0].get("info_hash") or "")
         if not info_hash:
-            raise Cloud115Problem("cloud115_offline_invalid")
+            raise Cloud115Problem("cloud115_protocol_error")
         return OfflineSubmission(info_hash=info_hash)
 
     async def list_offline_tasks(
@@ -861,8 +861,6 @@ class Cloud115Adapter:
                 "delete": "cloud115_file_not_found",
             }
             raise Cloud115Problem(codes.get(operation, "cloud115_protocol_error"))
-        if operation == "offline_submit" and status in {400, 422}:
-            raise Cloud115Problem("cloud115_offline_invalid")
         if status >= 500:
             raise Cloud115Problem("cloud115_unavailable")
         raise Cloud115Problem("cloud115_protocol_error")
@@ -891,7 +889,7 @@ class Cloud115Adapter:
                 "directory": "cloud115_directory_not_found",
                 "file_list": "cloud115_directory_not_found",
                 "offline_cancel": "cloud115_offline_task_not_found",
-                "offline_submit": "cloud115_offline_invalid",
+                "offline_submit": "cloud115_source_unavailable",
                 "original": "cloud115_file_not_found",
                 "hls": "cloud115_file_not_found",
                 "small_file": "cloud115_file_not_found",
@@ -899,7 +897,7 @@ class Cloud115Adapter:
             }
             return Cloud115Problem(codes.get(operation, "cloud115_protocol_error"))
         if errno in _REQUEST_ERRNOS and operation == "offline_submit":
-            return Cloud115Problem("cloud115_offline_invalid")
+            return Cloud115Problem("cloud115_protocol_error")
         return Cloud115Problem("cloud115_protocol_error")
 
     @staticmethod

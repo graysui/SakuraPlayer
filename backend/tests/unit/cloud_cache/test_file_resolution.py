@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.cache_availability import CacheSourceAvailabilityPort
+from sakuraplayer.cloud_cache.failure_classifier import DeterministicSourceFailure
 from sakuraplayer.cloud_cache.media_selection_api import (
     MediaSelectionProblem,
     MediaSelectionService,
@@ -240,6 +241,46 @@ def test_resolver_without_valid_video_fails_deterministically(context) -> None:
         assert (job.status, job.failure_code) == ("failed", "cache_no_valid_media")
 
 
+def test_blocked_file_rejects_before_scanner_can_hide_evidence(context) -> None:
+    factory, job_id = context
+    blocked = _file("blocked", "IPX-001.mkv", 2_000_000_000)
+    blocked = RemoteFile(
+        file_id=blocked.file_id,
+        parent_cid=blocked.parent_cid,
+        name=blocked.name,
+        size_bytes=blocked.size_bytes,
+        pickcode=blocked.pickcode,
+        sha1=blocked.sha1,
+        is_directory=blocked.is_directory,
+        is_video=blocked.is_video,
+        duration_seconds=blocked.duration_seconds,
+        blocked=True,
+    )
+    fake = FakeCloud115(
+        directory_infos=[_directory(), _directory()],
+        file_batches=[(blocked,)],
+    )
+    rejection = RecordingRejectionClient()
+
+    assert (
+        _resolver(factory, fake, rejection).run_once(worker_id="resolver-a") == "worked"
+    )
+
+    with factory() as session:
+        job = session.get(CacheJob, job_id)
+        assert job is not None
+        assert (job.status, job.failure_code) == (
+            "failed",
+            "cloud115_source_blocked",
+        )
+    assert rejection.failures == [
+        DeterministicSourceFailure(
+            failure_code="cloud115_source_blocked",
+            rejection_reason_code="cloud115_source_blocked",
+        )
+    ]
+
+
 def test_cache_pipeline_advances_offline_and_resolution_without_starvation() -> None:
     calls: list[str] = []
 
@@ -262,13 +303,28 @@ def test_cache_pipeline_advances_offline_and_resolution_without_starvation() -> 
     assert calls == ["offline", "resolution"]
 
 
-def _resolver(factory, fake):
+class RecordingRejectionClient:
+    def __init__(self) -> None:
+        self.failures: list[DeterministicSourceFailure] = []
+
+    def existing_failure(self, claim):
+        del claim
+        return None
+
+    def reject(self, claim, failure) -> DeterministicSourceFailure:
+        del claim
+        self.failures.append(failure)
+        return failure
+
+
+def _resolver(factory, fake, rejection=None):
     @asynccontextmanager
     async def cloud_scope(_claim):
         yield fake
 
     return CacheMediaResolver(
         CacheJobClaimQueue(factory, now=lambda: NOW),
+        rejection or RecordingRejectionClient(),
         cloud_scope,
         now=lambda: NOW,
     )

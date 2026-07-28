@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.identity.crypto import SecretCipher, SecretDecryptionError
-from sakuraplayer.resources.models import ResourceSource
+from sakuraplayer.resources.models import ResourceSource, SourceRejection
 from sakuraplayer.resources.source_importer import source_magnet_context
 
 
@@ -24,6 +24,7 @@ class SourceSubmissionRef:
     source_id: uuid.UUID
     website: str
     external_post_id: int
+    rejection_reason_code: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +47,13 @@ class SourceSubmissionPort(Protocol):
         movie_id: uuid.UUID,
         source_id: uuid.UUID,
     ) -> SourceSubmissionPayload: ...
+
+    def load_submission_ref(
+        self,
+        *,
+        movie_id: uuid.UUID,
+        source_id: uuid.UUID,
+    ) -> SourceSubmissionRef: ...
 
 
 class SourceSubmissionService:
@@ -103,8 +111,38 @@ class SourceSubmissionService:
                 source_id=reference.source_id,
                 website=reference.website,
                 external_post_id=reference.external_post_id,
+                rejection_reason_code=None,
                 magnet=magnet,
             )
+
+    def load_submission_ref(
+        self,
+        *,
+        movie_id: uuid.UUID,
+        source_id: uuid.UUID,
+    ) -> SourceSubmissionRef:
+        with self._session_factory() as session:
+            source = session.scalar(
+                select(ResourceSource).where(
+                    ResourceSource.id == source_id,
+                    ResourceSource.movie_id == movie_id,
+                    ResourceSource.identification_status.in_(
+                        ("identified", "manual", "rejected")
+                    ),
+                )
+            )
+            if source is None:
+                raise SourceSubmissionProblem(
+                    status_code=404,
+                    code="resource_not_found",
+                )
+            reason_code = session.scalar(
+                select(SourceRejection.reason_code).where(
+                    SourceRejection.website == source.website,
+                    SourceRejection.external_post_id == source.external_post_id,
+                )
+            )
+            return self._reference(source, rejection_reason_code=reason_code)
 
     @staticmethod
     def _source_for_play(
@@ -135,11 +173,16 @@ class SourceSubmissionService:
         return source
 
     @staticmethod
-    def _reference(source: ResourceSource) -> SourceSubmissionRef:
+    def _reference(
+        source: ResourceSource,
+        *,
+        rejection_reason_code: str | None = None,
+    ) -> SourceSubmissionRef:
         return SourceSubmissionRef(
             source_id=source.id,
             website=source.website,
             external_post_id=source.external_post_id,
+            rejection_reason_code=rejection_reason_code,
         )
 
     @staticmethod

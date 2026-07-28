@@ -75,6 +75,10 @@
 
 60 秒客户端等待结束不产生事件，因为后端任务状态没有变化。
 
+TASK-106 只为确定性来源拒绝提前持久化 `cache.job.failed.v1`，并固定
+`rejected_source=true`；CacheJob failed 与事件在同一 claim-fenced 事务提交。TASK-112 建立
+通用 cache publisher 时不得回填或重复发布这一既有事件，其他缓存事件仍由 TASK-112 负责。
+
 ### 3.3 凭据和通知
 
 | type | 触发 | resource 最小字段 |

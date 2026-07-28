@@ -1,8 +1,8 @@
 # SakuraPlayer v1 新会话交接
 
-**更新时间**: 2026-07-27
+**更新时间**: 2026-07-28
 
-**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-105 已完成；下一任务为 TASK-106。
+**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-106 已完成；下一任务为 TASK-107。
 
 ## 1. 当前成果
 
@@ -84,12 +84,21 @@
 - TASK-105 Fast 为 640 项通过；Compose Final 第二次尝试通过 640 项自包含和 101 项 PostgreSQL
   integration/E2E，迁移、五服务健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部
   完成，默认测试未访问真实 115。
+- TASK-106 已交付固定 revision 证据驱动的确定性失败分类、Resources 非敏感来源引用、
+  `SourceRejectionPort` 客户端、offline/resolver 接入，以及 claim-fenced CacheJob failed 与唯一
+  `cache.job.failed.v1` 事件。
+- 初始永久拒绝白名单只含离线提交端点固定 not-found errno 和远端文件 `blocked=true`；普通
+  remote failed、HTTP 400/422、缺失 info_hash、通用 request errno、网络、限流、配额、凭据和
+  submit uncertain 不清磁力。拒绝后/任务失败前崩溃由 claim expiry 和首次 reason 重读收敛。
+- TASK-106 Fast 为 667 项通过；Compose Final 第二次尝试通过 667 项自包含和 102 项 PostgreSQL
+  integration/E2E，迁移、五服务健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部
+  完成，默认测试未访问真实 115。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-105 已完成；下一任务为 TASK-106。
-- **最近绿色快速门禁**: TASK-105 Fast 为 640 passed、8 deselected；Ruff format/lint、11 个核心生产模块 mypy、宿主 Docker 配置、完整差异和只读审计通过，无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-105 Compose Final 第二次尝试通过；自包含 640 passed、8 deselected，PostgreSQL integration/E2E 101 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-106 已完成；下一任务为 TASK-107。
+- **最近绿色快速门禁**: TASK-106 Fast 为 667 passed、8 deselected；Ruff format/lint、7 个相关生产模块 mypy、宿主 Docker 配置、完整差异和只读审计通过，无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-106 Compose Final 第二次尝试通过；自包含 667 passed、8 deselected，PostgreSQL integration/E2E 102 passed、15 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -106,20 +115,20 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105。
-- **下一任务**: TASK-106 确定性 115 失败分类与来源拒绝集成。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106。
+- **下一任务**: TASK-107 TTL、LRU、租约与安全清理。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-106 开始：
+下一会话从 TASK-107 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-106.md"
+/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-107.md"
 ```
 
-TASK-105 的实现、测试和文档已同步；提交事实以 Git 为准。TASK-106 开始前读取其 DoR、
-Cloud115Port 稳定错误、TASK-006 `SourceRejectionPort` 和 AC-036 边界；确定性错误白名单仍需由真实
-fixture 冻结，默认自动测试不得访问真实 115。
+TASK-106 的实现、测试和文档已同步；提交事实以 Git 为准。TASK-107 开始前读取其 DoR、
+Cloud115Port 安全删除前置条件、CacheJob 容量状态和 AC-094 至 AC-098；默认自动测试不得访问
+真实 115，目录删除只能在完整归属证明后执行。
 
 ## 4. 必读契约
 

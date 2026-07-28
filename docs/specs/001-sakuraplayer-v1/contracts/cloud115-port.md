@@ -6,7 +6,8 @@
 `670ca75b2d35b606ffc0caa6fd47fd04c4c95870` 的
 `sakuramediabe/src/lib/cloud115`
 
-**就绪变更**: [TASK-101 Cloud115 协议就绪边界](../changes/2026-07-27--task-101-cloud115-readiness.md)
+**就绪变更**: [TASK-101 Cloud115 协议就绪边界](../changes/2026-07-27--task-101-cloud115-readiness.md)、
+[TASK-106 来源拒绝确定性边界](../changes/2026-07-28--task-106-source-rejection-determinism.md)
 
 ## 1. 目标与分层
 
@@ -111,7 +112,7 @@ resolver 在遍历前后重新验证任务目录仍是缓存根的直接子目�
 | 凭据探活 | `cloud115_protocol_error`; alive/expired/unavailable 是正常三态结果 |
 | find/create directory | `cloud115_credentials_expired`, `cloud115_directory_not_found`, `cloud115_directory_ambiguous`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
 | directory info / recursive files | `cloud115_credentials_expired`, `cloud115_directory_not_found`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
-| submit offline | `cloud115_credentials_expired`, `cloud115_offline_invalid`, `cloud115_offline_quota_exceeded`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_submit_uncertain`, `cloud115_protocol_error` |
+| submit offline | `cloud115_credentials_expired`, `cloud115_source_unavailable`, `cloud115_offline_quota_exceeded`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_submit_uncertain`, `cloud115_protocol_error` |
 | list offline | `cloud115_credentials_expired`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
 | cancel offline | `cloud115_credentials_expired`, `cloud115_offline_task_not_found`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
 | original | `cloud115_credentials_expired`, `cloud115_file_not_found`, `cloud115_rate_limited`, `cloud115_original_unavailable`, `cloud115_unavailable`, `cloud115_protocol_error` |
@@ -124,6 +125,13 @@ resolver 在遍历前后重新验证任务目录仍是缓存根的直接子目�
 未知 QR status、非法 JSON 和 downurl 解密失败映射 `cloud115_protocol_error`。离线 POST
 在发送后超时或断连而无法确认结果时必须映射 `cloud115_submit_uncertain`，不能映射普通
 unavailable 后自动重提。
+
+离线提交端点只有固定 revision 已观察并反向验证的 not-found errno
+`20121,20125,990002,4100003,4100008` 映射 `cloud115_source_unavailable`。HTTP 400/422、
+缺失 `info_hash`、errno `990005`、未知 errno 和普通离线任务 `status=failed` 均不能证明来源
+永久失效；前三类映射 `cloud115_protocol_error`，普通 failed 只返回稳定
+`failure_reason=offline_failed`。递归文件的 `blocked=true` 是独立违规证据，不转换为 adapter
+异常，由 TASK-106 在过滤前分类。
 
 ## 5. Cookie snapshot 与 CAS
 

@@ -6,9 +6,11 @@ from contextlib import AbstractAsyncContextManager
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
+from sakuraplayer.cloud_cache.failure_classifier import classify_remote_files
 from sakuraplayer.cloud_cache.file_scanner import scan_remote_files
 from sakuraplayer.cloud_cache.media_selection import plan_media_selection
 from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Port, Cloud115Problem
+from sakuraplayer.cloud_cache.source_rejection_client import SourceRejectionClientPort
 from sakuraplayer.cloud_cache.subtitle_locator import locate_subtitles
 from sakuraplayer.cloud_cache.worker.claim import (
     CacheJobClaim,
@@ -27,11 +29,13 @@ class CacheMediaResolver:
     def __init__(
         self,
         queue: CacheJobClaimQueue,
+        rejection_client: SourceRejectionClientPort,
         cloud_factory: CloudScopeFactory,
         *,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._queue = queue
+        self._rejection_client = rejection_client
         self._cloud_factory = cloud_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
 
@@ -47,6 +51,10 @@ class CacheMediaResolver:
 
     async def _process(self, claim: CacheJobClaim) -> None:
         try:
+            existing = self._rejection_client.existing_failure(claim)
+            if existing is not None:
+                self._queue.fail_rejected(claim, existing.failure_code)
+                return
             movie_number = self._queue.resolution_movie_number(claim)
             async with self._cloud_factory(claim) as cloud:
                 before = await cloud.directory_info(self._task_cid(claim))
@@ -61,6 +69,11 @@ class CacheMediaResolver:
                 if not self._owned(claim, after.cid, after.parent_cid, after.name):
                     self._queue.detach(claim)
                     return
+            deterministic = classify_remote_files(files)
+            if deterministic is not None:
+                rejected = self._rejection_client.reject(claim, deterministic)
+                self._queue.fail_rejected(claim, rejected.failure_code)
+                return
             scanned = scan_remote_files(files)
             if not scanned.videos:
                 self._queue.fail(claim, "cache_no_valid_media")

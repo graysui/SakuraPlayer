@@ -18,6 +18,7 @@ from sakuraplayer.cloud_cache.domain.cache_job import (
     CacheJobStatus,
     CapacityClass,
 )
+from sakuraplayer.cloud_cache.failure_classifier import DETERMINISTIC_FAILURE_CODES
 from sakuraplayer.cloud_cache.file_scanner import file_extension
 from sakuraplayer.cloud_cache.media_selection import MediaSelectionPlan
 from sakuraplayer.cloud_cache.models import (
@@ -28,6 +29,7 @@ from sakuraplayer.cloud_cache.models import (
 )
 from sakuraplayer.cloud_cache.ports.cloud115 import OfflineStatus, OfflineTaskSnapshot
 from sakuraplayer.cloud_cache.subtitle_locator import LocatedSubtitle
+from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.resources.models import Movie
 
 DEFAULT_CLAIM_LEASE = timedelta(seconds=90)
@@ -68,12 +70,14 @@ class CacheJobClaimQueue:
         *,
         now: Callable[[], datetime] | None = None,
         lease: timedelta = DEFAULT_CLAIM_LEASE,
+        event_writer: DomainEventWriter | None = None,
     ) -> None:
         if lease <= timedelta(0):
             raise ValueError("claim lease must be positive")
         self._session_factory = session_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._lease = lease
+        self._event_writer = event_writer or DomainEventWriter(now=self._now)
 
     def claim_next(self, *, worker_id: str) -> CacheJobClaim | None:
         if not worker_id or len(worker_id) > 128:
@@ -429,6 +433,30 @@ class CacheJobClaimQueue:
             job.failure_code = code
             job.failure_detail = None
             job.updated_at = current
+
+    def fail_rejected(self, claim: CacheJobClaim, code: str) -> None:
+        if code not in DETERMINISTIC_FAILURE_CODES:
+            raise ValueError("failure code is not a deterministic source rejection")
+        current = self._utc_now()
+        with self._session_factory.begin() as session:
+            job = self._claimed_job(session, claim, current=current)
+            self._apply_state(job, CacheJobStatus.FAILED)
+            self._clear_claim(job)
+            job.failure_code = code
+            job.failure_detail = None
+            job.updated_at = current
+            self._event_writer.append(
+                session,
+                stream="cache",
+                aggregate_id=job.id,
+                event_type="cache.job.failed.v1",
+                payload={
+                    "id": str(job.id),
+                    "status": CacheJobStatus.FAILED.value,
+                    "error_code": code,
+                    "rejected_source": True,
+                },
+            )
 
     def defer(
         self,
