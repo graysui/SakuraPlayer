@@ -16,7 +16,12 @@ from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.cloud_cache.binding_api import create_cloud115_binding_api
 from sakuraplayer.cloud_cache.binding_service import BindingService
 from sakuraplayer.cloud_cache.cache_api import create_cache_api
+from sakuraplayer.cloud_cache.cancellation import CancellationService
 from sakuraplayer.cloud_cache.cleanup import CleanupQueue
+from sakuraplayer.cloud_cache.notifications import (
+    NotificationService,
+    create_notification_api,
+)
 from sakuraplayer.cloud_cache.play_request import PlayRequestService
 from sakuraplayer.cloud_cache.qr_service import QrSessionService
 from sakuraplayer.discovery.api import create_discovery_api
@@ -71,13 +76,15 @@ def create_app(
     cloud115_qr_service: QrSessionService | None = None,
     cache_service: PlayRequestService | None = None,
     cache_cleanup_service: CleanupQueue | None = None,
+    cache_cancellation_service: CancellationService | None = None,
+    notification_service: NotificationService | None = None,
     playback_session_service: PlaybackSessionService | None = None,
     playback_stream_resolver: PlaybackStreamResolver | None = None,
     subtitle_download_service: SubtitleDownloadService | None = None,
     playback_progress_service: MoviePlaybackStateService | None = None,
     playback_heartbeat_service: PlaybackHeartbeatService | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="SakuraPlayer API", version="1.1.0")
+    app = FastAPI(title="SakuraPlayer API", version="1.2.0")
 
     @app.middleware("http")
     async def request_context(request: Request, call_next):
@@ -90,6 +97,7 @@ def create_app(
             or request.url.path.startswith("/api/v1/events/")
             or request.url.path.startswith("/api/v1/cloud115/")
             or request.url.path.startswith("/api/v1/cache-jobs")
+            or request.url.path.startswith("/api/v1/notifications")
             or request.url.path.startswith("/api/v1/playback/")
             or request.url.path.endswith("/play-requests")
             or request.url.path.endswith("/progress")
@@ -244,6 +252,14 @@ def create_app(
                     cache_service,
                     current_admin_dependency=identity_api.current_admin_dependency,
                     cleanup_service=cache_cleanup_service,
+                    cancellation_service=cache_cancellation_service,
+                )
+            )
+        if notification_service is not None:
+            app.include_router(
+                create_notification_api(
+                    notification_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
         if (
@@ -299,6 +315,9 @@ def create_app(
         or cloud115_binding_service is not None
         or cloud115_qr_service is not None
         or cache_service is not None
+        or cache_cleanup_service is not None
+        or cache_cancellation_service is not None
+        or notification_service is not None
         or playback_session_service is not None
         or playback_stream_resolver is not None
         or subtitle_download_service is not None

@@ -161,6 +161,15 @@ class CacheJob(Base):
             "AND expires_at IS NOT NULL AND expires_at > last_accessed_at)",
             name="ck_cache_job_materialized_timestamps",
         ),
+        CheckConstraint(
+            "cleanup_reason IS NULL OR cleanup_reason IN "
+            "('cancelled', 'manual', 'ttl', 'capacity')",
+            name="ck_cache_job_cleanup_reason",
+        ),
+        CheckConstraint(
+            "failure_stage IS NULL OR length(failure_stage) BETWEEN 1 AND 32",
+            name="ck_cache_job_failure_stage",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
@@ -196,6 +205,8 @@ class CacheJob(Base):
     claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failure_code: Mapped[str | None] = mapped_column(String(128))
     failure_detail: Mapped[str | None] = mapped_column(Text)
+    failure_stage: Mapped[str | None] = mapped_column(String(32))
+    cleanup_reason: Mapped[str | None] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -431,11 +442,51 @@ class CachePlayRequest(Base):
     )
 
 
+class Notification(Base):
+    __tablename__ = "notification"
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('cache_started', 'cache_ready', 'cache_failed', "
+            "'credential_expired')",
+            name="ck_notification_type",
+        ),
+        CheckConstraint(
+            "length(dedupe_key) BETWEEN 1 AND 255",
+            name="ck_notification_dedupe_key",
+        ),
+        CheckConstraint(
+            "read_at IS NULL OR read_at >= created_at",
+            name="ck_notification_read_at",
+        ),
+        UniqueConstraint("dedupe_key", name="uq_notification_dedupe_key"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    resource_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    error_code: Mapped[str | None] = mapped_column(String(128))
+    dedupe_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+Index(
+    "ix_notification_unread",
+    Notification.created_at,
+    Notification.id,
+    postgresql_where=Notification.read_at.is_(None),
+    sqlite_where=Notification.read_at.is_(None),
+)
+
+
 __all__ = [
     "CacheJob",
     "CacheJobMediaSelection",
     "CachePlayRequest",
     "Cloud115Binding",
+    "Notification",
     "RemoteMedia",
     "RemoteSubtitle",
 ]

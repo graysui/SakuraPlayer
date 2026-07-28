@@ -411,6 +411,7 @@ contracts/
 16. 超过 5 次工具调用、多阶段或可能跨会话的任务继续使用 `planning-with-files-zh`，其本地规划记录不得替代正式任务或契约。
 17. 排行榜 scheduler 只按 01:45 Asia/Shanghai 生成持久目标请求；JavDB 登录、分页、快照写入和 current 切换只在 worker 执行，API 只读本地 immutable snapshot。
 18. TASK-013 是事件、身份配置和目录元数据之间的跨边界应用聚合；只能通过显式端口接入现有领域事务，API 路由不得直接修改领域状态。
+19. TASK-112 是事件、115 缓存、身份配置、播放租约和进程入口之间的跨边界应用聚合；状态与事件必须同事务提交，外部 115 I/O 不得持有数据库行锁。
 
 具体测试命令、Compose 执行频次和任务内批次以
 [统一实施与验证工作流](001-sakuraplayer-v1/implementation-workflow.md) 为准。

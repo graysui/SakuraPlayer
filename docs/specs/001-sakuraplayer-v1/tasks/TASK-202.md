@@ -63,7 +63,7 @@ provides: [Dio API client, secure token store, WebSocket client, snapshot recove
 - access 过期只 refresh 一次、logout 后旧 token 不重放、错误 code 映射。
 - URL scheme/私网判断/TLS 错误/远程 HTTP 风险确认，以及换地址后的会话清理。
 - bootstrap token 缺失/错误/成功/已完成，Widget/controller 树和日志中无残留 token。
-- event 重复/跳号/未知版本/4409，snapshot 替换本地状态。
+- event 重复/跳号/未知版本/4409，resource 类型化字段浅合并，本地缺失时以 snapshot 替换状态；未读通知展示后幂等标记已读。
 
 **集成测试**:
 

@@ -60,7 +60,7 @@ provides: [HarmonyOS auth store, typed HTTP client, WebSocket snapshot recovery]
 - access/refresh/logout、令牌不进入 preferences/HiLog、logout 清字幕目录。
 - 后端地址 URL 边界、TLS 失败、私网 HTTP 确认和换地址清理。
 - bootstrap token 缺失/错误/成功/已完成，Preferences/Asset Store/HiLog 无 token。
-- 事件重复/跳号/4409/未知类型、前后台 listener 注册/注销和重启 snapshot。
+- 事件重复/跳号/4409/未知类型、resource 类型化字段浅合并、本地缺失 snapshot、未读通知幂等标记已读，以及前后台 listener 注册/注销和重启恢复。
 - http/webSocket 资源都在页面/Ability 生命周期正确 destroy/close。
 
 ## Definition of Done

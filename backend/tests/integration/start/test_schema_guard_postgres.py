@@ -150,6 +150,7 @@ def test_upgrade_to_head_is_idempotent_and_creates_expected_tables(
             "movie_actor",
             "movie_playback_state",
             "movie_tag",
+            "notification",
             "playback_lease",
             "playback_session",
             "provider_snapshot_request",

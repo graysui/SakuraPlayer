@@ -13,8 +13,9 @@ from sakuraplayer.catalog.providers.javdb import (
     EncryptedJavdbCredentialStore,
     MetadataProviderProblem,
 )
+from sakuraplayer.cloud_cache.notifications import NotificationService
 from sakuraplayer.discovery.ranking_sync import RankingSyncQueue
-from sakuraplayer.events.outbox import EventLog
+from sakuraplayer.events.outbox import DomainEventWriter, EventLog
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
@@ -37,7 +38,17 @@ def build_scheduler(
 ) -> BackgroundScheduler:
     scheduler = BackgroundScheduler(timezone=SHANGHAI_TIMEZONE)
     register_avdb_jobs(scheduler, AvdbSyncQueue(session_factory).enqueue)
-    register_event_prune_job(scheduler, EventLog(session_factory).prune_expired)
+    event_log = EventLog(session_factory)
+    notifications = NotificationService(
+        session_factory,
+        event_writer=DomainEventWriter(),
+    )
+
+    def prune_realtime_history() -> None:
+        event_log.prune_expired()
+        notifications.prune_expired()
+
+    register_event_prune_job(scheduler, prune_realtime_history)
     register_provider_snapshot_job(
         scheduler,
         ProviderSnapshotQueue(session_factory).enqueue,

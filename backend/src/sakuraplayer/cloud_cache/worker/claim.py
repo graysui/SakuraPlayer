@@ -18,6 +18,7 @@ from sakuraplayer.cloud_cache.domain.cache_job import (
     CacheJobStatus,
     CapacityClass,
 )
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.failure_classifier import DETERMINISTIC_FAILURE_CODES
 from sakuraplayer.cloud_cache.file_scanner import file_extension
 from sakuraplayer.cloud_cache.media_selection import MediaSelectionPlan
@@ -73,6 +74,7 @@ class CacheJobClaimQueue:
         ttl_hours: Callable[[], int] | None = None,
         lease: timedelta = DEFAULT_CLAIM_LEASE,
         event_writer: DomainEventWriter | None = None,
+        event_publisher: CacheEventPublisher | None = None,
     ) -> None:
         if lease <= timedelta(0):
             raise ValueError("claim lease must be positive")
@@ -81,6 +83,7 @@ class CacheJobClaimQueue:
         self._ttl_hours = ttl_hours or (lambda: 24)
         self._lease = lease
         self._event_writer = event_writer or DomainEventWriter(now=self._now)
+        self._event_publisher = event_publisher
 
     def claim_next(self, *, worker_id: str) -> CacheJobClaim | None:
         if not worker_id or len(worker_id) > 128:
@@ -109,6 +112,7 @@ class CacheJobClaimQueue:
                 .with_for_update(skip_locked=True)
                 .limit(1)
             )
+            started_from_queue = False
             if job is None and capacity_snapshot(session).running < RUNNING_CAPACITY:
                 job = session.scalar(
                     select(CacheJob)
@@ -119,6 +123,7 @@ class CacheJobClaimQueue:
                 )
                 if job is not None:
                     self._apply_state(job, CacheJobStatus.SUBMITTING)
+                    started_from_queue = True
             if job is None:
                 return None
             job.claim_owner = worker_id
@@ -126,6 +131,13 @@ class CacheJobClaimQueue:
             job.claim_expires_at = current + self._lease
             job.updated_at = current
             session.flush()
+            if started_from_queue and self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.updated.v1",
+                    notification_type="cache_started",
+                )
             return self._claim(job)
 
     def claim_resolving(self, *, worker_id: str) -> CacheJobClaim | None:
@@ -283,7 +295,21 @@ class CacheJobClaimQueue:
             self._clear_claim(job)
             job.failure_code = None
             job.failure_detail = None
+            job.failure_stage = None
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type=(
+                        "cache.job.ready.v1"
+                        if target is CacheJobStatus.READY
+                        else "cache.job.selection_required.v1"
+                    ),
+                    notification_type=(
+                        "cache_ready" if target is CacheJobStatus.READY else None
+                    ),
+                )
 
     def detach(self, claim: CacheJobClaim) -> None:
         current = self._utc_now()
@@ -291,11 +317,19 @@ class CacheJobClaimQueue:
             job = self._claimed_job(session, claim, current=current)
             if job.status != CacheJobStatus.RESOLVING.value:
                 raise CacheJobClaimLost
+            failure_stage = job.status
             self._apply_state(job, CacheJobStatus.DETACHED)
             self._clear_claim(job)
             job.failure_code = "cache_ownership_mismatch"
             job.failure_detail = None
+            job.failure_stage = failure_stage
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.detached.v1",
+                )
 
     def renew(self, claim: CacheJobClaim) -> CacheJobClaim:
         current = self._utc_now()
@@ -347,7 +381,14 @@ class CacheJobClaimQueue:
             self._clear_claim(job)
             job.failure_code = None
             job.failure_detail = None
+            job.failure_stage = None
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.updated.v1",
+                )
 
     def mark_submit_uncertain(self, claim: CacheJobClaim) -> None:
         current = self._utc_now()
@@ -360,7 +401,14 @@ class CacheJobClaimQueue:
             job.remote_info_hash = None
             job.failure_code = "cloud115_submit_uncertain"
             job.failure_detail = None
+            job.failure_stage = CacheJobStatus.SUBMITTING.value
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.updated.v1",
+                )
 
     def record_offline_snapshot(
         self,
@@ -374,14 +422,18 @@ class CacheJobClaimQueue:
             job = self._claimed_job(session, claim, current=current)
             if job.remote_info_hash != snapshot.info_hash:
                 raise CacheJobClaimLost
+            previous_percent = float(job.remote_percent)
+            previous_status = job.status
             job.remote_percent = snapshot.percent_done
             if snapshot.status is OfflineStatus.COMPLETED:
                 self._apply_state(job, CacheJobStatus.RESOLVING)
                 job.remote_percent = 100
                 job.failure_code = None
+                job.failure_stage = None
             elif snapshot.status is OfflineStatus.FAILED:
                 self._apply_state(job, CacheJobStatus.FAILED)
                 job.failure_code = "cloud115_offline_failed"
+                job.failure_stage = previous_status
             if snapshot.status in {OfflineStatus.COMPLETED, OfflineStatus.FAILED}:
                 self._clear_claim(job)
             else:
@@ -389,11 +441,25 @@ class CacheJobClaimQueue:
                 job.failure_code = None
                 job.failure_detail = None
             job.updated_at = current
+            if self._event_publisher is not None and (
+                job.status != previous_status
+                or float(job.remote_percent) != previous_percent
+            ):
+                failed = job.status == CacheJobStatus.FAILED.value
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type=(
+                        "cache.job.failed.v1" if failed else "cache.job.updated.v1"
+                    ),
+                    notification_type="cache_failed" if failed else None,
+                )
 
     def complete_cancel(self, claim: CacheJobClaim) -> None:
         current = self._utc_now()
         with self._session_factory.begin() as session:
             job = self._claimed_job(session, claim, current=current)
+            job.cleanup_reason = "cancelled"
             target = (
                 CacheJobStatus.CLEANING
                 if job.task_dir_cid is not None
@@ -405,7 +471,19 @@ class CacheJobClaimQueue:
             self._clear_claim(job)
             job.failure_code = None
             job.failure_detail = None
+            job.failure_stage = None
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type=(
+                        "cache.job.cancelled.v1"
+                        if target is CacheJobStatus.CLEANED
+                        else "cache.job.updated.v1"
+                    ),
+                    extra={"cleanup_reason": "cancelled"},
+                )
 
     def save_cancel_target(
         self,
@@ -433,17 +511,33 @@ class CacheJobClaimQueue:
             self._clear_claim(job)
             job.failure_code = "cloud115_submit_uncertain"
             job.failure_detail = None
+            job.failure_stage = CacheJobStatus.CANCELLING.value
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.updated.v1",
+                )
 
     def fail(self, claim: CacheJobClaim, code: str) -> None:
         current = self._utc_now()
         with self._session_factory.begin() as session:
             job = self._claimed_job(session, claim, current=current)
+            failure_stage = job.status
             self._apply_state(job, CacheJobStatus.FAILED)
             self._clear_claim(job)
             job.failure_code = code
             job.failure_detail = None
+            job.failure_stage = failure_stage
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.failed.v1",
+                    notification_type="cache_failed",
+                )
 
     def fail_rejected(self, claim: CacheJobClaim, code: str) -> None:
         if code not in DETERMINISTIC_FAILURE_CODES:
@@ -451,10 +545,12 @@ class CacheJobClaimQueue:
         current = self._utc_now()
         with self._session_factory.begin() as session:
             job = self._claimed_job(session, claim, current=current)
+            failure_stage = job.status
             self._apply_state(job, CacheJobStatus.FAILED)
             self._clear_claim(job)
             job.failure_code = code
             job.failure_detail = None
+            job.failure_stage = failure_stage
             job.updated_at = current
             self._event_writer.append(
                 session,
@@ -468,6 +564,14 @@ class CacheJobClaimQueue:
                     "rejected_source": True,
                 },
             )
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.failed.v1",
+                    notification_type="cache_failed",
+                    publish_event=False,
+                )
 
     def defer(
         self,
@@ -485,6 +589,12 @@ class CacheJobClaimQueue:
             job.failure_code = code
             job.failure_detail = None
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.updated.v1",
+                )
 
     def _claimed_job(
         self,

@@ -13,6 +13,7 @@ from sakuraplayer.cloud_cache.domain.cache_job import (
     CacheJobStatus,
     CapacityClass,
 )
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.models import (
     CacheJob,
     CacheJobMediaSelection,
@@ -41,10 +42,12 @@ class MediaSelectionService:
         *,
         now: Callable[[], datetime] | None = None,
         ttl_hours: Callable[[], int] | None = None,
+        event_publisher: CacheEventPublisher | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._ttl_hours = ttl_hours or (lambda: 24)
+        self._event_publisher = event_publisher
 
     def select(
         self,
@@ -118,6 +121,14 @@ class MediaSelectionService:
             job.updated_at = now
             job.failure_code = None
             job.failure_detail = None
+            job.failure_stage = None
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.ready.v1",
+                    notification_type="cache_ready",
+                )
             return MediaSelectionResult(
                 status=job.status,
                 selected_media_ids=tuple(item.id for item in candidate),

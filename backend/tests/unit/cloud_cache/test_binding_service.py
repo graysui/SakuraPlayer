@@ -14,7 +14,9 @@ from sakuraplayer.cloud_cache.binding_service import (
     BindingService,
     CredentialScope,
 )
-from sakuraplayer.cloud_cache.models import Cloud115Binding
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
+from sakuraplayer.cloud_cache.models import Cloud115Binding, Notification
+from sakuraplayer.cloud_cache.notifications import NotificationWriter
 from sakuraplayer.cloud_cache.ports.cloud115 import (
     Cloud115Problem,
     CloudCredentialStatus,
@@ -24,6 +26,8 @@ from sakuraplayer.cloud_cache.ports.cloud115 import (
     QrLoginResult,
     RemoteDirectory,
 )
+from sakuraplayer.events.models import DomainEvent
+from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.models import Base, EncryptedSetting
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
@@ -166,7 +170,7 @@ async def test_cache_operation_scope_maps_credential_version_drift_to_cloud_prob
         engine.dispose()
 
 
-def _service(tmp_path, fakes, *, active=False):
+def _service(tmp_path, fakes, *, active=False, event_publisher=None):
     engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'binding.db'}")
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -191,8 +195,55 @@ def _service(tmp_path, fakes, *, active=False):
         cloud_factory,
         active_cache_jobs=lambda _session: active,
         now=lambda: NOW,
+        event_publisher=event_publisher,
     )
     return service, secrets, factory, engine
+
+
+@pytest.mark.asyncio
+async def test_expired_credential_event_and_notification_are_not_duplicated(
+    tmp_path,
+) -> None:
+    writer = DomainEventWriter(now=lambda: NOW)
+    publisher = CacheEventPublisher(
+        writer,
+        NotificationWriter(writer, now=lambda: NOW),
+    )
+    fakes = [
+        FakeCloud115(
+            directories=[RemoteDirectory("root-1", "0", "SakuraPlayer-Cache")]
+        ),
+        FakeCloud115(
+            credential_probes=[CredentialProbe(CloudCredentialStatus.EXPIRED)]
+        ),
+        FakeCloud115(
+            credential_probes=[CredentialProbe(CloudCredentialStatus.EXPIRED)]
+        ),
+    ]
+    service, _secrets, factory, engine = _service(
+        tmp_path,
+        fakes,
+        event_publisher=publisher,
+    )
+    try:
+        await service.bind(QrLoginResult("account-1", "UID=old"))
+        assert (await service.probe()).status == "expired"
+        assert (await service.probe()).status == "expired"
+
+        with factory() as session:
+            assert [
+                event.event_type
+                for event in session.scalars(
+                    select(DomainEvent).order_by(DomainEvent.sequence)
+                )
+            ] == [
+                "credential.cloud115.changed.v1",
+                "credential.cloud115.changed.v1",
+                "notification.created.v1",
+            ]
+            assert len(list(session.scalars(select(Notification)))) == 1
+    finally:
+        engine.dispose()
 
 
 @pytest.mark.asyncio

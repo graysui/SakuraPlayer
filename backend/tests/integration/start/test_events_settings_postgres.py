@@ -14,6 +14,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from alembic import command
+from sakuraplayer.cloud_cache.models import Notification
+from sakuraplayer.cloud_cache.notifications import NotificationWriter
 from sakuraplayer.events.models import DomainEvent
 from sakuraplayer.events.outbox import (
     DomainEventWriter,
@@ -112,6 +114,28 @@ def test_postgres_event_migration_sequence_and_recovery(database_url: str) -> No
     assert sorted(item[0] for item in appended) == list(range(1, 9))
     assert sorted(item[1] for item in appended) == list(range(1, 9))
 
+    notification_resource_id = uuid.uuid4()
+    notification_barrier = Barrier(2)
+    notification_writer = NotificationWriter(writer, now=lambda: NOW)
+
+    def create_notification(_index: int) -> uuid.UUID:
+        notification_barrier.wait()
+        with factory.begin() as session:
+            notification = notification_writer.create(
+                session,
+                notification_type="cache_ready",
+                resource_id=notification_resource_id,
+                error_code=None,
+                dedupe_key=f"cache:{notification_resource_id}:ready",
+            )
+        return notification.id
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        notification_ids = list(executor.map(create_notification, range(2)))
+    assert len(set(notification_ids)) == 1
+    with factory() as session:
+        assert len(list(session.scalars(select(Notification)))) == 1
+
     rollback_id = uuid.uuid4()
     with pytest.raises(RuntimeError, match="rollback"):
         with factory.begin() as session:
@@ -131,7 +155,7 @@ def test_postgres_event_migration_sequence_and_recovery(database_url: str) -> No
             event_type="metadata.job.queued.v1",
             payload={"id": str(uuid.uuid4()), "status": "queued"},
         )
-    assert after_rollback.sequence == 9
+    assert after_rollback.sequence == 10
     with factory() as session:
         assert (
             session.scalar(
@@ -142,7 +166,7 @@ def test_postgres_event_migration_sequence_and_recovery(database_url: str) -> No
 
     event_log = EventLog(factory, now=lambda: NOW)
     snapshot = EventSnapshotService(factory, event_log).get()
-    assert snapshot.snapshot_version == 9
+    assert snapshot.snapshot_version == 10
     assert snapshot.last_event_id == after_rollback.event_id
     first_event_id = min(appended, key=lambda item: item[0])[2]
     with pytest.raises(EventCursorUnavailable):

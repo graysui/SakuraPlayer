@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SakuraPlayer API
-  version: 1.1.0
+  version: 1.2.0
   description: >-
     Private single-administrator API for the SakuraPlayer v1 backend. Video bytes
     are never proxied by this API; signed stream endpoints return 302 redirects.
@@ -637,6 +637,7 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [confirmed]
               properties:
                 confirmed:
@@ -651,6 +652,8 @@ paths:
                 $ref: '#/components/schemas/CacheJob'
         '409':
           $ref: '#/components/responses/Conflict'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /cache-jobs/{cache_job_id}/cleanup:
     post:
       tags: [Cache]
@@ -923,6 +926,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EventSnapshot'
+
+  /notifications/{notification_id}/read:
+    put:
+      tags: [Events]
+      operationId: markNotificationRead
+      description: Idempotently marks one notification read using the server clock.
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full notification with its authoritative read timestamp.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /settings:
     get:

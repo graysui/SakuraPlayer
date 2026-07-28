@@ -138,9 +138,9 @@
 
 **背景**: WebSocket 可能断线，客户端完全退出后不常驻。
 
-**决策**: 领域事务同时写版本化事件。数据库生成全局单调 sequence 作为追赶水位，`event_id` 用于去重，`stream_version` 用于聚合合并。WebSocket 推送事件；首次连接、重连或游标过旧时获取同一事务水位下的有界 REST 快照。
+**决策**: 领域事务同时写版本化事件。数据库生成全局单调 sequence 作为追赶水位，`event_id` 用于去重，`stream_version` 用于聚合合并。WebSocket 推送事件；首次连接、重连或游标过旧时获取同一事务水位下的有界 REST 快照。事件 resource 按类型化字段浅合并，本地无资源或版本跳号时必须拉快照。
 
-**后果**: 不需要保证 WebSocket 逐条不丢；事件固定保留 30 天，客户端不能把事件当最终状态。快照返回活动/近期状态和汇总计数，不承担无限历史导出。
+**后果**: 不需要保证 WebSocket 逐条不丢；事件与精简通知固定保留 30 天，客户端不能把事件当最终状态。快照返回活动/近期状态、最新 100 条未读通知和汇总计数，不承担无限历史导出；ready 通知不得自动播放。
 
 ### AD-009: 两端只共享契约
 
@@ -239,6 +239,8 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
   `last_accessed_at NULLS FIRST, ready_at NULLS FIRST, created_at, id` 从无租约的
   `awaiting_selection/ready` 中稳定选择。清理中或失败的缓存继续占容量。
 - TASK-107 创建 lease 外键所需的最小 playback session Schema；TASK-108 独占签名和会话 API。
+- TASK-112 在 worker 启动时复用同一 claim-fenced offline/resolver/cleanup pipeline 做最多 100 次
+  有界恢复 drain；领取事务提交后才访问 115。`submit_uncertain`、materialized 和终态不自动倒退。
 
 ### 4.4 播放和字幕
 

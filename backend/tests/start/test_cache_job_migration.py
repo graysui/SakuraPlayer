@@ -38,6 +38,8 @@ def test_cache_job_models_are_registered_with_exact_task_103_shape() -> None:
         "claim_expires_at",
         "failure_code",
         "failure_detail",
+        "failure_stage",
+        "cleanup_reason",
         "created_at",
         "updated_at",
     }

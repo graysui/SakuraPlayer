@@ -14,7 +14,7 @@ from sakuraplayer.api.settings import ProbeResult, SettingsService
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
 from sakuraplayer.catalog.providers.javdb import EncryptedJavdbCredentialStore
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
-from sakuraplayer.cloud_cache.models import Cloud115Binding
+from sakuraplayer.cloud_cache.models import CacheJob, Cloud115Binding
 from sakuraplayer.identity.crypto import (
     SecretCipher,
     SettingsSecretKeyProvider,
@@ -198,6 +198,23 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
                             finished_at=NOW,
                             failure_code="metadata_timeout",
                         ),
+                        CacheJob(
+                            id=uuid.uuid4(),
+                            movie_id=uuid.uuid4(),
+                            source_id=uuid.uuid4(),
+                            binding_id=None,
+                            status="failed",
+                            capacity_class="released",
+                            account_key="diagnostics-account",
+                            cache_root_cid="diagnostics-root",
+                            task_dir_cid=None,
+                            task_dir_name="diagnostics-task",
+                            remote_percent=0,
+                            failure_code="cloud115_offline_failed",
+                            failure_stage="offlining",
+                            created_at=NOW,
+                            updated_at=NOW,
+                        ),
                     ]
                 )
 
@@ -214,17 +231,36 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             assert components["avdb"]["status"] == "unknown"
             assert "actor_mapping" not in components
             assert len(diagnostics.json()["connection_tests"]) == 3
-            assert diagnostics.json()["recent_failures"] == [
-                {
-                    "task_type": "metadata",
-                    "task_id": str(failed_job.id),
-                    "stage": "javdb_core",
-                    "error_code": "metadata_timeout",
-                    "elapsed_ms": 600_000,
-                    "attempt_no": 2,
-                    "occurred_at": NOW.isoformat().replace("+00:00", "Z"),
-                }
+            assert diagnostics.json()["queues"] == {
+                "metadata_queued": 0,
+                "metadata_running": 0,
+                "cache_queued": 0,
+                "cache_running": 0,
+                "cache_ready": 0,
+            }
+            recent_failures = diagnostics.json()["recent_failures"]
+            assert {item["task_type"] for item in recent_failures} == {
+                "metadata",
+                "cache",
+            }
+            assert {item["task_type"]: item for item in recent_failures}[
+                "metadata"
+            ] == {
+                "task_type": "metadata",
+                "task_id": str(failed_job.id),
+                "stage": "javdb_core",
+                "error_code": "metadata_timeout",
+                "elapsed_ms": 600_000,
+                "attempt_no": 2,
+                "occurred_at": NOW.isoformat().replace("+00:00", "Z"),
+            }
+            cache_failure = {item["task_type"]: item for item in recent_failures}[
+                "cache"
             ]
+            assert cache_failure["stage"] == "offlining"
+            assert cache_failure["error_code"] == "cloud115_offline_failed"
+            assert cache_failure["elapsed_ms"] == 0
+            assert cache_failure["attempt_no"] == 1
 
             cleared = client.patch(
                 "/api/v1/settings",
@@ -290,7 +326,12 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
                     )
                 )
             detached = client.get("/api/v1/settings", headers=headers)
-            assert detached.json()["providers"]["cloud115"]["configured"] is True
+            assert detached.json()["providers"]["cloud115"] == {
+                "configured": True,
+                "status": "unavailable",
+                "last_checked_at": NOW.isoformat().replace("+00:00", "Z"),
+                "last_error_code": "cache_ownership_mismatch",
+            }
 
         with factory() as session:
             encrypted = list(session.scalars(select(EncryptedSetting)))

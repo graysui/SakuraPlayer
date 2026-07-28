@@ -19,6 +19,7 @@ from sakuraplayer.cloud_cache.capacity import (
     acquire_capacity_lock,
     capacity_snapshot,
 )
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.media_selection_api import (
     MediaSelectionResult,
     MediaSelectionService,
@@ -77,6 +78,7 @@ class SubtitleView:
     format: str
     language: str | None
     selected_by_default: bool
+    media_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,14 +121,17 @@ class PlayRequestService:
         *,
         now: Callable[[], datetime] | None = None,
         ttl_hours: Callable[[], int] | None = None,
+        event_publisher: CacheEventPublisher | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._source_port = source_port
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._event_publisher = event_publisher
         self._media_selection = MediaSelectionService(
             session_factory,
             now=self._now,
             ttl_hours=ttl_hours,
+            event_publisher=event_publisher,
         )
 
     def create(
@@ -227,6 +232,13 @@ class PlayRequestService:
             )
             session.flush()
             resolved = play_disposition(job.status, created=True, now=now)
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.created.v1",
+                    extra={"disposition": resolved.name},
+                )
             return PlayRequestResult(
                 disposition=resolved.name,
                 job=_view(job),
@@ -458,6 +470,7 @@ def _media_projection(
                 format=item.extension,
                 language=None,
                 selected_by_default=item.id == default_id,
+                media_id=item.media_id,
             )
             for item in subtitle_rows
         )

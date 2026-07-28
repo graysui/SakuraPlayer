@@ -101,6 +101,18 @@ class CleanupServiceStub:
         return None
 
 
+class CancellationServiceStub:
+    def __init__(self, job_id: uuid.UUID) -> None:
+        self.job_id = job_id
+        self.calls = 0
+
+    def request(self, job_id: uuid.UUID, *, confirmed: bool):
+        assert job_id == self.job_id
+        assert confirmed is True
+        self.calls += 1
+        return None
+
+
 def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
     engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'api.db'}")
     Base.metadata.create_all(engine)
@@ -113,11 +125,13 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
     )
     cache = CacheServiceStub()
     cleanup = CleanupServiceStub(cache.job.id)
+    cancellation = CancellationServiceStub(cache.job.id)
     app = create_app(
         readiness_probe=lambda: True,
         identity_service=auth,
         cache_service=cache,
         cache_cleanup_service=cleanup,  # type: ignore[arg-type]
+        cache_cancellation_service=cancellation,  # type: ignore[arg-type]
     )
     schema = app.openapi()
     selection_path = schema["paths"][
@@ -135,6 +149,9 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
         "title": "Media Ids",
     }
     assert schema["paths"]["/api/v1/cache-jobs/{cache_job_id}/cleanup"]["post"][
+        "security"
+    ] == [{"HTTPBearer": []}]
+    assert schema["paths"]["/api/v1/cache-jobs/{cache_job_id}/cancel"]["post"][
         "security"
     ] == [{"HTTPBearer": []}]
     try:
@@ -202,6 +219,20 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
                 f"/api/v1/cache-jobs/{cache.job.id}/cleanup",
                 headers=headers,
             )
+            unauthenticated_cancel = client.post(
+                f"/api/v1/cache-jobs/{cache.job.id}/cancel",
+                json={"confirmed": True},
+            )
+            unconfirmed_cancel = client.post(
+                f"/api/v1/cache-jobs/{cache.job.id}/cancel",
+                headers=headers,
+                json={"confirmed": False},
+            )
+            cancel_response = client.post(
+                f"/api/v1/cache-jobs/{cache.job.id}/cancel",
+                headers=headers,
+                json={"confirmed": True},
+            )
     finally:
         engine.dispose()
 
@@ -216,6 +247,10 @@ def test_cache_api_is_authenticated_strict_and_redacted(tmp_path) -> None:
     assert cleanup_response.status_code == 202
     assert cleanup_response.headers["cache-control"] == "no-store"
     assert cleanup.calls == 1
+    assert unauthenticated_cancel.status_code == 401
+    assert unconfirmed_cancel.status_code == 422
+    assert cancel_response.status_code == 202
+    assert cancellation.calls == 1
     assert selection.json()["selected_media_ids"] == [
         str(cache.job.selected_media_ids[0])
     ]

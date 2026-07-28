@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -8,6 +9,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.models import ProviderSnapshotRequest
+from sakuraplayer.cloud_cache.models import Notification
 from sakuraplayer.resources.models import AvdbSyncRequest, Base
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
 from sakuraplayer.scheduler.__main__ import build_scheduler
@@ -164,10 +166,24 @@ def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> No
     )
     jobs["provider_snapshots_weekly"].func()
     jobs["provider_snapshots_weekly"].func()
+    with factory.begin() as session:
+        session.add(
+            Notification(
+                id=uuid.uuid4(),
+                type="cache_ready",
+                resource_id=uuid.uuid4(),
+                error_code=None,
+                dedupe_key="expired-scheduler-notification",
+                created_at=datetime(2000, 1, 1, tzinfo=timezone.utc),
+                read_at=None,
+            )
+        )
+    jobs["domain_events_daily_prune"].func()
     with factory() as session:
         requests = list(session.scalars(select(ProviderSnapshotRequest)))
         assert len(requests) == 1
         assert requests[0].status == "queued"
+        assert session.scalar(select(Notification.id)) is None
     engine.dispose()
 
 

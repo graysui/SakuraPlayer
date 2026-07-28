@@ -28,8 +28,11 @@ from sakuraplayer.catalog.providers.javdb import (
 )
 from sakuraplayer.cloud_cache.binding_service import BindingService
 from sakuraplayer.cloud_cache.cleanup import CleanupClaim, CleanupQueue, CleanupWorker
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
+from sakuraplayer.cloud_cache.notifications import NotificationWriter
 from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Port
+from sakuraplayer.cloud_cache.recovery import CacheStartupRecovery
 from sakuraplayer.cloud_cache.source_rejection_client import SourceRejectionClient
 from sakuraplayer.cloud_cache.worker.claim import CacheJobClaim, CacheJobClaimQueue
 from sakuraplayer.cloud_cache.worker.offline import CacheOfflineWorker, OfflineWorker
@@ -106,6 +109,7 @@ class WorkerRuntime:
     metadata_seeder: MetadataQueueSeeder
     ranking_consumer: RankingConsumer | None = None
     cache_consumer: OfflineWorker | None = None
+    cache_recovery: CacheStartupRecovery | None = None
 
     def close(self) -> None:
         try:
@@ -191,7 +195,12 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             asset_directory=cache_root / "assets",
             plaintext_directory=cache_root / "plaintext",
         )
-        metadata_queue = MetadataQueue(factory, event_writer=DomainEventWriter())
+        event_writer = DomainEventWriter()
+        cache_event_publisher = CacheEventPublisher(
+            event_writer,
+            NotificationWriter(event_writer),
+        )
+        metadata_queue = MetadataQueue(factory, event_writer=event_writer)
         metadata_supervisor = MetadataSupervisor(
             queue=metadata_queue,
             launcher=SubprocessGroupLauncher(
@@ -239,7 +248,12 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             async with Cloud115Adapter(cookies) as cloud:
                 yield cloud
 
-        binding_service = BindingService(factory, secret_repository, cloud115_scope)
+        binding_service = BindingService(
+            factory,
+            secret_repository,
+            cloud115_scope,
+            event_publisher=cache_event_publisher,
+        )
 
         @asynccontextmanager
         async def cache_cloud_scope(
@@ -274,7 +288,11 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
                 return value
             return 24
 
-        cache_queue = CacheJobClaimQueue(factory, ttl_hours=cache_ttl_hours)
+        cache_queue = CacheJobClaimQueue(
+            factory,
+            ttl_hours=cache_ttl_hours,
+            event_publisher=cache_event_publisher,
+        )
         source_submission = SourceSubmissionService(factory, cipher=cipher)
         source_rejection = SourceRejectionClient(
             source_submission,
@@ -289,7 +307,10 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
         cache_consumer = CacheWorkerPipeline(
             offline_consumer,
             CacheMediaResolver(cache_queue, source_rejection, cache_cloud_scope),
-            CleanupWorker(CleanupQueue(factory), cleanup_cloud_scope),
+            CleanupWorker(
+                CleanupQueue(factory, event_publisher=cache_event_publisher),
+                cleanup_cloud_scope,
+            ),
         )
         return WorkerRuntime(
             consumer=consumer,
@@ -301,6 +322,7 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             metadata_seeder=metadata_seeder,
             ranking_consumer=ranking_consumer,
             cache_consumer=cache_consumer,
+            cache_recovery=CacheStartupRecovery(cache_consumer),
         )
     except Exception:
         http_client.close()
@@ -469,6 +491,9 @@ def main() -> None:
     worker_id = f"{socket.gethostname()}-{os.getpid()}"[:64]
     logger.info("component_started")
     try:
+        if runtime.cache_recovery is not None:
+            recovered = runtime.cache_recovery.run(worker_id=worker_id)
+            logger.info("cache_startup_recovery_completed", extra={"count": recovered})
         run_worker(runtime=runtime, stop_event=stop_event, worker_id=worker_id)
     finally:
         runtime.close()

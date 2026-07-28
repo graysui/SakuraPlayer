@@ -23,11 +23,18 @@ from sakuraplayer.catalog.providers.javdb import (
 from sakuraplayer.catalog.query_service import CatalogQueryService
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
 from sakuraplayer.cloud_cache.binding_service import BindingService
+from sakuraplayer.cloud_cache.cancellation import CancellationService
 from sakuraplayer.cloud_cache.capacity import active_cache_jobs
 from sakuraplayer.cloud_cache.cleanup import CleanupQueue
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.infrastructure.cloud115 import Cloud115Adapter
+from sakuraplayer.cloud_cache.notifications import (
+    NotificationService,
+    NotificationWriter,
+)
 from sakuraplayer.cloud_cache.play_request import PlayRequestService
 from sakuraplayer.cloud_cache.qr_service import QrSessionService
+from sakuraplayer.cloud_cache.snapshot import CacheSnapshotExtension
 from sakuraplayer.discovery.favorites import FavoriteService
 from sakuraplayer.discovery.ranking_query import RankingQueryService
 from sakuraplayer.discovery.search_service import SearchService
@@ -96,6 +103,8 @@ def main() -> None:
     secret_repository = EncryptedSettingRepository(factory, secret_cipher)
     event_writer = DomainEventWriter()
     event_log = EventLog(factory)
+    notification_writer = NotificationWriter(event_writer)
+    cache_event_publisher = CacheEventPublisher(event_writer, notification_writer)
     metadata_queue = MetadataQueue(factory, event_writer=event_writer)
     credential_store = EncryptedJavdbCredentialStore(secret_repository)
 
@@ -109,14 +118,24 @@ def main() -> None:
         secret_repository,
         cloud115_scope,
         active_cache_jobs=active_cache_jobs,
+        event_publisher=cache_event_publisher,
     )
     qr_service = QrSessionService(cloud115_scope)
     cache_service = PlayRequestService(
         factory,
         SourceSubmissionService(factory, cipher=secret_cipher),
         ttl_hours=lambda: _cache_ttl_hours(secret_repository),
+        event_publisher=cache_event_publisher,
     )
-    cache_cleanup_service = CleanupQueue(factory)
+    cache_cleanup_service = CleanupQueue(
+        factory,
+        event_publisher=cache_event_publisher,
+    )
+    cache_cancellation_service = CancellationService(
+        factory,
+        event_publisher=cache_event_publisher,
+    )
+    notification_service = NotificationService(factory, event_writer=event_writer)
     playback_progress_service = MoviePlaybackStateService(factory)
     playback_session_service = PlaybackSessionService(
         factory,
@@ -190,7 +209,11 @@ def main() -> None:
             credential_status=credential_status,
             current_year=lambda: datetime.now(ZoneInfo("Asia/Shanghai")).year,
         ),
-        event_snapshot_service=EventSnapshotService(factory, event_log),
+        event_snapshot_service=EventSnapshotService(
+            factory,
+            event_log,
+            extension=CacheSnapshotExtension(),
+        ),
         event_log=event_log,
         settings_service=settings_service,
         diagnostics_service=DiagnosticsService(factory, settings_service),
@@ -198,6 +221,8 @@ def main() -> None:
         cloud115_qr_service=qr_service,
         cache_service=cache_service,
         cache_cleanup_service=cache_cleanup_service,
+        cache_cancellation_service=cache_cancellation_service,
+        notification_service=notification_service,
         playback_session_service=playback_session_service,
         playback_stream_resolver=playback_stream_resolver,
         subtitle_download_service=subtitle_download_service,

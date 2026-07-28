@@ -14,6 +14,7 @@ from sakuraplayer.cloud_cache.domain.cache_job import (
     CapacityClass,
     InvalidCacheJobTransition,
 )
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.models import CacheJob
 
 _CANCELLABLE = {
@@ -44,9 +45,11 @@ class CancellationService:
         session_factory: sessionmaker[Session],
         *,
         now: Callable[[], datetime] | None = None,
+        event_publisher: CacheEventPublisher | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._event_publisher = event_publisher
 
     def request(self, job_id: uuid.UUID, *, confirmed: bool) -> CancellationView:
         if not confirmed:
@@ -61,6 +64,8 @@ class CancellationService:
                 raise CacheCancelProblem(status_code=404, code="cache_job_not_found")
             current_status = CacheJobStatus(job.status)
             if current_status in {CacheJobStatus.CANCELLING, CacheJobStatus.CLEANING}:
+                if job.cleanup_reason is None:
+                    job.cleanup_reason = "cancelled"
                 return CancellationView(job.id, job.status)
             if current_status not in _CANCELLABLE:
                 raise CacheCancelProblem(status_code=409, code="state_conflict")
@@ -72,6 +77,7 @@ class CancellationService:
                 and job.claim_owner is not None
             )
             try:
+                job.cleanup_reason = "cancelled"
                 self._apply_state(job, CacheJobStatus.CANCELLING)
             except InvalidCacheJobTransition:
                 raise CacheCancelProblem(
@@ -91,8 +97,20 @@ class CancellationService:
                 self._apply_state(job, CacheJobStatus.CLEANING)
             job.failure_code = None
             job.failure_detail = None
+            job.failure_stage = None
             job.updated_at = self._now()
             session.flush()
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type=(
+                        "cache.job.cancelled.v1"
+                        if job.status == CacheJobStatus.CLEANED.value
+                        else "cache.job.updated.v1"
+                    ),
+                    extra={"cleanup_reason": "cancelled"},
+                )
             return CancellationView(job.id, job.status)
 
     @staticmethod

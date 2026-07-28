@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -17,6 +17,8 @@ from sakuraplayer.api.settings import (
 )
 from sakuraplayer.catalog.metadata_state import ALL_STAGES
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
+from sakuraplayer.cloud_cache.capacity import capacity_snapshot
+from sakuraplayer.cloud_cache.models import CacheCleanupAttempt, CacheJob
 
 ComponentName = Literal[
     "api",
@@ -55,7 +57,7 @@ class QueueDiagnosticOutput(BaseModel):
 
 
 class FailureDiagnosticOutput(BaseModel):
-    task_type: Literal["metadata"]
+    task_type: Literal["metadata", "cache"]
     task_id: uuid.UUID
     stage: str | None
     error_code: str
@@ -120,6 +122,39 @@ class DiagnosticsService:
                     )
                 ):
                     stages_by_job[stage.job_id][stage.stage] = stage
+            cache_capacity = capacity_snapshot(session)
+            cache_failures = list(
+                session.scalars(
+                    select(CacheJob)
+                    .where(
+                        CacheJob.status.in_(
+                            (
+                                "failed",
+                                "submit_uncertain",
+                                "cleanup_failed",
+                                "detached",
+                            )
+                        )
+                    )
+                    .order_by(CacheJob.updated_at.desc(), CacheJob.id.desc())
+                    .limit(100)
+                )
+            )
+            cleanup_attempts: dict[uuid.UUID, CacheCleanupAttempt] = {}
+            if cache_failures:
+                for attempt in session.scalars(
+                    select(CacheCleanupAttempt)
+                    .where(
+                        CacheCleanupAttempt.cache_job_id.in_(
+                            job.id for job in cache_failures
+                        )
+                    )
+                    .order_by(
+                        CacheCleanupAttempt.cache_job_id,
+                        CacheCleanupAttempt.attempt_no.desc(),
+                    )
+                ):
+                    cleanup_attempts.setdefault(attempt.cache_job_id, attempt)
         settings = self._settings.get()
         components = [
             ComponentDiagnosticOutput(
@@ -152,7 +187,7 @@ class DiagnosticsService:
         }.items():
             components.append(
                 ComponentDiagnosticOutput(
-                    component=name,
+                    component=cast(ComponentName, name),
                     status=_component_status(state.status),
                     error_code=state.last_error_code,
                     checked_at=state.last_checked_at or current,
@@ -165,10 +200,19 @@ class DiagnosticsService:
             queues=QueueDiagnosticOutput(
                 metadata_queued=counts.get("queued", 0),
                 metadata_running=counts.get("running", 0),
+                cache_queued=cache_capacity.queued,
+                cache_running=cache_capacity.running,
+                cache_ready=cache_capacity.ready,
             ),
-            recent_failures=[
-                self._failure_output(job, stages_by_job[job.id]) for job in failures
-            ],
+            recent_failures=sorted(
+                [self._failure_output(job, stages_by_job[job.id]) for job in failures]
+                + [
+                    self._cache_failure_output(job, cleanup_attempts.get(job.id))
+                    for job in cache_failures
+                ],
+                key=lambda item: (item.occurred_at, item.task_id),
+                reverse=True,
+            )[:100],
             connection_tests=list(self._settings.connection_results().values())[:5],
         )
 
@@ -205,6 +249,36 @@ class DiagnosticsService:
             ),
         )
 
+    @staticmethod
+    def _cache_failure_output(
+        job: CacheJob,
+        cleanup_attempt: CacheCleanupAttempt | None,
+    ) -> FailureDiagnosticOutput:
+        occurred_at = _as_utc(
+            cleanup_attempt.finished_at
+            if cleanup_attempt is not None and cleanup_attempt.finished_at is not None
+            else job.updated_at
+        )
+        started_at = _as_utc(
+            cleanup_attempt.started_at
+            if cleanup_attempt is not None
+            else job.created_at
+        )
+        return FailureDiagnosticOutput(
+            task_type="cache",
+            task_id=job.id,
+            stage=(
+                job.failure_stage
+                or ("cleaning" if cleanup_attempt is not None else None)
+            ),
+            error_code=job.failure_code or "internal_error",
+            elapsed_ms=max(0, int((occurred_at - started_at).total_seconds() * 1000)),
+            attempt_no=(
+                cleanup_attempt.attempt_no if cleanup_attempt is not None else 1
+            ),
+            occurred_at=occurred_at,
+        )
+
 
 def create_diagnostics_api(
     service: DiagnosticsService,
@@ -225,13 +299,14 @@ def create_diagnostics_api(
 
 
 def _component_status(status: str) -> ComponentStatus:
-    return {
+    status_projection: dict[str, ComponentStatus] = {
         "available": "healthy",
         "credentials_invalid": "credentials_invalid",
         "unavailable": "unavailable",
         "not_configured": "unknown",
         "unknown": "unknown",
-    }.get(status, "unknown")
+    }
+    return status_projection.get(status, "unknown")
 
 
 def _avdb_component_status(settings: SettingsOutput) -> ComponentStatus:

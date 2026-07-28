@@ -1,6 +1,6 @@
 # SakuraPlayer v1 实时事件契约
 
-**版本**: 1.1.0
+**版本**: 1.2.0
 
 **WebSocket**: `GET /api/v1/events/ws?after_event_id={uuid}`
 
@@ -40,7 +40,7 @@
 | `stream_version` | 是 | 同聚合单调递增；跳号时拉快照 |
 | `type` | 是 | 版本化事件名 |
 | `occurred_at` | 是 | RFC 3339 UTC |
-| `resource` | 是 | 脱敏后的完整或足够合并的资源快照 |
+| `resource` | 是 | 带资源 ID 的脱敏类型化字段快照或安全字段补丁 |
 
 事件不包含 Cookie、磁力、AI key、Bearer/刷新令牌、完整播放 URL、115 上游 URL、字幕正文。
 事件写入时固定 `expires_at=occurred_at+30 days`。`expires_at` 是服务端持久字段，不进入公开信封；清理只删除已过期事件。
@@ -87,14 +87,15 @@ PlaybackManifest 的映射，事件不重复携带。logout 204 和本地过期�
 |---|---|---|
 | `credential.cloud115.changed.v1` | 绑定/重扫/失效 | `status,last_verified_at` |
 | `notification.created.v1` | 可展示通知 | `id,type,resource_id,created_at` |
+| `notification.read.v1` | 通知首次标记已读 | `id,type,resource_id,created_at,read_at` |
 | `catalog.movie.core_ready.v1` | 核心元数据首次可见 | `movie_id,number` |
 
 ## 4. 客户端合并算法
 
 1. `event_id` 已处理或 `sequence <= snapshot_version` 则忽略。
 2. 同资源事件 `stream_version <= local_version` 则忽略。
-3. `stream_version == local_version + 1` 时用 `resource` 替换对应快照。
-4. sequence 或聚合版本跳号、未知事件版本或本地没有资源时，拉对应 REST 快照。
+3. `stream_version == local_version + 1` 时按字段把 `resource` 浅合并到对应资源；null 是权威清空，出现的数组字段整体替换。
+4. sequence 或聚合版本跳号、未知事件版本、字段形状非法或本地没有资源时，拉对应 REST 快照；不得用不完整事件构造新资源。
 5. 事件触发导航或通知，但不得自动开始播放；后台完成的缓存只进入 ready 并通知。
 
 ## 5. REST 恢复快照
@@ -102,6 +103,7 @@ PlaybackManifest 的映射，事件不重复携带。logout 204 和本地过期�
 - 服务端在同一数据库事务内读取已分配的最大事件 sequence 和业务状态；该 sequence 是 `snapshot_version`。水位事件仍在 30 天窗口内时返回对应 `last_event_id`，已清理时返回 null。
 - Phase 1 的元数据任务最多返回 100 项，活动任务优先，其后为最近终态；同时返回全量状态计数。
 - cache、credential 和 notification 通过有界扩展端口聚合。对应 Phase 尚未交付时返回空任务/通知、零计数和 `unbound` 凭据状态，不创建未来业务表。
+- notification 最多返回按 `created_at DESC,id DESC` 排序的 100 条未读事实；客户端展示后调用幂等已读 API。通知与事件正文同样保留 30 天。
 - 客户端应用快照后，无游标重连 WebSocket，并只合并 `sequence > snapshot_version` 的事件。
 
 ## 6. 心跳

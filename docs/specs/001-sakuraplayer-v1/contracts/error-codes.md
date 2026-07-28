@@ -32,6 +32,7 @@
 | 401 | `refresh_token_reused` | 已轮换 refresh 被重放；当前客户端会话已撤销，清除本机状态 |
 | 403 | `operation_forbidden` | 显示无权或状态不允许 |
 | 404 | `resource_not_found` | 返回上一页并允许刷新 |
+| 404 | `notification_not_found` | 通知不存在或已过保留期；刷新事件快照 |
 | 409 | `state_conflict` | 拉取最新 REST 快照 |
 | 409 | `idempotency_conflict` | 使用原请求结果或更换幂等键 |
 | 422 | `validation_failed` | 标记字段错误；包括畸形/跨查询 cursor、重复或冲突筛选和 min 大于 max |

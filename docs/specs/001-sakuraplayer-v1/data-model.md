@@ -531,6 +531,8 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `claim_expires_at` | timestamptz | 可空 | `(derived)` |
 | `failure_code` | varchar(128) | 可空 | AC-098/121 |
 | `failure_detail` | text | 可空、脱敏 | AC-121 |
+| `failure_stage` | varchar(32) | 可空、稳定内部阶段 | AC-121 |
+| `cleanup_reason` | varchar(16) | 可空；`cancelled/manual/ttl/capacity`，进入 cleaning 后保持 | AC-098/117 |
 | `created_at` | timestamptz | 非空 | `(derived)` |
 | `updated_at` | timestamptz | 非空 | `(derived)` |
 
@@ -743,10 +745,15 @@ subtitle/session，相关生命周期不得删除状态。position 非负；dura
 | `id` | UUID | 主键 | `(derived)` |
 | `type` | enum | `cache_started/cache_ready/cache_failed/credential_expired` 等 | AC-117 |
 | `resource_id` | UUID | 可空 | `(derived)` |
+| `error_code` | varchar(128) | 可空、稳定错误码 | AC-117/121 |
+| `dedupe_key` | varchar(255) | 唯一、内部幂等键，不公开 | `(derived)` |
 | `created_at` | timestamptz | 非空 | AC-117 |
 | `read_at` | timestamptz | 可空 | `(derived)` |
 
-通知保存精简事实，不建设通用活动中心或历史页面。客户端下次启动按未读通知和任务快照补拉。
+通知保存精简事实，不建设通用活动中心或历史页面。客户端下次启动按
+`created_at DESC, id DESC` 补拉最多 100 条未读通知和任务快照；首次标记已读写服务端时钟并
+保持幂等。通知保留 30 天，cache 通知按 job/type 去重，凭据过期按 binding/credential version
+去重。
 
 ## 10. 状态机
 

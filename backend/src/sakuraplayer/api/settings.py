@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from time import monotonic
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -207,6 +207,9 @@ class SettingsService:
                 incremental_30d=self._sync_state(session, "incremental_30d"),
                 full_reconcile=self._sync_state(session, "full_reconcile"),
             )
+            cloud115_binding = session.scalar(
+                select(Cloud115Binding).where(Cloud115Binding.singleton_key.is_(True))
+            )
         ttl = self._repository.get_public("cache.ttl_hours")
         ttl_hours = ttl.value if ttl is not None else 24
         if not isinstance(ttl_hours, int) or not 1 <= ttl_hours <= 168:
@@ -216,9 +219,9 @@ class SettingsService:
             javdb=javdb,
             ai=ai,
             providers={
-                "cloud115": self._provider_state(
-                    configured=self._is_configured("cloud115"),
-                    result=connection_results.get("cloud115"),
+                "cloud115": self._cloud115_provider_state(
+                    cloud115_binding,
+                    connection_results.get("cloud115"),
                 ),
                 "dmm": self._provider_state(
                     configured=True,
@@ -316,8 +319,8 @@ class SettingsService:
         with self._session_factory() as session:
             return {
                 row.target: ConnectionTestOutput(
-                    target=row.target,
-                    status=row.status,
+                    target=cast(ConnectionTarget, row.target),
+                    status=cast(ConnectionStatus, row.status),
                     error_code=row.error_code,
                     elapsed_ms=row.elapsed_ms,
                     checked_at=_as_utc(row.checked_at),
@@ -416,6 +419,32 @@ class SettingsService:
         return False
 
     @staticmethod
+    def _cloud115_provider_state(
+        binding: Cloud115Binding | None,
+        result: ConnectionTestOutput | None,
+    ) -> ProviderStateOutput:
+        if binding is None:
+            return ProviderStateOutput(
+                configured=False,
+                status=result.status if result is not None else "unknown",
+                last_checked_at=result.checked_at if result is not None else None,
+                last_error_code=result.error_code if result is not None else None,
+            )
+        status_projection: dict[str, tuple[ProviderStatus, str | None]] = {
+            "active": ("available", None),
+            "expired": ("credentials_invalid", "cloud115_credentials_expired"),
+            "unavailable": ("unavailable", "cloud115_unavailable"),
+            "detached": ("unavailable", "cache_ownership_mismatch"),
+        }
+        public_status, error_code = status_projection[binding.status]
+        return ProviderStateOutput(
+            configured=True,
+            status=public_status,
+            last_checked_at=_as_utc_optional(binding.last_verified_at),
+            last_error_code=error_code,
+        )
+
+    @staticmethod
     def _provider_state(
         *,
         configured: bool,
@@ -454,12 +483,13 @@ class SettingsService:
                 last_successful_at=_as_utc_optional(last_success),
                 next_scheduled_at=_as_utc_optional(next_request),
             )
+        status_projection: dict[str, SyncStatus] = {
+            "completed": "succeeded",
+            "running": "running",
+            "failed": "failed",
+        }
         return SyncRunStateOutput(
-            status={
-                "completed": "succeeded",
-                "running": "running",
-                "failed": "failed",
-            }[latest.status],
+            status=status_projection[latest.status],
             release_id=latest.release_id,
             started_at=_as_utc(latest.started_at),
             completed_at=_as_utc_optional(latest.completed_at),

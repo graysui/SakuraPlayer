@@ -28,6 +28,12 @@
 - AC-047/AC-048 的永久图片精确 HTTPS 主机、MIME、8 MiB、重定向、像素、完整解码和原子替换边界由 [TASK-008 永久图片安全边界](changes/2026-07-26--task-008-image-security-boundaries.md) 冻结，并由 TASK-008 实现。
 - AC-046、AC-069 至 AC-073 的排行榜持久请求、01:45 调度、2008..当前年 TOP250、快照唯一性、snapshot cursor、MovieSummary 端口、priority 20 提升和稳定不可用 reason 由 [TASK-012 排行榜快照确定性与执行边界](changes/2026-07-26--task-012-ranking-snapshot-boundaries.md) 冻结，并由 TASK-012 实现。
 - AC-115、AC-116、AC-119、AC-121、AC-127 至 AC-129 的全局事件水位、有界一致快照、对象级配置 CAS、Phase 1 空 cache/credential 端口、unknown 诊断和分工作流测试责任由 [TASK-013 事件、设置与诊断确定性边界](changes/2026-07-26--task-013-events-settings-diagnostics-boundaries.md) 冻结，并由 TASK-013 建立基础端口、TASK-112/101/212 后续扩展。
+- AC-115 至 AC-119、AC-121、AC-122、AC-127 的 cache/credential 事务事件、通知幂等与已读、
+  字段浅合并、cleanup reason、普通失败、诊断和逐状态启动恢复由
+  [TASK-112 缓存事件、通知与恢复确定性边界](changes/2026-07-28--task-112-cache-events-recovery-contract.md)
+  冻结；TASK-112 已实现 0020 Schema、事务事件/通知、快照/角标、诊断、操作和有界恢复，自动证据位于
+  `test_event_integration.py`、`test_events_snapshot.py`、`test_notifications.py`、`test_recovery.py` 和
+  `test_cache_events_snapshot_api.py`；不发布 playback 心跳事件，worker/scheduler 无心跳证据时继续为 unknown。
 - AC-049 至 AC-053 的固定 provider 地址、16/32 MiB 上限、XML/路径安全、周日 05:00 持久入队、独立 current 快照、唯一身份匹配和陈旧 GFriends 资产清理由 [TASK-009 提供方快照安全与重建边界](changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结，并由 TASK-009 实现。
 - AC-054 至 AC-057 的加密配置快照、单字段 JSON、固定 prompt、protected 规范化、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结，并由 TASK-010 实现。
 - AC-063 至 AC-068、AC-074 至 AC-078 的同来源筛选、稳定键集游标、Phase 1 空状态端口、搜索队列提升、收藏 Schema、安全 DTO 与集合上限由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，并由 TASK-011 实现。

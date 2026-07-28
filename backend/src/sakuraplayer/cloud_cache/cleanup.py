@@ -23,6 +23,7 @@ from sakuraplayer.cloud_cache.domain.cache_job import (
     CapacityClass,
     InvalidCacheJobTransition,
 )
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.models import (
     CacheCleanupAttempt,
     CacheJob,
@@ -78,12 +79,14 @@ class CleanupQueue:
         *,
         now: Callable[[], datetime] | None = None,
         claim_lease: timedelta = DEFAULT_CLEANUP_CLAIM_LEASE,
+        event_publisher: CacheEventPublisher | None = None,
     ) -> None:
         if claim_lease <= timedelta(0):
             raise ValueError("cleanup claim lease must be positive")
         self._session_factory = session_factory
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._claim_lease = claim_lease
+        self._event_publisher = event_publisher
 
     def request(self, job_id: uuid.UUID) -> CleanupRequestView:
         current = self._now()
@@ -103,11 +106,21 @@ class CleanupQueue:
                 CacheJobStatus.CLEANUP_FAILED,
             }:
                 raise CleanupProblem(status_code=409, code="state_conflict")
+            if job.cleanup_reason is None:
+                job.cleanup_reason = "manual"
             _apply_state(job, CacheJobStatus.CLEANING)
             _clear_claim(job)
             job.failure_code = None
             job.failure_detail = None
+            job.failure_stage = None
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.updated.v1",
+                    extra={"cleanup_reason": job.cleanup_reason},
+                )
             return CleanupRequestView(job.id, job.status)
 
     def claim_next(self, *, worker_id: str) -> CleanupClaim | None:
@@ -121,6 +134,7 @@ class CleanupQueue:
                 CacheJob.claim_expires_at <= current,
             )
             no_active_lease = ~_active_lease_exists(CacheJob.id, current)
+            auto_selected = False
             job = session.scalar(
                 select(CacheJob)
                 .where(
@@ -163,15 +177,30 @@ class CleanupQueue:
                     .limit(1)
                 )
                 if job is not None:
+                    assert job.expires_at is not None
+                    job.cleanup_reason = (
+                        "ttl" if _as_utc(job.expires_at) <= current else "capacity"
+                    )
                     _apply_state(job, CacheJobStatus.CLEANING)
+                    auto_selected = True
             if job is None:
                 return None
             if job.binding_id is None or job.task_dir_cid is None:
+                if job.cleanup_reason is None:
+                    job.cleanup_reason = "manual"
                 _apply_state(job, CacheJobStatus.DETACHED)
                 _clear_claim(job)
                 job.failure_code = "cache_ownership_mismatch"
                 job.failure_detail = None
+                job.failure_stage = CacheJobStatus.CLEANING.value
                 job.updated_at = current
+                if self._event_publisher is not None:
+                    self._event_publisher.publish_cache(
+                        session,
+                        job,
+                        event_type="cache.job.detached.v1",
+                        extra={"cleanup_reason": job.cleanup_reason},
+                    )
                 return None
 
             prior = session.scalar(
@@ -210,6 +239,13 @@ class CleanupQueue:
             job.claim_expires_at = current + self._claim_lease
             job.updated_at = current
             session.flush()
+            if auto_selected and self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.updated.v1",
+                    extra={"cleanup_reason": job.cleanup_reason},
+                )
             return _claim(job, attempt)
 
     def succeed(
@@ -229,6 +265,7 @@ class CleanupQueue:
             _clear_claim(job)
             job.failure_code = None
             job.failure_detail = None
+            job.failure_stage = None
             job.updated_at = current
             session.execute(
                 delete(CacheJobMediaSelection).where(
@@ -241,6 +278,19 @@ class CleanupQueue:
             session.execute(
                 delete(RemoteMedia).where(RemoteMedia.cache_job_id == job.id)
             )
+            if self._event_publisher is not None:
+                reason = job.cleanup_reason or "manual"
+                job.cleanup_reason = reason
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type=(
+                        "cache.job.cancelled.v1"
+                        if reason == "cancelled"
+                        else "cache.job.cleaned.v1"
+                    ),
+                    extra={"cleanup_reason": reason},
+                )
 
     def fail(
         self,
@@ -260,7 +310,18 @@ class CleanupQueue:
             _clear_claim(job)
             job.failure_code = "cache_cleanup_failed"
             job.failure_detail = None
+            job.failure_stage = CacheJobStatus.CLEANING.value
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.cleanup_failed.v1",
+                    extra={
+                        "attempt_no": attempt.attempt_no,
+                        "cleanup_reason": job.cleanup_reason,
+                    },
+                )
 
     def detach(
         self,
@@ -279,7 +340,15 @@ class CleanupQueue:
             _clear_claim(job)
             job.failure_code = "cache_ownership_mismatch"
             job.failure_detail = None
+            job.failure_stage = CacheJobStatus.CLEANING.value
             job.updated_at = current
+            if self._event_publisher is not None:
+                self._event_publisher.publish_cache(
+                    session,
+                    job,
+                    event_type="cache.job.detached.v1",
+                    extra={"cleanup_reason": job.cleanup_reason},
+                )
 
     def _claimed(
         self,

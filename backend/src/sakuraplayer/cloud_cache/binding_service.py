@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, sessionmaker
 
+from sakuraplayer.cloud_cache.events import CacheEventPublisher
 from sakuraplayer.cloud_cache.models import Cloud115Binding
 from sakuraplayer.cloud_cache.ports.cloud115 import (
     Cloud115Port,
@@ -66,12 +67,14 @@ class BindingService:
         *,
         active_cache_jobs: ActiveCacheJobGuard | None = None,
         now: Callable[[], datetime] | None = None,
+        event_publisher: CacheEventPublisher | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._secrets = secrets
         self._cloud_factory = cloud_factory
         self._active_cache_jobs = active_cache_jobs or (lambda _session: False)
         self._now = now or (lambda: datetime.now(timezone.utc))
+        self._event_publisher = event_publisher
         self._bind_lock = asyncio.Lock()
 
     def get(self) -> BindingView:
@@ -100,6 +103,7 @@ class BindingService:
             with self._session_factory() as session, session.begin():
                 self._lock(session)
                 binding = self._binding(session, with_for_update=True)
+                previous_status = binding.status if binding is not None else None
                 if binding is not None and binding.account_key != result.account_key:
                     raise BindingProblem("cloud115_binding_exists", 409)
                 setting = session.get(EncryptedSetting, COOKIE_SETTING_KEY)
@@ -143,6 +147,12 @@ class BindingService:
                     binding.last_verified_at = current
                     binding.updated_at = current
                 session.flush()
+                if self._event_publisher is not None:
+                    self._event_publisher.publish_credential(
+                        session,
+                        binding,
+                        previous_status=previous_status,
+                    )
                 return self._view(binding)
 
     async def probe(self) -> BindingView:
@@ -257,6 +267,13 @@ class BindingService:
             binding = self._binding(session, with_for_update=True)
             if binding is None:
                 return
+            if self._event_publisher is not None:
+                self._event_publisher.publish_credential(
+                    session,
+                    binding,
+                    previous_status=binding.status,
+                    status="unbound",
+                )
             self._secrets.delete_secret_in_session(
                 session,
                 COOKIE_SETTING_KEY,
@@ -325,6 +342,8 @@ class BindingService:
                 or binding.credential_version != scope.version
             ):
                 return self._view(binding)
+            previous_status = binding.status
+            previous_version = binding.credential_version
             if snapshot is not None and snapshot != scope.cookies:
                 try:
                     saved = self._secrets.compare_and_set_secret_in_session(
@@ -342,6 +361,15 @@ class BindingService:
                 binding.last_verified_at = current
             binding.updated_at = current
             session.flush()
+            if self._event_publisher is not None and (
+                binding.status != previous_status
+                or binding.credential_version != previous_version
+            ):
+                self._event_publisher.publish_credential(
+                    session,
+                    binding,
+                    previous_status=previous_status,
+                )
             return self._view(binding)
 
     @staticmethod

@@ -8,6 +8,10 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Header, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from sakuraplayer.cloud_cache.cancellation import (
+    CacheCancelProblem,
+    CancellationService,
+)
 from sakuraplayer.cloud_cache.capacity import CacheCapacitySnapshot
 from sakuraplayer.cloud_cache.cleanup import CleanupProblem, CleanupQueue
 from sakuraplayer.cloud_cache.media_selection_api import MediaSelectionProblem
@@ -38,6 +42,7 @@ class RemoteMediaOutput(BaseModel):
 
 class SubtitleOutput(BaseModel):
     id: uuid.UUID
+    media_id: uuid.UUID | None
     name: str
     format: Literal["srt", "ass", "ssa", "vtt"]
     language: str | None
@@ -98,11 +103,18 @@ class MediaSelectionInput(BaseModel):
         return media_ids
 
 
+class CancelCacheJobInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    confirmed: Literal[True]
+
+
 def create_cache_api(
     service: PlayRequestService,
     *,
     current_admin_dependency: Callable[..., object],
     cleanup_service: CleanupQueue | None = None,
+    cancellation_service: CancellationService | None = None,
 ) -> APIRouter:
     router = APIRouter(
         prefix="/api/v1",
@@ -178,6 +190,32 @@ def create_cache_api(
         except CacheProblem as error:
             raise _api_problem(error) from None
 
+    if cancellation_service is not None:
+
+        @router.post(
+            "/cache-jobs/{cache_job_id}/cancel",
+            response_model=CacheJobOutput,
+            status_code=202,
+        )
+        def cancel_cache_job(
+            cache_job_id: uuid.UUID,
+            payload: CancelCacheJobInput,
+        ) -> CacheJobOutput:
+            try:
+                cancellation_service.request(
+                    cache_job_id,
+                    confirmed=payload.confirmed,
+                )
+                return _job_output(service.get(cache_job_id))
+            except CacheCancelProblem as error:
+                raise ApiProblem(
+                    status_code=error.status_code,
+                    code=error.code,
+                    message="cache cancellation rejected",
+                ) from None
+            except CacheProblem as error:
+                raise _api_problem(error) from None
+
     if cleanup_service is not None:
 
         @router.post(
@@ -230,6 +268,7 @@ def _job_output(job: CacheJobView) -> CacheJobOutput:
         subtitles=[
             SubtitleOutput(
                 id=item.id,
+                media_id=item.media_id,
                 name=item.name,
                 format=item.format,  # type: ignore[arg-type]
                 language=item.language,
