@@ -259,7 +259,11 @@ Windows 的 Player 包装器覆盖 `seek`：已有 seek 在飞时只保留最后
 
 - 后端以 `movie_id` 唯一保存位置、时长、完成状态和版本。
 - 客户端播放期间每 15 秒 `(derived)` 发送心跳，可附带进度；暂停、退出、完成立即 flush。
-- 后端拒绝比当前版本更旧的乱序更新 `(derived)`。
+- 请求 `version` 是 expected current version：首次写入使用 0，成功后服务端从 1 开始递增；旧版本或
+  未来版本均返回 `409 progress_version_conflict` 和权威进度，且不得部分续租。
+- 未知时长显式提交 `duration_seconds=null`，只保存位置且不完成；位置 0 不完成。已知时长时达到
+  95% 或严格剩余 `<120` 秒完成，恰好 120 秒不完成，完成后权威位置归零。
+- 无 progress 心跳只续租并刷新 TTL；`playing=false` 可原子 flush 后结束 lease，不续期 TTL。
 - 未完成进度自动 seek，不弹选择框。
 - 达到 95% 或剩余不足 120 秒时写 `completed=true` 和位置 0；下次从头。
 - 播放按钮从影片级进度派生环形/条形进度或已看完标记。

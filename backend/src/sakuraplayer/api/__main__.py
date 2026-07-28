@@ -36,8 +36,10 @@ from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.playback.heartbeat import PlaybackHeartbeatService
 from sakuraplayer.playback.hls import HlsStreamResolver
 from sakuraplayer.playback.original import OriginalStreamResolver
+from sakuraplayer.playback.progress import MoviePlaybackStateService
 from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import PlaybackSessionService
 from sakuraplayer.playback.subtitles import SubtitleDownloadService
@@ -115,9 +117,16 @@ def main() -> None:
         ttl_hours=lambda: _cache_ttl_hours(secret_repository),
     )
     cache_cleanup_service = CleanupQueue(factory)
+    playback_progress_service = MoviePlaybackStateService(factory)
     playback_session_service = PlaybackSessionService(
         factory,
         signing_key=settings.playback_key,
+        ttl_hours=lambda: _cache_ttl_hours(secret_repository),
+        progress_service=playback_progress_service,
+    )
+    playback_heartbeat_service = PlaybackHeartbeatService(
+        factory,
+        progress_service=playback_progress_service,
         ttl_hours=lambda: _cache_ttl_hours(secret_repository),
     )
     playback_stream_resolver = PlaybackStreamResolver(
@@ -162,6 +171,7 @@ def main() -> None:
         factory,
         favorite_port=favorite_service,
         availability_port=CacheSourceAvailabilityPort(factory),
+        playback_port=playback_progress_service,
         image_root=Path("/var/lib/sakuraplayer/catalog-images"),
     )
     app = create_app(
@@ -191,6 +201,8 @@ def main() -> None:
         playback_session_service=playback_session_service,
         playback_stream_resolver=playback_stream_resolver,
         subtitle_download_service=subtitle_download_service,
+        playback_progress_service=playback_progress_service,
+        playback_heartbeat_service=playback_heartbeat_service,
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

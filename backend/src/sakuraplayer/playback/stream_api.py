@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Problem
 from sakuraplayer.identity.api import ApiProblem
 from sakuraplayer.identity.domain import CurrentAdmin
+from sakuraplayer.playback.progress_api import PlaybackProgressOutput
 from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import (
     PlaybackManifest,
@@ -67,7 +68,7 @@ class PlaybackManifestOutput(BaseModel):
     embedded_tracks_source: Literal["client_player"]
     media_queue: list[PlaybackQueueOutput]
     subtitles: list[PlaybackSubtitleOutput]
-    progress: None = None
+    progress: PlaybackProgressOutput | None
 
 
 def create_playback_api(
@@ -169,6 +170,20 @@ def _manifest_output(manifest: PlaybackManifest) -> PlaybackManifestOutput:
             )
             for item in manifest.subtitles
         ],
+        progress=(
+            PlaybackProgressOutput(
+                position_seconds=float(manifest.progress.position_seconds),
+                duration_seconds=(
+                    float(manifest.progress.duration_seconds)
+                    if manifest.progress.duration_seconds is not None
+                    else None
+                ),
+                completed=manifest.progress.completed,
+                version=manifest.progress.version,
+            )
+            if manifest.progress is not None
+            else None
+        ),
     )
 
 

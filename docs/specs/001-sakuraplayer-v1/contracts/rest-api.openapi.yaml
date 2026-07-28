@@ -300,6 +300,10 @@ paths:
                 $ref: '#/components/schemas/PlaybackProgress'
         '409':
           $ref: '#/components/responses/Conflict'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /movies/{movie_id}/play-requests:
     post:
       tags: [Cache]
@@ -897,10 +901,16 @@ paths:
                 required: [lease_expires_at, progress]
                 properties:
                   lease_expires_at:
-                    type: string
+                    type: [string, 'null']
                     format: date-time
                   progress:
-                    $ref: '#/components/schemas/PlaybackProgress'
+                    oneOf:
+                      - $ref: '#/components/schemas/PlaybackProgress'
+                      - type: 'null'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /events/snapshot:
     get:
@@ -1416,20 +1426,21 @@ components:
       enum: [subtitle, cracked, 4k, censored]
     PlaybackProgress:
       type: object
-      required: [position_seconds, completed, version]
+      required: [position_seconds, duration_seconds, completed, version]
       properties:
         position_seconds:
           type: number
           minimum: 0
         duration_seconds:
           type: [number, 'null']
-          minimum: 0
+          exclusiveMinimum: 0
         completed:
           type: boolean
         version:
           type: integer
           format: int64
-          minimum: 0
+          minimum: 1
+          description: Authoritative server state version after the committed write.
     ProgressUpdate:
       type: object
       required: [position_seconds, duration_seconds, version]
@@ -1438,12 +1449,13 @@ components:
           type: number
           minimum: 0
         duration_seconds:
-          type: number
+          type: [number, 'null']
           exclusiveMinimum: 0
         version:
           type: integer
           format: int64
           minimum: 0
+          description: Expected current server version; use 0 only when no state exists.
     MovieSummary:
       type: object
       required: [id, number, title, labels, favorite, source_count]
@@ -1968,7 +1980,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/PlaybackProgress'
             - type: 'null'
-          description: Null until TASK-111 introduces persisted movie playback progress.
+          description: Authoritative movie progress; completed states have position_seconds 0.
     PlaybackQueueItem:
       type: object
       required: [session_id, media, stream_url]
@@ -1983,7 +1995,7 @@ components:
           format: uri-reference
     PlaybackHeartbeat:
       type: object
-      required: [client_instance_id, progress]
+      required: [client_instance_id]
       properties:
         client_instance_id:
           type: string
@@ -1992,6 +2004,8 @@ components:
           $ref: '#/components/schemas/ProgressUpdate'
         playing:
           type: boolean
+          default: true
+          description: False atomically flushes optional progress and ends the lease without refreshing cache TTL.
     MetadataEnrichmentStage:
       type: string
       enum: [images, dmm, actor_map, gfriends, translation]

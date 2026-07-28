@@ -39,6 +39,7 @@ provides: [HarmonyOS subtitle cache, track controls, progress heartbeat]
 - [ ] TASK-310 真机 player probe 通过，TASK-110/111 后端契约可用。
 - [ ] AC-131 已证明 MKV + ASS；若缺少官方 external subtitle API 则阻断。
 - [ ] cacheDir 文件名只使用 subtitle UUID，避免路径穿越。
+- [x] heartbeat/flush 与 expected-version 冲突处理由 TASK-111 变更规格确定。
 
 ## 技术上下文
 

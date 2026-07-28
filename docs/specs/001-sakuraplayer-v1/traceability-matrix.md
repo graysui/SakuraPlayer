@@ -56,6 +56,12 @@
   TASK-110 已实现后端 manifest/下载，自动证据位于 `test_signature.py`、
   `test_subtitle_options.py` 和 `test_subtitle_download.py`；TASK-112 发布 cache cleaned，
   TASK-211/311 执行客户端清理。
+- AC-068、AC-111 至 AC-114 的影片级 0019 Schema、未知时长、完成边界、expected-version CAS、
+  无进度心跳和 lease/TTL/progress 原子事务由
+  [TASK-111 进度与心跳确定性边界](changes/2026-07-28--task-111-progress-heartbeat-contract.md)
+  冻结；TASK-111 已实现后端状态、manifest、目录投影和心跳，自动证据位于
+  `test_completion_rule.py`、`test_progress_service.py`、`test_heartbeat.py`、
+  `test_progress_api.py` 和 `test_cross_client_progress.py`；TASK-211/311 实现两端控制器。
 - AC-094 至 AC-098 的 materialized cache 首次 TTL、设置变更、20 个安全收敛目标、稳定 LRU、
   playback lease 最小 Schema、清理 claim/attempt 和证明式删除恢复由
   [TASK-107 缓存生命周期确定性边界](changes/2026-07-28--task-107-cache-lifecycle-determinism.md)

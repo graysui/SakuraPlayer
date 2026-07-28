@@ -29,6 +29,9 @@ from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.events.websocket import create_events_api
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.playback.heartbeat import PlaybackHeartbeatService
+from sakuraplayer.playback.progress import MoviePlaybackStateService
+from sakuraplayer.playback.progress_api import create_progress_api
 from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import PlaybackSessionService
 from sakuraplayer.playback.stream_api import create_playback_api
@@ -71,6 +74,8 @@ def create_app(
     playback_session_service: PlaybackSessionService | None = None,
     playback_stream_resolver: PlaybackStreamResolver | None = None,
     subtitle_download_service: SubtitleDownloadService | None = None,
+    playback_progress_service: MoviePlaybackStateService | None = None,
+    playback_heartbeat_service: PlaybackHeartbeatService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -87,6 +92,7 @@ def create_app(
             or request.url.path.startswith("/api/v1/cache-jobs")
             or request.url.path.startswith("/api/v1/playback/")
             or request.url.path.endswith("/play-requests")
+            or request.url.path.endswith("/progress")
             or request.url.path == "/api/v1/rankings"
         ):
             response.headers["Cache-Control"] = "no-store"
@@ -262,6 +268,22 @@ def create_app(
                     current_admin_dependency=identity_api.current_admin_dependency,
                 )
             )
+        if (
+            playback_progress_service is not None
+            and playback_heartbeat_service is not None
+        ):
+            app.include_router(
+                create_progress_api(
+                    playback_progress_service,
+                    playback_heartbeat_service,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+        elif (
+            playback_progress_service is not None
+            or playback_heartbeat_service is not None
+        ):
+            raise ValueError("progress API requires progress and heartbeat services")
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
@@ -280,6 +302,8 @@ def create_app(
         or playback_session_service is not None
         or playback_stream_resolver is not None
         or subtitle_download_service is not None
+        or playback_progress_service is not None
+        or playback_heartbeat_service is not None
     ):
         raise ValueError("admin APIs require identity service")
 

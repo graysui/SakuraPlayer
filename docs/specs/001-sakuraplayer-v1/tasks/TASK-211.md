@@ -38,7 +38,7 @@ provides: [Windows subtitle cache, track controls, progress heartbeat]
 
 - [ ] TASK-210 Player/Controller、TASK-110 subtitle API、TASK-111 progress API 可用。
 - [ ] 私有字幕目录命名只使用 server subtitle ID，不使用未清洗文件名路径。
-- [ ] heartbeat/flush 周期和版本冲突处理确定。
+- [x] heartbeat/flush 周期和 expected-version 冲突处理由 TASK-111 变更规格确定。
 
 ## 技术上下文
 

@@ -674,14 +674,18 @@ stream 和公开 API 行为。
 | 字段 | 类型 | 规则 | 来源 |
 |---|---|---|---|
 | `movie_id` | UUID | 主键，每部影片唯一 | AC-111 |
-| `position_seconds` | numeric(12,3) | >= 0 | AC-111/112 |
-| `duration_seconds` | numeric(12,3) | > 0，可空 | AC-113 |
+| `position_seconds` | numeric(12,3) | 0..999999999.999 | AC-111/112 |
+| `duration_seconds` | numeric(12,3) | 0..999999999.999，可空且非零 | AC-113 |
 | `completed` | boolean | 95% 或剩余 < 120 秒 | AC-113 |
-| `version` | bigint | 单调递增，解决乱序 `(derived)` | `(derived)` |
+| `version` | bigint | 从 1 开始单调递增，expected-version CAS | `(derived)` |
 | `last_watched_at` | timestamptz | 可空 | `(derived)` |
 | `updated_at` | timestamptz | 非空 | AC-111 |
 
-`completed=true` 时客户端下次从头；产品不提供独立历史列表。
+TASK-111 的 0019 迁移创建本表。`movie_id` 外键级联删除影片本身，但不关联 cache/source/media/
+subtitle/session，相关生命周期不得删除状态。position 非负；duration 只允许空或正数；version 至少
+为 1；`completed=true` 时 position 固定为 0。请求 version 0 只创建首行，之后必须等于当前版本，
+成功由服务端加 1。未知时长或 position 0 不完成；已知时长按 95% 或严格剩余 `<120` 秒完成。
+产品不提供独立历史列表。
 
 ## 9. 事件、通知与诊断
 

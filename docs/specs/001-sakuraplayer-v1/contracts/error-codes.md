@@ -153,7 +153,7 @@
 | 404 | `subtitle_not_found` | 忽略该字幕，视频继续播放 |
 | 413 | `subtitle_too_large` | 不下载该字幕，视频继续播放 |
 | 422 | `subtitle_format_unsupported` | 不加载该字幕，视频继续播放 |
-| 409 | `progress_version_conflict` | 客户端拉取最新影片进度后继续 |
+| 409 | `progress_version_conflict` | `details.progress` 返回权威影片进度；以其 version 继续，不重放旧请求 |
 
 自动 HLS fallback 白名单仅包含 `cloud115_original_unavailable`。其余 original 错误保持本表
 状态与 code；HLS 失败也保持自身稳定 code，不包装为原画错误。
@@ -161,6 +161,9 @@
 字幕 API 将远端 file/directory not-found、归属不成立和 original unavailable 收敛为
 `subtitle_not_found`，将 `cloud115_small_file_too_large` 收敛为 `subtitle_too_large`；凭据、限流、
 上游不可用和协议错误保持对应 `cloud115_*` 公开 code。
+
+进度请求的 version 是 expected current version；不存在状态时仅接受 0。旧版本和未来版本都返回
+`progress_version_conflict`，且心跳中的 lease/TTL/progress 写入全部回滚。
 
 ## 7. WebSocket 关闭码
 

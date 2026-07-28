@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Numeric,
     String,
     UniqueConstraint,
     Uuid,
@@ -96,8 +99,40 @@ class PlaybackLease(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class MoviePlaybackState(Base):
+    __tablename__ = "movie_playback_state"
+    __table_args__ = (
+        CheckConstraint(
+            "position_seconds >= 0 AND position_seconds <= 999999999.999",
+            name="ck_movie_playback_position",
+        ),
+        CheckConstraint(
+            "duration_seconds IS NULL OR "
+            "(duration_seconds > 0 AND duration_seconds <= 999999999.999)",
+            name="ck_movie_playback_duration",
+        ),
+        CheckConstraint(
+            "NOT completed OR position_seconds = 0",
+            name="ck_movie_playback_completed_position",
+        ),
+        CheckConstraint("version >= 1", name="ck_movie_playback_version"),
+    )
+
+    movie_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("movie.id", ondelete="CASCADE"), primary_key=True
+    )
+    position_seconds: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    duration_seconds: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    version: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    last_watched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 Index("ix_playback_session_cache_job", PlaybackSession.cache_job_id)
 Index("ix_playback_lease_active", PlaybackLease.expires_at, PlaybackLease.ended_at)
 
 
-__all__ = ["PlaybackLease", "PlaybackSession"]
+__all__ = ["MoviePlaybackState", "PlaybackLease", "PlaybackSession"]

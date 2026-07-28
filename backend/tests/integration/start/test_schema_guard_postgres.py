@@ -148,6 +148,7 @@ def test_upgrade_to_head_is_idempotent_and_creates_expected_tables(
             "metadata_stage",
             "movie",
             "movie_actor",
+            "movie_playback_state",
             "movie_tag",
             "playback_lease",
             "playback_session",

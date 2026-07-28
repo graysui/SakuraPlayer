@@ -22,6 +22,10 @@ from sakuraplayer.identity.domain import CurrentAdmin
 from sakuraplayer.identity.models import AdminUser
 from sakuraplayer.playback.lease import DEFAULT_LEASE_DURATION
 from sakuraplayer.playback.models import PlaybackLease, PlaybackSession
+from sakuraplayer.playback.progress import (
+    MoviePlaybackStateService,
+    MoviePlaybackStateView,
+)
 from sakuraplayer.playback.subtitle_lifecycle import create_subtitle_lifecycle
 from sakuraplayer.playback.user_agents import PlaybackPlatform, user_agent_for
 
@@ -77,6 +81,7 @@ class PlaybackManifest:
     embedded_tracks_source: Literal["client_player"]
     media_queue: tuple[PlaybackQueueItem, ...]
     subtitles: tuple[PlaybackSubtitleView, ...]
+    progress: MoviePlaybackStateView | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +103,7 @@ class PlaybackSessionService:
         now: Callable[[], datetime] | None = None,
         ttl_hours: Callable[[], int] | None = None,
         lease_duration: timedelta = DEFAULT_LEASE_DURATION,
+        progress_service: MoviePlaybackStateService | None = None,
     ) -> None:
         if len(signing_key) < 32:
             raise ValueError("playback signing key must be at least 32 bytes")
@@ -108,6 +114,7 @@ class PlaybackSessionService:
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._ttl_hours = ttl_hours or (lambda: 24)
         self._lease_duration = lease_duration
+        self._progress = progress_service
 
     def create(
         self,
@@ -232,6 +239,11 @@ class PlaybackSessionService:
                 embedded_tracks_source=subtitle_lifecycle.embedded_tracks_source,
                 media_queue=queue,
                 subtitles=subtitles,
+                progress=(
+                    self._progress.get_in_session(session, job.movie_id)
+                    if self._progress is not None
+                    else None
+                ),
             )
 
     def validate_stream(
