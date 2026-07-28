@@ -202,7 +202,8 @@ database owner == cache_job.id
 
 ## 9. User-Agent 与播放
 
-- Windows 与 HarmonyOS 固定 UA 由公共契约常量定义。
+- Windows 固定 UA 为 `SakuraPlayer/1.0 (Windows; x64)`；HarmonyOS 固定 UA 为
+  `SakuraPlayer/1.0 (HarmonyOS; API 24)`。二者均为协议常量，不接受客户端覆盖。
 - `resolve_original` 参数 UA 必须与播放器后续 Range GET 完全一致。
 - `resolve_hls` 返回的每个 variant 带相同 UA；master/variant/segment 请求必须复用它。
 - 同一原画 URL 的 seek 串行合并，禁止 5 个以上突发并发 Range。

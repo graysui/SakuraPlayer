@@ -36,6 +36,8 @@ from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.playback.original import OriginalStreamResolver
+from sakuraplayer.playback.session import PlaybackSessionService
 from sakuraplayer.resources.identification_api import IdentificationService
 from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.resources.source_submission import SourceSubmissionService
@@ -64,6 +66,10 @@ def main() -> None:
         raise StartupConfigurationError(
             "SAKURAPLAYER_SETTINGS_KEY",
             "value is required",
+        )
+    if settings.playback_key is None:
+        raise StartupConfigurationError(
+            "SAKURAPLAYER_PLAYBACK_KEY", "value is required"
         )
     engine = create_engine(
         settings.database_url,
@@ -106,6 +112,12 @@ def main() -> None:
         ttl_hours=lambda: _cache_ttl_hours(secret_repository),
     )
     cache_cleanup_service = CleanupQueue(factory)
+    playback_session_service = PlaybackSessionService(
+        factory,
+        signing_key=settings.playback_key,
+        ttl_hours=lambda: _cache_ttl_hours(secret_repository),
+    )
+    original_stream_resolver = OriginalStreamResolver(binding_service)
 
     def probe_cloud115() -> ProbeResult:
         view = asyncio.run(binding_service.probe())
@@ -166,6 +178,8 @@ def main() -> None:
         cloud115_qr_service=qr_service,
         cache_service=cache_service,
         cache_cleanup_service=cache_cleanup_service,
+        playback_session_service=playback_session_service,
+        original_stream_resolver=original_stream_resolver,
     )
     app.add_event_handler("shutdown", engine.dispose)
     app.state.secret_repository = secret_repository

@@ -55,6 +55,11 @@
   [TASK-107 缓存生命周期确定性边界](changes/2026-07-28--task-107-cache-lifecycle-determinism.md)
   冻结；TASK-107 创建 lease 外键所需最小 playback session Schema，TASK-108 仍独占会话签名
   与播放 API，TASK-111 消费 lease 做心跳续期。
+- AC-099、AC-100、AC-102、AC-104、AC-105 的固定平台 UA、逐段播放能力、原画阶段边界、
+  活动租约和无 Bearer stream 校验由
+  [TASK-108 播放会话契约闭合](changes/2026-07-28--task-108-playback-session-contract.md)
+  冻结；TASK-108 实现签名会话与 302 原画入口，自动证据位于 `test_signature.py` 和
+  `test_original_redirect.py`，TASK-109/111 分别扩展 HLS compatibility 与播放进度心跳。
 
 ## 逐条追踪
 

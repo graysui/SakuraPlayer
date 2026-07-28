@@ -140,8 +140,13 @@
 | 401 | `playback_session_revoked` | 登录态已撤销，退出播放器 |
 | 403 | `playback_user_agent_mismatch` | 固定平台 UA 配置错误，阻断播放 |
 | 409 | `playback_media_detached` | 远端文件不再属于受管任务 |
+| 422 | `playback_mode_not_available` | 当前服务阶段尚未提供所请求的播放模式 |
 | 404 | `playback_media_not_found` | 远端视频不存在 |
 | 422 | `cloud115_original_unavailable` | 原画不可用，可显示“兼容播放” |
+| 422 | `cloud115_credentials_expired` | 115 Cookie 已失效，重新扫码后再创建播放会话 |
+| 429 | `cloud115_rate_limited` | 服从 `Retry-After` 后重新创建播放会话 |
+| 503 | `cloud115_unavailable` | 上游暂不可用，保留播放器状态并允许重试 |
+| 502 | `cloud115_protocol_error` | 上游协议不符合已知形状，停止自动操作 |
 | 422 | `cloud115_hls_membership_required` | HLS 需要会员；不提示重新登录 |
 | 503 | `cloud115_hls_not_ready` | HLS 未转码完成，可继续尝试原画 |
 | 502 | `cloud115_hls_unavailable` | 没有可用 HLS variant |

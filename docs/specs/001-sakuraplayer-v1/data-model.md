@@ -647,7 +647,9 @@ stream 和公开 API 行为。
 | `expires_at` | timestamptz | 固定 12 小时 | AC-099 |
 | `revoked_at` | timestamptz | 可空 | `(derived)` |
 
-签名载荷包含 ID、owner/session epoch、模式、UA 摘要和过期时间。上游 URL 不保存。
+签名载荷包含 ID、owner/session epoch、模式、UA 摘要和过期时间。TASK-108 的 session 创建只接受
+`original`；`compatibility` 保留给 TASK-109。完整有序选择中的每个媒体有独立 session/lease，
+但共用签发时刻、过期时刻、owner、平台和 client instance。上游 URL 不保存。
 `(cache_job_id, media_id)` 外键保证媒体归属并使用 `ON DELETE CASCADE`；安全清理删除 media 时
 同时删除已无有效租约的 session/lease。lease 获取与清理选择共同锁 CacheJob，且只允许 ready。
 

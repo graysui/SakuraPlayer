@@ -29,6 +29,9 @@ from sakuraplayer.events.snapshot import EventSnapshotService
 from sakuraplayer.events.websocket import create_events_api
 from sakuraplayer.identity.api import ApiProblem, create_identity_api
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.playback.original import OriginalStreamResolver
+from sakuraplayer.playback.session import PlaybackSessionService
+from sakuraplayer.playback.stream_api import create_playback_api
 from sakuraplayer.resources.admin_api import (
     create_movie_source_admin_api,
 )
@@ -63,6 +66,8 @@ def create_app(
     cloud115_qr_service: QrSessionService | None = None,
     cache_service: PlayRequestService | None = None,
     cache_cleanup_service: CleanupQueue | None = None,
+    playback_session_service: PlaybackSessionService | None = None,
+    original_stream_resolver: OriginalStreamResolver | None = None,
 ) -> FastAPI:
     app = FastAPI(title="SakuraPlayer API", version="1.1.0")
 
@@ -77,6 +82,7 @@ def create_app(
             or request.url.path.startswith("/api/v1/events/")
             or request.url.path.startswith("/api/v1/cloud115/")
             or request.url.path.startswith("/api/v1/cache-jobs")
+            or request.url.path.startswith("/api/v1/playback/")
             or request.url.path.endswith("/play-requests")
             or request.url.path == "/api/v1/rankings"
         ):
@@ -231,6 +237,21 @@ def create_app(
                     cleanup_service=cache_cleanup_service,
                 )
             )
+        if (
+            playback_session_service is not None
+            and original_stream_resolver is not None
+        ):
+            app.include_router(
+                create_playback_api(
+                    playback_session_service,
+                    original_stream_resolver,
+                    current_admin_dependency=identity_api.current_admin_dependency,
+                )
+            )
+        elif (
+            playback_session_service is not None or original_stream_resolver is not None
+        ):
+            raise ValueError("playback API requires session service and resolver")
     elif (
         identification_service is not None
         or movie_source_admin_service is not None
@@ -246,6 +267,8 @@ def create_app(
         or cloud115_binding_service is not None
         or cloud115_qr_service is not None
         or cache_service is not None
+        or playback_session_service is not None
+        or original_stream_resolver is not None
     ):
         raise ValueError("admin APIs require identity service")
 
