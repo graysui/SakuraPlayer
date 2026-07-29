@@ -18,7 +18,7 @@
 
 | ID | 标题 | 主要焦点 | 依赖 | 外部风险 |
 |---|---|---|---|---|
-| [TASK-201](tasks/TASK-201.md) | Flutter Windows 脚手架、主题与认证壳 | 工具链、Riverpod、路由、GPLv3 | TASK-014 | 否 |
+| [TASK-201](tasks/TASK-201.md) | Flutter Windows 脚手架、主题与认证壳 | 工具链、Riverpod、路由、GPLv3 | TASK-114 | 否 |
 | [TASK-202](tasks/TASK-202.md) | API、令牌、事件与快照基础 | 后端地址、bootstrap、Dio、WS | TASK-201,TASK-013 | 否 |
 | [TASK-203](tasks/TASK-203.md) | 桌面 Shell、全局搜索与缓存角标 | 左栏、顶部工具、路由 | TASK-202 | 否 |
 | [TASK-204](tasks/TASK-204.md) | 媒体库网格、筛选与进度卡片 | 六分类、标签、大小、分页 | TASK-203 | 否 |
@@ -41,4 +41,4 @@
 
 ## 文件冲突结论
 
-TASK-201 创建应用组合根和各 feature 空入口；TASK-202 至 TASK-211 各自拥有 feature 目录，TASK-203 统一拥有 Shell/route 聚合。TASK-212 只修改 Windows 构建、许可证和显式验收配置。
+TASK-201 创建可构建的 Windows debug 工程、应用组合根和各 feature 空入口；允许提交 Flutter 生成的原生 runner、CMake、插件注册、工程元数据与锁文件。TASK-202 至 TASK-211 各自拥有 feature 目录，TASK-202 替换真实会话状态，TASK-203 统一拥有最终 Shell/route 聚合。TASK-212 独占 Windows release、私有安装包、产物许可证核验和显式验收配置。TASK-201 typed routes 使用手写强类型目标，不引入路由代码生成依赖。

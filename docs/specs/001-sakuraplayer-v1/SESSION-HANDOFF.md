@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-29
 
-**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-114 已完成；下一任务为 TASK-201。
+**当前阶段**: Phase 3 Windows 客户端已启动，TASK-201 已完成；下一任务为 TASK-202。
 
 ## 1. 当前成果
 
@@ -146,12 +146,17 @@
   `real115` 配置零差异。TASK-015 历史迁移门禁已改为验证 0001 至 0013 集合完整存在。
 - TASK-114 Fast 为 783 项自包含和 41 项 Phase 2 PostgreSQL integration/E2E 通过；Compose
   Final 首次尝试通过 776 项自包含和 125 项 PostgreSQL integration/E2E，完整运行与清理门禁通过。
+- TASK-201 已交付 Flutter 3.29.2/Dart 3.7.2 Windows-only debug 工程、Riverpod 组合根、
+  手写 typed routes、可注入认证状态、登录/Shell/全屏播放器占位和浅/深/系统主题；播放器主题
+  固定深色，未生成其他平台 runner，release/私有安装包继续归 TASK-212。
+- TASK-201 静态分析和 7 项 Flutter 测试通过，Windows debug build 与 3 秒进程启动冒烟通过；
+  GPLv3、第三方精确版本和 libmpv 构建来源已进入工程。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-114 已完成；下一任务为 TASK-201。
-- **最近绿色快速门禁**: TASK-114 Fast 为 783 passed、8 deselected，Phase 2 PostgreSQL integration/E2E 为 41 passed、1 deselected；Ruff format/lint、57 个生产文件 mypy、宿主 Docker 配置、等价基线、完整差异和审计通过，无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-114 Compose Final 首次尝试通过；自包含 776 passed、8 deselected，PostgreSQL integration/E2E 125 passed、16 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-201 已完成；下一任务为 TASK-202。
+- **最近绿色快速门禁**: TASK-201 `dart format`、`flutter analyze` 和 7 项 `flutter test` 通过。
+- **最终门禁状态**: TASK-201 Windows debug build 通过并生成 `sakuraplayer_windows.exe`；隐藏窗口启动冒烟存活 3 秒后由测试进程正常结束，未执行 TASK-212 release/安装包门禁。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -168,19 +173,20 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114。
-- **下一任务**: TASK-201 Flutter Windows 脚手架、主题与认证壳。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201。
+- **下一任务**: TASK-202 API、令牌、事件与快照基础。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-201 开始：
+下一会话从 TASK-202 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-201.md"
+/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-202.md"
 ```
 
-TASK-114 的清理门禁、质量入口、任务状态与交接已同步；提交事实以 Git 为准。TASK-201 开始前
-读取其 DoR、Flutter 版本与 Windows 工具链状态；真实 115 发布门禁仍由 TASK-213 执行。
+TASK-201 的变更规格、Windows-only 工程、固定依赖、测试、任务状态与交接已同步；提交事实以
+Git 为准。TASK-202 开始前读取认证、运行配置、OpenAPI、实时事件与错误码契约；真实 115
+发布门禁仍由 TASK-213 执行。
 
 ## 4. 必读契约
 

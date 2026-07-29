@@ -47,7 +47,7 @@ TASK-001..013
   -> TASK-314 cleanup
 ```
 
-Windows 页面任务可在 Cloud115 后端开发期间使用 OpenAPI fixture 并行，但真实集成和完成状态依赖 TASK-113。HarmonyOS 功能实现不能与 Windows 主链路并行提前开始。
+Windows 页面任务可在 Cloud115 后端开发期间使用 OpenAPI fixture 并行，但 Windows 工作流的正式完成路径从已完成的 TASK-114 进入 TASK-201。HarmonyOS 功能实现不能与 Windows 主链路并行提前开始。
 
 ## 4. 质量门禁
 

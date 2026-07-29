@@ -45,6 +45,10 @@
   清单和 Phase 2 等价门禁由 [TASK-114 清理范围与等价门禁](changes/2026-07-29--task-114-cleanup-gates.md)
   冻结。行为回归继续归属 TASK-101 至 TASK-113 的既有 AC 与完整 Final，真实 115
   发布门禁仍归 TASK-213。
+- TASK-201 的依赖、debug/release 边界、Flutter 生成文件范围、手写 typed routes 和最小
+  `AuthSessionState` 由 [TASK-201 Windows 脚手架实施边界](changes/2026-07-29--task-201-scaffold-boundaries.md)
+  冻结。TASK-201 实现 Windows debug 脚手架、工程许可证、主题和应用内播放器路由；
+  AC-008 的 Windows 私有安装包归 TASK-212，AC-059 的最终左侧导航归 TASK-203。
 - AC-083 至 AC-085、AC-091 的 SourceSubmissionPort、独立请求幂等事实、持久容量类别、
   binding 解绑历史、CacheJob/媒体迁移归属和复数媒体选择由
   [TASK-103 缓存容量与幂等确定性边界](changes/2026-07-27--task-103-cache-capacity-idempotency.md)
@@ -100,7 +104,7 @@
 | `AC-005` | `[I]` | `REQ-002` | `TASK-001`, `TASK-201`, `TASK-212` |
 | `AC-006` | `[E]` | `REQ-002` | `TASK-312` |
 | `AC-007` | `[I]` | `REQ-002` | `TASK-301` |
-| `AC-008` | `[I]` | `REQ-002` | `TASK-001`, `TASK-201`, `TASK-212`, `TASK-301` |
+| `AC-008` | `[I]` | `REQ-002` | `TASK-001`, `TASK-212`, `TASK-301` |
 | `AC-009` | `[I]` | `REQ-002` | `TASK-001`, `TASK-201`, `TASK-212`, `TASK-301` |
 | `AC-010` | `[I]` | `REQ-003` | `TASK-002` |
 | `AC-011` | `[I]` | `REQ-003` | `TASK-002`, `TASK-202`, `TASK-302` |
@@ -151,7 +155,7 @@
 | `AC-056` | `[I]` | `REQ-011` | `TASK-010` |
 | `AC-057` | `[I]` | `REQ-011` | `TASK-010` |
 | `AC-058` | `[S]` | `REQ-011` | `TASK-014` |
-| `AC-059` | `[I]` | `REQ-012` | `TASK-201`, `TASK-203`, `TASK-303` |
+| `AC-059` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
 | `AC-060` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
 | `AC-061` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
 | `AC-062` | `[I]` | `REQ-012` | `TASK-201`, `TASK-303` |
