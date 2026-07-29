@@ -5,6 +5,21 @@ from pathlib import Path
 from types import ModuleType
 
 SCRIPT = Path(__file__).with_name("task015_cleanup_gate.py")
+PHASE1_MIGRATIONS = {
+    "0001_initial_skeleton.py",
+    "0002_identity.py",
+    "0003_encrypted_settings.py",
+    "0004_avdb_sync.py",
+    "0005_resource_import.py",
+    "0006_movie_source_management.py",
+    "0007_metadata_queue.py",
+    "0008_catalog_metadata.py",
+    "0009_provider_snapshots.py",
+    "0010_translation.py",
+    "0011_catalog_discovery.py",
+    "0012_ranking_snapshots.py",
+    "0013_events_settings_diagnostics.py",
+}
 
 
 def _load_gate() -> ModuleType:
@@ -30,7 +45,7 @@ def test_baseline_captures_actual_interfaces_and_state_constraints() -> None:
     baseline = _load_gate().capture_baseline()
 
     assert "/api/v1/auth/bootstrap" in baseline["openapi"]["paths"]
-    assert len(baseline["migrations"]) == 13
+    assert PHASE1_MIGRATIONS <= baseline["migrations"].keys()
     constraint_names = {
         item["name"] for item in baseline["state_machines"]["sql_check_constraints"]
     }

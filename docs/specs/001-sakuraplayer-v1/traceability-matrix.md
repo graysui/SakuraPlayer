@@ -41,6 +41,10 @@
 - TASK-014 只验证 TASK-001 至 TASK-013 已交付的 Phase 1 后端切片；真实 PostgreSQL、应用服务组合、fixture、600 秒/性能证据复用和 Final runner 边界由 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md) 冻结。其 `ac-mapping` 是验证范围，不转移前序任务实现所有权，也不覆盖 115、客户端或外部门禁。自动证据位于 `test_catalog_metadata_e2e.py`、`test_avdb_idempotency_e2e.py` 和 `test_metadata_failure_isolation_e2e.py`，正式评审结论为 `passed`。
 - TASK-113 只验证 TASK-101 至 TASK-112 已交付的 Phase 2 后端可观察切片和 AC-132 的新增播放观察点；状态化 Fake、生产服务组合、60 秒/自动播放客户端责任和四方证据边界由 [TASK-113 115 缓存播放后端 E2E 边界](changes/2026-07-29--task-113-backend-e2e-boundaries.md) 与 [115 缓存播放后端 E2E 契约](contracts/backend-cloud115-e2e.md) 冻结。其 `ac-mapping` 是代表性组合验证范围，不转移前序实现任务或后续客户端任务的 AC 所有权，也不替代 TASK-213 真实 115 门禁。自动证据位于 `test_cloud115_cache_playback_e2e.py`、`test_cache_capacity_wait_e2e.py`、`test_cache_cleanup_faults_e2e.py` 和 `test_playback_security_e2e.py`，正式审计无剩余 P0/P1/P2，Compose Final 通过。
 - TASK-015 不新增或接管产品 AC；其清理清单、锁定静态工具和 OpenAPI/迁移/状态机等价门禁由 [TASK-015 清理范围与等价门禁](changes/2026-07-27--task-015-cleanup-gates.md) 冻结。行为回归继续归属 TASK-001 至 TASK-014 的既有 AC 与完整 Final。
+- TASK-114 不新增或接管产品 AC；其固定 Git 区间、126 文件 manifest、57 文件 mypy
+  清单和 Phase 2 等价门禁由 [TASK-114 清理范围与等价门禁](changes/2026-07-29--task-114-cleanup-gates.md)
+  冻结。行为回归继续归属 TASK-101 至 TASK-113 的既有 AC 与完整 Final，真实 115
+  发布门禁仍归 TASK-213。
 - AC-083 至 AC-085、AC-091 的 SourceSubmissionPort、独立请求幂等事实、持久容量类别、
   binding 解绑历史、CacheJob/媒体迁移归属和复数媒体选择由
   [TASK-103 缓存容量与幂等确定性边界](changes/2026-07-27--task-103-cache-capacity-idempotency.md)

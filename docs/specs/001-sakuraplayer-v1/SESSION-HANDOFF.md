@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-29
 
-**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-113 已完成；下一任务为 TASK-114。
+**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-114 已完成；下一任务为 TASK-201。
 
 ## 1. 当前成果
 
@@ -141,12 +141,17 @@
 - TASK-113 Fast 为 776 项自包含与 38 项 PostgreSQL 相关测试通过；Compose Final 首次尝试通过
   776 项自包含和 125 项 PostgreSQL integration/E2E，五服务健康、重启、ready 降级恢复、秘密扫描
   和隔离资源清理全部完成，默认测试未访问真实 115、JavDB 写操作或付费 AI。
+- TASK-114 已冻结 `eb280ab^..baf218b` 的 126 文件清理 manifest、57 文件 mypy 清单和
+  Phase 2 等价基线；批准文件无可确认卫生债务，生产源码、迁移、NOTICE、协议 fixture 与
+  `real115` 配置零差异。TASK-015 历史迁移门禁已改为验证 0001 至 0013 集合完整存在。
+- TASK-114 Fast 为 783 项自包含和 41 项 Phase 2 PostgreSQL integration/E2E 通过；Compose
+  Final 首次尝试通过 776 项自包含和 125 项 PostgreSQL integration/E2E，完整运行与清理门禁通过。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-113 已完成；下一任务为 TASK-114。
-- **最近绿色快速门禁**: TASK-113 Fast 为 776 passed、8 deselected，cloud_cache/playback PostgreSQL 集成与 TASK-113 E2E 为 38 passed；Ruff format/lint、52 个生产文件 mypy、宿主 Docker 配置、完整差异和只读审计通过，无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-113 Compose Final 首次尝试通过；自包含 776 passed、8 deselected，PostgreSQL integration/E2E 125 passed、16 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-114 已完成；下一任务为 TASK-201。
+- **最近绿色快速门禁**: TASK-114 Fast 为 783 passed、8 deselected，Phase 2 PostgreSQL integration/E2E 为 41 passed、1 deselected；Ruff format/lint、57 个生产文件 mypy、宿主 Docker 配置、等价基线、完整差异和审计通过，无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-114 Compose Final 首次尝试通过；自包含 776 passed、8 deselected，PostgreSQL integration/E2E 125 passed、16 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -163,20 +168,19 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113。
-- **下一任务**: TASK-114 115 缓存播放后端代码清理。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114。
+- **下一任务**: TASK-201 Flutter Windows 脚手架、主题与认证壳。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-114 开始：
+下一会话从 TASK-201 开始：
 
 ```text
-/developer-kit-specs:specs-code-cleanup --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-114.md"
+/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-201.md"
 ```
 
-TASK-113 的测试基础设施、E2E、边界文档和任务状态已同步；提交事实以 Git 为准。TASK-114 开始前
-读取其 DoR，并以 TASK-113 Final 与只读审计作为清理基线；只允许纯卫生改动，不改变 Cloud115Port、
-状态机、安全删除、公开 API 或协议 fixture。
+TASK-114 的清理门禁、质量入口、任务状态与交接已同步；提交事实以 Git 为准。TASK-201 开始前
+读取其 DoR、Flutter 版本与 Windows 工具链状态；真实 115 发布门禁仍由 TASK-213 执行。
 
 ## 4. 必读契约
 

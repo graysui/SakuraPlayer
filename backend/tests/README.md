@@ -79,6 +79,36 @@ the exact file list is recorded in the task. Formatting and import sorting alone
 expand that list. Use `--cache-dir=/tmp/task015-mypy-cache` because the repository mount
 is read-only.
 
+TASK-114 uses the same locked image with a fixed Phase 2 manifest. Capture its interface
+baseline before hygiene edits, then capture and compare it again after Fast and audit:
+
+```powershell
+$repoRoot = (Resolve-Path .).Path
+docker run --rm `
+  --mount "type=bind,source=$repoRoot,target=/workspace,readonly" `
+  --mount "type=bind,source=$repoRoot/.planning,target=/workspace/.planning" `
+  --workdir /workspace/backend `
+  --entrypoint python `
+  sakuraplayer-test `
+  tests/quality/task114_cleanup_gate.py capture `
+  /workspace/.planning/TASK-114/cleanup-baseline-before.json
+```
+
+The script also provides `manifest`, `mypy-files`, and `compare <before> <after>`.
+TASK-114 runs mypy only on the 57 paths printed by `mypy-files`, using
+`--cache-dir=/tmp/task114-mypy-cache`. Four documented files with pre-existing type debt
+remain covered by Ruff, the interface baseline, the complete tests, and Final.
+
+```powershell
+$mypyFiles = Get-Content backend/tests/quality/task114_mypy_files.txt
+docker run --rm `
+  --mount "type=bind,source=$repoRoot,target=/workspace,readonly" `
+  --workdir /workspace/backend `
+  --entrypoint mypy `
+  sakuraplayer-test `
+  --cache-dir=/tmp/task114-mypy-cache @mypyFiles
+```
+
 Run the broad self-contained suite from the same mounted image:
 
 ```powershell
