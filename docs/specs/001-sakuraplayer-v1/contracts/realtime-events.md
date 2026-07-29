@@ -93,10 +93,11 @@ PlaybackManifest 的映射，事件不重复携带。logout 204 和本地过期�
 ## 4. 客户端合并算法
 
 1. `event_id` 已处理或 `sequence <= snapshot_version` 则忽略。
-2. 同资源事件 `stream_version <= local_version` 则忽略。
-3. `stream_version == local_version + 1` 时按字段把 `resource` 浅合并到对应资源；null 是权威清空，出现的数组字段整体替换。
-4. sequence 或聚合版本跳号、未知事件版本、字段形状非法或本地没有资源时，拉对应 REST 快照；不得用不完整事件构造新资源。
-5. 事件触发导航或通知，但不得自动开始播放；后台完成的缓存只进入 ready 并通知。
+2. 已建立聚合版本基线时，同资源事件 `stream_version <= local_version` 则忽略。
+3. 已建立基线且 `stream_version == local_version + 1` 时按字段把 `resource` 浅合并到对应资源；null 是权威清空，出现的数组字段整体替换。
+4. REST 快照内的资源初始标记为“聚合版本未知”。无游标重连后，首条 `sequence > snapshot_version` 且属于快照内已有资源的合法事件可浅合并并建立其 `stream_version` 基线；不得把未知基线猜测为 0。
+5. sequence 或已建立基线后的聚合版本跳号、未知事件版本、字段形状非法或本地没有资源时，拉对应 REST 快照；不得用不完整事件构造新资源。
+6. 事件触发导航或通知，但不得自动开始播放；后台完成的缓存只进入 ready 并通知。
 
 ## 5. REST 恢复快照
 
@@ -104,7 +105,8 @@ PlaybackManifest 的映射，事件不重复携带。logout 204 和本地过期�
 - Phase 1 的元数据任务最多返回 100 项，活动任务优先，其后为最近终态；同时返回全量状态计数。
 - cache、credential 和 notification 通过有界扩展端口聚合。对应 Phase 尚未交付时返回空任务/通知、零计数和 `unbound` 凭据状态，不创建未来业务表。
 - notification 最多返回按 `created_at DESC,id DESC` 排序的 100 条未读事实；客户端展示后调用幂等已读 API。通知与事件正文同样保留 30 天。
-- 客户端应用快照后，无游标重连 WebSocket，并只合并 `sequence > snapshot_version` 的事件。
+- 客户端应用快照后，无游标重连 WebSocket，并只合并 `sequence > snapshot_version` 的事件；
+  快照资源的聚合版本按“未知基线”处理，规则见客户端合并算法。
 
 ## 6. 心跳
 

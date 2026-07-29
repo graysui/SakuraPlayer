@@ -7,6 +7,7 @@ import 'package:sakuraplayer_windows/app/app.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
 import 'package:sakuraplayer_windows/app/shell_placeholder_page.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
+import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/routes/app_router.dart';
 import 'package:sakuraplayer_windows/theme/app_theme.dart';
@@ -27,7 +28,9 @@ void main() {
       ProviderScope(
         overrides: [
           authSessionStateProvider.overrideWithValue(
-            const AuthSessionState.authenticated(),
+            AuthSessionState.authenticated(
+              serverBaseUri: Uri.parse('https://server.test'),
+            ),
           ),
         ],
         child: const SakuraPlayerApp(),
@@ -46,7 +49,9 @@ void main() {
       ProviderScope(
         overrides: [
           authSessionStateProvider.overrideWithValue(
-            const AuthSessionState.authenticated(),
+            AuthSessionState.authenticated(
+              serverBaseUri: Uri.parse('https://server.test'),
+            ),
           ),
         ],
         child: const SakuraPlayerApp(),

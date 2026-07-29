@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-29
 
-**当前阶段**: Phase 3 Windows 客户端已启动，TASK-201 已完成；下一任务为 TASK-202。
+**当前阶段**: Phase 3 Windows 客户端进行中，TASK-202 已完成；下一任务为 TASK-203。
 
 ## 1. 当前成果
 
@@ -151,12 +151,17 @@
   固定深色，未生成其他平台 runner，release/私有安装包继续归 TASK-212。
 - TASK-201 静态分析和 7 项 Flutter 测试通过，Windows debug build 与 3 秒进程启动冒烟通过；
   GPLv3、第三方精确版本和 libmpv 构建来源已进入工程。
+- TASK-202 已交付 Dio/严格 DTO、secure storage、UUID v4 客户端实例、single-flight refresh、
+  服务端配置与 bootstrap/login、认证 WebSocket、版本化事件合并、REST snapshot 恢复、生命周期
+  与通知投递端口；Windows 系统通知适配器继续归 TASK-209。
+- TASK-202 Fast 为 32 项 Flutter 测试通过，静态分析零问题；Windows debug build 通过并生成
+  `sakuraplayer_windows.exe`，实际构建使用的 BuildTools 2022 已补齐 ATL。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-201 已完成；下一任务为 TASK-202。
-- **最近绿色快速门禁**: TASK-201 `dart format`、`flutter analyze` 和 7 项 `flutter test` 通过。
-- **最终门禁状态**: TASK-201 Windows debug build 通过并生成 `sakuraplayer_windows.exe`；隐藏窗口启动冒烟存活 3 秒后由测试进程正常结束，未执行 TASK-212 release/安装包门禁。
+- **当前任务门禁阶段**: TASK-202 已完成；下一任务为 TASK-203。
+- **最近绿色快速门禁**: TASK-202 `dart format`、`flutter analyze` 和 32 项 `flutter test` 通过。
+- **最终门禁状态**: TASK-202 Windows debug build 通过并生成 `sakuraplayer_windows.exe` 与 secure storage 插件；未执行 TASK-212 release/安装包门禁。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -173,20 +178,20 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201。
-- **下一任务**: TASK-202 API、令牌、事件与快照基础。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202。
+- **下一任务**: TASK-203 桌面 Shell、全局搜索与缓存角标。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-202 开始：
+下一会话从 TASK-203 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-202.md"
+/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-203.md"
 ```
 
-TASK-201 的变更规格、Windows-only 工程、固定依赖、测试、任务状态与交接已同步；提交事实以
-Git 为准。TASK-202 开始前读取认证、运行配置、OpenAPI、实时事件与错误码契约；真实 115
-发布门禁仍由 TASK-213 执行。
+TASK-202 的变更规格、认证/API/事件/快照基础、测试、任务状态与交接已同步；提交事实以 Git
+为准。TASK-203 开始前复核搜索接口、catalog 事件、snapshot 队列统计与现有 Shell 路由；真实
+115 发布门禁仍由 TASK-213 执行。
 
 ## 4. 必读契约
 

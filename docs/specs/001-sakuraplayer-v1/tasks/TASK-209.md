@@ -33,6 +33,7 @@ provides: [Windows play request controller, blocking wait page, cache notificati
 - [ ] TASK-207 source selection、TASK-208 cache snapshot/event 可用。
 - [ ] PlayRequestResult disposition/wait_deadline 契约冻结。
 - [ ] 取消确认和窗口关闭行为明确。
+- [ ] TASK-202 生命周期和 `AppNotificationSink` 端口可用；Windows 平台通知适配器依赖在实施前按架构规则冻结。
 
 ## 技术上下文
 
@@ -47,6 +48,7 @@ provides: [Windows play request controller, blocking wait page, cache notificati
 - `windows/lib/features/cache/presentation/play_request_controller.dart` - disposition/倒计时/事件。
 - `windows/lib/features/cache/presentation/blocking_wait_page.dart` - 全屏锁定和进度。
 - `windows/lib/features/cache/presentation/cache_notifications.dart` - 后台/前台完成通知。
+- Windows 系统通知适配器由本任务接入 TASK-202 的通知投递端口，并拥有缓存文案与导航。
 - `windows/test/features/cache/play_request_controller_test.dart` - 60 秒状态机。
 - `windows/test/features/cache/blocking_wait_page_test.dart` - 导航锁/取消确认。
 

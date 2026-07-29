@@ -17,6 +17,17 @@ flutter_riverpod is Copyright 2020 Remi Rousselet and is distributed under the
 MIT License. Source and license text are available from
 <https://pub.dev/packages/flutter_riverpod/versions/3.1.0>.
 
+## dio 5.7.0
+
+dio is distributed under the MIT License. Source and license text are
+available from <https://pub.dev/packages/dio/versions/5.7.0>.
+
+## flutter_secure_storage 9.2.0
+
+flutter_secure_storage is distributed under the BSD 3-Clause License. Source
+and license text are available from
+<https://pub.dev/packages/flutter_secure_storage/versions/9.2.0>.
+
 ## media_kit
 
 media_kit 1.1.11, media_kit_video 1.2.5, media_kit_libs_video 1.0.5 and the

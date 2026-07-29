@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
 import 'package:sakuraplayer_windows/app/shell_placeholder_page.dart';
-import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
+import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 
 sealed class AppRouteLocation {
