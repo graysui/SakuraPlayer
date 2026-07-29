@@ -246,7 +246,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-024 测试与外部验收
 
-- **AC-128 `[IMP]`**: 默认自动测试不得访问真实 115、JavDB 写操作或真实 AI 付费接口，必须使用替身和固定样本；Phase 1 跨边界测试遵循 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md)，115 协议测试遵循 [TASK-101 Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md)。
+- **AC-128 `[IMP]`**: 默认自动测试不得访问真实 115、JavDB 写操作或真实 AI 付费接口，必须使用替身和固定样本；Phase 1 跨边界测试遵循 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md)，115 协议测试遵循 [TASK-101 Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md)，Phase 2 后端组合测试遵循 [TASK-113 115 缓存播放后端 E2E 边界](changes/2026-07-29--task-113-backend-e2e-boundaries.md)。
 - **AC-129 `[IMP]`**: AVdb 解密、幂等导入、番号合并、分类标签、元数据超时、任务优先级、缓存状态机、安全删除、签名校验、播放进度和字幕生命周期都有自动测试；各工作流只对已交付算法负责，TASK-013 固化 Phase 1 测试清单，后续缓存与播放测试仍由对应任务交付。
 - **AC-130 `[EXT]`**: Windows 发布前使用真实 115 验证扫码、离线、原画、HLS 回退、Range seek、字幕下载和安全清理。
 - **AC-131 `[EXT]`**: HarmonyOS 开发前使用真实 API 24 设备验证固定 User-Agent、302、Range、HLS、MKV 与 ASS 字幕；任何关键项失败都阻断鸿蒙功能开发。

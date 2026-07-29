@@ -343,7 +343,7 @@ Riverpod controller
 - 12 小时能力 URL、原画/HLS、`302 no-store`、播放租约。
 - WebSocket 事件、REST 快照、诊断与稳定错误码。
 
-**完成门禁**: Fake 115 故障矩阵通过；任何根目录外删除被拒绝；数据库无短期 URL或字幕正文。
+**完成门禁**: 按 [115 缓存播放后端 E2E 契约](contracts/backend-cloud115-e2e.md) 通过状态化 Fake 115 故障矩阵与生产服务组合；任何根目录外删除被拒绝；数据库无短期 URL或字幕正文。60 秒客户端倒计时和 UI 自动播放决策仍由客户端任务验证。
 
 ### Phase 3: Windows 客户端
 

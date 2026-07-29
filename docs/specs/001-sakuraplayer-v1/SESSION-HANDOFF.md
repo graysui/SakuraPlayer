@@ -1,8 +1,8 @@
 # SakuraPlayer v1 新会话交接
 
-**更新时间**: 2026-07-28
+**更新时间**: 2026-07-29
 
-**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-112 已完成；下一任务为 TASK-113。
+**当前阶段**: Phase 1 后端基础、元数据及 TASK-101 至 TASK-113 已完成；下一任务为 TASK-114。
 
 ## 1. 当前成果
 
@@ -135,12 +135,18 @@
 - TASK-112 Fast 为 772 项通过、PostgreSQL 聚焦 31 项通过；Compose Final 首次尝试通过 771 项
   自包含和 115 项 PostgreSQL integration/E2E，迁移、五服务健康、认证、秘密扫描、重启恢复和
   隔离资源清理全部完成，默认测试未访问真实 115。
+- TASK-113 已交付状态化 Fake Cloud115 和生产服务组合 E2E，覆盖扫码绑定、来源请求、2/10 容量、
+  60 秒后端观察边界、媒体候选/连续分段、原画/HLS、字幕、跨 client 进度 CAS、证明式清理、
+  worker 恢复、来源拒绝、凭据故障和 AC-132 隔离。
+- TASK-113 Fast 为 776 项自包含与 38 项 PostgreSQL 相关测试通过；Compose Final 首次尝试通过
+  776 项自包含和 125 项 PostgreSQL integration/E2E，五服务健康、重启、ready 降级恢复、秘密扫描
+  和隔离资源清理全部完成，默认测试未访问真实 115、JavDB 写操作或付费 AI。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-112 已完成；下一任务为 TASK-113。
-- **最近绿色快速门禁**: TASK-112 Fast 为 772 passed、8 deselected，隔离 PostgreSQL 聚焦集 31 passed、1 deselected；Ruff format/lint、13 个语义生产模块 mypy、宿主 Docker 配置、完整差异和只读审计通过，无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-112 Compose Final 首次尝试通过；自包含 771 passed、8 deselected，PostgreSQL integration/E2E 115 passed、16 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
+- **当前任务门禁阶段**: TASK-113 已完成；下一任务为 TASK-114。
+- **最近绿色快速门禁**: TASK-113 Fast 为 776 passed、8 deselected，cloud_cache/playback PostgreSQL 集成与 TASK-113 E2E 为 38 passed；Ruff format/lint、52 个生产文件 mypy、宿主 Docker 配置、完整差异和只读审计通过，无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-113 Compose Final 首次尝试通过；自包含 776 passed、8 deselected，PostgreSQL integration/E2E 125 passed、16 deselected；迁移、五服务健康、认证 canary、秘密扫描、重启持久性、ready 降级恢复和隔离资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -157,20 +163,20 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112。
-- **下一任务**: TASK-113 115 缓存播放后端端到端测试。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113。
+- **下一任务**: TASK-114 115 缓存播放后端代码清理。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-113 开始：
+下一会话从 TASK-114 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-113.md"
+/developer-kit-specs:specs-code-cleanup --lang=python --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-114.md"
 ```
 
-TASK-112 的实现、测试和文档已同步；提交事实以 Git 为准。TASK-113 开始前读取其 DoR、
-TASK-101 至 TASK-112 的 Fake 115、状态机、事件/通知和恢复接口，核对真实 Alembic head；
-TASK-113 只补后端 Fake E2E 证据，不新增产品行为，也不访问真实 115。
+TASK-113 的测试基础设施、E2E、边界文档和任务状态已同步；提交事实以 Git 为准。TASK-114 开始前
+读取其 DoR，并以 TASK-113 Final 与只读审计作为清理基线；只允许纯卫生改动，不改变 Cloud115Port、
+状态机、安全删除、公开 API 或协议 fixture。
 
 ## 4. 必读契约
 

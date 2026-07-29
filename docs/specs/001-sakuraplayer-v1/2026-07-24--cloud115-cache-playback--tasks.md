@@ -30,7 +30,7 @@
 | [TASK-110](tasks/TASK-110.md) | 字幕下载、音轨契约与生命周期 | 四格式、客户端私有缓存、清理信号 | TASK-105,TASK-108 | 否 | 是 |
 | [TASK-111](tasks/TASK-111.md) | 影片级进度与播放心跳 | 跨端、自动续播、95%/2min | TASK-108 | 否 | 否 |
 | [TASK-112](tasks/TASK-112.md) | 缓存事件、通知、诊断与恢复 | WS/REST、启动对账、操作 API | TASK-103..111 | 否 | 否 |
-| [TASK-113](tasks/TASK-113.md) | 115 缓存播放后端 E2E | Fake 115 全链路和故障注入 | TASK-101..112 | 否 | 是 |
+| [TASK-113](tasks/TASK-113.md) | 115 缓存播放后端 E2E | 状态化 Fake、生产服务组合和后端可观察闭环 | TASK-101..112 | 是 | 是 |
 | [TASK-114](tasks/TASK-114.md) | 115 缓存播放后端清理 | specs-code-cleanup | TASK-113 | 否 | 否 |
 
 ## 数量检查
@@ -41,4 +41,4 @@
 
 ## 文件冲突结论
 
-Cloud115 协议适配器只由 TASK-101 拥有，TASK-102 只编排扫码、加密绑定和 snapshot CAS；缓存状态、执行器、解析、清理、播放、字幕、进度和事件分别拥有独立模块文件。TASK-106 只调用 `SourceRejectionPort`，不修改资源接入表实现。
+Cloud115 协议适配器只由 TASK-101 拥有，TASK-102 只编排扫码、加密绑定和 snapshot CAS；缓存状态、执行器、解析、清理、播放、字幕、进度和事件分别拥有独立模块文件。TASK-106 只调用 `SourceRejectionPort`，不修改资源接入表实现。TASK-113 仅扩展测试 Fake/E2E 和验证契约，通过现有 composition 组合多个上下文，不修改生产状态机、Schema 或公开 API。
