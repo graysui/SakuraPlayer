@@ -10,6 +10,89 @@ import 'package:sakuraplayer_windows/core/events/snapshot_controller.dart';
 
 void main() {
   group('snapshot merge', () {
+    test('cache events refresh authoritative capacity counters', () async {
+      var loads = 0;
+      final controller = SnapshotController(
+        loadSnapshot: () async {
+          loads++;
+          return _snapshot(
+            version: loads == 1 ? 100 : 101,
+            queues:
+                loads == 1
+                    ? const QueueSnapshot(
+                      metadataQueued: 0,
+                      metadataRunning: 0,
+                      cacheQueued: 0,
+                      cacheRunning: 1,
+                      cacheReady: 0,
+                    )
+                    : const QueueSnapshot(
+                      metadataQueued: 0,
+                      metadataRunning: 0,
+                      cacheQueued: 0,
+                      cacheRunning: 0,
+                      cacheReady: 1,
+                    ),
+          );
+        },
+      );
+      await controller.recover();
+
+      expect(
+        await controller.apply(
+          EventEnvelope.fromJson(
+            _cacheEvent(
+              eventId: _uuid(10),
+              sequence: 101,
+              streamVersion: 8,
+              percent: 100,
+              status: 'ready',
+            ),
+          ),
+        ),
+        EventApplyResult.recovered,
+      );
+      expect(loads, 2);
+      expect(controller.state.queues.cacheRunning, 0);
+      expect(controller.state.queues.cacheReady, 1);
+    });
+
+    test(
+      'catalog core-ready is observable without a redundant snapshot',
+      () async {
+        var loads = 0;
+        final controller = SnapshotController(
+          loadSnapshot: () async {
+            loads++;
+            return _snapshot(version: 100);
+          },
+        );
+        await controller.recover();
+
+        expect(
+          await controller.apply(
+            EventEnvelope.fromJson(<String, Object?>{
+              'version': 1,
+              'event_id': _uuid(9),
+              'sequence': 101,
+              'stream': 'catalog',
+              'stream_version': 1,
+              'type': 'catalog.movie.core_ready.v1',
+              'occurred_at': '2026-07-29T12:00:00Z',
+              'resource': <String, Object?>{
+                'movie_id': _movieId,
+                'number': 'ABC-123',
+              },
+            }),
+          ),
+          EventApplyResult.applied,
+        );
+        expect(loads, 1);
+        expect(controller.state.catalogReadyRevision, 1);
+        expect(controller.state.lastCatalogMovieReady?.number, 'ABC-123');
+      },
+    );
+
     test(
       'first event after snapshot establishes unknown aggregate version',
       () async {
@@ -320,17 +403,18 @@ String _uuid(int value) =>
 
 EventSnapshotDto _snapshot({
   required int version,
-  List<NotificationDto> notifications = const <NotificationDto>[],
-}) => EventSnapshotDto(
-  snapshotVersion: version,
-  lastEventId: _uuid(version),
-  queues: const QueueSnapshot(
+  QueueSnapshot queues = const QueueSnapshot(
     metadataQueued: 0,
     metadataRunning: 0,
     cacheQueued: 0,
     cacheRunning: 1,
     cacheReady: 0,
   ),
+  List<NotificationDto> notifications = const <NotificationDto>[],
+}) => EventSnapshotDto(
+  snapshotVersion: version,
+  lastEventId: _uuid(version),
+  queues: queues,
   cacheJobs: <CacheJobDto>[_cacheJob()],
   metadataJobs: const <MetadataJobDto>[],
   cloud115Binding: const Cloud115BindingDto(
@@ -373,6 +457,7 @@ Map<String, Object?> _cacheEvent({
   required int sequence,
   required int streamVersion,
   required num percent,
+  String status = 'offlining',
 }) => <String, Object?>{
   'version': 1,
   'event_id': eventId,
@@ -383,7 +468,7 @@ Map<String, Object?> _cacheEvent({
   'occurred_at': '2026-07-29T12:00:00Z',
   'resource': <String, Object?>{
     'id': _cacheId,
-    'status': 'offlining',
+    'status': status,
     'remote_percent': percent,
     'error_code': null,
     'updated_at': '2026-07-29T12:00:01Z',

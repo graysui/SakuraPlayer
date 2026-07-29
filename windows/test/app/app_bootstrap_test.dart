@@ -3,15 +3,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/app.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
-import 'package:sakuraplayer_windows/app/shell_placeholder_page.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/routes/app_router.dart';
 import 'package:sakuraplayer_windows/theme/app_theme.dart';
 import 'package:sakuraplayer_windows/theme/player_theme.dart';
+import 'package:sakuraplayer_windows/widgets/shell/desktop_shell.dart';
 
 void main() {
   testWidgets('unauthenticated session only reaches login', (tester) async {
@@ -19,11 +20,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginPage), findsOneWidget);
-    expect(find.byType(ShellPlaceholderPage), findsNothing);
+    expect(find.byType(DesktopShell), findsNothing);
     expect(find.byType(FullscreenPlayerPage), findsNothing);
   });
 
-  testWidgets('authenticated session enters shell placeholder', (tester) async {
+  testWidgets('authenticated session enters desktop shell', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -38,8 +39,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(ShellPlaceholderPage), findsOneWidget);
+    expect(find.byType(DesktopShell), findsOneWidget);
     expect(find.byType(LoginPage), findsNothing);
+
+    await tester.tap(find.text('排行榜'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('rankings-page')), findsOneWidget);
+    expect(
+      tester.widget<NavigationRail>(find.byType(NavigationRail)).selectedIndex,
+      1,
+    );
   });
 
   testWidgets('authenticated session opens the dark in-app player', (
@@ -59,7 +69,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('打开播放器'));
+    GoRouter.of(
+      tester.element(find.byType(DesktopShell)),
+    ).go(const FullscreenPlayerRoute().location);
     await tester.pumpAndSettle();
 
     expect(find.byType(FullscreenPlayerPage), findsOneWidget);
@@ -100,7 +112,15 @@ void main() {
   });
 
   test('route surface has no age gate or external player', () {
-    expect(appRouteLocations, {'/login', '/app', '/player'});
+    expect(appRouteLocations, {
+      '/login',
+      '/app/library',
+      '/app/rankings',
+      '/app/actors',
+      '/app/cache',
+      '/app/settings',
+      '/player',
+    });
     expect(appRouteLocations.any((path) => path.contains('age')), isFalse);
     expect(appRouteLocations.any((path) => path.contains('external')), isFalse);
   });

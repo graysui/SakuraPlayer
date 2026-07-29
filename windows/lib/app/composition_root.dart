@@ -23,6 +23,8 @@ class _SakuraPlayerCompositionRootState
   ProviderSubscription<AuthSessionState>? _authSubscription;
   EventClient? _events;
   AppLifecycleCoordinator? _lifecycle;
+  SnapshotController? _snapshots;
+  VoidCallback? _snapshotListener;
 
   @override
   void initState() {
@@ -52,6 +54,11 @@ class _SakuraPlayerCompositionRootState
         markRead: api.markNotificationRead,
       ),
     );
+    void publishSnapshot() {
+      ref.read(snapshotStateProvider.notifier).replace(snapshots.state);
+    }
+
+    snapshots.addListener(publishSnapshot);
     final events = EventClient(
       serverBaseUri: server,
       accessToken: () => ref.read(sessionStoreProvider).accessToken,
@@ -63,6 +70,8 @@ class _SakuraPlayerCompositionRootState
     )..register();
     _events = events;
     _lifecycle = lifecycle;
+    _snapshots = snapshots;
+    _snapshotListener = publishSnapshot;
     try {
       await events.start();
     } on Exception {
@@ -76,6 +85,13 @@ class _SakuraPlayerCompositionRootState
     final events = _events;
     _events = null;
     await events?.dispose();
+    final snapshots = _snapshots;
+    final listener = _snapshotListener;
+    _snapshots = null;
+    _snapshotListener = null;
+    if (listener != null) snapshots?.removeListener(listener);
+    snapshots?.dispose();
+    ref.read(snapshotStateProvider.notifier).clear();
   }
 
   @override

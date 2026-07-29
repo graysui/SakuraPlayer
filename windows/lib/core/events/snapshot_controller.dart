@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/core/events/app_lifecycle.dart';
 
@@ -17,6 +18,9 @@ class SnapshotState {
     required this.metadataJobs,
     required this.cloud115Binding,
     required this.notifications,
+    required this.recoveryRevision,
+    required this.catalogReadyRevision,
+    required this.lastCatalogMovieReady,
   });
 
   factory SnapshotState.empty() => const SnapshotState(
@@ -39,6 +43,9 @@ class SnapshotState {
       lastVerifiedAt: null,
     ),
     notifications: <String, NotificationDto>{},
+    recoveryRevision: 0,
+    catalogReadyRevision: 0,
+    lastCatalogMovieReady: null,
   );
 
   final int snapshotVersion;
@@ -48,6 +55,9 @@ class SnapshotState {
   final Map<String, MetadataJobDto> metadataJobs;
   final Cloud115BindingDto cloud115Binding;
   final Map<String, NotificationDto> notifications;
+  final int recoveryRevision;
+  final int catalogReadyRevision;
+  final CatalogMoviePatch? lastCatalogMovieReady;
 
   SnapshotState copyWith({
     int? snapshotVersion,
@@ -57,6 +67,10 @@ class SnapshotState {
     Map<String, MetadataJobDto>? metadataJobs,
     Cloud115BindingDto? cloud115Binding,
     Map<String, NotificationDto>? notifications,
+    int? recoveryRevision,
+    int? catalogReadyRevision,
+    PatchValue<CatalogMoviePatch?> lastCatalogMovieReady =
+        const PatchValue.absent(),
   }) => SnapshotState(
     snapshotVersion: snapshotVersion ?? this.snapshotVersion,
     lastEventId: lastEventId.isPresent ? lastEventId.value : this.lastEventId,
@@ -65,8 +79,28 @@ class SnapshotState {
     metadataJobs: metadataJobs ?? this.metadataJobs,
     cloud115Binding: cloud115Binding ?? this.cloud115Binding,
     notifications: notifications ?? this.notifications,
+    recoveryRevision: recoveryRevision ?? this.recoveryRevision,
+    catalogReadyRevision: catalogReadyRevision ?? this.catalogReadyRevision,
+    lastCatalogMovieReady:
+        lastCatalogMovieReady.isPresent
+            ? lastCatalogMovieReady.value
+            : this.lastCatalogMovieReady,
   );
 }
+
+class SnapshotStateNotifier extends Notifier<SnapshotState> {
+  @override
+  SnapshotState build() => SnapshotState.empty();
+
+  void replace(SnapshotState value) => state = value;
+
+  void clear() => state = SnapshotState.empty();
+}
+
+final snapshotStateProvider =
+    NotifierProvider<SnapshotStateNotifier, SnapshotState>(
+      SnapshotStateNotifier.new,
+    );
 
 sealed class EventResourcePatch {
   const EventResourcePatch();
@@ -395,6 +429,7 @@ class SnapshotController extends ChangeNotifier {
 
   Future<void> _recover() async {
     final snapshot = await _loadSnapshot();
+    final previous = _state;
     _state = SnapshotState(
       snapshotVersion: snapshot.snapshotVersion,
       lastEventId: snapshot.lastEventId,
@@ -409,6 +444,9 @@ class SnapshotController extends ChangeNotifier {
       notifications: Map<String, NotificationDto>.unmodifiable({
         for (final item in snapshot.notifications) item.id: item,
       }),
+      recoveryRevision: previous.recoveryRevision + 1,
+      catalogReadyRevision: previous.catalogReadyRevision,
+      lastCatalogMovieReady: previous.lastCatalogMovieReady,
     );
     _resourceVersions
       ..clear()
@@ -458,6 +496,10 @@ class SnapshotController extends ChangeNotifier {
         return EventApplyResult.recovered;
       }
     }
+    final requiresCapacityRefresh =
+        patch is CacheJobPatch &&
+        patch.status != null &&
+        patch.status != _state.cacheJobs[patch.id]?.status;
     _applyPatch(patch);
     _resourceVersions[patch.resourceKey] = event.streamVersion;
     _remember(event.eventId);
@@ -465,6 +507,10 @@ class SnapshotController extends ChangeNotifier {
     notifyListeners();
     if (patch is NotificationPatch) {
       await _deliverUnread(<NotificationDto>[patch.notification]);
+    }
+    if (requiresCapacityRefresh) {
+      await recover();
+      return EventApplyResult.recovered;
     }
     return EventApplyResult.applied;
   }
@@ -476,7 +522,7 @@ class SnapshotController extends ChangeNotifier {
     NotificationPatch() => _state.notifications.containsKey(
       patch.notification.id,
     ),
-    CatalogMoviePatch() => false,
+    CatalogMoviePatch() => true,
   };
 
   void _applyPatch(EventResourcePatch patch) {
@@ -502,7 +548,10 @@ class SnapshotController extends ChangeNotifier {
           notifications: Map.unmodifiable(notifications),
         );
       case CatalogMoviePatch():
-        throw StateError('catalog events require a feature snapshot');
+        _state = _state.copyWith(
+          catalogReadyRevision: _state.catalogReadyRevision + 1,
+          lastCatalogMovieReady: PatchValue.present(patch),
+        );
     }
   }
 
