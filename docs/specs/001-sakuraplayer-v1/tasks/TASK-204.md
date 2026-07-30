@@ -30,8 +30,8 @@ provides: [movie library grid, filters, progress card]
 
 ## Definition of Ready
 
-- [ ] TASK-203 Shell/route 和 Movies API DTO 可用。
-- [ ] 卡片尺寸、海报宽高比、分页和最大筛选栏宽度已按桌面设计系统确定。
+- [ ] TASK-203 Shell/route 可用；TASK-204 自身拥有 Movies API DTO/API。
+- [ ] 卡片尺寸、海报宽高比、分页、筛选栏宽度、认证图片和恢复语义已由 [Windows 媒体库客户端契约](../contracts/windows-library-client.md) 确定。
 - [ ] 筛选状态只保存本机页面，不跨设备同步。
 
 ## 技术上下文
@@ -39,6 +39,7 @@ provides: [movie library grid, filters, progress card]
 - 网格使用稳定 track/min width，加载/角标/进度不能引发布局位移。
 - 标签用独立筛选 chip/checkbox，不把属性做成互斥分段。
 - 失败追加保留已加载项并提供局部重试。
+- 筛选变化隔离迟到响应；游标失效最多自动恢复当前筛选第一页一次。
 
 ## 实现文件（仅文件名）
 
