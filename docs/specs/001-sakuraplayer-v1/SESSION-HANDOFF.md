@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-30
 
-**当前阶段**: Phase 3 Windows 客户端进行中，TASK-205 已完成；下一任务为 TASK-206。
+**当前阶段**: Phase 3 Windows 客户端进行中，TASK-206 已完成；下一任务为 TASK-207。
 
 ## 1. 当前成果
 
@@ -168,12 +168,16 @@
   刷新/追加快照保留、类型化不可用动作、原始 rank 角标和认证封面 MovieCard 网格。
 - TASK-205 Fast 与 Final 为 86 项 Flutter 测试通过，静态分析零问题；Windows debug build 通过并
   生成新的 `sakuraplayer_windows.exe`，未访问真实 115、JavDB 写操作或付费 AI。
+- TASK-206 已交付严格 Actor DTO/API、姓名/别名搜索、收藏分页与同步、UUID typed route、响应式
+  列表/详情/写真查看器、关联 MovieCard，以及独立匿名 GFriends 有界临时缓存和会话清理。
+- TASK-206 Fast 与 Final 为 114 项 Flutter 测试通过，静态分析零问题；Windows debug build 通过并
+  生成新的 `sakuraplayer_windows.exe`，默认测试未访问真实 GFriends、115、JavDB 写操作或付费 AI。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-205 已完成；下一任务为 TASK-206。
-- **最近绿色快速门禁**: TASK-205 `dart format`、`flutter analyze` 和 86 项 `flutter test` 通过。
-- **最终门禁状态**: TASK-205 Windows debug build 通过并生成 `sakuraplayer_windows.exe`；未执行 TASK-212 release/安装包门禁。
+- **当前任务门禁阶段**: TASK-206 已完成；下一任务为 TASK-207。
+- **最近绿色快速门禁**: TASK-206 `dart format`、`flutter analyze` 和 114 项 `flutter test` 通过。
+- **最终门禁状态**: TASK-206 Windows debug build 通过并生成 `sakuraplayer_windows.exe`；未执行 TASK-212 release/安装包门禁。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -190,19 +194,19 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205。
-- **下一任务**: TASK-206 女优列表、详情与写真。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206。
+- **下一任务**: TASK-207 影片详情、多来源与收藏。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-206 开始：
+下一会话从 TASK-207 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-206.md"
+/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-207.md"
 ```
 
-TASK-205 的 Ranking DTO/API、选择、分页、错误状态、网格、测试、任务状态与交接已同步；
-提交事实以 Git 为准。TASK-206 开始前复核 `/actors` 实际接口、route 与本地图片 cacheDir/LRU 边界；
+TASK-206 的 Actor DTO/API、列表、详情、写真、缓存、导航、测试、任务状态与交接已同步；
+提交事实以 Git 为准。TASK-207 开始前复核影片详情实际接口、Actor route 与来源/收藏边界；
 真实 115 发布门禁仍由 TASK-213 执行。
 
 ## 4. 必读契约

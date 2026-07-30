@@ -3,7 +3,10 @@ id: TASK-206
 title: "女优列表详情与写真"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
+started_date: 2026-07-30
+implemented_date: 2026-07-30
+completed_date: 2026-07-30
 dependencies: [TASK-204]
 ac-mapping: [AC-051, AC-052, AC-053, AC-075, AC-076, AC-077]
 imp-requirements: [REQ-010, REQ-015]
@@ -28,16 +31,16 @@ provides: [Windows actress listing detail gallery cache]
 
 ## 验收条件
 
-- [ ] 列表按姓名和权威别名搜索；对应 AC-075。
-- [ ] 详情显示头像、中日文名、别名、简介、写真、关联影片和收藏；对应 AC-076。
-- [ ] 女优列表可用 `favorite=true` 分页查看单一收藏集合，不提供自定义列表；对应 AC-077。
-- [ ] 客户端只缓存后端已唯一匹配的 GFriends URL，永久目录图片和 GFriends 临时缓存分开；对应 AC-051 至 AC-053。
+- [x] 列表按姓名和权威别名搜索；对应 AC-075。
+- [x] 详情显示头像、中日文名、别名、简介、写真、关联影片和收藏；对应 AC-076。
+- [x] 女优列表可用 `favorite=true` 分页查看单一收藏集合，不提供自定义列表；对应 AC-077。
+- [x] 客户端只缓存后端已唯一匹配的 GFriends URL，永久目录图片和 GFriends 临时缓存分开；对应 AC-051 至 AC-053。
 
 ## Definition of Ready
 
-- [ ] TASK-204 Shell、MovieSummary/MovieCard、TASK-203 全局搜索和 `/actors` 契约可用。
-- [ ] TASK-206 自身拥有 Actor DTO/API；本地 cacheDir、URL 安全、LRU/过期、并发、取消和占位资源已由 [Windows 女优客户端契约](../contracts/windows-actors-client.md) 确定。
-- [ ] 客户端不做名字匹配或 URL 拼接。
+- [x] TASK-204 Shell、MovieSummary/MovieCard、TASK-203 全局搜索和 `/actors` 契约可用。
+- [x] TASK-206 自身拥有 Actor DTO/API；本地 cacheDir、URL 安全、LRU/过期、并发、取消和占位资源已由 [Windows 女优客户端契约](../contracts/windows-actors-client.md) 确定。
+- [x] 客户端不做名字匹配或 URL 拼接。
 
 ## 技术上下文
 
@@ -65,10 +68,19 @@ provides: [Windows actress listing detail gallery cache]
 
 ## Definition of Done
 
-- [ ] 女优列表/详情/收藏/写真完成。
-- [ ] 客户端无歧义姓名关联逻辑。
-- [ ] 临时/永久图片缓存隔离测试通过。
-- [ ] 下载 URL、8 MiB、四并发、取消、7 天期限及 512/256 MiB LRU 边界测试通过。
+- [x] 女优列表/详情/收藏/写真完成。
+- [x] 客户端无歧义姓名关联逻辑。
+- [x] 临时/永久图片缓存隔离测试通过。
+- [x] 下载 URL、8 MiB、四并发、取消、7 天期限及 512/256 MiB LRU 边界测试通过。
+
+## Implementation Summary
+
+- 新增严格 Actor DTO/API、查询/收藏 scope、generation 隔离分页、刷新/追加恢复、游标失效单次恢复，以及列表/详情收藏同步和认证会话清理。
+- 将女优 Shell 占位替换为响应式列表、姓名/别名搜索、收藏模式、资料/写真/关联影片详情，并接入列表与全局搜索共用的 UUID typed route。
+- 新增独立匿名 GFriends 下载与有界临时缓存，覆盖逐跳 URL 校验、10/30 秒超时、8 MiB 与格式限制、四并发、single-flight、取消、7 天滑动期限、512 文件/256 MiB LRU 和安全会话清理。
+- Final 通过 `flutter analyze`、114 项 `flutter test` 和 Windows debug build，生成 `sakuraplayer_windows.exe`；默认测试未访问真实 GFriends、115、JavDB 写操作或付费 AI。
+
+**完成日期**: 2026-07-30
 
 **依赖**: TASK-204
 

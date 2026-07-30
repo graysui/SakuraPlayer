@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/app.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
+import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
+import 'package:sakuraplayer_windows/features/actors/presentation/actor_detail_page.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
@@ -86,6 +88,42 @@ void main() {
     expect(Theme.of(tester.element(playerIcon)).brightness, Brightness.dark);
   });
 
+  testWidgets('actor detail typed route stays inside the actors shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authSessionStateProvider.overrideWithValue(
+            AuthSessionState.authenticated(
+              serverBaseUri: Uri.parse('https://server.test'),
+            ),
+          ),
+          moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+          actorsGatewayProvider.overrideWithValue(const _ActorsGateway()),
+        ],
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.byType(DesktopShell)));
+    router.go(ActorDetailRoute(_actorId).location);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ActorDetailPage), findsOneWidget);
+    expect(find.text('测试女优'), findsOneWidget);
+    expect(
+      tester.widget<NavigationRail>(find.byType(NavigationRail)).selectedIndex,
+      ShellDestination.actors.index,
+    );
+
+    router.go('/app/actors/not-an-actor-id');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('actors-page')), findsOneWidget);
+    expect(find.byType(ActorDetailPage), findsNothing);
+  });
+
   testWidgets('theme controller supports system light and dark', (
     tester,
   ) async {
@@ -124,12 +162,14 @@ void main() {
       '/app/library',
       '/app/rankings',
       '/app/actors',
+      '/app/actors/:actor_id',
       '/app/cache',
       '/app/settings',
       '/player',
     });
     expect(appRouteLocations.any((path) => path.contains('age')), isFalse);
     expect(appRouteLocations.any((path) => path.contains('external')), isFalse);
+    expect(() => ActorDetailRoute('not-an-actor-id'), throwsArgumentError);
   });
 
   test('project contains only the Windows platform runner', () {
@@ -176,4 +216,34 @@ class _EmptyRankingsGateway implements RankingsGateway {
     items: const <RankingItemDto>[],
     nextCursor: null,
   );
+}
+
+const _actorId = '00000000-0000-4000-8000-000000000010';
+
+class _ActorsGateway implements ActorsGateway {
+  const _ActorsGateway();
+
+  @override
+  Future<ActorPageDto> listActors({
+    required ActorListScope scope,
+    String? cursor,
+  }) async => const ActorPageDto(items: <ActorSummaryDto>[], nextCursor: null);
+
+  @override
+  Future<ActorDetailDto> getActor(String actorId) async => ActorDetailDto(
+    id: actorId,
+    displayName: '测试女优',
+    nameJa: 'テスト',
+    nameZh: '测试女优',
+    aliases: const <String>[],
+    profileUrl: null,
+    favorite: false,
+    bio: null,
+    bioOriginal: null,
+    galleryUrls: const <String>[],
+    movies: const <MovieSummaryDto>[],
+  );
+
+  @override
+  Future<void> setFavorite(String actorId, {required bool enabled}) async {}
 }

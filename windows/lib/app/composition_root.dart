@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakuraplayer_windows/core/events/app_lifecycle.dart';
 import 'package:sakuraplayer_windows/core/events/event_client.dart';
 import 'package:sakuraplayer_windows/core/events/snapshot_controller.dart';
+import 'package:sakuraplayer_windows/core/images/gfriends_cache.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 
@@ -30,6 +31,7 @@ class _SakuraPlayerCompositionRootState
   void initState() {
     super.initState();
     ref.read(runtimeResetProvider).register(_resetRuntime);
+    ref.read(privateCacheResetProvider).register(_clearPrivateCaches);
     _authSubscription = ref.listenManual<AuthSessionState>(
       authControllerProvider,
       (_, next) => _onAuthChanged(next),
@@ -94,9 +96,14 @@ class _SakuraPlayerCompositionRootState
     ref.read(snapshotStateProvider.notifier).clear();
   }
 
+  Future<void> _clearPrivateCaches() async {
+    await ref.read(gfriendsCacheProvider).clear();
+  }
+
   @override
   void dispose() {
     ref.read(runtimeResetProvider).unregister(_resetRuntime);
+    ref.read(privateCacheResetProvider).unregister(_clearPrivateCaches);
     _authSubscription?.close();
     unawaited(_resetRuntime());
     super.dispose();

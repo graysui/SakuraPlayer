@@ -3,48 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakuraplayer_windows/core/api/api_client.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
+import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 
 enum PendingMetadataState { queued, running, failed }
-
-@immutable
-class ActorSearchResultDto {
-  const ActorSearchResultDto({
-    required this.id,
-    required this.displayName,
-    required this.nameJa,
-    required this.nameZh,
-    required this.aliases,
-    required this.profileUrl,
-    required this.favorite,
-  });
-
-  factory ActorSearchResultDto.fromJson(Map<String, Object?> json) {
-    final reader = JsonReader(json, 'ActorSummary');
-    return ActorSearchResultDto(
-      id: reader.uuid('id'),
-      displayName: reader.nonEmptyString('display_name'),
-      nameJa:
-          json.containsKey('name_ja') ? reader.nullableString('name_ja') : null,
-      nameZh:
-          json.containsKey('name_zh') ? reader.nullableString('name_zh') : null,
-      aliases: reader.stringList('aliases'),
-      profileUrl:
-          json.containsKey('profile_url')
-              ? reader.nullableString('profile_url')
-              : null,
-      favorite: reader.boolean('favorite'),
-    );
-  }
-
-  final String id;
-  final String displayName;
-  final String? nameJa;
-  final String? nameZh;
-  final List<String> aliases;
-  final String? profileUrl;
-  final bool favorite;
-}
 
 @immutable
 class PendingMetadataDto {
@@ -85,7 +47,7 @@ class SearchResultDto {
     final reader = JsonReader(json, 'SearchResult');
     final result = SearchResultDto(
       movies: reader.objectList('movies', MovieSummaryDto.fromJson),
-      actors: reader.objectList('actors', ActorSearchResultDto.fromJson),
+      actors: reader.objectList('actors', ActorSummaryDto.fromJson),
       pendingMetadata: reader.objectList(
         'pending_metadata',
         PendingMetadataDto.fromJson,
@@ -100,7 +62,7 @@ class SearchResultDto {
   }
 
   final List<MovieSummaryDto> movies;
-  final List<ActorSearchResultDto> actors;
+  final List<ActorSummaryDto> actors;
   final List<PendingMetadataDto> pendingMetadata;
 }
 

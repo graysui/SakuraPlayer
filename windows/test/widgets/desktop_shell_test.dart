@@ -19,6 +19,7 @@ void main() {
             home: DesktopShell(
               selectedDestination: ShellDestination.library,
               onDestinationSelected: (_) {},
+              onActorSelected: (_) {},
               onCachePressed: () {},
               onSettingsPressed: () {},
               child: const Text('内容'),
@@ -58,6 +59,7 @@ void main() {
           home: DesktopShell(
             selectedDestination: ShellDestination.actors,
             onDestinationSelected: (_) {},
+            onActorSelected: (_) {},
             onCachePressed: () {},
             onSettingsPressed: () {},
             child: const Text('内容'),
@@ -168,6 +170,37 @@ void main() {
     expect(find.text('樱'), findsOneWidget);
     expect(find.text('补全失败'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('actor search result closes the dialog and reports its id', (
+    tester,
+  ) async {
+    String? selectedActorId;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchGatewayProvider.overrideWithValue(_SearchGateway()),
+          searchDebounceDurationProvider.overrideWithValue(Duration.zero),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SearchOverlay(
+              onActorSelected: (actorId) => selectedActorId = actorId,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('全局搜索'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '樱');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, '樱'));
+    await tester.pumpAndSettle();
+
+    expect(selectedActorId, '00000000-0000-4000-8000-000000000002');
+    expect(find.byType(Dialog), findsNothing);
   });
 }
 

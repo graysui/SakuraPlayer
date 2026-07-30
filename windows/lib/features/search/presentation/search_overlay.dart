@@ -4,9 +4,10 @@ import 'package:sakuraplayer_windows/features/search/data/search_api.dart';
 import 'package:sakuraplayer_windows/features/search/presentation/search_controller.dart';
 
 class SearchOverlay extends ConsumerWidget {
-  const SearchOverlay({this.compact = false, super.key});
+  const SearchOverlay({this.compact = false, this.onActorSelected, super.key});
 
   final bool compact;
+  final ValueChanged<String>? onActorSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +23,9 @@ class SearchOverlay extends ConsumerWidget {
               ref.read(searchControllerProvider.notifier).clear();
               showDialog<void>(
                 context: context,
-                builder: (context) => const _SearchDialog(),
+                builder:
+                    (context) =>
+                        _SearchDialog(onActorSelected: onActorSelected),
               );
             },
             borderRadius: BorderRadius.circular(6),
@@ -53,7 +56,9 @@ class SearchOverlay extends ConsumerWidget {
 }
 
 class _SearchDialog extends ConsumerStatefulWidget {
-  const _SearchDialog();
+  const _SearchDialog({required this.onActorSelected});
+
+  final ValueChanged<String>? onActorSelected;
 
   @override
   ConsumerState<_SearchDialog> createState() => _SearchDialogState();
@@ -111,7 +116,12 @@ class _SearchDialogState extends ConsumerState<_SearchDialog> {
                 ),
               ),
               const Divider(height: 1),
-              Expanded(child: _SearchResults(state: state)),
+              Expanded(
+                child: _SearchResults(
+                  state: state,
+                  onActorSelected: widget.onActorSelected,
+                ),
+              ),
             ],
           ),
         ),
@@ -121,9 +131,10 @@ class _SearchDialogState extends ConsumerState<_SearchDialog> {
 }
 
 class _SearchResults extends StatelessWidget {
-  const _SearchResults({required this.state});
+  const _SearchResults({required this.state, required this.onActorSelected});
 
   final SearchState state;
+  final ValueChanged<String>? onActorSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +178,13 @@ class _SearchResults extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.person_outline),
                   title: Text(actor.displayName, maxLines: 1),
+                  onTap:
+                      onActorSelected == null
+                          ? null
+                          : () {
+                            Navigator.of(context).pop();
+                            onActorSelected!(actor.id);
+                          },
                   subtitle:
                       actor.aliases.isEmpty
                           ? null

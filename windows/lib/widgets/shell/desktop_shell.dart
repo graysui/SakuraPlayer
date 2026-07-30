@@ -8,6 +8,7 @@ class DesktopShell extends StatelessWidget {
   const DesktopShell({
     required this.selectedDestination,
     required this.onDestinationSelected,
+    required this.onActorSelected,
     required this.onCachePressed,
     required this.onSettingsPressed,
     required this.child,
@@ -16,6 +17,7 @@ class DesktopShell extends StatelessWidget {
 
   final ShellDestination? selectedDestination;
   final ValueChanged<ShellDestination> onDestinationSelected;
+  final ValueChanged<String> onActorSelected;
   final VoidCallback onCachePressed;
   final VoidCallback onSettingsPressed;
   final Widget child;
@@ -95,7 +97,10 @@ class DesktopShell extends StatelessWidget {
                                     constraints: BoxConstraints(
                                       maxWidth: extended ? 420 : 64,
                                     ),
-                                    child: SearchOverlay(compact: !extended),
+                                    child: SearchOverlay(
+                                      compact: !extended,
+                                      onActorSelected: onActorSelected,
+                                    ),
                                   ),
                                 ),
                               ),

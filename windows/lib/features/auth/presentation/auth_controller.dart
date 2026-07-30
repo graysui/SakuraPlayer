@@ -45,6 +45,10 @@ final runtimeResetProvider = Provider<RuntimeResetCoordinator>(
   (ref) => RuntimeResetCoordinator(),
 );
 
+final privateCacheResetProvider = Provider<PrivateCacheResetCoordinator>(
+  (ref) => PrivateCacheResetCoordinator(),
+);
+
 final apiClientFactoryProvider = Provider<ApiClientFactory>(
   (ref) => (profile, session) {
     return ApiClient(
@@ -62,6 +66,22 @@ final authSessionStateProvider = Provider<AuthSessionState>(
 );
 
 class RuntimeResetCoordinator {
+  Future<void> Function()? _callback;
+
+  void register(Future<void> Function() callback) {
+    _callback = callback;
+  }
+
+  void unregister(Future<void> Function() callback) {
+    if (identical(_callback, callback)) _callback = null;
+  }
+
+  Future<void> reset() async {
+    await _callback?.call();
+  }
+}
+
+class PrivateCacheResetCoordinator {
   Future<void> Function()? _callback;
 
   void register(Future<void> Function() callback) {
@@ -272,6 +292,7 @@ class AuthController extends Notifier<AuthSessionState> {
     await ref.read(runtimeResetProvider).reset();
     await ref.read(sessionStoreProvider).clearTokens();
     await ref.read(subtitleCacheProvider).clear();
+    await ref.read(privateCacheResetProvider).reset();
   }
 
   ApiClient _requireClient() {

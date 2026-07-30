@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
+import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
+import 'package:sakuraplayer_windows/features/actors/presentation/actor_detail_page.dart';
+import 'package:sakuraplayer_windows/features/actors/presentation/actors_page.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
@@ -44,6 +47,17 @@ final class ActorsRoute extends AppRouteLocation {
   String get location => '/app/actors';
 }
 
+final class ActorDetailRoute extends AppRouteLocation {
+  ActorDetailRoute(this.actorId) {
+    requireActorId(actorId);
+  }
+
+  final String actorId;
+
+  @override
+  String get location => '/app/actors/${Uri.encodeComponent(actorId)}';
+}
+
 final class CacheStatusRoute extends AppRouteLocation {
   const CacheStatusRoute();
 
@@ -70,6 +84,7 @@ const appRouteLocations = <String>{
   '/app/library',
   '/app/rankings',
   '/app/actors',
+  '/app/actors/:actor_id',
   '/app/cache',
   '/app/settings',
   '/player',
@@ -96,10 +111,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       ShellRoute(
         builder: (context, state, child) {
-          final destination = switch (state.matchedLocation) {
+          final destination = switch (state.fullPath) {
             '/app/library' => ShellDestination.library,
             '/app/rankings' => ShellDestination.rankings,
             '/app/actors' => ShellDestination.actors,
+            '/app/actors/:actor_id' => ShellDestination.actors,
             _ => null,
           };
           return DesktopShell(
@@ -114,6 +130,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   const ActorsRoute().go(context);
               }
             },
+            onActorSelected: (actorId) => ActorDetailRoute(actorId).go(context),
             onCachePressed: () => const CacheStatusRoute().go(context),
             onSettingsPressed: () => const SettingsRoute().go(context),
             child: child,
@@ -137,8 +154,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: const ActorsRoute().location,
             builder:
-                (context, state) =>
-                    const _ShellPage(key: ValueKey('actors-page'), title: '女优'),
+                (context, state) => ActorsPage(
+                  key: const ValueKey('actors-page'),
+                  onOpenActor:
+                      (actorId) => ActorDetailRoute(actorId).go(context),
+                ),
+            routes: [
+              GoRoute(
+                path: ':actor_id',
+                redirect:
+                    (context, state) =>
+                        isValidActorId(state.pathParameters['actor_id'] ?? '')
+                            ? null
+                            : const ActorsRoute().location,
+                builder:
+                    (context, state) => ActorDetailPage(
+                      key: ValueKey(
+                        'actor-detail-${state.pathParameters['actor_id']}',
+                      ),
+                      actorId: state.pathParameters['actor_id']!,
+                      onBack: () => const ActorsRoute().go(context),
+                    ),
+              ),
+            ],
           ),
           GoRoute(
             path: const CacheStatusRoute().location,

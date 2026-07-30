@@ -65,9 +65,14 @@ void main() {
       final memory = MemorySecureKeyValueStore();
       final subtitle = MemorySubtitleCache();
       var resetCalls = 0;
+      var privateCacheResetCalls = 0;
       final reset =
           RuntimeResetCoordinator()..register(() async {
             resetCalls++;
+          });
+      final privateCacheReset =
+          PrivateCacheResetCoordinator()..register(() async {
+            privateCacheResetCalls++;
           });
       final container = _container(
         memory: memory,
@@ -81,6 +86,7 @@ void main() {
         },
         initialized: true,
         reset: reset,
+        privateCacheReset: privateCacheReset,
       );
       addTearDown(container.dispose);
       final controller = container.read(authControllerProvider.notifier);
@@ -107,6 +113,7 @@ void main() {
       expect(memory.values[SecureStore.clientInstanceIdKey], isNotNull);
       expect(subtitle.cleared, isTrue);
       expect(resetCalls, 1);
+      expect(privateCacheResetCalls, 1);
     },
   );
 
@@ -230,12 +237,15 @@ ProviderContainer _container({
   required Future<ResponseBody> Function(RequestOptions request) handler,
   required bool initialized,
   RuntimeResetCoordinator? reset,
+  PrivateCacheResetCoordinator? privateCacheReset,
 }) => ProviderContainer(
   overrides: [
     secureKeyValueStoreProvider.overrideWithValue(memory),
     subtitleCacheProvider.overrideWithValue(subtitle),
     serverProbeProvider.overrideWithValue(_Probe(initialized)),
     if (reset != null) runtimeResetProvider.overrideWithValue(reset),
+    if (privateCacheReset != null)
+      privateCacheResetProvider.overrideWithValue(privateCacheReset),
     apiClientFactoryProvider.overrideWithValue((profile, session) {
       final dio = Dio(BaseOptions(baseUrl: '${profile.baseUri}/api/v1/'))
         ..httpClientAdapter = _Adapter(handler);

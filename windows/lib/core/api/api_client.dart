@@ -146,6 +146,18 @@ class ApiClient {
     decode,
   );
 
+  Future<void> putEmpty(
+    String path, {
+    Map<String, Object?>? data,
+    Map<String, Object?>? query,
+  }) => _emptyRequest('PUT', path, data: data, query: query);
+
+  Future<void> deleteEmpty(
+    String path, {
+    Map<String, Object?>? data,
+    Map<String, Object?>? query,
+  }) => _emptyRequest('DELETE', path, data: data, query: query);
+
   Future<List<int>> getBytes(String path, {Map<String, Object?>? query}) async {
     final response = await _request(
       'GET',
@@ -187,10 +199,19 @@ class ApiClient {
   Future<void> _emptyRequest(
     String method,
     String path, {
-    required bool auth,
-    required bool allowRefresh,
+    bool auth = true,
+    bool allowRefresh = true,
+    Map<String, Object?>? data,
+    Map<String, Object?>? query,
   }) async {
-    await _request(method, path, auth: auth, allowRefresh: allowRefresh);
+    await _request(
+      method,
+      path,
+      auth: auth,
+      allowRefresh: allowRefresh,
+      data: data,
+      query: query,
+    );
   }
 
   Future<Response<Object?>> _request(
