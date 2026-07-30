@@ -178,7 +178,8 @@ Map<String, Object?> _searchJson({
         'number': number,
         'title': '测试影片',
         'title_original': 'テスト映画',
-        'cover_url': '/api/v1/images/cover.jpg',
+        'cover_url':
+            '/api/v1/catalog/images/00000000-0000-4000-8000-000000000010',
         'publish_date': '2026-07-01',
         'labels': <Object?>['subtitle'],
         'favorite': false,

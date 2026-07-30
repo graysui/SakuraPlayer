@@ -3,106 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakuraplayer_windows/core/api/api_client.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
+import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 
 enum PendingMetadataState { queued, running, failed }
-
-@immutable
-class PlaybackProgressDto {
-  const PlaybackProgressDto({
-    required this.positionSeconds,
-    required this.durationSeconds,
-    required this.completed,
-    required this.version,
-  });
-
-  factory PlaybackProgressDto.fromJson(Map<String, Object?> json) {
-    final reader = JsonReader(json, 'PlaybackProgress');
-    final position = reader.number('position_seconds');
-    final duration =
-        json['duration_seconds'] == null
-            ? null
-            : reader.number('duration_seconds');
-    if (position < 0 || (duration != null && duration <= 0)) {
-      throw const ProtocolException('PlaybackProgress values are invalid');
-    }
-    return PlaybackProgressDto(
-      positionSeconds: position,
-      durationSeconds: duration,
-      completed: reader.boolean('completed'),
-      version: reader.positiveInteger('version'),
-    );
-  }
-
-  final num positionSeconds;
-  final num? durationSeconds;
-  final bool completed;
-  final int version;
-}
-
-@immutable
-class MovieSearchResultDto {
-  const MovieSearchResultDto({
-    required this.id,
-    required this.number,
-    required this.title,
-    required this.titleOriginal,
-    required this.coverUrl,
-    required this.publishDate,
-    required this.labels,
-    required this.favorite,
-    required this.sourceCount,
-    required this.progress,
-  });
-
-  factory MovieSearchResultDto.fromJson(Map<String, Object?> json) {
-    final reader = JsonReader(json, 'MovieSummary');
-    final labels = reader.stringList('labels');
-    const allowedLabels = <String>{'subtitle', 'cracked', '4k', 'censored'};
-    if (labels.any((label) => !allowedLabels.contains(label))) {
-      throw const ProtocolException('MovieSummary.labels is invalid');
-    }
-    final publishDate =
-        json.containsKey('publish_date')
-            ? reader.nullableString('publish_date')
-            : null;
-    if (publishDate != null && DateTime.tryParse(publishDate) == null) {
-      throw const ProtocolException('MovieSummary.publish_date is invalid');
-    }
-    PlaybackProgressDto? progress;
-    if (json.containsKey('progress') && json['progress'] != null) {
-      progress = PlaybackProgressDto.fromJson(reader.object('progress'));
-    }
-    return MovieSearchResultDto(
-      id: reader.uuid('id'),
-      number: reader.nonEmptyString('number'),
-      title: reader.nonEmptyString('title'),
-      titleOriginal:
-          json.containsKey('title_original')
-              ? reader.nullableString('title_original')
-              : null,
-      coverUrl:
-          json.containsKey('cover_url')
-              ? reader.nullableString('cover_url')
-              : null,
-      publishDate: publishDate,
-      labels: labels,
-      favorite: reader.boolean('favorite'),
-      sourceCount: reader.positiveInteger('source_count'),
-      progress: progress,
-    );
-  }
-
-  final String id;
-  final String number;
-  final String title;
-  final String? titleOriginal;
-  final String? coverUrl;
-  final String? publishDate;
-  final List<String> labels;
-  final bool favorite;
-  final int sourceCount;
-  final PlaybackProgressDto? progress;
-}
 
 @immutable
 class ActorSearchResultDto {
@@ -181,7 +84,7 @@ class SearchResultDto {
   factory SearchResultDto.fromJson(Map<String, Object?> json) {
     final reader = JsonReader(json, 'SearchResult');
     final result = SearchResultDto(
-      movies: reader.objectList('movies', MovieSearchResultDto.fromJson),
+      movies: reader.objectList('movies', MovieSummaryDto.fromJson),
       actors: reader.objectList('actors', ActorSearchResultDto.fromJson),
       pendingMetadata: reader.objectList(
         'pending_metadata',
@@ -196,7 +99,7 @@ class SearchResultDto {
     return result;
   }
 
-  final List<MovieSearchResultDto> movies;
+  final List<MovieSummaryDto> movies;
   final List<ActorSearchResultDto> actors;
   final List<PendingMetadataDto> pendingMetadata;
 }

@@ -3,7 +3,10 @@ id: TASK-204
 title: "媒体库网格、筛选与进度卡片"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
+started_date: 2026-07-30
+implemented_date: 2026-07-30
+completed_date: 2026-07-30
 dependencies: [TASK-203]
 ac-mapping: [AC-063, AC-064, AC-067, AC-068, AC-077]
 imp-requirements: [REQ-013, REQ-015]
@@ -22,17 +25,17 @@ provides: [movie library grid, filters, progress card]
 
 ## 验收条件
 
-- [ ] 媒体库一个去重影片网格，六分类为可组合筛选；对应 AC-063。
-- [ ] 默认 AVdb 发布日期降序，支持字幕/破解/4K/有码、来源、可播放和资源大小；对应 AC-064。
-- [ ] 页面只渲染 core_ready 正式卡片；对应 AC-067。
-- [ ] 播放按钮显示影片级进度或已看完；对应 AC-068。
-- [ ] 收藏筛选使用 `favorite=true` 分页浏览单一影片收藏集合；对应 AC-077。
+- [x] 媒体库一个去重影片网格，六分类为可组合筛选；对应 AC-063。
+- [x] 默认 AVdb 发布日期降序，支持字幕/破解/4K/有码、来源、可播放和资源大小；对应 AC-064。
+- [x] 页面只渲染 core_ready 正式卡片；对应 AC-067。
+- [x] 播放按钮显示影片级进度或已看完；对应 AC-068。
+- [x] 收藏筛选使用 `favorite=true` 分页浏览单一影片收藏集合；对应 AC-077。
 
 ## Definition of Ready
 
-- [ ] TASK-203 Shell/route 可用；TASK-204 自身拥有 Movies API DTO/API。
-- [ ] 卡片尺寸、海报宽高比、分页、筛选栏宽度、认证图片和恢复语义已由 [Windows 媒体库客户端契约](../contracts/windows-library-client.md) 确定。
-- [ ] 筛选状态只保存本机页面，不跨设备同步。
+- [x] TASK-203 Shell/route 可用；TASK-204 自身拥有 Movies API DTO/API。
+- [x] 卡片尺寸、海报宽高比、分页、筛选栏宽度、认证图片和恢复语义已由 [Windows 媒体库客户端契约](../contracts/windows-library-client.md) 确定。
+- [x] 筛选状态只保存本机页面，不跨设备同步。
 
 ## 技术上下文
 
@@ -63,9 +66,18 @@ provides: [movie library grid, filters, progress card]
 
 ## Definition of Done
 
-- [ ] 网格、筛选、分页和进度卡片完成。
-- [ ] 属性筛选非互斥且默认排序正确。
-- [ ] Widget/controller 测试通过。
+- [x] 网格、筛选、分页和进度卡片完成。
+- [x] 属性筛选非互斥且默认排序正确。
+- [x] Widget/controller 测试通过。
+
+## Implementation Summary
+
+- 新增严格 Movies DTO/API 与认证封面读取，固定 24 条游标分页和完整筛选查询；搜索复用同一影片摘要 DTO，避免协议漂移。
+- 新增 generation 隔离的媒体库 Controller，覆盖快速筛选、重复触底、追加局部重试、游标失效单次恢复和认证会话切换清理。
+- 将 Shell 媒体库占位替换为响应式筛选、固定网格和进度卡片，覆盖缺图/图片失败、长标题、未知时长、空/加载/失败与窄窗口。
+- Final 通过 `flutter analyze`、63 项 `flutter test` 和 Windows debug build，生成 `sakuraplayer_windows.exe`。
+
+**完成日期**: 2026-07-30
 
 **依赖**: TASK-203
 

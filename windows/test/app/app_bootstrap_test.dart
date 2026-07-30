@@ -9,6 +9,7 @@ import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
+import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/routes/app_router.dart';
 import 'package:sakuraplayer_windows/theme/app_theme.dart';
 import 'package:sakuraplayer_windows/theme/player_theme.dart';
@@ -33,6 +34,7 @@ void main() {
               serverBaseUri: Uri.parse('https://server.test'),
             ),
           ),
+          moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
         ],
         child: const SakuraPlayerApp(),
       ),
@@ -63,6 +65,7 @@ void main() {
               serverBaseUri: Uri.parse('https://server.test'),
             ),
           ),
+          moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
         ],
         child: const SakuraPlayerApp(),
       ),
@@ -139,4 +142,17 @@ void main() {
 
 MaterialApp _materialApp(WidgetTester tester) {
   return tester.widget<MaterialApp>(find.byType(MaterialApp));
+}
+
+class _EmptyMoviesGateway implements MoviesGateway {
+  const _EmptyMoviesGateway();
+
+  @override
+  Future<MoviePageDto> listMovies({
+    required MovieFilters filters,
+    String? cursor,
+  }) async => const MoviePageDto(items: <MovieSummaryDto>[], nextCursor: null);
+
+  @override
+  Future<List<int>> loadCover(String coverUrl) async => <int>[];
 }

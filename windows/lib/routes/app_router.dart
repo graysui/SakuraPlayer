@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
+import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
 import 'package:sakuraplayer_windows/widgets/shell/desktop_shell.dart';
 
 sealed class AppRouteLocation {
@@ -121,10 +122,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: const LibraryRoute().location,
             builder:
-                (context, state) => const _ShellPage(
-                  key: ValueKey('library-page'),
-                  title: '媒体库',
-                ),
+                (context, state) =>
+                    const LibraryPage(key: ValueKey('library-page')),
           ),
           GoRoute(
             path: const RankingsRoute().location,
