@@ -8,6 +8,8 @@ import 'package:sakuraplayer_windows/features/actors/presentation/actors_page.da
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
+import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
+import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
 import 'package:sakuraplayer_windows/features/rankings/presentation/rankings_page.dart';
 import 'package:sakuraplayer_windows/widgets/shell/desktop_shell.dart';
 
@@ -58,6 +60,17 @@ final class ActorDetailRoute extends AppRouteLocation {
   String get location => '/app/actors/${Uri.encodeComponent(actorId)}';
 }
 
+final class MovieDetailRoute extends AppRouteLocation {
+  MovieDetailRoute(this.movieId) {
+    requireMovieId(movieId);
+  }
+
+  final String movieId;
+
+  @override
+  String get location => '/app/movies/${Uri.encodeComponent(movieId)}';
+}
+
 final class CacheStatusRoute extends AppRouteLocation {
   const CacheStatusRoute();
 
@@ -85,6 +98,7 @@ const appRouteLocations = <String>{
   '/app/rankings',
   '/app/actors',
   '/app/actors/:actor_id',
+  '/app/movies/:movie_id',
   '/app/cache',
   '/app/settings',
   '/player',
@@ -116,6 +130,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             '/app/rankings' => ShellDestination.rankings,
             '/app/actors' => ShellDestination.actors,
             '/app/actors/:actor_id' => ShellDestination.actors,
+            '/app/movies/:movie_id' => ShellDestination.library,
             _ => null,
           };
           return DesktopShell(
@@ -131,6 +146,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
             },
             onActorSelected: (actorId) => ActorDetailRoute(actorId).go(context),
+            onMovieSelected: (movieId) => MovieDetailRoute(movieId).go(context),
             onCachePressed: () => const CacheStatusRoute().go(context),
             onSettingsPressed: () => const SettingsRoute().go(context),
             child: child,
@@ -140,8 +156,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: const LibraryRoute().location,
             builder:
-                (context, state) =>
-                    const LibraryPage(key: ValueKey('library-page')),
+                (context, state) => LibraryPage(
+                  key: const ValueKey('library-page'),
+                  onOpenMovie:
+                      (movieId) => MovieDetailRoute(movieId).go(context),
+                ),
           ),
           GoRoute(
             path: const RankingsRoute().location,
@@ -149,6 +168,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 (context, state) => RankingsPage(
                   key: ValueKey('rankings-page'),
                   onOpenSettings: () => const SettingsRoute().go(context),
+                  onOpenMovie:
+                      (movieId) => MovieDetailRoute(movieId).go(context),
                 ),
           ),
           GoRoute(
@@ -174,9 +195,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       ),
                       actorId: state.pathParameters['actor_id']!,
                       onBack: () => const ActorsRoute().go(context),
+                      onOpenMovie:
+                          (movieId) => MovieDetailRoute(movieId).go(context),
                     ),
               ),
             ],
+          ),
+          GoRoute(
+            path: '/app/movies/:movie_id',
+            redirect:
+                (context, state) =>
+                    isValidMovieId(state.pathParameters['movie_id'] ?? '')
+                        ? null
+                        : const LibraryRoute().location,
+            builder:
+                (context, state) => MovieDetailPage(
+                  key: ValueKey(
+                    'movie-detail-${state.pathParameters['movie_id']}',
+                  ),
+                  movieId: state.pathParameters['movie_id']!,
+                  onBack: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      const LibraryRoute().go(context);
+                    }
+                  },
+                  onOpenActor:
+                      (actorId) => ActorDetailRoute(actorId).go(context),
+                ),
           ),
           GoRoute(
             path: const CacheStatusRoute().location,

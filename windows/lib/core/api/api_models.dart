@@ -9,6 +9,18 @@ class ProtocolException implements Exception {
   String toString() => 'ProtocolException: $message';
 }
 
+bool isValidUuid(String value) => _uuidPattern.hasMatch(value);
+
+void requireUuid(String value, String parameterName) {
+  if (!isValidUuid(value)) {
+    throw ArgumentError.value(value, parameterName, 'must be a UUID');
+  }
+}
+
+final _uuidPattern = RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+);
+
 @immutable
 class BootstrapStatus {
   const BootstrapStatus({required this.initialized, required this.apiVersion});
@@ -658,7 +670,7 @@ class JsonReader {
 
   String uuid(String key) {
     final value = string(key);
-    if (!_uuidPattern.hasMatch(value)) {
+    if (!isValidUuid(value)) {
       throw ProtocolException('$context.$key must be a UUID');
     }
     return value;
@@ -666,7 +678,7 @@ class JsonReader {
 
   String? nullableUuid(String key) {
     final value = nullableString(key);
-    if (value != null && !_uuidPattern.hasMatch(value)) {
+    if (value != null && !isValidUuid(value)) {
       throw ProtocolException('$context.$key must be a UUID or null');
     }
     return value;
@@ -724,13 +736,9 @@ class JsonReader {
 
   List<String> uuidList(String key) {
     final values = stringList(key);
-    if (values.any((value) => !_uuidPattern.hasMatch(value))) {
+    if (values.any((value) => !isValidUuid(value))) {
       throw ProtocolException('$context.$key must contain UUIDs');
     }
     return values;
   }
-
-  static final RegExp _uuidPattern = RegExp(
-    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
-  );
 }

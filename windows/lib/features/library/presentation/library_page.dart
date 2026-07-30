@@ -8,7 +8,9 @@ import 'package:sakuraplayer_windows/features/library/presentation/library_filte
 import 'package:sakuraplayer_windows/features/library/presentation/movie_card.dart';
 
 class LibraryPage extends ConsumerStatefulWidget {
-  const LibraryPage({super.key});
+  const LibraryPage({this.onOpenMovie, super.key});
+
+  final ValueChanged<String>? onOpenMovie;
 
   @override
   ConsumerState<LibraryPage> createState() => _LibraryPageState();
@@ -165,6 +167,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               key: ValueKey(movie.id),
               movie: movie,
               coverLoader: gateway.loadCover,
+              onOpen:
+                  widget.onOpenMovie == null
+                      ? null
+                      : () => widget.onOpenMovie!(movie.id),
             );
           }, childCount: state.items.length),
         ),

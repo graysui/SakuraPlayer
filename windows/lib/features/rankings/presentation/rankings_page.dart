@@ -8,9 +8,14 @@ import 'package:sakuraplayer_windows/features/rankings/data/rankings_api.dart';
 import 'package:sakuraplayer_windows/features/rankings/presentation/rankings_controller.dart';
 
 class RankingsPage extends ConsumerStatefulWidget {
-  const RankingsPage({required this.onOpenSettings, super.key});
+  const RankingsPage({
+    required this.onOpenSettings,
+    this.onOpenMovie,
+    super.key,
+  });
 
   final VoidCallback onOpenSettings;
+  final ValueChanged<String>? onOpenMovie;
 
   @override
   ConsumerState<RankingsPage> createState() => _RankingsPageState();
@@ -201,7 +206,14 @@ class _RankingsPageState extends ConsumerState<RankingsPage> {
               key: ValueKey('ranking-${item.rank}-${item.movie.id}'),
               children: [
                 Positioned.fill(
-                  child: MovieCard(movie: item.movie, coverLoader: coverLoader),
+                  child: MovieCard(
+                    movie: item.movie,
+                    coverLoader: coverLoader,
+                    onOpen:
+                        widget.onOpenMovie == null
+                            ? null
+                            : () => widget.onOpenMovie!(item.movie.id),
+                  ),
                 ),
                 Positioned(left: 8, top: 8, child: _RankBadge(rank: item.rank)),
               ],

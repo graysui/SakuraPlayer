@@ -9,6 +9,7 @@ class DesktopShell extends StatelessWidget {
     required this.selectedDestination,
     required this.onDestinationSelected,
     required this.onActorSelected,
+    this.onMovieSelected,
     required this.onCachePressed,
     required this.onSettingsPressed,
     required this.child,
@@ -18,6 +19,7 @@ class DesktopShell extends StatelessWidget {
   final ShellDestination? selectedDestination;
   final ValueChanged<ShellDestination> onDestinationSelected;
   final ValueChanged<String> onActorSelected;
+  final ValueChanged<String>? onMovieSelected;
   final VoidCallback onCachePressed;
   final VoidCallback onSettingsPressed;
   final Widget child;
@@ -99,6 +101,7 @@ class DesktopShell extends StatelessWidget {
                                     ),
                                     child: SearchOverlay(
                                       compact: !extended,
+                                      onMovieSelected: onMovieSelected,
                                       onActorSelected: onActorSelected,
                                     ),
                                   ),

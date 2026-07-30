@@ -4,9 +4,15 @@ import 'package:sakuraplayer_windows/features/search/data/search_api.dart';
 import 'package:sakuraplayer_windows/features/search/presentation/search_controller.dart';
 
 class SearchOverlay extends ConsumerWidget {
-  const SearchOverlay({this.compact = false, this.onActorSelected, super.key});
+  const SearchOverlay({
+    this.compact = false,
+    this.onMovieSelected,
+    this.onActorSelected,
+    super.key,
+  });
 
   final bool compact;
+  final ValueChanged<String>? onMovieSelected;
   final ValueChanged<String>? onActorSelected;
 
   @override
@@ -24,8 +30,10 @@ class SearchOverlay extends ConsumerWidget {
               showDialog<void>(
                 context: context,
                 builder:
-                    (context) =>
-                        _SearchDialog(onActorSelected: onActorSelected),
+                    (context) => _SearchDialog(
+                      onMovieSelected: onMovieSelected,
+                      onActorSelected: onActorSelected,
+                    ),
               );
             },
             borderRadius: BorderRadius.circular(6),
@@ -56,8 +64,12 @@ class SearchOverlay extends ConsumerWidget {
 }
 
 class _SearchDialog extends ConsumerStatefulWidget {
-  const _SearchDialog({required this.onActorSelected});
+  const _SearchDialog({
+    required this.onMovieSelected,
+    required this.onActorSelected,
+  });
 
+  final ValueChanged<String>? onMovieSelected;
   final ValueChanged<String>? onActorSelected;
 
   @override
@@ -119,6 +131,7 @@ class _SearchDialogState extends ConsumerState<_SearchDialog> {
               Expanded(
                 child: _SearchResults(
                   state: state,
+                  onMovieSelected: widget.onMovieSelected,
                   onActorSelected: widget.onActorSelected,
                 ),
               ),
@@ -131,9 +144,14 @@ class _SearchDialogState extends ConsumerState<_SearchDialog> {
 }
 
 class _SearchResults extends StatelessWidget {
-  const _SearchResults({required this.state, required this.onActorSelected});
+  const _SearchResults({
+    required this.state,
+    required this.onMovieSelected,
+    required this.onActorSelected,
+  });
 
   final SearchState state;
+  final ValueChanged<String>? onMovieSelected;
   final ValueChanged<String>? onActorSelected;
 
   @override
@@ -169,6 +187,13 @@ class _SearchResults extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.movie_outlined),
                   title: Text(movie.title, maxLines: 1),
+                  onTap:
+                      onMovieSelected == null
+                          ? null
+                          : () {
+                            Navigator.of(context).pop();
+                            onMovieSelected!(movie.id);
+                          },
                   subtitle: Text(movie.number, maxLines: 1),
                 ),
             ],

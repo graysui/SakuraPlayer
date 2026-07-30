@@ -65,6 +65,20 @@ void main() {
     expect(delegate.mainAxisExtent, 408);
   });
 
+  testWidgets('ranking movie card opens the shared movie detail target', (
+    tester,
+  ) async {
+    String? openedMovie;
+    await _pumpPage(
+      tester,
+      _SequenceGateway(<Object>[_page(board: RankingBoard.daily)]),
+      onOpenMovie: (movieId) => openedMovie = movieId,
+    );
+
+    await tester.tap(find.text('排行榜影片 1'));
+    expect(openedMovie, '00000000-0000-4000-8000-000000000001');
+  });
+
   testWidgets('ranking cards use the shared authenticated cover gateway', (
     tester,
   ) async {
@@ -220,6 +234,7 @@ Future<void> _pumpPage(
   WidgetTester tester,
   RankingsGateway gateway, {
   VoidCallback? onOpenSettings,
+  ValueChanged<String>? onOpenMovie,
   MoviesGateway? moviesGateway,
 }) async {
   await tester.pumpWidget(
@@ -232,7 +247,10 @@ Future<void> _pumpPage(
       ],
       child: MaterialApp(
         home: Scaffold(
-          body: RankingsPage(onOpenSettings: onOpenSettings ?? () {}),
+          body: RankingsPage(
+            onOpenSettings: onOpenSettings ?? () {},
+            onOpenMovie: onOpenMovie,
+          ),
         ),
       ),
     ),

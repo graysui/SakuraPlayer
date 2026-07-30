@@ -203,11 +203,11 @@ class MovieSummaryDto {
       throw const ProtocolException('MovieSummary.labels is invalid');
     }
     final publishDate = reader.nullableString('publish_date');
-    if (publishDate != null && !_isDate(publishDate)) {
+    if (publishDate != null && !isIsoDate(publishDate)) {
       throw const ProtocolException('MovieSummary.publish_date is invalid');
     }
     final coverUrl = reader.nullableString('cover_url');
-    if (coverUrl != null && !_catalogImagePattern.hasMatch(coverUrl)) {
+    if (coverUrl != null && !isCatalogImageUrl(coverUrl)) {
       throw const ProtocolException('MovieSummary.cover_url is invalid');
     }
     return MovieSummaryDto(
@@ -318,7 +318,9 @@ final _catalogImagePattern = RegExp(
   r'^/api/v1/catalog/images/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$',
 );
 
-bool _isDate(String value) {
+bool isCatalogImageUrl(String value) => _catalogImagePattern.hasMatch(value);
+
+bool isIsoDate(String value) {
   if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) return false;
   final parsed = DateTime.tryParse(value);
   return parsed != null &&

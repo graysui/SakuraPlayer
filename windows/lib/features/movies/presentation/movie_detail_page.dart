@@ -1,0 +1,442 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakuraplayer_windows/features/library/presentation/movie_card.dart';
+import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
+import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_controller.dart';
+import 'package:sakuraplayer_windows/features/movies/presentation/source_list.dart';
+
+class MovieDetailPage extends ConsumerStatefulWidget {
+  const MovieDetailPage({
+    required this.movieId,
+    this.onBack,
+    this.onOpenActor,
+    this.onPlaySource,
+    super.key,
+  });
+
+  final String movieId;
+  final VoidCallback? onBack;
+  final ValueChanged<String>? onOpenActor;
+  final ValueChanged<String>? onPlaySource;
+
+  @override
+  ConsumerState<MovieDetailPage> createState() => _MovieDetailPageState();
+}
+
+class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(
+          ref.read(movieDetailControllerProvider.notifier).load(widget.movieId),
+        );
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(MovieDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.movieId != widget.movieId) {
+      unawaited(
+        ref.read(movieDetailControllerProvider.notifier).load(widget.movieId),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(movieDetailControllerProvider);
+    if (state.status == MovieDetailStatus.idle ||
+        state.status == MovieDetailStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.status == MovieDetailStatus.failed) {
+      return _DetailFailure(
+        notFound: state.isNotFound,
+        onBack: widget.onBack,
+        onRetry:
+            () => unawaited(
+              ref.read(movieDetailControllerProvider.notifier).retry(),
+            ),
+      );
+    }
+    final detail = state.detail!;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 900;
+        final horizontalPadding = narrow ? 16.0 : 24.0;
+        return SingleChildScrollView(
+          key: const ValueKey('movie-detail-scroll'),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            20,
+            horizontalPadding,
+            32,
+          ),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1280),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (narrow)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _cover(detail, narrow: true),
+                        const SizedBox(height: 20),
+                        _information(context, state, detail),
+                      ],
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _cover(detail, narrow: false),
+                        const SizedBox(width: 24),
+                        Expanded(child: _information(context, state, detail)),
+                      ],
+                    ),
+                  const SizedBox(height: 28),
+                  _sectionTitle(context, '简介'),
+                  const SizedBox(height: 8),
+                  Text(
+                    detail.description?.trim().isNotEmpty == true
+                        ? detail.description!
+                        : '暂无简介',
+                  ),
+                  if (_isDistinct(
+                    detail.descriptionOriginal,
+                    detail.description,
+                  )) ...[
+                    const SizedBox(height: 10),
+                    Text(detail.descriptionOriginal!),
+                  ],
+                  const SizedBox(height: 28),
+                  _sectionTitle(context, '剧照'),
+                  const SizedBox(height: 10),
+                  _PlotGrid(
+                    urls: detail.plotImageUrls,
+                    loader:
+                        ref.read(movieDetailGatewayProvider).loadCatalogImage,
+                  ),
+                  const SizedBox(height: 28),
+                  _sectionTitle(context, '来源 ${detail.sourceCount}'),
+                  const SizedBox(height: 8),
+                  SourceList(
+                    sources: detail.sources,
+                    selectedSourceId: state.selectedSourceId,
+                    onSelected:
+                        ref
+                            .read(movieDetailControllerProvider.notifier)
+                            .selectSource,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _cover(MovieDetailDto detail, {required bool narrow}) => SizedBox(
+    key: const ValueKey('movie-detail-cover'),
+    width: narrow ? 200 : 240,
+    height: narrow ? 300 : 360,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: _CatalogImage(
+        url: detail.coverUrl,
+        loader: ref.read(movieDetailGatewayProvider).loadCatalogImage,
+        fit: BoxFit.cover,
+        missingLabel: '暂无封面',
+      ),
+    ),
+  );
+
+  Widget _information(
+    BuildContext context,
+    MovieDetailState state,
+    MovieDetailDto detail,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.onBack != null) ...[
+            IconButton(
+              onPressed: widget.onBack,
+              tooltip: '返回媒体库',
+              icon: const Icon(Icons.arrow_back),
+            ),
+            const SizedBox(width: 4),
+          ],
+          Expanded(
+            child: Text(
+              detail.title,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+          ),
+          SizedBox.square(
+            dimension: 48,
+            child: IconButton(
+              onPressed:
+                  state.isFavoriteInFlight
+                      ? null
+                      : () => unawaited(
+                        ref
+                            .read(movieDetailControllerProvider.notifier)
+                            .setFavorite(enabled: !detail.favorite),
+                      ),
+              tooltip: detail.favorite ? '取消收藏影片' : '收藏影片',
+              icon: Icon(
+                detail.favorite ? Icons.favorite : Icons.favorite_border,
+              ),
+            ),
+          ),
+        ],
+      ),
+      if (_isDistinct(detail.titleOriginal, detail.title)) ...[
+        const SizedBox(height: 4),
+        Text(
+          detail.titleOriginal!,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ],
+      const SizedBox(height: 10),
+      Text(detail.number, style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 14,
+        runSpacing: 8,
+        children: [
+          _Metadata('日期', detail.releaseDate ?? detail.publishDate ?? '未知'),
+          _Metadata('厂商', detail.maker ?? '未知'),
+          _Metadata('系列', detail.series ?? '未知'),
+          _Metadata('导演', detail.director ?? '未知'),
+          _Metadata('评分', detail.score?.toString() ?? '未知'),
+        ],
+      ),
+      const SizedBox(height: 16),
+      _sectionTitle(context, '演员'),
+      const SizedBox(height: 6),
+      detail.actors.isEmpty
+          ? const Text('暂无演员')
+          : Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (final actor in detail.actors)
+                TextButton(
+                  onPressed:
+                      widget.onOpenActor == null
+                          ? null
+                          : () => widget.onOpenActor!(actor.id),
+                  child: Text(actor.displayName),
+                ),
+            ],
+          ),
+      const SizedBox(height: 12),
+      _sectionTitle(context, '标签'),
+      const SizedBox(height: 6),
+      detail.tags.isEmpty
+          ? const Text('暂无标签')
+          : Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [for (final tag in detail.tags) Chip(label: Text(tag))],
+          ),
+      if (state.favoriteErrorCode != null) ...[
+        const SizedBox(height: 8),
+        Text(
+          '收藏更新失败，请重试',
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      ],
+      const SizedBox(height: 18),
+      SizedBox(
+        width: 220,
+        height: 44,
+        child: FilledButton.icon(
+          key: const ValueKey('movie-detail-play'),
+          onPressed:
+              state.selectedSourceId != null && widget.onPlaySource != null
+                  ? () => ref
+                      .read(movieDetailControllerProvider.notifier)
+                      .playSelected(widget.onPlaySource)
+                  : null,
+          icon: Icon(
+            detail.progress?.completed == true
+                ? Icons.check_circle_outline
+                : Icons.play_arrow,
+          ),
+          label: Text(movieProgressLabel(detail.progress)),
+        ),
+      ),
+    ],
+  );
+}
+
+class _Metadata extends StatelessWidget {
+  const _Metadata(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 150,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        Text(value, maxLines: 2, overflow: TextOverflow.ellipsis),
+      ],
+    ),
+  );
+}
+
+class _PlotGrid extends StatelessWidget {
+  const _PlotGrid({required this.urls, required this.loader});
+
+  final List<String> urls;
+  final Future<List<int>> Function(String) loader;
+
+  @override
+  Widget build(BuildContext context) {
+    if (urls.isEmpty) return const Text('暂无剧照');
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = ((constraints.maxWidth + 12) / (220 + 12))
+            .floor()
+            .clamp(1, 100);
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: urls.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: 16 / 9,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemBuilder:
+              (context, index) => _CatalogImage(
+                url: urls[index],
+                loader: loader,
+                fit: BoxFit.cover,
+                missingLabel: '剧照加载失败',
+              ),
+        );
+      },
+    );
+  }
+}
+
+class _CatalogImage extends StatefulWidget {
+  const _CatalogImage({
+    required this.url,
+    required this.loader,
+    required this.fit,
+    required this.missingLabel,
+  });
+
+  final String? url;
+  final Future<List<int>> Function(String) loader;
+  final BoxFit fit;
+  final String missingLabel;
+
+  @override
+  State<_CatalogImage> createState() => _CatalogImageState();
+}
+
+class _CatalogImageState extends State<_CatalogImage> {
+  Future<List<int>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_CatalogImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url || oldWidget.loader != widget.loader) {
+      _load();
+    }
+  }
+
+  void _load() {
+    _future = widget.url == null ? null : widget.loader(widget.url!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final future = _future;
+    if (future == null) return _placeholder(context);
+    return FutureBuilder<List<int>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return _placeholder(context);
+        }
+        return Image.memory(
+          Uint8List.fromList(snapshot.data!),
+          fit: widget.fit,
+          errorBuilder: (context, error, stackTrace) => _placeholder(context),
+        );
+      },
+    );
+  }
+
+  Widget _placeholder(BuildContext context) => ColoredBox(
+    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+    child: Center(child: Text(widget.missingLabel)),
+  );
+}
+
+class _DetailFailure extends StatelessWidget {
+  const _DetailFailure({
+    required this.notFound,
+    required this.onBack,
+    required this.onRetry,
+  });
+
+  final bool notFound;
+  final VoidCallback? onBack;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(notFound ? '影片资料不存在' : '影片详情加载失败'),
+        const SizedBox(height: 12),
+        if (!notFound)
+          FilledButton(onPressed: onRetry, child: const Text('重试')),
+        if (onBack != null)
+          TextButton(onPressed: onBack, child: const Text('返回媒体库')),
+      ],
+    ),
+  );
+}
+
+Widget _sectionTitle(BuildContext context, String label) =>
+    Text(label, style: Theme.of(context).textTheme.titleMedium);
+
+bool _isDistinct(String? value, String? primary) =>
+    value != null && value.trim().isNotEmpty && value.trim() != primary?.trim();

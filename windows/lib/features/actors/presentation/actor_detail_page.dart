@@ -9,10 +9,16 @@ import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/movie_card.dart';
 
 class ActorDetailPage extends ConsumerStatefulWidget {
-  const ActorDetailPage({required this.actorId, this.onBack, super.key});
+  const ActorDetailPage({
+    required this.actorId,
+    this.onBack,
+    this.onOpenMovie,
+    super.key,
+  });
 
   final String actorId;
   final VoidCallback? onBack;
+  final ValueChanged<String>? onOpenMovie;
 
   @override
   ConsumerState<ActorDetailPage> createState() => _ActorDetailPageState();
@@ -202,6 +208,11 @@ class _ActorDetailPageState extends ConsumerState<ActorDetailPage> {
                   (context, index) => MovieCard(
                     movie: detail.movies[index],
                     coverLoader: coverLoader,
+                    onOpen:
+                        widget.onOpenMovie == null
+                            ? null
+                            : () =>
+                                widget.onOpenMovie!(detail.movies[index].id),
                   ),
                   childCount: detail.movies.length,
                 ),

@@ -3,7 +3,10 @@ id: TASK-207
 title: "影片详情多来源与收藏"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
+started_date: 2026-07-30
+implemented_date: 2026-07-30
+completed_date: 2026-07-30
 dependencies: [TASK-204, TASK-206]
 ac-mapping: [AC-031, AC-033, AC-034, AC-035, AC-068, AC-074, AC-077, AC-078]
 imp-requirements: [REQ-007, REQ-013, REQ-015]
@@ -22,16 +25,16 @@ provides: [Windows movie detail and source selector]
 
 ## 验收条件
 
-- [ ] 详情显示规格要求的封面、中日标题、番号、日期、厂商、系列、导演、演员、标签、评分、简介、剧照、进度和收藏；对应 AC-074。
-- [ ] 多个 AVdb 来源独立列出并支持选择，字幕/破解/4K/有码标签可叠加；对应 AC-031、AC-033、AC-034。
-- [ ] 离线前显示“资源大小”，ready 后显示“视频文件大小”；对应 AC-035。
-- [ ] 播放按钮显示影片级进度/已看完；收藏单一且无历史页；对应 AC-068、AC-077、AC-078。
+- [x] 详情显示规格要求的封面、中日标题、番号、日期、厂商、系列、导演、演员、标签、评分、简介、剧照、进度和收藏；对应 AC-074。
+- [x] 多个 AVdb 来源独立列出并支持选择，字幕/破解/4K/有码标签可叠加；对应 AC-031、AC-033、AC-034。
+- [x] 离线前显示“资源大小”，ready 后显示“视频文件大小”；对应 AC-035。
+- [x] 播放按钮显示影片级进度/已看完；收藏单一且无历史页；对应 AC-068、AC-077、AC-078。
 
 ## Definition of Ready
 
-- [ ] TASK-204 MovieSummary/MovieCard、TASK-206 Actor DTO/typed route 和 MovieDetail API 可用。
-- [ ] 详情 DTO、UUID route、认证图片、来源 availability/两个大小、收藏恢复和响应式布局已由 [Windows 影片详情客户端契约](../contracts/windows-movie-detail-client.md) 确定。
-- [ ] 用户显式选择非 rejected 来源；TASK-207 只向 TASK-209 输出 source_id，不提前调用 play-request。
+- [x] TASK-204 MovieSummary/MovieCard、TASK-206 Actor DTO/typed route 和 MovieDetail API 可用。
+- [x] 详情 DTO、UUID route、认证图片、来源 availability/两个大小、收藏恢复和响应式布局已由 [Windows 影片详情客户端契约](../contracts/windows-movie-detail-client.md) 确定。
+- [x] 用户显式选择非 rejected 来源；TASK-207 只向 TASK-209 输出 source_id，不提前调用 play-request。
 
 ## 技术上下文
 
@@ -48,8 +51,8 @@ provides: [Windows movie detail and source selector]
 - `windows/lib/features/movies/presentation/movie_detail_controller.dart` - 加载/收藏/来源选择。
 - `windows/lib/features/movies/presentation/movie_detail_page.dart` - 桌面详情布局。
 - `windows/lib/features/movies/presentation/source_list.dart` - 来源标签/大小/状态。
-- `windows/test/features/movies/movie_detail_test.dart` - 聚合字段/收藏/进度。
-- `windows/test/features/movies/source_list_test.dart` - 多来源/标签/大小。
+- `windows/test/features/movies/movie_detail_controller_test.dart` - 聚合字段/收藏/状态。
+- `windows/test/features/movies/movie_detail_page_test.dart` - 多来源/标签/大小/布局。
 
 **修改**:
 
@@ -65,9 +68,18 @@ provides: [Windows movie detail and source selector]
 
 ## Definition of Done
 
-- [ ] 详情、来源、收藏和进度显示完成。
-- [ ] 来源选择只输出 source_id。
-- [ ] 四类入口、Actor 导航、多来源和响应式布局测试通过。
+- [x] 详情、来源、收藏和进度显示完成。
+- [x] 来源选择只输出 source_id。
+- [x] 四类入口、Actor 导航、多来源和响应式布局测试通过。
+
+## Implementation Summary
+
+- 新增严格 MovieDetail/MovieSource DTO、认证目录图片读取、UUID typed route、详情 generation、404/重试、收藏 204 与失败保留，并复用 TASK-204 摘要/进度和 TASK-206 Actor DTO。
+- 实现响应式连续详情页、固定封面/剧照/来源几何、六种来源状态、真实/资源大小分流、显式非 rejected 来源选择，以及只输出 source_id 的 TASK-209 注入边界。
+- 媒体库、排行榜、女优关联 MovieCard 和全局搜索影片结果统一进入详情；详情演员复用 Actor typed route，卡片正文与播放按钮均不提前调用 play-request。
+- Final 通过 `flutter analyze`、133 项 `flutter test` 和 Windows debug build，生成 `sakuraplayer_windows.exe`；默认测试未访问真实 115、JavDB 写操作或付费 AI。
+
+**完成日期**: 2026-07-30
 
 **依赖**: TASK-204, TASK-206
 

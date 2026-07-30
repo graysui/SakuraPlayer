@@ -9,12 +9,14 @@ class MovieCard extends StatefulWidget {
   const MovieCard({
     required this.movie,
     required this.coverLoader,
+    this.onOpen,
     this.onPlay,
     super.key,
   });
 
   final MovieSummaryDto movie;
   final MovieCoverLoader coverLoader;
+  final VoidCallback? onOpen;
   final VoidCallback? onPlay;
 
   @override
@@ -48,118 +50,123 @@ class _MovieCardState extends State<MovieCard> {
   Widget build(BuildContext context) {
     final movie = widget.movie;
     final progress = movie.progress;
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            height: 264,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ColoredBox(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Center(
-                    child: AspectRatio(
-                      key: const ValueKey('movie-poster-aspect'),
-                      aspectRatio: 2 / 3,
-                      child: _Cover(
-                        future: _cover,
-                        hasCover: movie.coverUrl != null,
-                      ),
-                    ),
-                  ),
-                ),
-                if (movie.labels.isNotEmpty)
-                  Positioned(
-                    left: 8,
-                    bottom: 8,
-                    child: Wrap(
-                      spacing: 4,
-                      children: [
-                        for (final label in movie.labels.take(2))
-                          _PosterBadge(label: _labelNames[label] ?? label),
-                      ],
-                    ),
-                  ),
-                if (movie.favorite)
-                  const Positioned(
-                    right: 8,
-                    top: 8,
-                    child: _PosterBadge(icon: Icons.favorite),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onOpen,
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 264,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  SizedBox(
-                    height: 40,
-                    child: Text(
-                      movie.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                  ),
-                  SizedBox(
-                    height: 20,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            movie.number,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
+                  ColoredBox(
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: Center(
+                      child: AspectRatio(
+                        key: const ValueKey('movie-poster-aspect'),
+                        aspectRatio: 2 / 3,
+                        child: _Cover(
+                          future: _cover,
+                          hasCover: movie.coverUrl != null,
                         ),
-                        Text(
-                          '${movie.sourceCount} 个来源',
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    height: 4,
-                    child:
-                        progress?.fraction == null
-                            ? const SizedBox.shrink()
-                            : LinearProgressIndicator(
-                              value: progress!.fraction,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    height: 36,
-                    child: FilledButton.tonalIcon(
-                      onPressed: widget.onPlay,
-                      icon: Icon(
-                        progress?.completed == true
-                            ? Icons.check_circle_outline
-                            : Icons.play_arrow,
-                        size: 18,
-                      ),
-                      label: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(_progressLabel(progress)),
                       ),
                     ),
                   ),
+                  if (movie.labels.isNotEmpty)
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Wrap(
+                        spacing: 4,
+                        children: [
+                          for (final label in movie.labels.take(2))
+                            _PosterBadge(label: _labelNames[label] ?? label),
+                        ],
+                      ),
+                    ),
+                  if (movie.favorite)
+                    const Positioned(
+                      right: 8,
+                      top: 8,
+                      child: _PosterBadge(icon: Icons.favorite),
+                    ),
                 ],
               ),
             ),
-          ),
-        ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: 40,
+                      child: Text(
+                        movie.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 20,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              movie.number,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                          ),
+                          Text(
+                            '${movie.sourceCount} 个来源',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      height: 4,
+                      child:
+                          progress?.fraction == null
+                              ? const SizedBox.shrink()
+                              : LinearProgressIndicator(
+                                value: progress!.fraction,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 36,
+                      child: FilledButton.tonalIcon(
+                        onPressed: widget.onPlay ?? widget.onOpen,
+                        icon: Icon(
+                          progress?.completed == true
+                              ? Icons.check_circle_outline
+                              : Icons.play_arrow,
+                          size: 18,
+                        ),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(movieProgressLabel(progress)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -245,7 +252,7 @@ class _PosterBadge extends StatelessWidget {
   }
 }
 
-String _progressLabel(PlaybackProgressDto? progress) {
+String movieProgressLabel(PlaybackProgressDto? progress) {
   if (progress == null) return '播放';
   if (progress.completed) return '已看完';
   final fraction = progress.fraction;

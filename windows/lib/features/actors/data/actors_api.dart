@@ -250,14 +250,8 @@ void _validateStringCollection(List<String> values, String context) {
   }
 }
 
-bool isValidActorId(String value) => _uuidPattern.hasMatch(value);
+bool isValidActorId(String value) => isValidUuid(value);
 
 void requireActorId(String value) {
-  if (!isValidActorId(value)) {
-    throw ArgumentError.value(value, 'actorId', 'must be a UUID');
-  }
+  requireUuid(value, 'actorId');
 }
-
-final _uuidPattern = RegExp(
-  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
-);

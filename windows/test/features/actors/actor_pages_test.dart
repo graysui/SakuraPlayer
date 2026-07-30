@@ -58,10 +58,14 @@ void main() {
       page: const ActorPageDto(items: <ActorSummaryDto>[], nextCursor: null),
       detail: _detail(),
     );
+    String? openedMovie;
     await _pump(
       tester,
       gateway: gateway,
-      child: const ActorDetailPage(actorId: actorId),
+      child: ActorDetailPage(
+        actorId: actorId,
+        onOpenMovie: (movieId) => openedMovie = movieId,
+      ),
     );
 
     expect(find.text('暂无头像'), findsOneWidget);
@@ -69,6 +73,10 @@ void main() {
     expect(find.text('暂无写真'), findsOneWidget);
     expect(find.byType(MovieCard), findsOneWidget);
     expect(find.text('关联影片'), findsNWidgets(2));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('关联影片').last);
+    expect(openedMovie, '00000000-0000-4000-8000-000000000002');
   });
 
   testWidgets('gallery opens a zoom viewer and moves between images', (

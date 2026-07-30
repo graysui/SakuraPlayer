@@ -202,6 +202,37 @@ void main() {
     expect(selectedActorId, '00000000-0000-4000-8000-000000000002');
     expect(find.byType(Dialog), findsNothing);
   });
+
+  testWidgets('movie search result closes the dialog and reports its id', (
+    tester,
+  ) async {
+    String? selectedMovieId;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchGatewayProvider.overrideWithValue(_SearchGateway()),
+          searchDebounceDurationProvider.overrideWithValue(Duration.zero),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SearchOverlay(
+              onMovieSelected: (movieId) => selectedMovieId = movieId,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('全局搜索'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'ABC-123');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, '测试影片'));
+    await tester.pumpAndSettle();
+
+    expect(selectedMovieId, '00000000-0000-4000-8000-000000000001');
+    expect(find.byType(Dialog), findsNothing);
+  });
 }
 
 class _SearchGateway implements SearchGateway {

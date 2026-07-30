@@ -12,6 +12,8 @@ import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dar
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
+import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
+import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
 import 'package:sakuraplayer_windows/features/rankings/data/rankings_api.dart';
 import 'package:sakuraplayer_windows/routes/app_router.dart';
 import 'package:sakuraplayer_windows/theme/app_theme.dart';
@@ -124,6 +126,44 @@ void main() {
     expect(find.byType(ActorDetailPage), findsNothing);
   });
 
+  testWidgets('movie detail typed route stays inside the library shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authSessionStateProvider.overrideWithValue(
+            AuthSessionState.authenticated(
+              serverBaseUri: Uri.parse('https://server.test'),
+            ),
+          ),
+          moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+          movieDetailGatewayProvider.overrideWithValue(
+            const _MovieDetailGateway(),
+          ),
+        ],
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.byType(DesktopShell)));
+    router.go(MovieDetailRoute(_movieId).location);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MovieDetailPage), findsOneWidget);
+    expect(find.text('路由影片'), findsOneWidget);
+    expect(
+      tester.widget<NavigationRail>(find.byType(NavigationRail)).selectedIndex,
+      ShellDestination.library.index,
+    );
+
+    router.go('/app/movies/not-a-movie-id');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('library-page')), findsOneWidget);
+    expect(find.byType(MovieDetailPage), findsNothing);
+  });
+
   testWidgets('theme controller supports system light and dark', (
     tester,
   ) async {
@@ -163,6 +203,7 @@ void main() {
       '/app/rankings',
       '/app/actors',
       '/app/actors/:actor_id',
+      '/app/movies/:movie_id',
       '/app/cache',
       '/app/settings',
       '/player',
@@ -170,6 +211,7 @@ void main() {
     expect(appRouteLocations.any((path) => path.contains('age')), isFalse);
     expect(appRouteLocations.any((path) => path.contains('external')), isFalse);
     expect(() => ActorDetailRoute('not-an-actor-id'), throwsArgumentError);
+    expect(() => MovieDetailRoute('not-a-movie-id'), throwsArgumentError);
   });
 
   test('project contains only the Windows platform runner', () {
@@ -219,6 +261,7 @@ class _EmptyRankingsGateway implements RankingsGateway {
 }
 
 const _actorId = '00000000-0000-4000-8000-000000000010';
+const _movieId = '00000000-0000-4000-8000-000000000020';
 
 class _ActorsGateway implements ActorsGateway {
   const _ActorsGateway();
@@ -246,4 +289,39 @@ class _ActorsGateway implements ActorsGateway {
 
   @override
   Future<void> setFavorite(String actorId, {required bool enabled}) async {}
+}
+
+class _MovieDetailGateway implements MovieDetailGateway {
+  const _MovieDetailGateway();
+
+  @override
+  Future<MovieDetailDto> getMovie(String movieId) async => MovieDetailDto(
+    id: movieId,
+    number: 'ABC-123',
+    title: '路由影片',
+    titleOriginal: null,
+    coverUrl: null,
+    publishDate: null,
+    labels: const <String>[],
+    favorite: false,
+    sourceCount: 1,
+    progress: null,
+    releaseDate: null,
+    maker: null,
+    series: null,
+    director: null,
+    score: null,
+    description: null,
+    descriptionOriginal: null,
+    actors: const <ActorSummaryDto>[],
+    tags: const <String>[],
+    plotImageUrls: const <String>[],
+    sources: const <MovieSourceDto>[],
+  );
+
+  @override
+  Future<List<int>> loadCatalogImage(String imageUrl) async => <int>[];
+
+  @override
+  Future<void> setFavorite(String movieId, {required bool enabled}) async {}
 }

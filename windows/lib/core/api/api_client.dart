@@ -204,7 +204,7 @@ class ApiClient {
     Map<String, Object?>? data,
     Map<String, Object?>? query,
   }) async {
-    await _request(
+    final response = await _request(
       method,
       path,
       auth: auth,
@@ -212,6 +212,12 @@ class ApiClient {
       data: data,
       query: query,
     );
+    if (response.statusCode != 204) {
+      throw const ApiException(
+        code: 'client_protocol_error',
+        message: 'The server returned a non-empty success response.',
+      );
+    }
   }
 
   Future<Response<Object?>> _request(

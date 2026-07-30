@@ -139,6 +139,31 @@ void main() {
     },
   );
 
+  testWidgets('movie card body and play button both open detail', (
+    tester,
+  ) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 200,
+            height: 408,
+            child: MovieCard(
+              movie: _movie(),
+              coverLoader: (_) async => <int>[],
+              onOpen: () => opened++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('测试影片'));
+    await tester.tap(find.text('播放'));
+    expect(opened, 2);
+  });
+
   testWidgets(
     'page renders one stable card per movie and five desktop tracks',
     (tester) async {
@@ -152,11 +177,18 @@ void main() {
           nextCursor: null,
         ),
       ]);
+      String? openedMovie;
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [moviesGatewayProvider.overrideWithValue(gateway)],
-          child: const MaterialApp(home: Scaffold(body: LibraryPage())),
+          child: MaterialApp(
+            home: Scaffold(
+              body: LibraryPage(
+                onOpenMovie: (movieId) => openedMovie = movieId,
+              ),
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -170,6 +202,8 @@ void main() {
           grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
       expect(delegate.crossAxisCount, 5);
       expect(delegate.mainAxisExtent, 408);
+      await tester.tap(find.text('测试影片'));
+      expect(openedMovie, _movie().id);
     },
   );
 
