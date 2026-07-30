@@ -4,7 +4,7 @@ title: "女优列表详情与写真"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
-dependencies: [TASK-203]
+dependencies: [TASK-204]
 ac-mapping: [AC-051, AC-052, AC-053, AC-075, AC-076, AC-077]
 imp-requirements: [REQ-010, REQ-015]
 cross-boundary: false
@@ -35,15 +35,15 @@ provides: [Windows actress listing detail gallery cache]
 
 ## Definition of Ready
 
-- [ ] TASK-203 route/search 和 `/actors` 契约可用。
-- [ ] 本地图片 cacheDir、LRU/过期策略和占位资源已确定。
+- [ ] TASK-204 Shell、MovieSummary/MovieCard、TASK-203 全局搜索和 `/actors` 契约可用。
+- [ ] TASK-206 自身拥有 Actor DTO/API；本地 cacheDir、URL 安全、LRU/过期、并发、取消和占位资源已由 [Windows 女优客户端契约](../contracts/windows-actors-client.md) 确定。
 - [ ] 客户端不做名字匹配或 URL 拼接。
 
 ## 技术上下文
 
 - 写真使用实际图片网格/查看器，缓存位于应用私有 cacheDir。
-- 大图按需加载并限制并发，页面销毁取消无用请求。
-- 关联影片复用 MovieCard，收藏通过幂等 API。
+- 大图按需加载并限制全局并发，同 URL 单飞；页面销毁取消无用请求，单图失败不清空成功详情。
+- 全局搜索和列表进入女优详情；关联影片只读复用 MovieCard，影片详情导航归 TASK-207；收藏通过幂等 API。
 
 ## 实现文件（仅文件名）
 
@@ -60,7 +60,7 @@ provides: [Windows actress listing detail gallery cache]
 ## 测试说明
 
 - 姓名/别名搜索、长别名换行、无头像/简介/写真占位。
-- 收藏幂等和关联影片导航。
+- 收藏幂等、全局搜索/列表到女优详情导航和关联影片卡片展示。
 - GFriends URL 失败/重复/过期/退出清理，不影响永久封面缓存。
 
 ## Definition of Done
@@ -68,8 +68,9 @@ provides: [Windows actress listing detail gallery cache]
 - [ ] 女优列表/详情/收藏/写真完成。
 - [ ] 客户端无歧义姓名关联逻辑。
 - [ ] 临时/永久图片缓存隔离测试通过。
+- [ ] 下载 URL、8 MiB、四并发、取消、7 天期限及 512/256 MiB LRU 边界测试通过。
 
-**依赖**: TASK-203
+**依赖**: TASK-204
 
 **实现命令**:
 

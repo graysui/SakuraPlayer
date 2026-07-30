@@ -110,9 +110,9 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 - **AC-049 `[IMP]`**: 后端每周刷新 `actor-mapping.xml` 和 GFriends `Filetree.json`，失败时继续使用最近一次成功缓存。
 - **AC-050 `[IMP]`**: 演员映射保存中文名、日文名、权威别名和可用简介，不把用户搜索词写入别名。
-- **AC-051 `[IMP]`**: GFriends 同时提供头像和写真图库，但只有唯一、明确的姓名或别名匹配才能关联；歧义匹配必须丢弃。
-- **AC-052 `[IMP]`**: GFriends 只持久化索引和 URL，图片按需进入客户端缓存，不镜像全部图片。
-- **AC-053 `[IMP]`**: 媒体库永久图片与 GFriends 临时图片必须使用不同生命周期。
+- **AC-051 `[IMP]`**: GFriends 同时提供头像和写真图库，但只有唯一、明确的姓名或别名匹配才能关联；歧义匹配必须丢弃，Windows 客户端只消费后端关联结果和精确 URL 边界由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结。
+- **AC-052 `[IMP]`**: GFriends 只持久化索引和 URL，图片按需进入客户端缓存，不镜像全部图片；Windows 下载并发、取消、大小和文件缓存遵循 [Windows 女优客户端契约](contracts/windows-actors-client.md)。
+- **AC-053 `[IMP]`**: 媒体库永久图片与 GFriends 临时图片必须使用不同生命周期；Windows 目录、期限、LRU 和认证会话清理由 [Windows 女优客户端契约](contracts/windows-actors-client.md) 约束。
 
 ### REQ-011 AI 翻译
 
@@ -151,9 +151,9 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 ### REQ-015 影片详情与女优详情
 
 - **AC-074 `[IMP]`**: 影片详情展示封面、中日文标题、番号、日期、厂商、系列、导演、演员、标签、评分、简介、剧照、观看进度、收藏和多来源资源。
-- **AC-075 `[IMP]`**: 女优列表支持姓名和别名搜索。
-- **AC-076 `[IMP]`**: 女优详情展示头像、中日文名、别名、简介、写真图库、关联影片网格和收藏状态；所有嵌套集合使用确定性顺序且最多 100 项。
-- **AC-077 `[IMP]`**: 首版提供可稳定游标分页查看的影片和女优单一收藏集合，不提供多个自定义播放列表；Windows 影片收藏筛选由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 约束。
+- **AC-075 `[IMP]`**: 女优列表支持姓名和别名搜索；Windows 查询 generation、分页恢复与路由遵循 [Windows 女优客户端契约](contracts/windows-actors-client.md)。
+- **AC-076 `[IMP]`**: 女优详情展示头像、中日文名、别名、简介、写真图库、关联影片网格和收藏状态；所有嵌套集合使用确定性顺序且最多 100 项，Windows 写真失败隔离、查看器和布局由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结。
+- **AC-077 `[IMP]`**: 首版提供可稳定游标分页查看的影片和女优单一收藏集合，不提供多个自定义播放列表；Windows 影片收藏筛选由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 约束，女优收藏与失败保留由 [Windows 女优客户端契约](contracts/windows-actors-client.md) 约束。
 - **AC-078 `[IMP]`**: 首版不提供独立观看历史列表，即使后端持久化播放进度。
 
 ## 8. 115 离线与缓存
