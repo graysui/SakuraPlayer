@@ -24,7 +24,7 @@
 | [TASK-204](tasks/TASK-204.md) | 媒体库网格、筛选与进度卡片 | 六分类、标签、大小、分页 | TASK-203 | 否 |
 | [TASK-205](tasks/TASK-205.md) | 日/周/月/TOP250 排行榜 | 本地快照、年份筛选 | TASK-204 | 否 |
 | [TASK-206](tasks/TASK-206.md) | 女优列表、详情与写真 | 名称/别名、收藏、图库缓存 | TASK-204 | 是 |
-| [TASK-207](tasks/TASK-207.md) | 影片详情、多来源与收藏 | 聚合资料、叠加标签、资源大小 | TASK-204,TASK-206 | 否 |
+| [TASK-207](tasks/TASK-207.md) | 影片详情、多来源与收藏 | 聚合资料、typed route、来源选择与收藏 | TASK-204,TASK-206 | 否 |
 | [TASK-208](tasks/TASK-208.md) | 115 扫码、缓存管理、设置与诊断 | QR、TTL、任务操作、脱敏设置 | TASK-202,TASK-112 | 是 |
 | [TASK-209](tasks/TASK-209.md) | 播放请求、全屏等待与通知 | 60 秒锁定、排队、后台完成 | TASK-207,TASK-208 | 否 |
 | [TASK-210](tasks/TASK-210.md) | media_kit 原画/HLS 播放器 | 固定 UA、302、seek 合并、模式 | TASK-209,TASK-109 | 是 |

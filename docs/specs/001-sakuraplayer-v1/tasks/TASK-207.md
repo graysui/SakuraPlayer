@@ -29,14 +29,15 @@ provides: [Windows movie detail and source selector]
 
 ## Definition of Ready
 
-- [ ] TASK-204 MovieCard、TASK-206 Actor navigation 和 MovieDetail API 可用。
-- [ ] 来源标签、availability、两个大小字段 DTO 明确。
-- [ ] 播放操作只传 source_id 给 TASK-209。
+- [ ] TASK-204 MovieSummary/MovieCard、TASK-206 Actor DTO/typed route 和 MovieDetail API 可用。
+- [ ] 详情 DTO、UUID route、认证图片、来源 availability/两个大小、收藏恢复和响应式布局已由 [Windows 影片详情客户端契约](../contracts/windows-movie-detail-client.md) 确定。
+- [ ] 用户显式选择非 rejected 来源；TASK-207 只向 TASK-209 输出 source_id，不提前调用 play-request。
 
 ## 技术上下文
 
 - 详情首屏不嵌套装饰卡片；资源是可扫描列表/表格，不是互斥分类 Tab。
 - 长标题、番号、标签和来源标题需要约束换行/省略，不覆盖操作区。
+- 媒体库、排行榜、搜索和女优关联影片进入同一 MovieId typed route；演员项复用 TASK-206 Actor route。
 - 不显示磁力、帖子 secret 或外部播放器操作。
 
 ## 实现文件（仅文件名）
@@ -50,17 +51,23 @@ provides: [Windows movie detail and source selector]
 - `windows/test/features/movies/movie_detail_test.dart` - 聚合字段/收藏/进度。
 - `windows/test/features/movies/source_list_test.dart` - 多来源/标签/大小。
 
+**修改**:
+
+- `windows/lib/routes/app_router.dart`、`windows/lib/widgets/shell/desktop_shell.dart` - MovieId typed route 与搜索入口。
+- `windows/lib/features/library/presentation/movie_card.dart`、媒体库/排行榜/女优详情 - 统一详情入口。
+- `windows/lib/features/search/presentation/search_overlay.dart` - 影片搜索结果进入详情。
+
 ## 测试说明
 
 - 全字段、部分富化缺失、占位图片、多个演员/标签/来源。
 - 字幕+破解+4K+有码同时显示；亚洲无码无证据不显示破解。
-- raw/queued/running/ready/failed/rejected 状态和大小标签；无历史/播放列表入口。
+- available/queued/running/ready/failed/rejected 状态、可选规则和大小标签；无历史/播放列表入口。
 
 ## Definition of Done
 
 - [ ] 详情、来源、收藏和进度显示完成。
 - [ ] 来源选择只输出 source_id。
-- [ ] 多来源和响应式布局测试通过。
+- [ ] 四类入口、Actor 导航、多来源和响应式布局测试通过。
 
 **依赖**: TASK-204, TASK-206
 

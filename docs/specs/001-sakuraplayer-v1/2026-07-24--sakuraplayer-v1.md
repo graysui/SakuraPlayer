@@ -79,11 +79,11 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 ### REQ-007 影片与多资源关系
 
 - **AC-030 `[IMP]`**: 同一规范化番号只建立一条影片记录，保留原始番号和别名。
-- **AC-031 `[IMP]`**: 每条 AVdb 帖子按来源和帖子 ID 独立保存，并可与同一影片形成多资源关系。
+- **AC-031 `[IMP]`**: 每条 AVdb 帖子按来源和帖子 ID 独立保存，并可与同一影片形成多资源关系；Windows 详情的来源顺序、选择与 TASK-209 交接由 [TASK-207 Windows 影片详情客户端边界](changes/2026-07-30--task-207-movie-detail-client-boundaries.md) 冻结。
 - **AC-032 `[IMP]`**: 后台支持对错误合并执行手动拆分或合并。
 - **AC-033 `[IMP]`**: 资源列表使用可叠加标签，不把中文字幕、无码破解、4K、有码设计为互斥分类。
 - **AC-034 `[IMP]`**: `section=中文字幕` 可产生中文字幕标签；`category=无码破解` 或标题明确包含无码破解可产生破解标签；`section=4K原版` 可产生 4K 标签；只有明确字段或元数据证据可产生有码标签。
-- **AC-035 `[IMP]`**: AVdb `size` 在离线前显示为“资源大小”；115 枚举文件后显示真实视频文件大小。
+- **AC-035 `[IMP]`**: AVdb `size` 在离线前显示为“资源大小”；115 枚举文件后显示真实视频文件大小；Windows 状态与空值文案遵循 [Windows 影片详情客户端契约](contracts/windows-movie-detail-client.md)。
 - **AC-036 `[IMP]`**: 115 明确返回资源失效、违规或无法离线时，删除活动资源并保存不含磁力内容的拒绝标记，后续同步不得重新导入该来源帖子。
 
 ## 6. 元数据、演员与翻译
@@ -138,7 +138,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-065 `[IMP]`**: 全局搜索支持番号、影片标题、演员姓名和别名，结果按影片与女优分组；番号精确结果优先，歧义别名返回全部演员结果。
 - **AC-066 `[IMP]`**: 搜索命中尚未刮削的 AVdb 番号时显示补全状态；无任务时创建最高优先级任务，既有 queued 任务原子提升，running 复用，failed 不自动重试。
 - **AC-067 `[IMP]`**: 只有核心元数据成功的影片可以显示正式影片卡片和详情页。
-- **AC-068 `[IMP]`**: 影片卡片和详情页播放按钮显示影片级播放进度或已看完状态；TASK-111 交付前通过稳定只读端口返回 null，Windows 未知时长显示遵循 [Windows 媒体库客户端契约](contracts/windows-library-client.md)。
+- **AC-068 `[IMP]`**: 影片卡片和详情页播放按钮显示影片级播放进度或已看完状态；TASK-111 交付前通过稳定只读端口返回 null，Windows 未知时长显示遵循 [Windows 媒体库客户端契约](contracts/windows-library-client.md)，详情来源选择与固定操作几何遵循 [Windows 影片详情客户端契约](contracts/windows-movie-detail-client.md)。
 
 ### REQ-014 排行榜
 
@@ -150,10 +150,10 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-015 影片详情与女优详情
 
-- **AC-074 `[IMP]`**: 影片详情展示封面、中日文标题、番号、日期、厂商、系列、导演、演员、标签、评分、简介、剧照、观看进度、收藏和多来源资源。
+- **AC-074 `[IMP]`**: 影片详情展示封面、中日文标题、番号、日期、厂商、系列、导演、演员、标签、评分、简介、剧照、观看进度、收藏和多来源资源；Windows DTO、route、失败恢复、认证图片与布局由 [TASK-207 Windows 影片详情客户端边界](changes/2026-07-30--task-207-movie-detail-client-boundaries.md) 冻结。
 - **AC-075 `[IMP]`**: 女优列表支持姓名和别名搜索；Windows 查询 generation、分页恢复与路由遵循 [Windows 女优客户端契约](contracts/windows-actors-client.md)。
 - **AC-076 `[IMP]`**: 女优详情展示头像、中日文名、别名、简介、写真图库、关联影片网格和收藏状态；所有嵌套集合使用确定性顺序且最多 100 项，Windows 写真失败隔离、查看器和布局由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结。
-- **AC-077 `[IMP]`**: 首版提供可稳定游标分页查看的影片和女优单一收藏集合，不提供多个自定义播放列表；Windows 影片收藏筛选由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 约束，女优收藏与失败保留由 [Windows 女优客户端契约](contracts/windows-actors-client.md) 约束。
+- **AC-077 `[IMP]`**: 首版提供可稳定游标分页查看的影片和女优单一收藏集合，不提供多个自定义播放列表；Windows 影片收藏筛选由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 约束，影片详情收藏恢复由 [Windows 影片详情客户端契约](contracts/windows-movie-detail-client.md) 约束，女优收藏与失败保留由 [Windows 女优客户端契约](contracts/windows-actors-client.md) 约束。
 - **AC-078 `[IMP]`**: 首版不提供独立观看历史列表，即使后端持久化播放进度。
 
 ## 8. 115 离线与缓存
