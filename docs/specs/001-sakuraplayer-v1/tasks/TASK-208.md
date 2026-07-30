@@ -18,6 +18,8 @@ provides: [Windows QR binding UI, cache page, settings diagnostics]
 
 **功能描述**: 实现 115 QR 绑定状态、缓存任务页、TTL 设置、连接测试、脱敏诊断和管理员重试/取消/清理操作。
 
+**实施边界**: [TASK-208 Windows 设置与缓存客户端边界](../changes/2026-07-30--task-208-settings-cache-client-boundaries.md)
+
 **规格映射**: AC-013、AC-016、AC-094、AC-118 至 AC-122
 
 ## 外部依赖风险
@@ -36,9 +38,9 @@ provides: [Windows QR binding UI, cache page, settings diagnostics]
 
 ## Definition of Ready
 
-- [ ] TASK-202 secure/API/event，TASK-112 settings/cache/admin 契约可用。
-- [ ] 二次确认取消、active lease 清理拒绝和 error code 文案已定义。
-- [ ] API key/password 输入只发送，不回显。
+- [x] TASK-202 secure/API/event，TASK-112 settings/cache/admin 契约可用。
+- [x] 二次确认取消、active lease 清理拒绝、QR expired/unavailable 与 error code 文案已由 [Windows 设置与缓存客户端契约](../contracts/windows-settings-cache-client.md) 定义。
+- [x] API key/password 输入只发送、不回显，JavDB/AI 对象级 replace/clear CAS 与秘密输入生命周期已冻结。
 
 ## 技术上下文
 
@@ -54,14 +56,17 @@ provides: [Windows QR binding UI, cache page, settings diagnostics]
 - `windows/lib/features/settings/presentation/qr_binding_controller.dart` - QR 状态。
 - `windows/lib/features/cache/presentation/cache_page.dart` - 任务/容量/操作。
 - `windows/lib/features/settings/presentation/diagnostics_page.dart` - 脱敏诊断。
+- `windows/lib/features/settings/data/settings_api.dart` - 设置/QR/诊断/元数据严格 DTO 与 gateway。
+- `windows/lib/features/cache/data/cache_api.dart` - 缓存分页/容量/操作 gateway。
+- `windows/lib/features/settings/presentation/settings_controller.dart`、`windows/lib/features/cache/presentation/cache_controller.dart` - generation、分页、CAS 与操作状态。
 - `windows/test/features/settings/qr_settings_test.dart` - QR/secret/TTL。
 - `windows/test/features/cache/cache_page_test.dart` - 状态/取消/清理。
 
 ## 测试说明
 
-- QR 全状态、expired/unavailable 文案区别、重绑有活动任务错误。
+- QR 全状态、2 秒串行轮询/释放、expired/unavailable 文案区别、重绑有活动任务错误。
 - TTL 0/1/24/168/169 边界；固定并发/超时无可编辑控件。
-- 取消二次确认、active lease 清理拒绝、元数据失败完整重试、warning 富化阶段重试；Widget tree 无 secret 文本。
+- 13 个缓存状态、取消二次确认、active lease 清理拒绝、元数据失败完整重试、warning 富化阶段重试；Widget tree 无 secret 文本。
 
 ## Definition of Done
 

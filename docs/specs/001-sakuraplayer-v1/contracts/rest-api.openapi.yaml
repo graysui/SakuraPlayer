@@ -2107,7 +2107,7 @@ components:
           type: boolean
         status:
           type: string
-          enum: [unknown, available, unavailable, credentials_invalid]
+          enum: [unknown, available, unavailable, credentials_invalid, not_configured]
         last_checked_at:
           type: [string, 'null']
           format: date-time

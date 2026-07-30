@@ -50,10 +50,10 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-004 115 扫码与凭据保护
 
-- **AC-013 `[IMP]`**: Windows 和 HarmonyOS 客户端可发起 115 扫码登录并展示扫码状态；内部协议边界遵循 [TASK-101 Cloud115 协议就绪变更](changes/2026-07-27--task-101-cloud115-readiness.md)。
+- **AC-013 `[IMP]`**: Windows 和 HarmonyOS 客户端可发起 115 扫码登录并展示扫码状态；内部协议边界遵循 [TASK-101 Cloud115 协议就绪变更](changes/2026-07-27--task-101-cloud115-readiness.md)，Windows 轮询、内存图片与恢复遵循 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md)。
 - **AC-014 `[IMP]`**: 115 Cookie 仅由后端持有，使用 Docker Secret 或环境变量提供的主密钥加密后写入 PostgreSQL。
 - **AC-015 `[IMP]`**: Cookie 更新采用并发安全写回，重新扫码不得被旧请求覆盖。
-- **AC-016 `[IMP]`**: Cookie 失效必须返回稳定错误码并提示重新扫码，不得伪装成普通播放失败；临时 unavailable 与协议错误保持独立语义。
+- **AC-016 `[IMP]`**: Cookie 失效必须返回稳定错误码并提示重新扫码，不得伪装成普通播放失败；临时 unavailable 与协议错误保持独立语义，Windows 文案与状态恢复由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 冻结。
 - **AC-017 `[IMP]`**: 普通日志、异常和诊断 API 不得输出 Cookie、完整磁力、AI 密钥、上游响应正文或完整签名播放 URL。
 
 ## 5. AVdb 导入与资源目录
@@ -185,7 +185,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
   冻结。
 - **AC-092 `[IMP]`**: 离线完成后递归枚举视频和字幕文件，排除明显广告、样片和低于技术方案阈值的文件。
 - **AC-093 `[IMP]`**: 能明确识别主视频时自动选中；存在多个有效候选时显示文件选择器；连续分段按顺序组成播放队列。
-- **AC-094 `[IMP]`**: 已物化的待选择/就绪缓存采用默认 24 小时滑动 TTL，可由管理员设置为 1 小时至 7 天；设置变更作用于新缓存和下一次成功访问。
+- **AC-094 `[IMP]`**: 已物化的待选择/就绪缓存采用默认 24 小时滑动 TTL，可由管理员设置为 1 小时至 7 天；设置变更作用于新缓存和下一次成功访问，Windows 输入和失败恢复遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
 - **AC-095 `[IMP]`**: 就绪容量默认收敛到最多 20 个，超过目标时按稳定的最后访问顺序清理最久未访问且可清理的缓存；删除未确认或失败时不得虚减容量。
 - **AC-096 `[IMP]`**: 正在播放的缓存拥有租约，租约有效时不得自动清理。
 - **AC-097 `[IMP]`**: 运行中的任务不参与 TTL 或 LRU 清理，只能由用户取消。
@@ -225,14 +225,14 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-115 `[IMP]`**: 后端通过 WebSocket 推送离线、缓存、刮削和凭据状态变化；持久事件使用全局单调水位追赶，同时保留聚合级版本用于资源合并。
 - **AC-116 `[IMP]`**: 客户端重连后必须通过有界且与事件水位一致的 REST 快照恢复任务状态，不依赖遗漏的事件；全局水位由 [TASK-013 事件、设置与诊断确定性边界](changes/2026-07-26--task-013-events-settings-diagnostics-boundaries.md) 冻结，cache 字段合并与恢复由 [TASK-112 缓存事件、通知与恢复确定性边界](changes/2026-07-28--task-112-cache-events-recovery-contract.md) 冻结。
 - **AC-117 `[IMP]`**: 应用运行或处于系统后台时显示离线完成通知；完全退出后不常驻，下次启动补拉未读通知和任务快照，已展示通知可幂等标记已读。
-- **AC-118 `[IMP]`**: 顶部缓存入口显示排队、运行和就绪数量角标。
+- **AC-118 `[IMP]`**: 顶部缓存入口显示排队、运行和就绪数量角标；Windows 缓存页状态、容量和操作遵循 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md)。
 
 ### REQ-022 管理员设置与诊断
 
-- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置。
+- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
-- **AC-121 `[IMP]`**: 诊断页显示脱敏后的元数据/缓存任务阶段、稳定错误码、耗时、尝试次数和连接测试结果；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康。
-- **AC-122 `[IMP]`**: 管理员可查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；富化重试不得自动重跑 JavDB 核心或付费 AI。
+- **AC-121 `[IMP]`**: 诊断页显示脱敏后的元数据/缓存任务阶段、稳定错误码、耗时、尝试次数和连接测试结果；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
+- **AC-122 `[IMP]`**: 管理员可查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 冻结。
 
 ## 11. 部署、可靠性与验收
 
