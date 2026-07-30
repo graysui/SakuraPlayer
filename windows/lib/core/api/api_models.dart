@@ -309,8 +309,22 @@ class MetadataStageDto {
   factory MetadataStageDto.fromJson(Map<String, Object?> json) {
     final reader = JsonReader(json, 'MetadataStage');
     return MetadataStageDto(
-      stage: reader.string('stage'),
-      status: reader.string('status'),
+      stage: reader.enumeration('stage', const {
+        'javdb_core',
+        'images',
+        'dmm',
+        'actor_map',
+        'gfriends',
+        'translation',
+      }),
+      status: reader.enumeration('status', const {
+        'pending',
+        'running',
+        'succeeded',
+        'warning',
+        'failed',
+        'skipped',
+      }),
       elapsedMs:
           json.containsKey('elapsed_ms')
               ? reader.nullableInteger('elapsed_ms')

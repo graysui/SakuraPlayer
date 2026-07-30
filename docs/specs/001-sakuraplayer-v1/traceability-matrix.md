@@ -90,7 +90,8 @@
 - AC-013、AC-016、AC-094、AC-118 至 AC-122 的 Windows QR 内存生命周期、13 状态缓存操作、
   设置对象级 CAS、秘密只写输入、脱敏诊断、元数据重试和响应式页面由
   [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md)
-  冻结；TASK-208 不提前实现播放请求、等待页、播放器或系统通知。
+  冻结；TASK-208 已完成客户端实现，自动证据位于 `qr_settings_test.dart`、`cache_page_test.dart`
+  和 `app_bootstrap_test.dart`，且未提前实现播放请求、等待页、播放器或系统通知。
 - AC-099、AC-100、AC-102、AC-104、AC-105 的固定平台 UA、逐段播放能力、原画阶段边界、
   活动租约和无 Bearer stream 校验由
   [TASK-108 播放会话契约闭合](changes/2026-07-28--task-108-playback-session-contract.md)

@@ -146,6 +146,16 @@ class ApiClient {
     decode,
   );
 
+  Future<T> patch<T>(
+    String path, {
+    Map<String, Object?>? data,
+    Map<String, Object?>? query,
+    required T Function(Map<String, Object?> json) decode,
+  }) async => _parseDto(
+    await _jsonRequest('PATCH', path, data: data, query: query),
+    decode,
+  );
+
   Future<void> putEmpty(
     String path, {
     Map<String, Object?>? data,

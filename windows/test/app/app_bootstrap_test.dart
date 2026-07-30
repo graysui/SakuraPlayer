@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/app.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
+import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
 import 'package:sakuraplayer_windows/features/actors/presentation/actor_detail_page.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
@@ -15,6 +16,8 @@ import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
 import 'package:sakuraplayer_windows/features/rankings/data/rankings_api.dart';
+import 'package:sakuraplayer_windows/features/settings/data/settings_api.dart';
+import 'package:sakuraplayer_windows/features/settings/presentation/diagnostics_page.dart';
 import 'package:sakuraplayer_windows/routes/app_router.dart';
 import 'package:sakuraplayer_windows/theme/app_theme.dart';
 import 'package:sakuraplayer_windows/theme/player_theme.dart';
@@ -164,6 +167,35 @@ void main() {
     expect(find.byType(MovieDetailPage), findsNothing);
   });
 
+  testWidgets('diagnostics typed route stays inside the settings shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authSessionStateProvider.overrideWithValue(
+            AuthSessionState.authenticated(
+              serverBaseUri: Uri.parse('https://server.test'),
+            ),
+          ),
+          moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+          settingsGatewayProvider.overrideWithValue(
+            const _RouteSettingsGateway(),
+          ),
+        ],
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(tester.element(find.byType(DesktopShell)));
+    router.go(const SettingsDiagnosticsRoute().location);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DiagnosticsPage), findsOneWidget);
+    expect(find.byType(DesktopShell), findsOneWidget);
+    expect(find.text('组件状态'), findsOneWidget);
+  });
+
   testWidgets('theme controller supports system light and dark', (
     tester,
   ) async {
@@ -206,12 +238,17 @@ void main() {
       '/app/movies/:movie_id',
       '/app/cache',
       '/app/settings',
+      '/app/settings/diagnostics',
       '/player',
     });
     expect(appRouteLocations.any((path) => path.contains('age')), isFalse);
     expect(appRouteLocations.any((path) => path.contains('external')), isFalse);
     expect(() => ActorDetailRoute('not-an-actor-id'), throwsArgumentError);
     expect(() => MovieDetailRoute('not-a-movie-id'), throwsArgumentError);
+    expect(
+      const SettingsDiagnosticsRoute().location,
+      '/app/settings/diagnostics',
+    );
   });
 
   test('project contains only the Windows platform runner', () {
@@ -258,6 +295,90 @@ class _EmptyRankingsGateway implements RankingsGateway {
     items: const <RankingItemDto>[],
     nextCursor: null,
   );
+}
+
+class _RouteSettingsGateway implements SettingsGateway {
+  const _RouteSettingsGateway();
+
+  @override
+  Future<SettingsDto> getSettings() async => const SettingsDto(
+    cacheTtlHours: 24,
+    readyCacheLimit: 20,
+    metadataConcurrency: 3,
+    metadataTimeoutSeconds: 600,
+    javdb: JavdbSettingsDto(
+      configured: false,
+      status: 'not_configured',
+      lastCheckedAt: null,
+      lastErrorCode: null,
+      username: null,
+      passwordConfigured: false,
+      version: 0,
+    ),
+    ai: AiSettingsDto(
+      configured: false,
+      status: 'not_configured',
+      lastCheckedAt: null,
+      lastErrorCode: null,
+      baseUrl: null,
+      model: null,
+      timeoutSeconds: null,
+      apiKeyConfigured: false,
+      version: 0,
+    ),
+    providers: <String, ProviderStateDto>{},
+    incrementalSync: SyncRunStateDto(
+      status: 'never',
+      lastSuccessfulAt: null,
+      nextScheduledAt: null,
+      lastErrorCode: null,
+    ),
+    fullSync: SyncRunStateDto(
+      status: 'never',
+      lastSuccessfulAt: null,
+      nextScheduledAt: null,
+      lastErrorCode: null,
+    ),
+  );
+
+  @override
+  Future<Cloud115BindingDto> getBinding() async => const Cloud115BindingDto(
+    bound: false,
+    status: 'unbound',
+    displayName: null,
+    cacheRootReady: false,
+    lastVerifiedAt: null,
+  );
+
+  @override
+  Future<DiagnosticsDto> getDiagnostics() async => DiagnosticsDto(
+    generatedAt: DateTime.utc(2026, 7, 30),
+    components: <ComponentDiagnosticDto>[
+      ComponentDiagnosticDto(
+        component: 'api',
+        status: 'healthy',
+        errorCode: null,
+        checkedAt: DateTime.utc(2026, 7, 30),
+      ),
+    ],
+    queues: const QueueSnapshot(
+      metadataQueued: 0,
+      metadataRunning: 0,
+      cacheQueued: 0,
+      cacheRunning: 0,
+      cacheReady: 0,
+    ),
+    recentFailures: const <FailureDiagnosticDto>[],
+    connectionTests: const <ConnectionTestDto>[],
+  );
+
+  @override
+  Future<MetadataJobPageDto> listMetadataJobs({String? cursor}) async =>
+      const MetadataJobPageDto(items: <MetadataJobDto>[], nextCursor: null);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
 }
 
 const _actorId = '00000000-0000-4000-8000-000000000010';

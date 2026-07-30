@@ -7,10 +7,13 @@ import 'package:sakuraplayer_windows/features/actors/presentation/actor_detail_p
 import 'package:sakuraplayer_windows/features/actors/presentation/actors_page.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/cache_page.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
 import 'package:sakuraplayer_windows/features/rankings/presentation/rankings_page.dart';
+import 'package:sakuraplayer_windows/features/settings/presentation/diagnostics_page.dart';
+import 'package:sakuraplayer_windows/features/settings/presentation/settings_page.dart';
 import 'package:sakuraplayer_windows/widgets/shell/desktop_shell.dart';
 
 sealed class AppRouteLocation {
@@ -85,6 +88,13 @@ final class SettingsRoute extends AppRouteLocation {
   String get location => '/app/settings';
 }
 
+final class SettingsDiagnosticsRoute extends AppRouteLocation {
+  const SettingsDiagnosticsRoute();
+
+  @override
+  String get location => '/app/settings/diagnostics';
+}
+
 final class FullscreenPlayerRoute extends AppRouteLocation {
   const FullscreenPlayerRoute();
 
@@ -101,6 +111,7 @@ const appRouteLocations = <String>{
   '/app/movies/:movie_id',
   '/app/cache',
   '/app/settings',
+  '/app/settings/diagnostics',
   '/player',
 };
 
@@ -228,18 +239,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: const CacheStatusRoute().location,
             builder:
-                (context, state) => const _ShellPage(
-                  key: ValueKey('cache-page'),
-                  title: '缓存状态',
-                ),
+                (context, state) =>
+                    const CachePage(key: ValueKey('cache-page')),
           ),
           GoRoute(
             path: const SettingsRoute().location,
             builder:
-                (context, state) => const _ShellPage(
-                  key: ValueKey('settings-page'),
-                  title: '管理员设置',
+                (context, state) => SettingsPage(
+                  key: const ValueKey('settings-page'),
+                  onOpenDiagnostics:
+                      () => const SettingsDiagnosticsRoute().go(context),
                 ),
+            routes: [
+              GoRoute(
+                path: 'diagnostics',
+                builder:
+                    (context, state) => DiagnosticsPage(
+                      key: const ValueKey('diagnostics-page'),
+                      onBack: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          const SettingsRoute().go(context);
+                        }
+                      },
+                    ),
+              ),
+            ],
           ),
         ],
       ),
@@ -252,16 +278,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   ref.onDispose(router.dispose);
   return router;
 });
-
-class _ShellPage extends StatelessWidget {
-  const _ShellPage({required this.title, super.key});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
-    );
-  }
-}

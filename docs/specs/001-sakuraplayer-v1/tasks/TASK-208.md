@@ -3,7 +3,7 @@ id: TASK-208
 title: "115 扫码缓存管理设置与诊断"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
 dependencies: [TASK-202, TASK-112]
 ac-mapping: [AC-013, AC-016, AC-094, AC-118, AC-119, AC-120, AC-121, AC-122]
 imp-requirements: [REQ-004, REQ-018, REQ-021, REQ-022]
@@ -30,11 +30,11 @@ provides: [Windows QR binding UI, cache page, settings diagnostics]
 
 ## 验收条件
 
-- [ ] 客户端显示 QR waiting/scanned/confirmed/expired/canceled 和绑定状态；expired 明确提示重扫；对应 AC-013、AC-016。
-- [ ] 缓存页显示 queued/running/ready 数量/任务并可取消、清理；对应 AC-118、AC-122。
-- [ ] TTL 可设 1 至 168 小时、默认 24；对应 AC-094。
-- [ ] 设置回显非敏感 JavDB/AI 现值、增量/全量同步状态和连接测试；诊断只显示严格 DTO 中的脱敏 stage/error/time/attempt，主密钥不可编辑；对应 AC-119 至 AC-121。
-- [ ] 管理员可对 warning 元数据任务选择失败/缺失富化阶段重试，不能选择 JavDB 核心或隐式重跑 AI；对应 AC-122。
+- [x] 客户端显示 QR waiting/scanned/confirmed/expired/canceled 和绑定状态；expired 明确提示重扫；对应 AC-013、AC-016。
+- [x] 缓存页显示 queued/running/ready 数量/任务并可取消、清理；对应 AC-118、AC-122。
+- [x] TTL 可设 1 至 168 小时、默认 24；对应 AC-094。
+- [x] 设置回显非敏感 JavDB/AI 现值、增量/全量同步状态和连接测试；诊断只显示严格 DTO 中的脱敏 stage/error/time/attempt，主密钥不可编辑；对应 AC-119 至 AC-121。
+- [x] 管理员可对 warning 元数据任务选择失败/缺失富化阶段重试，不能选择 JavDB 核心或隐式重跑 AI；对应 AC-122。
 
 ## Definition of Ready
 
@@ -70,9 +70,9 @@ provides: [Windows QR binding UI, cache page, settings diagnostics]
 
 ## Definition of Done
 
-- [ ] QR、缓存页、设置、诊断和任务操作完成。
-- [ ] 所有秘密只显示 configured/status。
-- [ ] Widget/controller 测试通过。
+- [x] QR、缓存页、设置、诊断和任务操作完成。
+- [x] 所有秘密只显示 configured/status。
+- [x] Widget/controller 测试通过。
 
 **依赖**: TASK-202, TASK-112
 
