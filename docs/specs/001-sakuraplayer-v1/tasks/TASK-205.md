@@ -4,7 +4,7 @@ title: "日周月 TOP250 排行榜"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
-dependencies: [TASK-203]
+dependencies: [TASK-204]
 ac-mapping: [AC-046, AC-069, AC-070, AC-071, AC-072, AC-073]
 imp-requirements: [REQ-009, REQ-014]
 cross-boundary: false
@@ -30,14 +30,15 @@ provides: [Windows rankings page]
 
 ## Definition of Ready
 
-- [ ] TASK-203 Shell 和 TASK-012 `/rankings` 可用。
-- [ ] 榜单/年份/游标 DTO 已生成。
-- [ ] 榜单卡复用 MovieCard 的可读子集。
+- [ ] TASK-204 Shell、MovieCard/影片摘要 DTO 和 TASK-012 `/rankings` 可用。
+- [ ] TASK-205 自身拥有榜单/年份/游标 DTO/API；错误 details、选择、分页、失败恢复与布局已由 [Windows 排行榜客户端契约](../contracts/windows-rankings-client.md) 确定。
+- [ ] 榜单卡复用 MovieCard 的可读子集并保留原始 rank。
 
 ## 技术上下文
 
 - synced_at 是本地快照时间；页面刷新只重新请求后端。
 - 切换 board/year 重置游标和滚动，返回页面可保留本机选择。
+- 迟到响应不得覆盖新选择；刷新/追加失败保留当前成功快照，认证会话变化清空全部状态。
 
 ## 实现文件（仅文件名）
 
@@ -61,7 +62,7 @@ provides: [Windows rankings page]
 - [ ] 页面无 JavDB 直接网络依赖。
 - [ ] 测试通过。
 
-**依赖**: TASK-203
+**依赖**: TASK-204
 
 **实现命令**:
 

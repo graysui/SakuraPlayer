@@ -142,11 +142,11 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-014 排行榜
 
-- **AC-069 `[IMP]`**: 排行榜使用 JavDB 本地不可变快照，不在页面打开时实时抓取；同步由 scheduler 持久入队、worker 执行。
-- **AC-070 `[IMP]`**: 页面支持日榜、周榜、月榜、TOP250，以及 TOP250 总榜和 2008 至当前年的年度筛选；完整参数与调度边界由 [TASK-012 排行榜快照确定性与执行边界](changes/2026-07-26--task-012-ranking-snapshot-boundaries.md) 冻结。
+- **AC-069 `[IMP]`**: 排行榜使用 JavDB 本地不可变快照，不在页面打开时实时抓取；同步由 scheduler 持久入队、worker 执行，Windows 页面消费与恢复边界由 [TASK-205 Windows 排行榜客户端边界](changes/2026-07-30--task-205-rankings-client-boundaries.md) 冻结。
+- **AC-070 `[IMP]`**: 页面支持日榜、周榜、月榜、TOP250，以及 TOP250 总榜和 2008 至当前年的年度筛选；完整参数与调度边界由 [TASK-012 排行榜快照确定性与执行边界](changes/2026-07-26--task-012-ranking-snapshot-boundaries.md) 冻结，Windows 选择、分页与布局遵循 [Windows 排行榜客户端契约](contracts/windows-rankings-client.md)。
 - **AC-071 `[IMP]`**: 榜单只展示存在 AVdb 资源且核心元数据已完成的影片。
 - **AC-072 `[IMP]`**: 榜单命中“有 AVdb 资源但元数据未完成”的影片时，幂等创建或提升为 priority 20，running 复用且 failed 不自动重试。
-- **AC-073 `[IMP]`**: 榜单同步失败、空响应或全无效响应时保留最近一次成功快照，不清空现有榜单；从未成功时返回结构化稳定不可用状态。
+- **AC-073 `[IMP]`**: 榜单同步失败、空响应或全无效响应时保留最近一次成功快照，不清空现有榜单；从未成功时返回结构化稳定不可用状态，Windows 错误动作与刷新保留语义由 [Windows 排行榜客户端契约](contracts/windows-rankings-client.md) 约束。
 
 ### REQ-015 影片详情与女优详情
 
