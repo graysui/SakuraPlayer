@@ -10,12 +10,14 @@ class ApiException implements Exception {
     required this.message,
     this.statusCode,
     this.requestId,
+    this.details,
   });
 
   final String code;
   final String message;
   final int? statusCode;
   final String? requestId;
+  final Map<String, Object?>? details;
 
   @override
   String toString() => 'ApiException($code)';
@@ -368,6 +370,7 @@ class ApiClient {
         message: error.message,
         statusCode: status,
         requestId: error.requestId,
+        details: error.details,
       );
     } on ApiException {
       rethrow;

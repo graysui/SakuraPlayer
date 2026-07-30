@@ -10,6 +10,7 @@ import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dar
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
+import 'package:sakuraplayer_windows/features/rankings/data/rankings_api.dart';
 import 'package:sakuraplayer_windows/routes/app_router.dart';
 import 'package:sakuraplayer_windows/theme/app_theme.dart';
 import 'package:sakuraplayer_windows/theme/player_theme.dart';
@@ -35,6 +36,9 @@ void main() {
             ),
           ),
           moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+          rankingsGatewayProvider.overrideWithValue(
+            const _EmptyRankingsGateway(),
+          ),
         ],
         child: const SakuraPlayerApp(),
       ),
@@ -155,4 +159,21 @@ class _EmptyMoviesGateway implements MoviesGateway {
 
   @override
   Future<List<int>> loadCover(String coverUrl) async => <int>[];
+}
+
+class _EmptyRankingsGateway implements RankingsGateway {
+  const _EmptyRankingsGateway();
+
+  @override
+  Future<RankingPageDto> listRanking({
+    required RankingSelection selection,
+    String? cursor,
+  }) async => RankingPageDto(
+    board: selection.board,
+    year: selection.year,
+    availableYears: const <int>[],
+    syncedAt: DateTime.utc(2026, 7, 30),
+    items: const <RankingItemDto>[],
+    nextCursor: null,
+  );
 }

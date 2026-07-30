@@ -5,6 +5,7 @@ import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
+import 'package:sakuraplayer_windows/features/rankings/presentation/rankings_page.dart';
 import 'package:sakuraplayer_windows/widgets/shell/desktop_shell.dart';
 
 sealed class AppRouteLocation {
@@ -128,9 +129,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: const RankingsRoute().location,
             builder:
-                (context, state) => const _ShellPage(
+                (context, state) => RankingsPage(
                   key: ValueKey('rankings-page'),
-                  title: '排行榜',
+                  onOpenSettings: () => const SettingsRoute().go(context),
                 ),
           ),
           GoRoute(

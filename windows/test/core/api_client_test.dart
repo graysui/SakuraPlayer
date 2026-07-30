@@ -257,6 +257,37 @@ void main() {
       },
     );
 
+    test('preserves immutable structured error details', () async {
+      final secure = SecureStore(MemorySecureKeyValueStore());
+      final session = SessionStore(secure);
+      await session.setTokens(_tokens('access', 'refresh'));
+      final dio = Dio(BaseOptions(baseUrl: 'https://server.test/api/v1/'))
+        ..httpClientAdapter = _QueueAdapter(
+          (request) async => _jsonResponse(503, <String, Object?>{
+            'code': 'ranking_snapshot_unavailable',
+            'message': 'Ranking snapshot is unavailable',
+            'request_id': 'request-ranking',
+            'details': <String, Object?>{
+              'reason': 'credentials_not_configured',
+            },
+          }),
+        );
+      final client = ApiClient(dio: dio, sessionStore: session);
+
+      try {
+        await client.get('rankings', decode: _okResponse);
+        fail('request must fail');
+      } on ApiException catch (error) {
+        expect(error.details, <String, Object?>{
+          'reason': 'credentials_not_configured',
+        });
+        expect(
+          () => error.details!['reason'] = 'changed',
+          throwsUnsupportedError,
+        );
+      }
+    });
+
     test(
       'rejects absolute and traversal request paths before attaching auth',
       () async {

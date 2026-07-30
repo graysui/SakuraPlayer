@@ -3,7 +3,10 @@ id: TASK-205
 title: "日周月 TOP250 排行榜"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
+started_date: 2026-07-30
+implemented_date: 2026-07-30
+completed_date: 2026-07-30
 dependencies: [TASK-204]
 ac-mapping: [AC-046, AC-069, AC-070, AC-071, AC-072, AC-073]
 imp-requirements: [REQ-009, REQ-014]
@@ -22,17 +25,17 @@ provides: [Windows rankings page]
 
 ## 验收条件
 
-- [ ] 页面只调用本地快照 API，不在打开时直接访问 JavDB；对应 AC-069。
-- [ ] 提供日/周/月/TOP250 Tab 或分段选择，年份只在适用榜单显示；对应 AC-070。
-- [ ] 页面只显示后端返回的有 AVdb 来源且 core_ready 影片；对应 AC-071。
-- [ ] 缺元数据由后端排队，客户端保留快照/补全状态，失败不清空现有榜单；对应 AC-072、AC-073。
-- [ ] TOP250 从未有快照且凭据未配置时显示可操作的不可用状态，不影响其他榜单；对应 AC-046。
+- [x] 页面只调用本地快照 API，不在打开时直接访问 JavDB；对应 AC-069。
+- [x] 提供日/周/月/TOP250 Tab 或分段选择，年份只在适用榜单显示；对应 AC-070。
+- [x] 页面只显示后端返回的有 AVdb 来源且 core_ready 影片；对应 AC-071。
+- [x] 缺元数据由后端排队，客户端保留快照/补全状态，失败不清空现有榜单；对应 AC-072、AC-073。
+- [x] TOP250 从未有快照且凭据未配置时显示可操作的不可用状态，不影响其他榜单；对应 AC-046。
 
 ## Definition of Ready
 
-- [ ] TASK-204 Shell、MovieCard/影片摘要 DTO 和 TASK-012 `/rankings` 可用。
-- [ ] TASK-205 自身拥有榜单/年份/游标 DTO/API；错误 details、选择、分页、失败恢复与布局已由 [Windows 排行榜客户端契约](../contracts/windows-rankings-client.md) 确定。
-- [ ] 榜单卡复用 MovieCard 的可读子集并保留原始 rank。
+- [x] TASK-204 Shell、MovieCard/影片摘要 DTO 和 TASK-012 `/rankings` 可用。
+- [x] TASK-205 自身拥有榜单/年份/游标 DTO/API；错误 details、选择、分页、失败恢复与布局已由 [Windows 排行榜客户端契约](../contracts/windows-rankings-client.md) 确定。
+- [x] 榜单卡复用 MovieCard 的可读子集并保留原始 rank。
 
 ## 技术上下文
 
@@ -58,9 +61,18 @@ provides: [Windows rankings page]
 
 ## Definition of Done
 
-- [ ] 四榜单、年份、分页和快照错误态完成。
-- [ ] 页面无 JavDB 直接网络依赖。
-- [ ] 测试通过。
+- [x] 四榜单、年份、分页和快照错误态完成。
+- [x] 页面无 JavDB 直接网络依赖。
+- [x] 测试通过。
+
+## Implementation Summary
+
+- 新增严格 Ranking DTO/API，固定 24 条分页、board/year scope、原始 rank、快照时间、共享 MovieSummary 和类型化不可用 details。
+- 新增 generation 隔离的排行榜 Controller，覆盖 board/year 切换、会话清理、刷新快照保留、追加局部重试和游标失效单次恢复。
+- 将 Shell 排行榜占位替换为四榜单、TOP250 年份、认证封面 MovieCard 网格、同步时间和分层错误动作，并同步正式任务索引依赖。
+- Final 通过 `flutter analyze`、86 项 `flutter test` 和 Windows debug build，生成 `sakuraplayer_windows.exe`。
+
+**完成日期**: 2026-07-30
 
 **依赖**: TASK-204
 

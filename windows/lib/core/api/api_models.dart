@@ -63,6 +63,7 @@ class ApiErrorBody {
     required this.code,
     required this.message,
     required this.requestId,
+    this.details,
   });
 
   factory ApiErrorBody.fromJson(Map<String, Object?> json) {
@@ -71,16 +72,23 @@ class ApiErrorBody {
     if (!RegExp(r'^[a-z0-9_]+$').hasMatch(code)) {
       throw const ProtocolException('invalid API error code');
     }
+    final rawDetails = json['details'];
+    Map<String, Object?>? details;
+    if (rawDetails != null) {
+      details = Map<String, Object?>.unmodifiable(reader.object('details'));
+    }
     return ApiErrorBody(
       code: code,
       message: reader.string('message'),
       requestId: reader.string('request_id'),
+      details: details,
     );
   }
 
   final String code;
   final String message;
   final String requestId;
+  final Map<String, Object?>? details;
 }
 
 @immutable

@@ -34,9 +34,9 @@ TASK-205 的 Definition of Ready 要求榜单 DTO 已生成，但正式创建清
 
 **Acceptance Criteria**:
 
-- [ ] API 测试覆盖四种 board、year 省略/发送、固定 limit、严格 DTO、rank 间隙、synced_at、共享 MovieSummary 和类型化不可用 details。
-- [ ] Controller 测试覆盖选择保留、board/year generation、迟到响应、重复触底、追加局部重试、刷新失败保留和认证会话清理。
-- [ ] Widget 测试覆盖四榜单、TOP250 年份、rank、同步时间、认证封面、空/加载/普通失败/四种不可用 reason、追加失败和窄窗口。
+- [x] API 测试覆盖四种 board、year 省略/发送、固定 limit、严格 DTO、rank 间隙、synced_at、共享 MovieSummary 和类型化不可用 details。
+- [x] Controller 测试覆盖选择保留、board/year generation、迟到响应、重复触底、追加局部重试、刷新失败保留和认证会话清理。
+- [x] Widget 测试覆盖四榜单、TOP250 年份、rank、同步时间、认证封面、空/加载/普通失败/四种不可用 reason、追加失败和窄窗口。
 
 **Impact**: AC-046、AC-069 至 AC-073、TASK-205、Windows 通用 API 错误模型、Windows 排行榜客户端契约、功能规格和追踪矩阵；Breaking: NO，后端接口不变且 Windows 排行榜尚未实现。
 
