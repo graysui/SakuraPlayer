@@ -83,18 +83,44 @@ void main() {
 
         await api.listJobs(statuses: const <String>{'ready', 'queued'});
         await api.cancel(_jobId);
+        await api.selectMedia(_jobId, const [_mediaId1, _mediaId2]);
 
         expect(
           adapter.requests.first.queryParameters['status'],
           'queued,ready',
         );
         expect(adapter.requests.first.queryParameters['limit'], 24);
+        expect(adapter.requests[1].data, <String, Object?>{'confirmed': true});
+        expect(adapter.requests[1].path, 'cache-jobs/$_jobId/cancel');
+        expect(
+          adapter.requests.last.path,
+          'cache-jobs/$_jobId/media-selection',
+        );
         expect(adapter.requests.last.data, <String, Object?>{
-          'confirmed': true,
+          'media_ids': <String>[_mediaId1, _mediaId2],
         });
-        expect(adapter.requests.last.path, 'cache-jobs/$_jobId/cancel');
       },
     );
+
+    test('groups valid candidate segments in sequence order', () {
+      final job = CacheJobDto.fromJson(
+        _jobJson()
+          ..['status'] = 'awaiting_selection'
+          ..['media_candidates'] = <Object?>[
+            _mediaJson(_mediaId2, _candidateId, 2, 'part-2.mp4'),
+            _mediaJson(_invalidMediaId, _candidateId, 3, 'invalid.mp4', false),
+            _mediaJson(_mediaId1, _candidateId, 1, 'part-1.mp4'),
+          ],
+      );
+
+      final groups = validMediaCandidateGroups(job);
+
+      expect(groups, hasLength(1));
+      expect(groups.single.media.map((item) => item.id), [
+        _mediaId1,
+        _mediaId2,
+      ]);
+    });
   });
 
   test(
@@ -160,9 +186,41 @@ void main() {
     expect(gateway.cancelCalls, 1);
     expect(find.text('正在取消'), findsOneWidget);
   });
+
+  testWidgets('candidate selection submits full group before explicit play', (
+    tester,
+  ) async {
+    final gateway = _SelectionCacheGateway();
+    final launches = <(String, String)>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [cacheGatewayProvider.overrideWithValue(gateway)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: CachePage(
+              onPlay: (jobId, mediaId) => launches.add((jobId, mediaId)),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('select-candidate-$_candidateId')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(gateway.selectedIds, [_mediaId1, _mediaId2]);
+    expect(launches, [(_jobId, _mediaId1)]);
+  });
 }
 
 const _jobId = '00000000-0000-4000-8000-000000000208';
+const _candidateId = '00000000-0000-4000-8000-000000000301';
+const _mediaId1 = '00000000-0000-4000-8000-000000000302';
+const _mediaId2 = '00000000-0000-4000-8000-000000000303';
+const _invalidMediaId = '00000000-0000-4000-8000-000000000304';
 
 Map<String, Object?> _jobJson() => <String, Object?>{
   'id': _jobId,
@@ -182,6 +240,22 @@ Map<String, Object?> _jobJson() => <String, Object?>{
 
 CacheJobDto _job(String status) =>
     CacheJobDto.fromJson(_jobJson()..['status'] = status);
+
+Map<String, Object?> _mediaJson(
+  String id,
+  String candidateId,
+  int sequence,
+  String name, [
+  bool valid = true,
+]) => <String, Object?>{
+  'id': id,
+  'candidate_id': candidateId,
+  'name': name,
+  'size_bytes': 1024,
+  'duration_seconds': 60,
+  'sequence_no': sequence,
+  'is_valid': valid,
+};
 
 class _CacheGateway implements CacheGateway {
   final _cancelCompleter = Completer<CacheJobDto>();
@@ -214,6 +288,10 @@ class _CacheGateway implements CacheGateway {
 
   @override
   Future<CacheJobDto> cleanup(String jobId) => throw UnimplementedError();
+
+  @override
+  Future<CacheJobDto> selectMedia(String jobId, List<String> mediaIds) =>
+      throw UnimplementedError();
 }
 
 class _WidgetCacheGateway implements CacheGateway {
@@ -242,6 +320,54 @@ class _WidgetCacheGateway implements CacheGateway {
 
   @override
   Future<CacheJobDto> cleanup(String jobId) async => _job('cleaning');
+
+  @override
+  Future<CacheJobDto> selectMedia(String jobId, List<String> mediaIds) =>
+      throw UnimplementedError();
+}
+
+class _SelectionCacheGateway implements CacheGateway {
+  List<String> selectedIds = const [];
+
+  Map<String, Object?> get _selectionJob =>
+      _jobJson()
+        ..['status'] = 'awaiting_selection'
+        ..['media_candidates'] = <Object?>[
+          _mediaJson(_mediaId2, _candidateId, 2, 'part-2.mp4'),
+          _mediaJson(_mediaId1, _candidateId, 1, 'part-1.mp4'),
+        ];
+
+  @override
+  Future<CacheJobPageDto> listJobs({
+    Set<String> statuses = const <String>{},
+    String? cursor,
+  }) async => CacheJobPageDto.fromJson(<String, Object?>{
+    'items': <Object?>[_selectionJob],
+    'capacity': <String, Object?>{
+      'running': 0,
+      'running_limit': 2,
+      'queued': 0,
+      'queued_limit': 10,
+      'ready': 0,
+      'ready_limit': 20,
+    },
+    'next_cursor': null,
+  });
+
+  @override
+  Future<CacheJobDto> selectMedia(String jobId, List<String> mediaIds) async {
+    selectedIds = List.unmodifiable(mediaIds);
+    return CacheJobDto.fromJson(
+      _selectionJob
+        ..['status'] = 'ready'
+        ..['selected_media_ids'] = mediaIds,
+    );
+  }
+
+  @override
+  Future<CacheJobDto> cancel(String jobId) => throw UnimplementedError();
+  @override
+  Future<CacheJobDto> cleanup(String jobId) => throw UnimplementedError();
 }
 
 class _CacheAdapter implements HttpClientAdapter {
@@ -269,6 +395,14 @@ class _CacheAdapter implements HttpClientAdapter {
     }
     if (options.method == 'POST') {
       return _cacheJsonResponse(202, _jobJson()..['status'] = 'cancelling');
+    }
+    if (options.method == 'PUT') {
+      return _cacheJsonResponse(
+        200,
+        _jobJson()
+          ..['status'] = 'ready'
+          ..['selected_media_ids'] = <String>[_mediaId1, _mediaId2],
+      );
     }
     throw StateError('unexpected ${options.method} ${options.path}');
   }

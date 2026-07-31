@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
+import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
 import 'package:sakuraplayer_windows/features/actors/presentation/actor_detail_page.dart';
 import 'package:sakuraplayer_windows/features/actors/presentation/actors_page.dart';
@@ -15,6 +15,7 @@ import 'package:sakuraplayer_windows/features/cache/presentation/play_request_co
 import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/player_page.dart';
 import 'package:sakuraplayer_windows/features/rankings/presentation/rankings_page.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/diagnostics_page.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/settings_page.dart';
@@ -100,10 +101,17 @@ final class SettingsDiagnosticsRoute extends AppRouteLocation {
 }
 
 final class FullscreenPlayerRoute extends AppRouteLocation {
-  const FullscreenPlayerRoute();
+  FullscreenPlayerRoute(this.cacheJobId, this.mediaId) {
+    requireUuid(cacheJobId, 'cacheJobId');
+    requireUuid(mediaId, 'mediaId');
+  }
+
+  final String cacheJobId;
+  final String mediaId;
 
   @override
-  String get location => '/player';
+  String get location =>
+      '/player/${Uri.encodeComponent(cacheJobId)}/${Uri.encodeComponent(mediaId)}';
 }
 
 final class BlockingWaitRoute extends AppRouteLocation {
@@ -124,7 +132,7 @@ const appRouteLocations = <String>{
   '/app/settings',
   '/app/settings/diagnostics',
   '/wait',
-  '/player',
+  '/player/:cache_job_id/:media_id',
 };
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -147,7 +155,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
       if (isWait) {
         if (playRequest.phase == PlayRequestPhase.ready) {
-          return const FullscreenPlayerRoute().location;
+          final location = _readyPlayerLocation(ref);
+          ref.read(playRequestControllerProvider.notifier).reset();
+          return location ?? const CacheStatusRoute().location;
         }
         if (playRequest.phase != PlayRequestPhase.waiting) {
           return const CacheStatusRoute().location;
@@ -274,8 +284,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: const CacheStatusRoute().location,
             builder:
-                (context, state) =>
-                    const CachePage(key: ValueKey('cache-page')),
+                (context, state) => CachePage(
+                  key: const ValueKey('cache-page'),
+                  onPlay:
+                      (jobId, mediaId) =>
+                          FullscreenPlayerRoute(jobId, mediaId).go(context),
+                ),
           ),
           GoRoute(
             path: const SettingsRoute().location,
@@ -309,8 +323,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder:
             (context, state) => BlockingWaitPage(
               onReady: () {
+                final location = _readyPlayerLocation(ref);
                 ref.read(playRequestControllerProvider.notifier).reset();
-                const FullscreenPlayerRoute().go(context);
+                if (location == null) {
+                  const CacheStatusRoute().go(context);
+                } else {
+                  context.go(location);
+                }
               },
               onTimedOut: () {
                 final movieId = ref.read(playRequestControllerProvider).movieId;
@@ -340,8 +359,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
       ),
       GoRoute(
-        path: const FullscreenPlayerRoute().location,
-        builder: (context, state) => const FullscreenPlayerPage(),
+        path: '/player/:cache_job_id/:media_id',
+        redirect:
+            (context, state) =>
+                isValidUuid(state.pathParameters['cache_job_id'] ?? '') &&
+                        isValidUuid(state.pathParameters['media_id'] ?? '')
+                    ? null
+                    : const CacheStatusRoute().location,
+        builder:
+            (context, state) => PlayerPage(
+              cacheJobId: state.pathParameters['cache_job_id']!,
+              mediaId: state.pathParameters['media_id']!,
+              onBack: () => const CacheStatusRoute().go(context),
+            ),
       ),
     ],
   );
@@ -361,8 +391,14 @@ Future<void> _submitPlayRequest(
   if (!context.mounted) return;
   switch (action) {
     case PlayRequestAction.openPlayer:
+      final location = _readyPlayerLocation(ref);
       ref.read(playRequestControllerProvider.notifier).reset();
-      const FullscreenPlayerRoute().go(context);
+      if (location == null) {
+        const CacheStatusRoute().go(context);
+        _showMessage(context, '缓存任务缺少可播放媒体，请在缓存页处理');
+      } else {
+        context.go(location);
+      }
     case PlayRequestAction.openWait:
       const BlockingWaitRoute().go(context);
     case PlayRequestAction.showQueued:
@@ -377,6 +413,18 @@ Future<void> _submitPlayRequest(
     case PlayRequestAction.ignored:
       break;
   }
+}
+
+String? _readyPlayerLocation(Ref ref) {
+  final job = ref.read(playRequestControllerProvider).job;
+  if (job == null ||
+      job.status != 'ready' ||
+      job.selectedMediaIds.isEmpty ||
+      !isValidUuid(job.id) ||
+      !isValidUuid(job.selectedMediaIds.first)) {
+    return null;
+  }
+  return FullscreenPlayerRoute(job.id, job.selectedMediaIds.first).location;
 }
 
 void _showMessage(BuildContext context, String message) {

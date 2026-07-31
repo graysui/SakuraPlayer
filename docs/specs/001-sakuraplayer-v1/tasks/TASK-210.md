@@ -3,7 +3,7 @@ id: TASK-210
 title: "media_kit 原画 HLS 播放器"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
 dependencies: [TASK-209, TASK-109]
 ac-mapping: [AC-093, AC-099, AC-100, AC-101, AC-102, AC-103, AC-104, AC-105, AC-106, AC-114]
 imp-requirements: [REQ-018, REQ-019, REQ-020]
@@ -30,11 +30,11 @@ provides: [Windows media selection, Windows media_kit player, fixed UA, throttle
 
 ## 验收条件
 
-- [ ] 每次打开播放器新建会话并使用固定 Windows UA 跟随 `302 no-store`；对应 AC-099、AC-100、AC-102。
-- [ ] 原画默认；取链失败/用户选择兼容播放使用 HLS，菜单只显示两模式；对应 AC-101、AC-103。
-- [ ] 歧义媒体按候选组提交完整有序选择，ready 缓存只在显式动作后播放；对应 AC-093。
-- [ ] 只用应用内播放器，不生成时间轴缩略图；对应 AC-104、AC-106。
-- [ ] 所有 seek 经 in-flight 合并，标准进度/倍速/全屏控制可用；对应 AC-105、AC-114。
+- [x] 每次打开播放器新建会话并使用固定 Windows UA 跟随 `302 no-store`；对应 AC-099、AC-100、AC-102。
+- [x] 原画默认；取链失败/用户选择兼容播放使用 HLS，菜单只显示两模式；对应 AC-101、AC-103。
+- [x] 歧义媒体按候选组提交完整有序选择，ready 缓存只在显式动作后播放；对应 AC-093。
+- [x] 只用应用内播放器，不生成时间轴缩略图；对应 AC-104、AC-106。
+- [x] 所有 seek 经 in-flight 合并，标准进度/倍速/全屏控制可用；对应 AC-105、AC-114。
 
 ## Definition of Ready
 
@@ -77,10 +77,17 @@ provides: [Windows media selection, Windows media_kit player, fixed UA, throttle
 
 ## Definition of Done
 
-- [ ] 歧义候选选择与 ready 缓存显式播放闭环完成。
-- [ ] media_kit、UA、原画/HLS、seek 和控制完成。
-- [ ] 无外部播放器/缩略图代码。
-- [ ] controller/player 测试通过。
+- [x] 歧义候选选择与 ready 缓存显式播放闭环完成。
+- [x] media_kit、UA、原画/HLS、seek 和控制完成。
+- [x] 无外部播放器/缩略图代码。
+- [x] controller/player 测试通过。
+
+## 实现证据
+
+- `playback_api_test.dart` 覆盖会话四字段请求、认证 API、严格 manifest、同源 capability 和固定 Windows UA；`player_controller_test.dart` 覆盖原画/HLS 新会话、固定 UA 注入、过期单次重签、普通错误和 seek 入口。
+- `throttling_player_test.dart` 覆盖 60 次连续 seek 的首个加最后目标合并及错误清理；`player_page_test.dart` 覆盖 420px 窄窗口、自定义进度/倍速/全屏控制和无缩略图。
+- `cache_page_test.dart` 与 `app_bootstrap_test.dart` 覆盖完整候选组选择、ready 显式播放、typed route、等待状态消费和应用内播放器导航。
+- Final：83 个 Dart 文件格式无变化，`flutter analyze` 无问题，完整 `flutter test` 181 项通过，Windows debug build 通过并生成 `sakuraplayer_windows.exe`；未执行 TASK-212 release/安装包或 TASK-213 真实 115 门禁。
 
 **依赖**: TASK-209, TASK-109
 

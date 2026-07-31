@@ -162,6 +162,69 @@ class CacheController extends Notifier<CachePageState> {
       _act(jobId, confirmed: confirmed, cleanup: false);
   Future<void> cleanup(String jobId, {required bool confirmed}) =>
       _act(jobId, confirmed: confirmed, cleanup: true);
+
+  Future<CacheJobDto?> selectMedia(
+    String jobId,
+    MediaCandidateGroup group,
+  ) async {
+    if (state.inFlightIds.contains(jobId) || group.media.isEmpty) return null;
+    CacheJobDto? item;
+    for (final value in state.items) {
+      if (value.id == jobId) item = value;
+    }
+    final groups =
+        item == null
+            ? const <MediaCandidateGroup>[]
+            : validMediaCandidateGroups(item);
+    if (!groups.any(
+      (value) =>
+          value.id == group.id &&
+          listEquals(
+            value.media.map((media) => media.id).toList(),
+            group.media.map((media) => media.id).toList(),
+          ),
+    )) {
+      return null;
+    }
+    final generation = _generation;
+    state = state.copyWith(
+      inFlightIds: {...state.inFlightIds, jobId},
+      actionErrors: {...state.actionErrors}..remove(jobId),
+    );
+    try {
+      final selectedIds = group.media
+          .map((media) => media.id)
+          .toList(growable: false);
+      final updated = await ref
+          .read(cacheGatewayProvider)
+          .selectMedia(jobId, selectedIds);
+      if (generation != _generation) return null;
+      if (updated.id != jobId ||
+          updated.status != 'ready' ||
+          !listEquals(updated.selectedMediaIds, selectedIds)) {
+        throw const ApiException(
+          code: 'client_protocol_error',
+          message: 'Media selection did not return a playable job.',
+        );
+      }
+      state = state.copyWith(
+        items: state.items
+            .map((value) => value.id == updated.id ? updated : value)
+            .toList(growable: false),
+        inFlightIds: {...state.inFlightIds}..remove(jobId),
+      );
+      return updated;
+    } on ApiException catch (error) {
+      if (generation == _generation) {
+        state = state.copyWith(
+          inFlightIds: {...state.inFlightIds}..remove(jobId),
+          actionErrors: {...state.actionErrors, jobId: error.code},
+        );
+      }
+      return null;
+    }
+  }
+
   Future<void> _act(
     String jobId, {
     required bool confirmed,

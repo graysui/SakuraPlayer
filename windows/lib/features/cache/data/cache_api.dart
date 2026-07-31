@@ -115,6 +115,43 @@ abstract interface class CacheGateway {
   Future<CacheJobDto> cancel(String jobId);
 
   Future<CacheJobDto> cleanup(String jobId);
+
+  Future<CacheJobDto> selectMedia(String jobId, List<String> mediaIds);
+}
+
+@immutable
+class MediaCandidateGroup {
+  const MediaCandidateGroup({required this.id, required this.media});
+
+  final String id;
+  final List<RemoteMediaDto> media;
+
+  String get label => media.map((item) => item.name).join(' / ');
+}
+
+List<MediaCandidateGroup> validMediaCandidateGroups(CacheJobDto job) {
+  if (job.status != 'awaiting_selection') return const [];
+  final grouped = <String, List<RemoteMediaDto>>{};
+  final mediaIds = <String>{};
+  for (final media in job.mediaCandidates.where((item) => item.isValid)) {
+    if (!mediaIds.add(media.id)) return const [];
+    grouped.putIfAbsent(media.candidateId, () => []).add(media);
+  }
+  final result = <MediaCandidateGroup>[];
+  for (final entry in grouped.entries) {
+    final media = [...entry.value]
+      ..sort((left, right) => left.sequenceNo.compareTo(right.sequenceNo));
+    if (media.isEmpty ||
+        media.first.sequenceNo < 0 ||
+        media.map((item) => item.sequenceNo).toSet().length != media.length) {
+      return const [];
+    }
+    result.add(
+      MediaCandidateGroup(id: entry.key, media: List.unmodifiable(media)),
+    );
+  }
+  result.sort((left, right) => left.id.compareTo(right.id));
+  return List.unmodifiable(result);
 }
 
 class CacheApi implements CacheGateway {
@@ -170,6 +207,21 @@ class CacheApi implements CacheGateway {
     requireUuid(jobId, 'jobId');
     return _client.post<CacheJobDto>(
       'cache-jobs/$jobId/cleanup',
+      decode: CacheJobDto.fromJson,
+    );
+  }
+
+  @override
+  Future<CacheJobDto> selectMedia(String jobId, List<String> mediaIds) {
+    requireUuid(jobId, 'jobId');
+    if (mediaIds.isEmpty ||
+        mediaIds.toSet().length != mediaIds.length ||
+        mediaIds.any((id) => !isValidUuid(id))) {
+      throw ArgumentError.value(mediaIds, 'mediaIds', 'must be unique UUIDs');
+    }
+    return _client.put<CacheJobDto>(
+      'cache-jobs/$jobId/media-selection',
+      data: <String, Object?>{'media_ids': List.unmodifiable(mediaIds)},
       decode: CacheJobDto.fromJson,
     );
   }

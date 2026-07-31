@@ -5,7 +5,10 @@ import 'package:sakuraplayer_windows/features/cache/data/cache_api.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/cache_controller.dart';
 
 class CachePage extends ConsumerStatefulWidget {
-  const CachePage({super.key});
+  const CachePage({super.key, this.onPlay});
+
+  final void Function(String cacheJobId, String mediaId)? onPlay;
+
   @override
   ConsumerState<CachePage> createState() => _CachePageState();
 }
@@ -82,7 +85,9 @@ class _CachePageState extends ConsumerState<CachePage> {
                       child: Center(child: Text('暂无缓存任务')),
                     )
                   else
-                    ...state.items.map((job) => _CacheJobRow(job: job)),
+                    ...state.items.map(
+                      (job) => _CacheJobRow(job: job, onPlay: widget.onPlay),
+                    ),
                   if (state.nextCursor != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
@@ -170,8 +175,11 @@ class _CapacitySummary extends StatelessWidget {
 }
 
 class _CacheJobRow extends ConsumerWidget {
-  const _CacheJobRow({required this.job});
+  const _CacheJobRow({required this.job, required this.onPlay});
+
   final CacheJobDto job;
+  final void Function(String cacheJobId, String mediaId)? onPlay;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(cacheControllerProvider);
@@ -188,78 +196,153 @@ class _CacheJobRow extends ConsumerWidget {
           ),
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            width: 128,
-            child: Text(
-              cacheStatusLabels[job.status]!,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 128,
+                child: Text(
+                  cacheStatusLabels[job.status]!,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '任务 ${job.id.substring(0, 8)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    LinearProgressIndicator(value: job.remotePercent / 100),
+                    if (job.errorCode != null || error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          _cacheErrorLabel(error ?? job.errorCode!),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (busy)
+                const SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else if (canCancelCacheStatus(job.status))
+                IconButton(
+                  onPressed:
+                      () => _confirm(
+                        context,
+                        title: '取消缓存任务？',
+                        message: '任务将停止并进入安全清理。',
+                        action:
+                            () => ref
+                                .read(cacheControllerProvider.notifier)
+                                .cancel(job.id, confirmed: true),
+                      ),
+                  tooltip: '取消任务',
+                  icon: const Icon(Icons.cancel_outlined),
+                )
+              else if (job.status == 'ready' && job.selectedMediaIds.isNotEmpty)
+                IconButton(
+                  onPressed:
+                      onPlay == null
+                          ? null
+                          : () => onPlay!(job.id, job.selectedMediaIds.first),
+                  tooltip: '播放缓存',
+                  icon: const Icon(Icons.play_arrow),
+                ),
+              if (!busy && canCleanupCacheStatus(job.status))
+                IconButton(
+                  onPressed:
+                      () => _confirm(
+                        context,
+                        title: '清理缓存？',
+                        message: '仅删除应用管理目录中的已验证文件。',
+                        action:
+                            () => ref
+                                .read(cacheControllerProvider.notifier)
+                                .cleanup(job.id, confirmed: true),
+                      ),
+                  tooltip: '清理缓存',
+                  color: Theme.of(context).colorScheme.error,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+            ],
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '任务 ${job.id.substring(0, 8)}',
-                  maxLines: 1,
+          if (job.status == 'awaiting_selection')
+            _CandidateSelector(job: job, enabled: !busy, onPlay: onPlay),
+        ],
+      ),
+    );
+  }
+}
+
+class _CandidateSelector extends ConsumerWidget {
+  const _CandidateSelector({
+    required this.job,
+    required this.enabled,
+    required this.onPlay,
+  });
+
+  final CacheJobDto job;
+  final bool enabled;
+  final void Function(String cacheJobId, String mediaId)? onPlay;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groups = validMediaCandidateGroups(job);
+    if (groups.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 10),
+        child: Text('没有可选择的有效媒体文件'),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, left: 128),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final group in groups)
+            FilledButton.icon(
+              key: ValueKey('select-candidate-${group.id}'),
+              onPressed:
+                  !enabled
+                      ? null
+                      : () async {
+                        final result = await ref
+                            .read(cacheControllerProvider.notifier)
+                            .selectMedia(job.id, group);
+                        if (context.mounted && result != null) {
+                          onPlay?.call(
+                            result.id,
+                            result.selectedMediaIds.first,
+                          );
+                        }
+                      },
+              icon: const Icon(Icons.play_arrow),
+              label: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: Text(
+                  '选择并播放 ${group.label}',
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
-                LinearProgressIndicator(value: job.remotePercent / 100),
-                if (job.errorCode != null || error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      _cacheErrorLabel(error ?? job.errorCode!),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          if (busy)
-            const SizedBox.square(
-              dimension: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else if (canCancelCacheStatus(job.status))
-            IconButton(
-              onPressed:
-                  () => _confirm(
-                    context,
-                    title: '取消缓存任务？',
-                    message: '任务将停止并进入安全清理。',
-                    action:
-                        () => ref
-                            .read(cacheControllerProvider.notifier)
-                            .cancel(job.id, confirmed: true),
-                  ),
-              tooltip: '取消任务',
-              icon: const Icon(Icons.cancel_outlined),
-            )
-          else if (canCleanupCacheStatus(job.status))
-            IconButton(
-              onPressed:
-                  () => _confirm(
-                    context,
-                    title: '清理缓存？',
-                    message: '仅删除应用管理目录中的已验证文件。',
-                    action:
-                        () => ref
-                            .read(cacheControllerProvider.notifier)
-                            .cleanup(job.id, confirmed: true),
-                  ),
-              tooltip: '清理缓存',
-              color: Theme.of(context).colorScheme.error,
-              icon: const Icon(Icons.delete_outline),
+              ),
             ),
         ],
       ),

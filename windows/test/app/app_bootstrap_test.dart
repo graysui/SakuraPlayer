@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/app.dart';
-import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/core/events/snapshot_controller.dart';
 import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
@@ -19,6 +19,9 @@ import 'package:sakuraplayer_windows/features/cache/presentation/play_request_co
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
+import 'package:sakuraplayer_windows/features/playback/data/playback_api.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/playback_engine.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/player_page.dart';
 import 'package:sakuraplayer_windows/features/rankings/data/rankings_api.dart';
 import 'package:sakuraplayer_windows/features/settings/data/settings_api.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/diagnostics_page.dart';
@@ -34,7 +37,7 @@ void main() {
 
     expect(find.byType(LoginPage), findsOneWidget);
     expect(find.byType(DesktopShell), findsNothing);
-    expect(find.byType(FullscreenPlayerPage), findsNothing);
+    expect(find.byType(PlayerPage), findsNothing);
   });
 
   testWidgets('login route takes precedence over a stale wait state', (
@@ -76,6 +79,10 @@ void main() {
             ),
           ),
           moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+          playbackGatewayProvider.overrideWithValue(_RoutePlaybackGateway()),
+          playbackEngineFactoryProvider.overrideWithValue(
+            () => _RoutePlaybackEngine(),
+          ),
           rankingsGatewayProvider.overrideWithValue(
             const _EmptyRankingsGateway(),
           ),
@@ -110,6 +117,10 @@ void main() {
             ),
           ),
           moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+          playbackGatewayProvider.overrideWithValue(_RoutePlaybackGateway()),
+          playbackEngineFactoryProvider.overrideWithValue(
+            () => _RoutePlaybackEngine(),
+          ),
         ],
         child: const SakuraPlayerApp(),
       ),
@@ -118,12 +129,17 @@ void main() {
 
     GoRouter.of(
       tester.element(find.byType(DesktopShell)),
-    ).go(const FullscreenPlayerRoute().location);
+    ).go(FullscreenPlayerRoute(_jobId, _mediaId).location);
     await tester.pumpAndSettle();
 
-    expect(find.byType(FullscreenPlayerPage), findsOneWidget);
-    final playerIcon = find.byIcon(Icons.play_circle_outline);
-    expect(Theme.of(tester.element(playerIcon)).brightness, Brightness.dark);
+    expect(find.byType(PlayerPage), findsOneWidget);
+    expect(find.byKey(const ValueKey('video-surface')), findsOneWidget);
+    expect(
+      Theme.of(
+        tester.element(find.byKey(const ValueKey('video-surface'))),
+      ).brightness,
+      Brightness.dark,
+    );
   });
 
   testWidgets('actor detail typed route stays inside the actors shell', (
@@ -217,6 +233,10 @@ void main() {
         ),
         playRequestGatewayProvider.overrideWithValue(playGateway),
         playRequestClockProvider.overrideWithValue(const _RouteClock()),
+        playbackGatewayProvider.overrideWithValue(_RoutePlaybackGateway()),
+        playbackEngineFactoryProvider.overrideWithValue(
+          () => _RoutePlaybackEngine(),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -266,6 +286,10 @@ void main() {
         moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
         playRequestGatewayProvider.overrideWithValue(playGateway),
         playRequestClockProvider.overrideWithValue(const _RouteClock()),
+        playbackGatewayProvider.overrideWithValue(_RoutePlaybackGateway()),
+        playbackEngineFactoryProvider.overrideWithValue(
+          () => _RoutePlaybackEngine(),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -292,7 +316,7 @@ void main() {
     router.go(const BlockingWaitRoute().location);
     await tester.pumpAndSettle();
 
-    expect(find.byType(FullscreenPlayerPage), findsOneWidget);
+    expect(find.byType(PlayerPage), findsOneWidget);
     expect(find.byType(BlockingWaitPage), findsNothing);
     container.read(playRequestControllerProvider.notifier).reset();
   });
@@ -370,12 +394,16 @@ void main() {
       '/app/settings',
       '/app/settings/diagnostics',
       '/wait',
-      '/player',
+      '/player/:cache_job_id/:media_id',
     });
     expect(appRouteLocations.any((path) => path.contains('age')), isFalse);
     expect(appRouteLocations.any((path) => path.contains('external')), isFalse);
     expect(() => ActorDetailRoute('not-an-actor-id'), throwsArgumentError);
     expect(() => MovieDetailRoute('not-a-movie-id'), throwsArgumentError);
+    expect(
+      () => FullscreenPlayerRoute('not-a-job-id', _mediaId),
+      throwsArgumentError,
+    );
     expect(
       const SettingsDiagnosticsRoute().location,
       '/app/settings/diagnostics',
@@ -635,10 +663,80 @@ CacheJobDto _routeJob(String status) => CacheJobDto(
   remotePercent: 0,
   errorCode: null,
   mediaCandidates: const <RemoteMediaDto>[],
-  selectedMediaIds: const <String>[],
+  selectedMediaIds: status == 'ready' ? const <String>[_mediaId] : const [],
   subtitles: const <SubtitleOptionDto>[],
   readyAt: null,
   expiresAt: null,
   createdAt: DateTime.utc(2026, 7, 31, 12),
   updatedAt: DateTime.utc(2026, 7, 31, 12),
 );
+
+class _RoutePlaybackGateway implements PlaybackGateway {
+  @override
+  Future<PlaybackManifestDto> createSession({
+    required String cacheJobId,
+    required String mediaId,
+    required PlaybackMode mode,
+  }) async => PlaybackManifestDto(
+    sessionId: _sessionId,
+    cacheJobId: cacheJobId,
+    mode: mode,
+    streamUri: Uri.parse(
+      'https://server.test/api/v1/playback/streams/$_sessionId',
+    ),
+    expiresAt: DateTime.utc(2026, 8, 1),
+    subtitleCacheExpiresAt: DateTime.utc(2026, 8, 1),
+    mediaQueue: <PlaybackQueueItemDto>[
+      PlaybackQueueItemDto(
+        sessionId: _sessionId,
+        media: const RemoteMediaDto(
+          id: _mediaId,
+          candidateId: _candidateId,
+          name: 'route.mp4',
+          sizeBytes: 100,
+          durationSeconds: 60,
+          sequenceNo: 0,
+          isValid: true,
+        ),
+        streamUri: Uri.parse(
+          'https://server.test/api/v1/playback/streams/$_sessionId',
+        ),
+      ),
+    ],
+    subtitles: const [],
+    progress: null,
+  );
+}
+
+class _RoutePlaybackEngine implements PlaybackEngine {
+  @override
+  Stream<bool> get playingStream => const Stream<bool>.empty();
+  @override
+  Stream<bool> get bufferingStream => const Stream<bool>.empty();
+  @override
+  Stream<Duration> get positionStream => const Stream<Duration>.empty();
+  @override
+  Stream<Duration> get durationStream => const Stream<Duration>.empty();
+  @override
+  Stream<String> get errorStream => const Stream<String>.empty();
+  @override
+  Widget buildVideoSurface() => const ColoredBox(color: Colors.black);
+  @override
+  Future<void> open(PlaybackManifestDto manifest, String mediaId) async {}
+  @override
+  Future<void> play() async {}
+  @override
+  Future<void> pause() async {}
+  @override
+  Future<void> seek(Duration target) async {}
+  @override
+  Future<void> setRate(double rate) async {}
+  @override
+  Future<void> toggleFullscreen() async {}
+  @override
+  Future<void> dispose() async {}
+}
+
+const _mediaId = '00000000-0000-4000-8000-000000000023';
+const _candidateId = '00000000-0000-4000-8000-000000000024';
+const _sessionId = '00000000-0000-4000-8000-000000000025';
