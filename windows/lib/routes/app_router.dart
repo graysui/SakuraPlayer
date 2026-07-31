@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,8 @@ import 'package:sakuraplayer_windows/features/actors/presentation/actors_page.da
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/cache_page.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/blocking_wait_page.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/play_request_controller.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
@@ -102,6 +106,13 @@ final class FullscreenPlayerRoute extends AppRouteLocation {
   String get location => '/player';
 }
 
+final class BlockingWaitRoute extends AppRouteLocation {
+  const BlockingWaitRoute();
+
+  @override
+  String get location => '/wait';
+}
+
 const appRouteLocations = <String>{
   '/login',
   '/app/library',
@@ -112,6 +123,7 @@ const appRouteLocations = <String>{
   '/app/cache',
   '/app/settings',
   '/app/settings/diagnostics',
+  '/wait',
   '/player',
 };
 
@@ -121,11 +133,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: const LibraryRoute().location,
     redirect: (context, state) {
       final isLogin = state.matchedLocation == const LoginRoute().location;
-      if (!authSession.isAuthenticated && !isLogin) {
-        return const LoginRoute().location;
+      if (!authSession.isAuthenticated) {
+        return isLogin ? null : const LoginRoute().location;
       }
-      if (authSession.isAuthenticated && isLogin) {
+      if (isLogin) {
         return const LibraryRoute().location;
+      }
+      final playRequest = ref.read(playRequestControllerProvider);
+      final isWait =
+          state.matchedLocation == const BlockingWaitRoute().location;
+      if (playRequest.phase == PlayRequestPhase.waiting && !isWait) {
+        return const BlockingWaitRoute().location;
+      }
+      if (isWait) {
+        if (playRequest.phase == PlayRequestPhase.ready) {
+          return const FullscreenPlayerRoute().location;
+        }
+        if (playRequest.phase != PlayRequestPhase.waiting) {
+          return const CacheStatusRoute().location;
+        }
       }
       return null;
     },
@@ -234,6 +260,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   },
                   onOpenActor:
                       (actorId) => ActorDetailRoute(actorId).go(context),
+                  onPlaySource:
+                      (sourceId) => unawaited(
+                        _submitPlayRequest(
+                          ref,
+                          context,
+                          state.pathParameters['movie_id']!,
+                          sourceId,
+                        ),
+                      ),
                 ),
           ),
           GoRoute(
@@ -270,6 +305,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
+        path: const BlockingWaitRoute().location,
+        builder:
+            (context, state) => BlockingWaitPage(
+              onReady: () {
+                ref.read(playRequestControllerProvider.notifier).reset();
+                const FullscreenPlayerRoute().go(context);
+              },
+              onTimedOut: () {
+                final movieId = ref.read(playRequestControllerProvider).movieId;
+                ref.read(playRequestControllerProvider.notifier).reset();
+                if (movieId != null && isValidMovieId(movieId)) {
+                  MovieDetailRoute(movieId).go(context);
+                } else {
+                  const CacheStatusRoute().go(context);
+                }
+                _showMessage(context, '等待已结束，请切换来源；缓存任务会继续运行');
+              },
+              onCancelled: () {
+                ref.read(playRequestControllerProvider.notifier).reset();
+                const CacheStatusRoute().go(context);
+              },
+              onStopped: () {
+                final phase = ref.read(playRequestControllerProvider).phase;
+                ref.read(playRequestControllerProvider.notifier).reset();
+                const CacheStatusRoute().go(context);
+                _showMessage(
+                  context,
+                  phase == PlayRequestPhase.existing
+                      ? '需要在缓存页选择媒体文件'
+                      : '缓存任务已停止，请在缓存页查看',
+                );
+              },
+            ),
+      ),
+      GoRoute(
         path: const FullscreenPlayerRoute().location,
         builder: (context, state) => const FullscreenPlayerPage(),
       ),
@@ -278,3 +348,39 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   ref.onDispose(router.dispose);
   return router;
 });
+
+Future<void> _submitPlayRequest(
+  Ref ref,
+  BuildContext context,
+  String movieId,
+  String sourceId,
+) async {
+  final action = await ref
+      .read(playRequestControllerProvider.notifier)
+      .submit(movieId: movieId, sourceId: sourceId);
+  if (!context.mounted) return;
+  switch (action) {
+    case PlayRequestAction.openPlayer:
+      ref.read(playRequestControllerProvider.notifier).reset();
+      const FullscreenPlayerRoute().go(context);
+    case PlayRequestAction.openWait:
+      const BlockingWaitRoute().go(context);
+    case PlayRequestAction.showQueued:
+      _showMessage(context, '任务已排队，开始和完成时会通知你');
+    case PlayRequestAction.showExisting:
+      _showMessage(context, '该来源已有缓存任务，可在缓存页查看');
+    case PlayRequestAction.showTimedOut:
+      _showMessage(context, '等待已结束，请切换来源；缓存任务会继续运行');
+    case PlayRequestAction.showError:
+      final code = ref.read(playRequestControllerProvider).errorCode;
+      _showMessage(context, '播放请求失败，请重试${code == null ? '' : '（$code）'}');
+    case PlayRequestAction.ignored:
+      break;
+  }
+}
+
+void _showMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}

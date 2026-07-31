@@ -198,6 +198,40 @@ void main() {
       },
     );
 
+    test('preserves custom headers across authentication refresh', () async {
+      final secure = SecureStore(MemorySecureKeyValueStore());
+      final session = SessionStore(secure);
+      await session.setTokens(_tokens('access-old', 'refresh-old'));
+      final seenKeys = <Object?>[];
+      final dio = Dio(BaseOptions(baseUrl: 'https://server.test/api/v1/'))
+        ..httpClientAdapter = _QueueAdapter((request) async {
+          if (request.path.endsWith('auth/refresh')) {
+            return _jsonResponse(200, _tokenJson('access-new', 'refresh-new'));
+          }
+          seenKeys.add(request.headers['Idempotency-Key']);
+          if (request.headers['Authorization'] == 'Bearer access-old') {
+            return _errorResponse(401, 'access_expired');
+          }
+          return _jsonResponse(200, <String, Object?>{'ok': true});
+        });
+      final client = ApiClient(dio: dio, sessionStore: session);
+
+      expect(
+        await client.post<bool>(
+          'movies/test/play-requests',
+          headers: const <String, Object?>{
+            'Idempotency-Key': '12345678-1234-4123-8123-123456789abc',
+          },
+          decode: _okResponse,
+        ),
+        isTrue,
+      );
+      expect(seenKeys, <Object?>[
+        '12345678-1234-4123-8123-123456789abc',
+        '12345678-1234-4123-8123-123456789abc',
+      ]);
+    });
+
     test('refresh failure clears local tokens and does not loop', () async {
       final secure = SecureStore(MemorySecureKeyValueStore());
       final session = SessionStore(secure);

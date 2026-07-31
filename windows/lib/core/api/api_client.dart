@@ -130,9 +130,16 @@ class ApiClient {
     String path, {
     Map<String, Object?>? data,
     Map<String, Object?>? query,
+    Map<String, Object?>? headers,
     required T Function(Map<String, Object?> json) decode,
   }) async => _parseDto(
-    await _jsonRequest('POST', path, data: data, query: query),
+    await _jsonRequest(
+      'POST',
+      path,
+      data: data,
+      query: query,
+      headers: headers,
+    ),
     decode,
   );
 

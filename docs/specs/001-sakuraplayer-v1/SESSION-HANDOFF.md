@@ -1,8 +1,8 @@
 # SakuraPlayer v1 新会话交接
 
-**更新时间**: 2026-07-30
+**更新时间**: 2026-07-31
 
-**当前阶段**: Phase 3 Windows 客户端进行中，TASK-208 已完成；下一任务为 TASK-209。
+**当前阶段**: Phase 3 Windows 客户端进行中，TASK-209 已完成；下一任务为 TASK-210。
 
 ## 1. 当前成果
 
@@ -180,12 +180,14 @@
   五类连接测试、脱敏诊断、元数据完整/富化重试，以及设置与诊断 typed route 和响应式布局。
 - TASK-208 Focused 为 24 项、Fast 与 Final 为 148 项 Flutter 测试通过，静态分析零问题；Windows
   debug build 通过并生成新的 `sakuraplayer_windows.exe`，默认测试未访问真实 115、JavDB 写操作或付费 AI。
+- TASK-209 已交付严格播放请求 DTO/gateway、幂等 header、服务端 deadline 与单调倒计时、全屏等待导航锁、确认取消、详情来源接线、ready/queued/reused 协调和 Windows 即时通知适配器。
+- TASK-209 Final 为 168 项 Flutter 测试通过，静态分析零问题；Windows debug build 通过并生成新的 `sakuraplayer_windows.exe`，默认测试未访问真实 115、JavDB 写操作或付费 AI。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-208 已完成；下一任务为 TASK-209。
-- **最近绿色快速门禁**: TASK-208 `dart format`、`flutter analyze`、24 项 Focused 和 148 项 `flutter test` 通过。
-- **最终门禁状态**: TASK-208 `flutter analyze`、148 项 `flutter test` 和 Windows debug build 通过并生成 `sakuraplayer_windows.exe`；未执行 TASK-212 release/安装包门禁。
+- **当前任务门禁阶段**: TASK-209 已完成；下一任务为 TASK-210。
+- **最近绿色快速门禁**: TASK-209 `dart format`、`flutter analyze`、Focused 和完整 168 项 `flutter test` 通过。
+- **最终门禁状态**: TASK-209 `flutter analyze`、168 项 `flutter test` 和 Windows debug build 通过并生成 `sakuraplayer_windows.exe`；未执行 TASK-212 release/安装包或 TASK-213 真实 115 门禁。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -202,20 +204,20 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208。
-- **下一任务**: TASK-209 播放请求、全屏等待与通知。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209。
+- **下一任务**: TASK-210 media_kit 原画 HLS 播放器。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-209 开始：
+下一会话从 TASK-210 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-209.md"
+/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-210.md"
 ```
 
-TASK-208 的 QR、缓存管理、设置、诊断、管理员操作、测试、任务状态与交接已同步；
-提交事实以 Git 为准。TASK-209 开始前复核播放请求、等待状态、事件通知与现有播放器边界；
-真实 115 发布门禁仍由 TASK-213 执行。
+TASK-209 的播放请求、等待状态、事件通知、Windows toast、测试、任务状态与交接已同步；
+提交事实以 Git 为准。TASK-210 开始前复核 playback session/manifest、media_kit UA header 与 seek 合并边界；
+release/安装包与真实 115 门禁仍分别由 TASK-212/TASK-213 执行。
 
 ## 4. 必读契约
 

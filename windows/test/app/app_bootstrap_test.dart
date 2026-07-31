@@ -7,11 +7,15 @@ import 'package:go_router/go_router.dart';
 import 'package:sakuraplayer_windows/app/app.dart';
 import 'package:sakuraplayer_windows/app/fullscreen_player_page.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
+import 'package:sakuraplayer_windows/core/events/snapshot_controller.dart';
 import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
 import 'package:sakuraplayer_windows/features/actors/presentation/actor_detail_page.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
+import 'package:sakuraplayer_windows/features/cache/data/play_request_api.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/blocking_wait_page.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/play_request_controller.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
@@ -31,6 +35,35 @@ void main() {
     expect(find.byType(LoginPage), findsOneWidget);
     expect(find.byType(DesktopShell), findsNothing);
     expect(find.byType(FullscreenPlayerPage), findsNothing);
+  });
+
+  testWidgets('login route takes precedence over a stale wait state', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        playRequestGatewayProvider.overrideWithValue(_WaitingPlayGateway()),
+        playRequestClockProvider.overrideWithValue(const _RouteClock()),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await container
+        .read(playRequestControllerProvider.notifier)
+        .submit(movieId: _movieId, sourceId: _sourceId);
+    final router = GoRouter.of(tester.element(find.byType(LoginPage)));
+    router.go(const LoginRoute().location);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(find.byType(BlockingWaitPage), findsNothing);
+    container.read(playRequestControllerProvider.notifier).reset();
   });
 
   testWidgets('authenticated session enters desktop shell', (tester) async {
@@ -167,6 +200,103 @@ void main() {
     expect(find.byType(MovieDetailPage), findsNothing);
   });
 
+  testWidgets('selected source opens guarded blocking wait route', (
+    tester,
+  ) async {
+    final playGateway = _WaitingPlayGateway();
+    final container = ProviderContainer(
+      overrides: [
+        authSessionStateProvider.overrideWithValue(
+          AuthSessionState.authenticated(
+            serverBaseUri: Uri.parse('https://server.test'),
+          ),
+        ),
+        moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+        movieDetailGatewayProvider.overrideWithValue(
+          const _MovieDetailGateway(),
+        ),
+        playRequestGatewayProvider.overrideWithValue(playGateway),
+        playRequestClockProvider.overrideWithValue(const _RouteClock()),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(tester.element(find.byType(DesktopShell)));
+    router.go(MovieDetailRoute(_movieId).location);
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('路由来源'));
+    await tester.pump();
+    await tester.tap(find.text('路由来源'));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('movie-detail-play')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('movie-detail-play')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BlockingWaitPage), findsOneWidget);
+    expect(find.byType(DesktopShell), findsNothing);
+    expect(playGateway.movieIds, <String>[_movieId]);
+    expect(playGateway.sourceIds, <String>[_sourceId]);
+
+    router.go(const SettingsRoute().location);
+    await tester.pumpAndSettle();
+    expect(find.byType(BlockingWaitPage), findsOneWidget);
+    container.read(playRequestControllerProvider.notifier).reset();
+    await tester.pump();
+  });
+
+  testWidgets('ready arriving before wait route redirects to player', (
+    tester,
+  ) async {
+    final playGateway = _WaitingPlayGateway();
+    final container = ProviderContainer(
+      overrides: [
+        authSessionStateProvider.overrideWithValue(
+          AuthSessionState.authenticated(
+            serverBaseUri: Uri.parse('https://server.test'),
+          ),
+        ),
+        moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+        playRequestGatewayProvider.overrideWithValue(playGateway),
+        playRequestClockProvider.overrideWithValue(const _RouteClock()),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await container
+        .read(playRequestControllerProvider.notifier)
+        .submit(movieId: _movieId, sourceId: _sourceId);
+    container
+        .read(snapshotStateProvider.notifier)
+        .replace(
+          SnapshotState.empty().copyWith(
+            snapshotVersion: 1,
+            cacheJobs: <String, CacheJobDto>{_jobId: _routeJob('ready')},
+          ),
+        );
+
+    final router = GoRouter.of(tester.element(find.byType(DesktopShell)));
+    router.go(const BlockingWaitRoute().location);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FullscreenPlayerPage), findsOneWidget);
+    expect(find.byType(BlockingWaitPage), findsNothing);
+    container.read(playRequestControllerProvider.notifier).reset();
+  });
+
   testWidgets('diagnostics typed route stays inside the settings shell', (
     tester,
   ) async {
@@ -239,6 +369,7 @@ void main() {
       '/app/cache',
       '/app/settings',
       '/app/settings/diagnostics',
+      '/wait',
       '/player',
     });
     expect(appRouteLocations.any((path) => path.contains('age')), isFalse);
@@ -383,6 +514,8 @@ class _RouteSettingsGateway implements SettingsGateway {
 
 const _actorId = '00000000-0000-4000-8000-000000000010';
 const _movieId = '00000000-0000-4000-8000-000000000020';
+const _sourceId = '00000000-0000-4000-8000-000000000021';
+const _jobId = '00000000-0000-4000-8000-000000000022';
 
 class _ActorsGateway implements ActorsGateway {
   const _ActorsGateway();
@@ -437,7 +570,20 @@ class _MovieDetailGateway implements MovieDetailGateway {
     actors: const <ActorSummaryDto>[],
     tags: const <String>[],
     plotImageUrls: const <String>[],
-    sources: const <MovieSourceDto>[],
+    sources: const <MovieSourceDto>[
+      MovieSourceDto(
+        id: _sourceId,
+        website: MovieSourceWebsite.sehuatang,
+        externalPostId: 1,
+        title: '路由来源',
+        publishDate: null,
+        category: '中文字幕',
+        labels: <String>['subtitle'],
+        resourceSizeMb: 1024,
+        videoFileSizeBytes: null,
+        availability: MovieSourceAvailability.available,
+      ),
+    ],
   );
 
   @override
@@ -446,3 +592,53 @@ class _MovieDetailGateway implements MovieDetailGateway {
   @override
   Future<void> setFavorite(String movieId, {required bool enabled}) async {}
 }
+
+class _WaitingPlayGateway implements PlayRequestGateway {
+  final List<String> movieIds = <String>[];
+  final List<String> sourceIds = <String>[];
+
+  @override
+  Future<PlayRequestResultDto> request({
+    required String movieId,
+    required String sourceId,
+    required String idempotencyKey,
+  }) async {
+    movieIds.add(movieId);
+    sourceIds.add(sourceId);
+    return PlayRequestResultDto(
+      disposition: PlayDisposition.started,
+      waitDeadline: DateTime.utc(2026, 7, 31, 12, 1),
+      cacheJob: _routeJob('submitting'),
+    );
+  }
+
+  @override
+  Future<CacheJobDto> cancel(String jobId, {required bool confirmed}) async =>
+      _routeJob('cleaned');
+}
+
+class _RouteClock implements PlayRequestClock {
+  const _RouteClock();
+
+  @override
+  Duration monotonicNow() => Duration.zero;
+
+  @override
+  DateTime wallNow() => DateTime.utc(2026, 7, 31, 12);
+}
+
+CacheJobDto _routeJob(String status) => CacheJobDto(
+  id: _jobId,
+  movieId: _movieId,
+  sourceId: _sourceId,
+  status: status,
+  remotePercent: 0,
+  errorCode: null,
+  mediaCandidates: const <RemoteMediaDto>[],
+  selectedMediaIds: const <String>[],
+  subtitles: const <SubtitleOptionDto>[],
+  readyAt: null,
+  expiresAt: null,
+  createdAt: DateTime.utc(2026, 7, 31, 12),
+  updatedAt: DateTime.utc(2026, 7, 31, 12),
+);

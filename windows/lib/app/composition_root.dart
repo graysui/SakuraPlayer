@@ -8,6 +8,9 @@ import 'package:sakuraplayer_windows/core/events/snapshot_controller.dart';
 import 'package:sakuraplayer_windows/core/images/gfriends_cache.dart';
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/cache_notifications.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/play_request_controller.dart';
+import 'package:sakuraplayer_windows/routes/app_router.dart';
 
 class SakuraPlayerCompositionRoot extends ConsumerStatefulWidget {
   const SakuraPlayerCompositionRoot({required this.child, super.key});
@@ -52,7 +55,13 @@ class _SakuraPlayerCompositionRootState
     final snapshots = SnapshotController(
       loadSnapshot: api.eventSnapshot,
       notifications: NotificationCoordinator(
-        sink: const NoopAppNotificationSink(),
+        sink: WindowsCacheNotificationSink(
+          port: ref.read(cacheToastPortProvider),
+          onOpenCache:
+              () => ref
+                  .read(appRouterProvider)
+                  .go(const CacheStatusRoute().location),
+        ),
         markRead: api.markNotificationRead,
       ),
     );
@@ -93,6 +102,7 @@ class _SakuraPlayerCompositionRootState
     _snapshotListener = null;
     if (listener != null) snapshots?.removeListener(listener);
     snapshots?.dispose();
+    ref.read(playRequestControllerProvider.notifier).reset();
     ref.read(snapshotStateProvider.notifier).clear();
   }
 

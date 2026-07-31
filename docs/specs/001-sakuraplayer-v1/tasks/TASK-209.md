@@ -3,7 +3,7 @@ id: TASK-209
 title: "播放请求全屏等待与通知"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: in_progress
+status: completed
 dependencies: [TASK-207, TASK-208]
 ac-mapping: [AC-084, AC-085, AC-086, AC-087, AC-088, AC-089, AC-090, AC-091, AC-117]
 imp-requirements: [REQ-017, REQ-021]
@@ -24,11 +24,11 @@ provides: [Windows play request controller, blocking wait page, cache notificati
 
 ## 验收条件
 
-- [ ] 只有用户选中具体 source 并点击播放才提交请求；重复点击复用；对应 AC-084、AC-091。
-- [ ] started 进入全屏等待，除二次确认取消外不能操作其他页面；60 秒内 ready 自动进播放器；对应 AC-086、AC-087。
-- [ ] 60 秒未完成退出等待提示切换资源，任务继续后台；对应 AC-088。
-- [ ] queued 立即退出且开始/完成不自动播放；后台 ready 只通知并保留缓存；对应 AC-089、AC-090、AC-117。
-- [ ] UI 不提供修改 2/10 固定容量；对应 AC-085。
+- [x] 只有用户选中具体 source 并点击播放才提交请求；重复点击复用；对应 AC-084、AC-091。
+- [x] started 进入全屏等待，除二次确认取消外不能操作其他页面；60 秒内 ready 自动进播放器；对应 AC-086、AC-087。
+- [x] 60 秒未完成退出等待提示切换资源，任务继续后台；对应 AC-088。
+- [x] queued 立即退出且开始/完成不自动播放；后台 ready 只通知并保留缓存；对应 AC-089、AC-090、AC-117。
+- [x] UI 不提供修改 2/10 固定容量；对应 AC-085。
 
 ## Definition of Ready
 
@@ -48,6 +48,7 @@ provides: [Windows play request controller, blocking wait page, cache notificati
 
 **创建**:
 
+- `windows/lib/features/cache/data/play_request_api.dart` - 严格 DTO、幂等请求与确认取消 gateway。
 - `windows/lib/features/cache/presentation/play_request_controller.dart` - disposition/倒计时/事件。
 - `windows/lib/features/cache/presentation/blocking_wait_page.dart` - 全屏锁定和进度。
 - `windows/lib/features/cache/presentation/cache_notifications.dart` - 后台/前台完成通知。
@@ -63,9 +64,15 @@ provides: [Windows play request controller, blocking wait page, cache notificati
 
 ## Definition of Done
 
-- [ ] 播放请求、全屏等待、60 秒、排队和通知完成。
-- [ ] 客户端不创建自动离线或后台预取。
-- [ ] 状态/Widget 测试通过。
+- [x] 播放请求、全屏等待、60 秒、排队和通知完成。
+- [x] 客户端不创建自动离线或后台预取。
+- [x] 状态/Widget 测试通过。
+
+## 实现证据
+
+- `play_request_controller_test.dart` 覆盖严格 DTO、source_id-only、幂等 header/重复点击、四种 disposition、0/1/59/60 秒、迟到 ready、快照竞态、取消和四类通知。
+- `blocking_wait_page_test.dart` 与 `app_bootstrap_test.dart` 覆盖导航锁、二次确认、固定 2/10、详情来源入口、认证优先级和播放器占位 route。
+- Final：`dart format` 无变化，`flutter analyze` 无问题，完整 `flutter test` 168 项通过，Windows debug build 通过。
 
 **依赖**: TASK-207, TASK-208
 
