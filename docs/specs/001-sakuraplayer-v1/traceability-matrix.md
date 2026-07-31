@@ -43,7 +43,7 @@
 - AC-051 至 AC-053、AC-075 至 AC-077 的 Windows Actor DTO 所有权、查询/收藏 generation、typed route、GFriends 精确 URL、匿名下载、取消、四并发、7 天期限、512 文件/256 MiB LRU、会话清理隔离和固定桌面几何由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 与 [Windows 女优客户端契约](contracts/windows-actors-client.md) 冻结；TASK-206 已完成客户端实现，自动证据位于 `actors_controller_test.dart`、`actor_pages_test.dart`、`gfriends_cache_test.dart`、`desktop_shell_test.dart`、`auth_controller_test.dart` 和 `app_bootstrap_test.dart`。
 - AC-031、AC-033 至 AC-035、AC-068、AC-074、AC-077、AC-078 的 Windows MovieDetail DTO 所有权、认证图片、MovieId typed route、加载/收藏 generation、来源状态/大小、显式 source_id-only 选择与固定桌面几何由 [TASK-207 Windows 影片详情客户端边界](changes/2026-07-30--task-207-movie-detail-client-boundaries.md) 与 [Windows 影片详情客户端契约](contracts/windows-movie-detail-client.md) 冻结；TASK-207 已完成客户端实现，自动证据位于 `movie_detail_controller_test.dart`、`movie_detail_page_test.dart`、`library_page_test.dart`、`rankings_page_test.dart`、`actor_pages_test.dart`、`desktop_shell_test.dart` 和 `app_bootstrap_test.dart`；play-request 继续由 TASK-209 交付。
 - AC-084 至 AC-091、AC-117 的 Windows play-request DTO/gateway、服务器 deadline + 单调倒计时、等待导航锁、取消/窗口关闭和即时通知适配器由 [TASK-209 Windows 播放请求、等待与通知边界](changes/2026-07-31--task-209-playback-wait-notification-boundaries.md)、[Windows 播放请求客户端契约](contracts/windows-play-request-client.md) 与 [ADR-004](../adr/ADR-004-windows-cache-notifications.md) 冻结；TASK-209 已完成客户端实现，自动证据位于 `api_client_test.dart`、`play_request_controller_test.dart`、`blocking_wait_page_test.dart`、`event_client_test.dart` 和 `app_bootstrap_test.dart`，真实通知/安装包验收继续归 TASK-212/213。
-- AC-093、AC-099 至 AC-106、AC-114 的 Windows ready route、候选组选择、manifest 严格消费、同 origin capability、固定 media_kit UA、双模式、错误恢复、seek 合并和基础控制由 [TASK-210 Windows 播放器确定性边界](changes/2026-07-31--task-210-windows-player-boundaries.md) 与 [Windows 播放器客户端契约](contracts/windows-playback-client.md) 冻结；TASK-210 已完成客户端实现，自动证据位于 `playback_api_test.dart`、`player_controller_test.dart`、`throttling_player_test.dart`、`player_page_test.dart`、`cache_page_test.dart` 和 `app_bootstrap_test.dart`；TASK-211 后续接入字幕/音轨/心跳，TASK-213 保留真实 115 链路门禁。
+- AC-093、AC-099 至 AC-106、AC-114 的 Windows ready route、候选组选择、manifest 严格消费、同 origin capability、固定 media_kit UA、双模式、错误恢复、seek 合并和基础控制由 [TASK-210 Windows 播放器确定性边界](changes/2026-07-31--task-210-windows-player-boundaries.md) 与 [Windows 播放器客户端契约](contracts/windows-playback-client.md) 冻结；TASK-210 已完成基础播放器，TASK-211 已完成字幕/音轨/心跳与影片进度接入，自动证据位于 `playback_api_test.dart`、`player_controller_test.dart`、`progress_controller_test.dart`、`track_controller_test.dart`、`subtitle_cache_test.dart`、`throttling_player_test.dart`、`player_page_test.dart`、`cache_page_test.dart` 和 `app_bootstrap_test.dart`；TASK-213 保留真实 115 链路门禁。
 - AC-028/AC-029 的搜索字段、键集游标、安全响应和原子手动关联由 [待识别查询与关联确定性](changes/2026-07-25--pending-identification-pagination.md) 冻结，并由 TASK-005 实现。
 - TASK-014 只验证 TASK-001 至 TASK-013 已交付的 Phase 1 后端切片；真实 PostgreSQL、应用服务组合、fixture、600 秒/性能证据复用和 Final runner 边界由 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md) 冻结。其 `ac-mapping` 是验证范围，不转移前序任务实现所有权，也不覆盖 115、客户端或外部门禁。自动证据位于 `test_catalog_metadata_e2e.py`、`test_avdb_idempotency_e2e.py` 和 `test_metadata_failure_isolation_e2e.py`，正式评审结论为 `passed`。
 - TASK-113 只验证 TASK-101 至 TASK-112 已交付的 Phase 2 后端可观察切片和 AC-132 的新增播放观察点；状态化 Fake、生产服务组合、60 秒/自动播放客户端责任和四方证据边界由 [TASK-113 115 缓存播放后端 E2E 边界](changes/2026-07-29--task-113-backend-e2e-boundaries.md) 与 [115 缓存播放后端 E2E 契约](contracts/backend-cloud115-e2e.md) 冻结。其 `ac-mapping` 是代表性组合验证范围，不转移前序实现任务或后续客户端任务的 AC 所有权，也不替代 TASK-213 真实 115 门禁。自动证据位于 `test_cloud115_cache_playback_e2e.py`、`test_cache_capacity_wait_e2e.py`、`test_cache_cleanup_faults_e2e.py` 和 `test_playback_security_e2e.py`，正式审计无剩余 P0/P1/P2，Compose Final 通过。
@@ -77,13 +77,16 @@
   [TASK-110 字幕下载与生命周期边界](changes/2026-07-28--task-110-subtitle-contract.md) 冻结；
   TASK-110 已实现后端 manifest/下载，自动证据位于 `test_signature.py`、
   `test_subtitle_options.py` 和 `test_subtitle_download.py`；TASK-112 发布 cache cleaned，
-  TASK-211/311 执行客户端清理。
+  TASK-211 已完成 Windows 私有缓存、轨道选择和三类清理，自动证据位于
+  `subtitle_cache_test.dart`、`track_controller_test.dart` 和 `player_page_test.dart`；TASK-311 后续实现 HarmonyOS 客户端。
 - AC-068、AC-111 至 AC-114 的影片级 0019 Schema、未知时长、完成边界、expected-version CAS、
   无进度心跳和 lease/TTL/progress 原子事务由
   [TASK-111 进度与心跳确定性边界](changes/2026-07-28--task-111-progress-heartbeat-contract.md)
   冻结；TASK-111 已实现后端状态、manifest、目录投影和心跳，自动证据位于
   `test_completion_rule.py`、`test_progress_service.py`、`test_heartbeat.py`、
-  `test_progress_api.py` 和 `test_cross_client_progress.py`；TASK-211/311 实现两端控制器。
+  `test_progress_api.py` 和 `test_cross_client_progress.py`；TASK-211 已完成 Windows 自动续播、心跳、
+  flush、CAS 收敛和即时页面刷新，自动证据位于 `progress_controller_test.dart`、
+  `player_controller_test.dart`、`library_page_test.dart` 和 `movie_detail_page_test.dart`；TASK-311 后续实现 HarmonyOS 控制器。
 - AC-094 至 AC-098 的 materialized cache 首次 TTL、设置变更、20 个安全收敛目标、稳定 LRU、
   playback lease 最小 Schema、清理 claim/attempt 和证明式删除恢复由
   [TASK-107 缓存生命周期确定性边界](changes/2026-07-28--task-107-cache-lifecycle-determinism.md)

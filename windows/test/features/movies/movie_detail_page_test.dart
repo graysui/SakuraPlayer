@@ -7,6 +7,7 @@ import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/source_list.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 
 void main() {
   testWidgets('source list shows six states, size truth and rejected lock', (
@@ -98,6 +99,22 @@ void main() {
 
     expect(find.text('视频文件大小未知'), findsOneWidget);
     expect(find.textContaining('4096'), findsNothing);
+  });
+
+  testWidgets('detail prefers live authoritative progress', (tester) async {
+    await _pumpPage(
+      tester,
+      gateway: _MovieGateway(_detail()),
+      liveProgress: const LivePlaybackProgress(
+        positionSeconds: 0,
+        durationSeconds: 600,
+        completed: true,
+        version: 2,
+      ),
+    );
+
+    expect(find.text('已看完'), findsOneWidget);
+    expect(find.text('继续播放 25%'), findsNothing);
   });
 
   testWidgets('wide and narrow layouts keep fixed cover geometry', (
@@ -218,10 +235,16 @@ Future<void> _pumpPage(
   required MovieDetailGateway gateway,
   ValueChanged<String>? onOpenActor,
   ValueChanged<String>? onPlaySource,
+  LivePlaybackProgress? liveProgress,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [movieDetailGatewayProvider.overrideWithValue(gateway)],
+      overrides: [
+        movieDetailGatewayProvider.overrideWithValue(gateway),
+        livePlaybackProgressProvider.overrideWith(
+          () => _FixedLiveProgressNotifier(liveProgress),
+        ),
+      ],
       child: MaterialApp(
         home: Scaffold(
           body: MovieDetailPage(
@@ -234,6 +257,18 @@ Future<void> _pumpPage(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+class _FixedLiveProgressNotifier extends LivePlaybackProgressNotifier {
+  _FixedLiveProgressNotifier(this.progress);
+
+  final LivePlaybackProgress? progress;
+
+  @override
+  Map<String, LivePlaybackProgress> build() =>
+      progress == null
+          ? const <String, LivePlaybackProgress>{}
+          : <String, LivePlaybackProgress>{movieId: progress!};
 }
 
 class _MovieGateway implements MovieDetailGateway {

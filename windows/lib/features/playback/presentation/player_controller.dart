@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:sakuraplayer_windows/core/api/api_client.dart';
 import 'package:sakuraplayer_windows/features/playback/data/playback_api.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/playback_engine.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/throttling_player.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/track_controller.dart';
 
 enum PlayerLoadStatus { idle, loading, ready, failed }
 
@@ -12,15 +14,27 @@ class PlayerController extends ChangeNotifier {
   PlayerController({
     required PlaybackGateway gateway,
     required this.engine,
+    this.tracks,
+    this.progress,
     DateTime Function()? now,
   }) : _gateway = gateway,
        _now = now ?? (() => DateTime.now().toUtc()),
        _seeker = ThrottlingPlayer(engine.seek) {
+    tracks?.addListener(_childChanged);
+    progress?.addListener(_childChanged);
     _subscriptions.addAll([
       engine.playingStream.listen((value) {
         if (_disposed) return;
+        final wasPlaying = isPlaying;
         isPlaying = value;
+        if (wasPlaying && !value && status == PlayerLoadStatus.ready) {
+          unawaited(progress?.flushPaused());
+        }
         notifyListeners();
+      }),
+      engine.completedStream.listen((completed) {
+        if (_disposed || !completed || status != PlayerLoadStatus.ready) return;
+        unawaited(progress?.finish());
       }),
       engine.bufferingStream.listen((value) {
         if (_disposed) return;
@@ -30,11 +44,13 @@ class PlayerController extends ChangeNotifier {
       engine.positionStream.listen((value) {
         if (_disposed) return;
         position = value;
+        progress?.updatePlayback(position: position, duration: duration);
         notifyListeners();
       }),
       engine.durationStream.listen((value) {
         if (_disposed) return;
         duration = value;
+        progress?.updatePlayback(position: position, duration: duration);
         notifyListeners();
       }),
       engine.errorStream.listen(
@@ -48,6 +64,8 @@ class PlayerController extends ChangeNotifier {
   final ThrottlingPlayer _seeker;
   final List<StreamSubscription<Object?>> _subscriptions = [];
   final PlaybackEngine engine;
+  final TrackController? tracks;
+  final ProgressController? progress;
 
   PlayerLoadStatus status = PlayerLoadStatus.idle;
   PlaybackMode mode = PlaybackMode.original;
@@ -106,12 +124,20 @@ class PlayerController extends ChangeNotifier {
         mode: target,
       );
       if (!_isCurrent(generation)) return;
+      if (manifest != null) {
+        await progress?.finish();
+        if (!_isCurrent(generation)) return;
+      }
       mode = result.mode;
       manifest = result;
       await engine.open(result, mediaId);
       if (!_isCurrent(generation)) return;
+      progress?.attachManifest(result);
+      await progress?.resume(_seeker.seek);
+      if (!_isCurrent(generation)) return;
       status = PlayerLoadStatus.ready;
       notifyListeners();
+      unawaited(tracks?.attachManifest(result));
     } on ApiException catch (error) {
       if (!_isCurrent(generation)) return;
       if (allowOriginalFallback &&
@@ -169,16 +195,41 @@ class PlayerController extends ChangeNotifier {
 
   bool _isCurrent(int generation) => !_disposed && generation == _generation;
 
+  void _childChanged() {
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> close() async {
+    if (_disposed) return;
+    final progressClose = progress?.close();
+    _disposeCore(disposeProgress: false);
+    super.dispose();
+    try {
+      await progressClose;
+    } finally {
+      progress?.dispose();
+    }
+  }
+
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposeCore(disposeProgress: true);
+    super.dispose();
+  }
+
+  void _disposeCore({required bool disposeProgress}) {
     if (_disposed) return;
     _disposed = true;
     _generation++;
     _seeker.dispose();
+    tracks?.removeListener(_childChanged);
+    progress?.removeListener(_childChanged);
+    tracks?.dispose();
+    if (disposeProgress) progress?.dispose();
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
     unawaited(engine.dispose());
-    super.dispose();
   }
 }

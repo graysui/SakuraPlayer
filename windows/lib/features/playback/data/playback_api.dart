@@ -36,8 +36,8 @@ class PlaybackProgressDto {
         json['duration_seconds'] == null
             ? null
             : reader.number('duration_seconds');
-    final version = reader.nonNegativeInteger('version');
-    if (position < 0 || (duration != null && duration < 0)) {
+    final version = reader.positiveInteger('version');
+    if (position < 0 || (duration != null && duration <= 0)) {
       throw const ProtocolException('PlaybackProgress values are invalid');
     }
     final completed = reader.boolean('completed');
@@ -58,6 +58,37 @@ class PlaybackProgressDto {
   final double? durationSeconds;
   final bool completed;
   final int version;
+}
+
+@immutable
+class PlaybackHeartbeatDto {
+  const PlaybackHeartbeatDto({
+    required this.leaseExpiresAt,
+    required this.progress,
+  });
+
+  factory PlaybackHeartbeatDto.fromJson(Map<String, Object?> json) {
+    final reader = JsonReader(json, 'PlaybackHeartbeat');
+    if (!json.containsKey('progress')) {
+      throw const ProtocolException('PlaybackHeartbeat.progress is required');
+    }
+    final rawProgress = json['progress'];
+    if (rawProgress != null && rawProgress is! Map) {
+      throw const ProtocolException('PlaybackHeartbeat.progress is invalid');
+    }
+    return PlaybackHeartbeatDto(
+      leaseExpiresAt: reader.nullableDateTime('lease_expires_at'),
+      progress:
+          rawProgress == null
+              ? null
+              : PlaybackProgressDto.fromJson(
+                Map<String, Object?>.from(rawProgress as Map),
+              ),
+    );
+  }
+
+  final DateTime? leaseExpiresAt;
+  final PlaybackProgressDto? progress;
 }
 
 @immutable
@@ -156,6 +187,16 @@ class PlaybackManifestDto {
       'subtitles',
       SubtitleOptionDto.fromJson,
     );
+    final queueMediaIds = queue.map((item) => item.media.id).toSet();
+    if (subtitles.map((item) => item.id).toSet().length != subtitles.length ||
+        subtitles.any(
+          (item) =>
+              item.mediaId != null && !queueMediaIds.contains(item.mediaId),
+        )) {
+      throw const ProtocolException(
+        'PlaybackManifest subtitles are not authorized by the media queue',
+      );
+    }
     if (!json.containsKey('progress')) {
       throw const ProtocolException('PlaybackManifest.progress is required');
     }
@@ -240,7 +281,35 @@ abstract interface class PlaybackGateway {
   });
 }
 
-class PlaybackApi implements PlaybackGateway {
+abstract interface class SubtitleDownloadGateway {
+  Future<List<int>> downloadSubtitle({
+    required String playbackSessionId,
+    required String subtitleId,
+  });
+}
+
+abstract interface class PlaybackProgressGateway {
+  Future<PlaybackProgressDto> updateProgress({
+    required String movieId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+  });
+
+  Future<PlaybackHeartbeatDto> heartbeat({
+    required String playbackSessionId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+    required bool playing,
+  });
+}
+
+class PlaybackApi
+    implements
+        PlaybackGateway,
+        SubtitleDownloadGateway,
+        PlaybackProgressGateway {
   const PlaybackApi({
     required ApiClient client,
     required Uri serverOrigin,
@@ -284,9 +353,82 @@ class PlaybackApi implements PlaybackGateway {
     }
     return result;
   }
+
+  @override
+  Future<List<int>> downloadSubtitle({
+    required String playbackSessionId,
+    required String subtitleId,
+  }) {
+    requireUuid(playbackSessionId, 'playbackSessionId');
+    requireUuid(subtitleId, 'subtitleId');
+    return _client.getBytes(
+      'playback/sessions/$playbackSessionId/subtitles/$subtitleId',
+    );
+  }
+
+  @override
+  Future<PlaybackProgressDto> updateProgress({
+    required String movieId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+  }) {
+    requireUuid(movieId, 'movieId');
+    _validateProgressInput(positionSeconds, durationSeconds, version);
+    return _client.put<PlaybackProgressDto>(
+      'movies/$movieId/progress',
+      data: <String, Object?>{
+        'position_seconds': positionSeconds,
+        'duration_seconds': durationSeconds,
+        'version': version,
+      },
+      decode: PlaybackProgressDto.fromJson,
+    );
+  }
+
+  @override
+  Future<PlaybackHeartbeatDto> heartbeat({
+    required String playbackSessionId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+    required bool playing,
+  }) async {
+    requireUuid(playbackSessionId, 'playbackSessionId');
+    _validateProgressInput(positionSeconds, durationSeconds, version);
+    final clientId = await _clientInstanceId();
+    requireUuid(clientId, 'clientInstanceId');
+    return _client.put<PlaybackHeartbeatDto>(
+      'playback/sessions/$playbackSessionId/heartbeat',
+      data: <String, Object?>{
+        'client_instance_id': clientId,
+        'progress': <String, Object?>{
+          'position_seconds': positionSeconds,
+          'duration_seconds': durationSeconds,
+          'version': version,
+        },
+        'playing': playing,
+      },
+      decode: PlaybackHeartbeatDto.fromJson,
+    );
+  }
 }
 
-final playbackGatewayProvider = Provider<PlaybackGateway>((ref) {
+void _validateProgressInput(
+  double positionSeconds,
+  double? durationSeconds,
+  int version,
+) {
+  if (!positionSeconds.isFinite ||
+      positionSeconds < 0 ||
+      (durationSeconds != null &&
+          (!durationSeconds.isFinite || durationSeconds <= 0)) ||
+      version < 0) {
+    throw ArgumentError('playback progress values are invalid');
+  }
+}
+
+final playbackApiProvider = Provider<PlaybackApi>((ref) {
   final auth = ref.watch(authSessionStateProvider);
   final client = ref.read(authControllerProvider.notifier).apiClient;
   if (!auth.isAuthenticated || auth.serverBaseUri == null || client == null) {
@@ -297,4 +439,28 @@ final playbackGatewayProvider = Provider<PlaybackGateway>((ref) {
     serverOrigin: auth.serverBaseUri!,
     clientInstanceId: ref.read(secureStoreProvider).clientInstanceId,
   );
+});
+
+final playbackGatewayProvider = Provider<PlaybackGateway>(
+  (ref) => ref.watch(playbackApiProvider),
+);
+
+final subtitleDownloadGatewayProvider = Provider<SubtitleDownloadGateway>((
+  ref,
+) {
+  final sessionGateway = ref.watch(playbackGatewayProvider);
+  if (sessionGateway is SubtitleDownloadGateway) {
+    return sessionGateway as SubtitleDownloadGateway;
+  }
+  return ref.watch(playbackApiProvider);
+});
+
+final playbackProgressGatewayProvider = Provider<PlaybackProgressGateway>((
+  ref,
+) {
+  final sessionGateway = ref.watch(playbackGatewayProvider);
+  if (sessionGateway is PlaybackProgressGateway) {
+    return sessionGateway as PlaybackProgressGateway;
+  }
+  return ref.watch(playbackApiProvider);
 });

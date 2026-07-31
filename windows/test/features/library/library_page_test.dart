@@ -9,6 +9,7 @@ import 'package:sakuraplayer_windows/features/library/presentation/library_contr
 import 'package:sakuraplayer_windows/features/library/presentation/library_filters.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_page.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/movie_card.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 
 void main() {
   testWidgets(
@@ -89,13 +90,20 @@ void main() {
   testWidgets(
     'progress button distinguishes percent, completed and unknown time',
     (tester) async {
-      Future<void> pump(MovieSummaryDto movie) => tester.pumpWidget(
+      Future<void> pump(
+        MovieSummaryDto movie, {
+        LivePlaybackProgress? liveProgress,
+      }) => tester.pumpWidget(
         MaterialApp(
           home: Center(
             child: SizedBox(
               width: 200,
               height: 408,
-              child: MovieCard(movie: movie, coverLoader: (_) async => <int>[]),
+              child: MovieCard(
+                movie: movie,
+                liveProgress: liveProgress,
+                coverLoader: (_) async => <int>[],
+              ),
             ),
           ),
         ),
@@ -136,6 +144,44 @@ void main() {
         ),
       );
       expect(find.text('已播放 05:05'), findsOneWidget);
+
+      await pump(
+        _movie(
+          progress: const PlaybackProgressDto(
+            positionSeconds: 300,
+            durationSeconds: 1200,
+            completed: false,
+            version: 1,
+          ),
+        ),
+        liveProgress: const LivePlaybackProgress(
+          positionSeconds: 0,
+          durationSeconds: 1200,
+          completed: true,
+          version: 2,
+        ),
+      );
+      expect(find.text('已看完'), findsOneWidget);
+      expect(find.text('继续播放 25%'), findsNothing);
+
+      await pump(
+        _movie(
+          progress: const PlaybackProgressDto(
+            positionSeconds: 0,
+            durationSeconds: 1200,
+            completed: true,
+            version: 3,
+          ),
+        ),
+        liveProgress: const LivePlaybackProgress(
+          positionSeconds: 300,
+          durationSeconds: 1200,
+          completed: false,
+          version: 2,
+        ),
+      );
+      expect(find.text('已看完'), findsOneWidget);
+      expect(find.text('继续播放 25%'), findsNothing);
     },
   );
 

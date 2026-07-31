@@ -6,6 +6,7 @@ import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_controller.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/library_filters.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/movie_card.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 
 class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({this.onOpenMovie, super.key});
@@ -167,6 +168,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               key: ValueKey(movie.id),
               movie: movie,
               coverLoader: gateway.loadCover,
+              liveProgress: ref.watch(
+                livePlaybackProgressProvider.select((items) => items[movie.id]),
+              ),
               onOpen:
                   widget.onOpenMovie == null
                       ? null

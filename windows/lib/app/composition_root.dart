@@ -10,6 +10,8 @@ import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dar
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/cache_notifications.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/play_request_controller.dart';
+import 'package:sakuraplayer_windows/features/playback/data/subtitle_cache.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 import 'package:sakuraplayer_windows/routes/app_router.dart';
 
 class SakuraPlayerCompositionRoot extends ConsumerStatefulWidget {
@@ -29,6 +31,7 @@ class _SakuraPlayerCompositionRootState
   AppLifecycleCoordinator? _lifecycle;
   SnapshotController? _snapshots;
   VoidCallback? _snapshotListener;
+  SubtitleCacheLifecycleCoordinator? _subtitleLifecycle;
 
   @override
   void initState() {
@@ -52,6 +55,11 @@ class _SakuraPlayerCompositionRootState
     final api = ref.read(authControllerProvider.notifier).apiClient;
     final server = auth.serverBaseUri;
     if (api == null || server == null) return;
+    final subtitleLifecycle = SubtitleCacheLifecycleCoordinator(
+      ref.read(subtitleCacheProvider),
+    );
+    _subtitleLifecycle = subtitleLifecycle;
+    unawaited(_initializeSubtitleCache(subtitleLifecycle));
     final snapshots = SnapshotController(
       loadSnapshot: api.eventSnapshot,
       notifications: NotificationCoordinator(
@@ -66,7 +74,15 @@ class _SakuraPlayerCompositionRootState
       ),
     );
     void publishSnapshot() {
-      ref.read(snapshotStateProvider.notifier).replace(snapshots.state);
+      final state = snapshots.state;
+      ref.read(snapshotStateProvider.notifier).replace(state);
+      unawaited(
+        _reconcileSubtitleCache(
+          state.cacheJobs.values
+              .where((job) => job.status == 'cleaned')
+              .map((job) => job.id),
+        ),
+      );
     }
 
     snapshots.addListener(publishSnapshot);
@@ -102,8 +118,29 @@ class _SakuraPlayerCompositionRootState
     _snapshotListener = null;
     if (listener != null) snapshots?.removeListener(listener);
     snapshots?.dispose();
+    _subtitleLifecycle?.reset();
+    _subtitleLifecycle = null;
     ref.read(playRequestControllerProvider.notifier).reset();
     ref.read(snapshotStateProvider.notifier).clear();
+    ref.read(livePlaybackProgressProvider.notifier).clear();
+  }
+
+  Future<void> _reconcileSubtitleCache(Iterable<String> jobIds) async {
+    try {
+      await _subtitleLifecycle?.reconcileCleanedJobs(jobIds);
+    } on Object {
+      debugPrint('subtitle_cache_cleanup_failed');
+    }
+  }
+
+  Future<void> _initializeSubtitleCache(
+    SubtitleCacheLifecycleCoordinator lifecycle,
+  ) async {
+    try {
+      await lifecycle.initialize(now: DateTime.now().toUtc());
+    } on Object {
+      debugPrint('subtitle_cache_cleanup_failed');
+    }
   }
 
   Future<void> _clearPrivateCaches() async {

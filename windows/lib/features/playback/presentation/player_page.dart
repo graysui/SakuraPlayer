@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakuraplayer_windows/core/events/snapshot_controller.dart';
 import 'package:sakuraplayer_windows/features/playback/data/playback_api.dart';
+import 'package:sakuraplayer_windows/features/playback/data/subtitle_cache.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/playback_engine.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/player_controller.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/track_controller.dart';
 import 'package:sakuraplayer_windows/theme/player_theme.dart';
 
 class PlayerPage extends ConsumerStatefulWidget {
@@ -34,12 +38,31 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   void initState() {
     super.initState();
     _ownsController = widget.controller == null;
-    _controller =
-        widget.controller ??
-        PlayerController(
-          gateway: ref.read(playbackGatewayProvider),
-          engine: ref.read(playbackEngineFactoryProvider)(),
-        );
+    if (widget.controller case final injected?) {
+      _controller = injected;
+    } else {
+      final engine = ref.read(playbackEngineFactoryProvider)();
+      final movieId =
+          ref.read(snapshotStateProvider).cacheJobs[widget.cacheJobId]?.movieId;
+      _controller = PlayerController(
+        gateway: ref.read(playbackGatewayProvider),
+        engine: engine,
+        tracks: TrackController(
+          port: engine,
+          subtitles: ref.read(subtitleRepositoryProvider),
+        ),
+        progress: ProgressController(
+          gateway: ref.read(playbackProgressGatewayProvider),
+          movieId: movieId,
+          onProgress:
+              movieId == null
+                  ? null
+                  : (progress) => ref
+                      .read(livePlaybackProgressProvider.notifier)
+                      .update(movieId, progress),
+        ),
+      );
+    }
     _controller.addListener(_changed);
     unawaited(
       _controller.initialize(
@@ -56,7 +79,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   void dispose() {
     _controller.removeListener(_changed);
-    if (_ownsController) _controller.dispose();
+    if (_ownsController) unawaited(_controller.close());
     super.dispose();
   }
 
@@ -227,7 +250,11 @@ class _PlayerControls extends StatelessWidget {
                       controller.seek(Duration(milliseconds: value.round())),
                     ),
           ),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               IconButton(
                 onPressed: () => unawaited(controller.togglePlayPause()),
@@ -236,14 +263,58 @@ class _PlayerControls extends StatelessWidget {
                   controller.isPlaying ? Icons.pause : Icons.play_arrow,
                 ),
               ),
-              Flexible(
+              SizedBox(
+                width: 118,
                 child: Text(
                   '${_durationLabel(controller.position)} / ${_durationLabel(controller.duration)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
+              if (controller.tracks case final tracks?) ...[
+                PopupMenuButton<String>(
+                  enabled: tracks.audioTracks.isNotEmpty,
+                  tooltip: '音轨',
+                  initialValue: tracks.selectedAudioId,
+                  onSelected: (id) => unawaited(tracks.selectAudio(id)),
+                  itemBuilder:
+                      (_) => [
+                        for (final track in tracks.audioTracks)
+                          PopupMenuItem(
+                            value: track.id,
+                            child: Text(track.label),
+                          ),
+                      ],
+                  child: const SizedBox.square(
+                    dimension: 40,
+                    child: Icon(Icons.audiotrack),
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  enabled: !tracks.loadingSubtitle,
+                  tooltip: '字幕',
+                  initialValue: tracks.selectedSubtitleKey,
+                  onSelected: (key) => unawaited(tracks.selectSubtitle(key)),
+                  itemBuilder:
+                      (_) => [
+                        for (final choice in tracks.subtitleChoices)
+                          PopupMenuItem(
+                            value: choice.key,
+                            child: Text(choice.label),
+                          ),
+                      ],
+                  child: SizedBox.square(
+                    dimension: 40,
+                    child:
+                        tracks.loadingSubtitle
+                            ? const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Icon(Icons.subtitles),
+                  ),
+                ),
+              ],
               PopupMenuButton<double>(
                 tooltip: '播放速度',
                 initialValue: controller.rate,

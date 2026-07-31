@@ -7,6 +7,7 @@ import 'package:sakuraplayer_windows/features/library/presentation/movie_card.da
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_controller.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/source_list.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 
 class MovieDetailPage extends ConsumerStatefulWidget {
   const MovieDetailPage({
@@ -166,124 +167,136 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
     BuildContext context,
     MovieDetailState state,
     MovieDetailDto detail,
-  ) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (widget.onBack != null) ...[
-            IconButton(
-              onPressed: widget.onBack,
-              tooltip: '返回媒体库',
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 4),
-          ],
-          Expanded(
-            child: Text(
-              detail.title,
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ),
-          SizedBox.square(
-            dimension: 48,
-            child: IconButton(
-              onPressed:
-                  state.isFavoriteInFlight
-                      ? null
-                      : () => unawaited(
-                        ref
-                            .read(movieDetailControllerProvider.notifier)
-                            .setFavorite(enabled: !detail.favorite),
-                      ),
-              tooltip: detail.favorite ? '取消收藏影片' : '收藏影片',
-              icon: Icon(
-                detail.favorite ? Icons.favorite : Icons.favorite_border,
+  ) {
+    final liveProgress = freshestLivePlaybackProgress(
+      ref.watch(
+        livePlaybackProgressProvider.select((items) => items[detail.id]),
+      ),
+      detail.progress?.version,
+    );
+    final completed =
+        liveProgress?.completed ?? detail.progress?.completed ?? false;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.onBack != null) ...[
+              IconButton(
+                onPressed: widget.onBack,
+                tooltip: '返回媒体库',
+                icon: const Icon(Icons.arrow_back),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Expanded(
+              child: Text(
+                detail.title,
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
-          ),
-        ],
-      ),
-      if (_isDistinct(detail.titleOriginal, detail.title)) ...[
-        const SizedBox(height: 4),
-        Text(
-          detail.titleOriginal!,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ],
-      const SizedBox(height: 10),
-      Text(detail.number, style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 12),
-      Wrap(
-        spacing: 14,
-        runSpacing: 8,
-        children: [
-          _Metadata('日期', detail.releaseDate ?? detail.publishDate ?? '未知'),
-          _Metadata('厂商', detail.maker ?? '未知'),
-          _Metadata('系列', detail.series ?? '未知'),
-          _Metadata('导演', detail.director ?? '未知'),
-          _Metadata('评分', detail.score?.toString() ?? '未知'),
-        ],
-      ),
-      const SizedBox(height: 16),
-      _sectionTitle(context, '演员'),
-      const SizedBox(height: 6),
-      detail.actors.isEmpty
-          ? const Text('暂无演员')
-          : Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              for (final actor in detail.actors)
-                TextButton(
-                  onPressed:
-                      widget.onOpenActor == null
-                          ? null
-                          : () => widget.onOpenActor!(actor.id),
-                  child: Text(actor.displayName),
+            SizedBox.square(
+              dimension: 48,
+              child: IconButton(
+                onPressed:
+                    state.isFavoriteInFlight
+                        ? null
+                        : () => unawaited(
+                          ref
+                              .read(movieDetailControllerProvider.notifier)
+                              .setFavorite(enabled: !detail.favorite),
+                        ),
+                tooltip: detail.favorite ? '取消收藏影片' : '收藏影片',
+                icon: Icon(
+                  detail.favorite ? Icons.favorite : Icons.favorite_border,
                 ),
-            ],
+              ),
+            ),
+          ],
+        ),
+        if (_isDistinct(detail.titleOriginal, detail.title)) ...[
+          const SizedBox(height: 4),
+          Text(
+            detail.titleOriginal!,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-      const SizedBox(height: 12),
-      _sectionTitle(context, '标签'),
-      const SizedBox(height: 6),
-      detail.tags.isEmpty
-          ? const Text('暂无标签')
-          : Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [for (final tag in detail.tags) Chip(label: Text(tag))],
+        ],
+        const SizedBox(height: 10),
+        Text(detail.number, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 14,
+          runSpacing: 8,
+          children: [
+            _Metadata('日期', detail.releaseDate ?? detail.publishDate ?? '未知'),
+            _Metadata('厂商', detail.maker ?? '未知'),
+            _Metadata('系列', detail.series ?? '未知'),
+            _Metadata('导演', detail.director ?? '未知'),
+            _Metadata('评分', detail.score?.toString() ?? '未知'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _sectionTitle(context, '演员'),
+        const SizedBox(height: 6),
+        detail.actors.isEmpty
+            ? const Text('暂无演员')
+            : Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                for (final actor in detail.actors)
+                  TextButton(
+                    onPressed:
+                        widget.onOpenActor == null
+                            ? null
+                            : () => widget.onOpenActor!(actor.id),
+                    child: Text(actor.displayName),
+                  ),
+              ],
+            ),
+        const SizedBox(height: 12),
+        _sectionTitle(context, '标签'),
+        const SizedBox(height: 6),
+        detail.tags.isEmpty
+            ? const Text('暂无标签')
+            : Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [for (final tag in detail.tags) Chip(label: Text(tag))],
+            ),
+        if (state.favoriteErrorCode != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            '收藏更新失败，请重试',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-      if (state.favoriteErrorCode != null) ...[
-        const SizedBox(height: 8),
-        Text(
-          '收藏更新失败，请重试',
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ],
+        const SizedBox(height: 18),
+        SizedBox(
+          width: 220,
+          height: 44,
+          child: FilledButton.icon(
+            key: const ValueKey('movie-detail-play'),
+            onPressed:
+                state.selectedSourceId != null && widget.onPlaySource != null
+                    ? () => ref
+                        .read(movieDetailControllerProvider.notifier)
+                        .playSelected(widget.onPlaySource)
+                    : null,
+            icon: Icon(
+              completed ? Icons.check_circle_outline : Icons.play_arrow,
+            ),
+            label: Text(
+              liveProgress == null
+                  ? movieProgressLabel(detail.progress)
+                  : liveMovieProgressLabel(liveProgress),
+            ),
+          ),
         ),
       ],
-      const SizedBox(height: 18),
-      SizedBox(
-        width: 220,
-        height: 44,
-        child: FilledButton.icon(
-          key: const ValueKey('movie-detail-play'),
-          onPressed:
-              state.selectedSourceId != null && widget.onPlaySource != null
-                  ? () => ref
-                      .read(movieDetailControllerProvider.notifier)
-                      .playSelected(widget.onPlaySource)
-                  : null,
-          icon: Icon(
-            detail.progress?.completed == true
-                ? Icons.check_circle_outline
-                : Icons.play_arrow,
-          ),
-          label: Text(movieProgressLabel(detail.progress)),
-        ),
-      ),
-    ],
-  );
+    );
+  }
 }
 
 class _Metadata extends StatelessWidget {

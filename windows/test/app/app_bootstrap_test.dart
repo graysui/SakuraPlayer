@@ -16,12 +16,14 @@ import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart'
 import 'package:sakuraplayer_windows/features/cache/data/play_request_api.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/blocking_wait_page.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/play_request_controller.dart';
-import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
+import 'package:sakuraplayer_windows/features/library/data/movies_api.dart'
+    hide PlaybackProgressDto;
 import 'package:sakuraplayer_windows/features/movies/data/movie_detail_api.dart';
 import 'package:sakuraplayer_windows/features/movies/presentation/movie_detail_page.dart';
 import 'package:sakuraplayer_windows/features/playback/data/playback_api.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/playback_engine.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/player_page.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/track_controller.dart';
 import 'package:sakuraplayer_windows/features/rankings/data/rankings_api.dart';
 import 'package:sakuraplayer_windows/features/settings/data/settings_api.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/diagnostics_page.dart';
@@ -671,7 +673,11 @@ CacheJobDto _routeJob(String status) => CacheJobDto(
   updatedAt: DateTime.utc(2026, 7, 31, 12),
 );
 
-class _RoutePlaybackGateway implements PlaybackGateway {
+class _RoutePlaybackGateway
+    implements
+        PlaybackGateway,
+        SubtitleDownloadGateway,
+        PlaybackProgressGateway {
   @override
   Future<PlaybackManifestDto> createSession({
     required String cacheJobId,
@@ -706,11 +712,49 @@ class _RoutePlaybackGateway implements PlaybackGateway {
     subtitles: const [],
     progress: null,
   );
+
+  @override
+  Future<List<int>> downloadSubtitle({
+    required String playbackSessionId,
+    required String subtitleId,
+  }) async => const <int>[];
+
+  @override
+  Future<PlaybackProgressDto> updateProgress({
+    required String movieId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+  }) async => PlaybackProgressDto(
+    positionSeconds: positionSeconds,
+    durationSeconds: durationSeconds,
+    completed: false,
+    version: version + 1,
+  );
+
+  @override
+  Future<PlaybackHeartbeatDto> heartbeat({
+    required String playbackSessionId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+    required bool playing,
+  }) async => PlaybackHeartbeatDto(
+    leaseExpiresAt: playing ? DateTime.utc(2026, 8, 1) : null,
+    progress: PlaybackProgressDto(
+      positionSeconds: positionSeconds,
+      durationSeconds: durationSeconds,
+      completed: false,
+      version: version + 1,
+    ),
+  );
 }
 
 class _RoutePlaybackEngine implements PlaybackEngine {
   @override
   Stream<bool> get playingStream => const Stream<bool>.empty();
+  @override
+  Stream<bool> get completedStream => const Stream<bool>.empty();
   @override
   Stream<bool> get bufferingStream => const Stream<bool>.empty();
   @override
@@ -719,6 +763,12 @@ class _RoutePlaybackEngine implements PlaybackEngine {
   Stream<Duration> get durationStream => const Stream<Duration>.empty();
   @override
   Stream<String> get errorStream => const Stream<String>.empty();
+  @override
+  Stream<EmbeddedTrackCatalog> get trackCatalogStream =>
+      const Stream<EmbeddedTrackCatalog>.empty();
+  @override
+  Stream<EmbeddedTrackSelection> get trackSelectionStream =>
+      const Stream<EmbeddedTrackSelection>.empty();
   @override
   Widget buildVideoSurface() => const ColoredBox(color: Colors.black);
   @override
@@ -731,6 +781,16 @@ class _RoutePlaybackEngine implements PlaybackEngine {
   Future<void> seek(Duration target) async {}
   @override
   Future<void> setRate(double rate) async {}
+  @override
+  Future<void> selectAudioTrack(String id) async {}
+  @override
+  Future<void> selectEmbeddedSubtitleTrack(String? id) async {}
+  @override
+  Future<void> setExternalSubtitle(
+    Uri uri, {
+    required String title,
+    required String? language,
+  }) async {}
   @override
   Future<void> toggleFullscreen() async {}
   @override

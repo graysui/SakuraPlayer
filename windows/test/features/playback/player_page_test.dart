@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/playback/data/playback_api.dart';
+import 'package:sakuraplayer_windows/features/playback/data/subtitle_cache.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/playback_engine.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/player_controller.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/track_controller.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/player_page.dart';
 
 void main() {
@@ -17,9 +19,14 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final engine = _PageEngine();
+      final tracks = TrackController(
+        port: engine,
+        subtitles: _PageSubtitleRepository(),
+      );
       final controller = PlayerController(
         gateway: _PageGateway(),
         engine: engine,
+        tracks: tracks,
       );
       addTearDown(controller.dispose);
 
@@ -35,11 +42,27 @@ void main() {
       await tester.pumpAndSettle();
       engine.durations.add(const Duration(minutes: 1));
       engine.positions.add(const Duration(seconds: 10));
+      engine.trackCatalogs.add(
+        const EmbeddedTrackCatalog(
+          audio: [
+            EmbeddedTrackOption(id: 'audio-1', title: '日语', language: 'ja'),
+          ],
+          subtitles: [
+            EmbeddedTrackOption(
+              id: 'subtitle-1',
+              title: '中文字幕',
+              language: 'zh',
+            ),
+          ],
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('video-surface')), findsOneWidget);
       expect(find.byKey(const ValueKey('player-controls')), findsOneWidget);
       expect(find.byTooltip('播放'), findsOneWidget);
+      expect(find.byTooltip('音轨'), findsOneWidget);
+      expect(find.byTooltip('字幕'), findsOneWidget);
       expect(find.byTooltip('播放速度'), findsOneWidget);
       expect(find.byTooltip('全屏'), findsOneWidget);
       expect(find.textContaining('缩略图'), findsNothing);
@@ -53,6 +76,18 @@ void main() {
       );
       await tester.pump();
       expect(engine.seeks, isNotEmpty);
+
+      await tester.tap(find.byTooltip('音轨'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('日语'));
+      await tester.pumpAndSettle();
+      expect(engine.selectedAudioTracks, <String>['audio-1']);
+
+      await tester.tap(find.byTooltip('字幕'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('中文字幕'));
+      await tester.pumpAndSettle();
+      expect(engine.selectedSubtitleTracks, <String?>['subtitle-1']);
 
       await tester.tap(find.byTooltip('全屏'));
       await tester.pump();
@@ -100,15 +135,22 @@ class _PageGateway implements PlaybackGateway {
 
 class _PageEngine implements PlaybackEngine {
   final playing = StreamController<bool>.broadcast();
+  final completed = StreamController<bool>.broadcast();
   final buffering = StreamController<bool>.broadcast();
   final positions = StreamController<Duration>.broadcast();
   final durations = StreamController<Duration>.broadcast();
   final errors = StreamController<String>.broadcast();
+  final trackCatalogs = StreamController<EmbeddedTrackCatalog>.broadcast();
+  final trackSelections = StreamController<EmbeddedTrackSelection>.broadcast();
   final seeks = <Duration>[];
+  final selectedAudioTracks = <String>[];
+  final selectedSubtitleTracks = <String?>[];
   int fullscreenCalls = 0;
 
   @override
   Stream<bool> get playingStream => playing.stream;
+  @override
+  Stream<bool> get completedStream => completed.stream;
   @override
   Stream<bool> get bufferingStream => buffering.stream;
   @override
@@ -117,6 +159,11 @@ class _PageEngine implements PlaybackEngine {
   Stream<Duration> get durationStream => durations.stream;
   @override
   Stream<String> get errorStream => errors.stream;
+  @override
+  Stream<EmbeddedTrackCatalog> get trackCatalogStream => trackCatalogs.stream;
+  @override
+  Stream<EmbeddedTrackSelection> get trackSelectionStream =>
+      trackSelections.stream;
   @override
   Widget buildVideoSurface() => const ColoredBox(color: Colors.black);
   @override
@@ -130,17 +177,39 @@ class _PageEngine implements PlaybackEngine {
   @override
   Future<void> setRate(double rate) async {}
   @override
+  Future<void> selectAudioTrack(String id) async => selectedAudioTracks.add(id);
+  @override
+  Future<void> selectEmbeddedSubtitleTrack(String? id) async =>
+      selectedSubtitleTracks.add(id);
+  @override
+  Future<void> setExternalSubtitle(
+    Uri uri, {
+    required String title,
+    required String? language,
+  }) async {}
+  @override
   Future<void> toggleFullscreen() async => fullscreenCalls++;
   @override
   Future<void> dispose() async {
     await Future.wait([
       playing.close(),
+      completed.close(),
       buffering.close(),
       positions.close(),
       durations.close(),
       errors.close(),
+      trackCatalogs.close(),
+      trackSelections.close(),
     ]);
   }
+}
+
+class _PageSubtitleRepository implements SubtitleRepository {
+  @override
+  Future<Uri> obtain({
+    required PlaybackManifestDto manifest,
+    required SubtitleOptionDto subtitle,
+  }) async => Uri.file('unused.${subtitle.format}');
 }
 
 const _jobId = '00000000-0000-4000-8000-000000000001';

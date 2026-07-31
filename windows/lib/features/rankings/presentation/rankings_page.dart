@@ -6,6 +6,7 @@ import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/movie_card.dart';
 import 'package:sakuraplayer_windows/features/rankings/data/rankings_api.dart';
 import 'package:sakuraplayer_windows/features/rankings/presentation/rankings_controller.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 
 class RankingsPage extends ConsumerStatefulWidget {
   const RankingsPage({
@@ -209,6 +210,11 @@ class _RankingsPageState extends ConsumerState<RankingsPage> {
                   child: MovieCard(
                     movie: item.movie,
                     coverLoader: coverLoader,
+                    liveProgress: ref.watch(
+                      livePlaybackProgressProvider.select(
+                        (items) => items[item.movie.id],
+                      ),
+                    ),
                     onOpen:
                         widget.onOpenMovie == null
                             ? null

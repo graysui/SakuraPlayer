@@ -7,6 +7,8 @@ import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/playback/data/playback_api.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/playback_engine.dart';
 import 'package:sakuraplayer_windows/features/playback/presentation/player_controller.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/track_controller.dart';
 
 void main() {
   test(
@@ -14,7 +16,16 @@ void main() {
     () async {
       final gateway = _Gateway();
       final engine = _Engine();
-      final controller = PlayerController(gateway: gateway, engine: engine);
+      final progressGateway = _ProgressGateway();
+      final controller = PlayerController(
+        gateway: gateway,
+        engine: engine,
+        progress: ProgressController(
+          gateway: progressGateway,
+          movieId: _movieId,
+          tickerFactory: (_, _) => const _NoopTicker(),
+        ),
+      );
       addTearDown(controller.dispose);
 
       await controller.initialize(cacheJobId: _jobId, mediaId: _mediaId);
@@ -27,6 +38,10 @@ void main() {
         PlaybackMode.original,
       ]);
       expect(engine.opened.length, 3);
+      expect(progressGateway.endedSessions, <String>[
+        '00000000-0000-4000-8000-000000000100',
+        '00000000-0000-4000-8000-000000000101',
+      ]);
       expect(controller.status, PlayerLoadStatus.ready);
     },
   );
@@ -156,6 +171,7 @@ class _Gateway implements PlaybackGateway {
 
 class _Engine implements PlaybackEngine {
   final playing = StreamController<bool>.broadcast();
+  final completed = StreamController<bool>.broadcast();
   final buffering = StreamController<bool>.broadcast();
   final positions = StreamController<Duration>.broadcast();
   final durations = StreamController<Duration>.broadcast();
@@ -166,6 +182,8 @@ class _Engine implements PlaybackEngine {
   @override
   Stream<bool> get playingStream => playing.stream;
   @override
+  Stream<bool> get completedStream => completed.stream;
+  @override
   Stream<bool> get bufferingStream => buffering.stream;
   @override
   Stream<Duration> get positionStream => positions.stream;
@@ -173,6 +191,12 @@ class _Engine implements PlaybackEngine {
   Stream<Duration> get durationStream => durations.stream;
   @override
   Stream<String> get errorStream => errors.stream;
+  @override
+  Stream<EmbeddedTrackCatalog> get trackCatalogStream =>
+      const Stream<EmbeddedTrackCatalog>.empty();
+  @override
+  Stream<EmbeddedTrackSelection> get trackSelectionStream =>
+      const Stream<EmbeddedTrackSelection>.empty();
   @override
   Widget buildVideoSurface() => const ColoredBox(color: Colors.black);
   @override
@@ -189,17 +213,72 @@ class _Engine implements PlaybackEngine {
   @override
   Future<void> setRate(double rate) async {}
   @override
+  Future<void> selectAudioTrack(String id) async {}
+  @override
+  Future<void> selectEmbeddedSubtitleTrack(String? id) async {}
+  @override
+  Future<void> setExternalSubtitle(
+    Uri uri, {
+    required String title,
+    required String? language,
+  }) async {}
+  @override
   Future<void> toggleFullscreen() async {}
   @override
   Future<void> dispose() async {
     await Future.wait([
       playing.close(),
+      completed.close(),
       buffering.close(),
       positions.close(),
       durations.close(),
       errors.close(),
     ]);
   }
+}
+
+class _ProgressGateway implements PlaybackProgressGateway {
+  final List<String> endedSessions = <String>[];
+
+  @override
+  Future<PlaybackProgressDto> updateProgress({
+    required String movieId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+  }) async => PlaybackProgressDto(
+    positionSeconds: positionSeconds,
+    durationSeconds: durationSeconds,
+    completed: false,
+    version: version + 1,
+  );
+
+  @override
+  Future<PlaybackHeartbeatDto> heartbeat({
+    required String playbackSessionId,
+    required double positionSeconds,
+    required double? durationSeconds,
+    required int version,
+    required bool playing,
+  }) async {
+    if (!playing) endedSessions.add(playbackSessionId);
+    return PlaybackHeartbeatDto(
+      leaseExpiresAt: playing ? DateTime.utc(2026, 8, 1) : null,
+      progress: PlaybackProgressDto(
+        positionSeconds: positionSeconds,
+        durationSeconds: durationSeconds,
+        completed: false,
+        version: version + 1,
+      ),
+    );
+  }
+}
+
+class _NoopTicker implements ProgressTicker {
+  const _NoopTicker();
+
+  @override
+  void cancel() {}
 }
 
 PlaybackManifestDto _manifest(
@@ -243,3 +322,4 @@ PlaybackManifestDto _manifest(
 const _jobId = '00000000-0000-4000-8000-000000000001';
 const _mediaId = '00000000-0000-4000-8000-000000000002';
 const _candidateId = '00000000-0000-4000-8000-000000000003';
+const _movieId = '00000000-0000-4000-8000-000000000004';

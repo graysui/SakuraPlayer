@@ -7,6 +7,7 @@ import 'package:sakuraplayer_windows/features/actors/presentation/actors_control
 import 'package:sakuraplayer_windows/features/actors/presentation/gfriends_image.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 import 'package:sakuraplayer_windows/features/library/presentation/movie_card.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 
 class ActorDetailPage extends ConsumerStatefulWidget {
   const ActorDetailPage({
@@ -208,6 +209,11 @@ class _ActorDetailPageState extends ConsumerState<ActorDetailPage> {
                   (context, index) => MovieCard(
                     movie: detail.movies[index],
                     coverLoader: coverLoader,
+                    liveProgress: ref.watch(
+                      livePlaybackProgressProvider.select(
+                        (items) => items[detail.movies[index].id],
+                      ),
+                    ),
                     onOpen:
                         widget.onOpenMovie == null
                             ? null

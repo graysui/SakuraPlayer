@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
+import 'package:sakuraplayer_windows/features/playback/presentation/progress_controller.dart';
 
 typedef MovieCoverLoader = Future<List<int>> Function(String coverUrl);
 
@@ -11,6 +12,7 @@ class MovieCard extends StatefulWidget {
     required this.coverLoader,
     this.onOpen,
     this.onPlay,
+    this.liveProgress,
     super.key,
   });
 
@@ -18,6 +20,7 @@ class MovieCard extends StatefulWidget {
   final MovieCoverLoader coverLoader;
   final VoidCallback? onOpen;
   final VoidCallback? onPlay;
+  final LivePlaybackProgress? liveProgress;
 
   @override
   State<MovieCard> createState() => _MovieCardState();
@@ -50,6 +53,12 @@ class _MovieCardState extends State<MovieCard> {
   Widget build(BuildContext context) {
     final movie = widget.movie;
     final progress = movie.progress;
+    final liveProgress = freshestLivePlaybackProgress(
+      widget.liveProgress,
+      progress?.version,
+    );
+    final progressFraction = liveProgress?.fraction ?? progress?.fraction;
+    final completed = liveProgress?.completed ?? progress?.completed ?? false;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onOpen,
@@ -137,10 +146,10 @@ class _MovieCardState extends State<MovieCard> {
                     SizedBox(
                       height: 4,
                       child:
-                          progress?.fraction == null
+                          progressFraction == null
                               ? const SizedBox.shrink()
                               : LinearProgressIndicator(
-                                value: progress!.fraction,
+                                value: progressFraction,
                                 borderRadius: BorderRadius.circular(2),
                               ),
                     ),
@@ -150,14 +159,18 @@ class _MovieCardState extends State<MovieCard> {
                       child: FilledButton.tonalIcon(
                         onPressed: widget.onPlay ?? widget.onOpen,
                         icon: Icon(
-                          progress?.completed == true
+                          completed
                               ? Icons.check_circle_outline
                               : Icons.play_arrow,
                           size: 18,
                         ),
                         label: FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text(movieProgressLabel(progress)),
+                          child: Text(
+                            liveProgress == null
+                                ? movieProgressLabel(progress)
+                                : liveMovieProgressLabel(liveProgress),
+                          ),
                         ),
                       ),
                     ),
@@ -254,6 +267,13 @@ class _PosterBadge extends StatelessWidget {
 
 String movieProgressLabel(PlaybackProgressDto? progress) {
   if (progress == null) return '播放';
+  if (progress.completed) return '已看完';
+  final fraction = progress.fraction;
+  if (fraction != null) return '继续播放 ${(fraction * 100).round()}%';
+  return '已播放 ${_formatDuration(progress.positionSeconds)}';
+}
+
+String liveMovieProgressLabel(LivePlaybackProgress progress) {
   if (progress.completed) return '已看完';
   final fraction = progress.fraction;
   if (fraction != null) return '继续播放 ${(fraction * 100).round()}%';

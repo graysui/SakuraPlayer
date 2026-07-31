@@ -3,7 +3,7 @@ id: TASK-211
 title: "字幕音轨倍速与影片进度"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
 dependencies: [TASK-210, TASK-110, TASK-111]
 ac-mapping: [AC-068, AC-107, AC-108, AC-109, AC-110, AC-111, AC-112, AC-113, AC-114]
 imp-requirements: [REQ-013, REQ-020]
@@ -28,16 +28,16 @@ provides: [Windows subtitle cache, track controls, progress heartbeat]
 
 ## 验收条件
 
-- [ ] 枚举内嵌字幕/音轨并提供字幕、音轨、倍速、全屏和进度控制；对应 AC-107、AC-114。
-- [ ] 外置四格式下载到私有缓存，同名默认、多个切换，失败不阻止视频；对应 AC-108、AC-109。
-- [ ] cache cleaned/logout/local expiry 删除对应字幕副本；对应 AC-110。
-- [ ] 跨端影片进度自动续播，无选择框；95%/剩余 2 分钟完成且下次从头；对应 AC-111 至 AC-113。
-- [ ] 详情和播放按钮状态及时刷新；对应 AC-068。
+- [x] 枚举内嵌字幕/音轨并提供字幕、音轨、倍速、全屏和进度控制；对应 AC-107、AC-114。
+- [x] 外置四格式下载到私有缓存，同名默认、多个切换，失败不阻止视频；对应 AC-108、AC-109。
+- [x] cache cleaned/logout/local expiry 删除对应字幕副本；对应 AC-110。
+- [x] 跨端影片进度自动续播，无选择框；95%/剩余 2 分钟完成且下次从头；对应 AC-111 至 AC-113。
+- [x] 详情和播放按钮状态及时刷新；对应 AC-068。
 
 ## Definition of Ready
 
-- [ ] TASK-210 Player/Controller、TASK-110 subtitle API、TASK-111 progress API 可用。
-- [ ] 私有字幕目录命名只使用 server subtitle ID，不使用未清洗文件名路径。
+- [x] TASK-210 Player/Controller、TASK-110 subtitle API、TASK-111 progress API 可用。
+- [x] 私有字幕目录命名只使用 server subtitle ID，不使用未清洗文件名路径。
 - [x] heartbeat/flush 周期和 expected-version 冲突处理由 TASK-111 变更规格确定。
 
 ## 技术上下文
@@ -66,9 +66,16 @@ provides: [Windows subtitle cache, track controls, progress heartbeat]
 
 ## Definition of Done
 
-- [ ] 字幕/轨道/倍速/进度完整接入播放器。
-- [ ] 私有字幕生命周期与登录/cache 事件一致。
-- [ ] 无历史页面或续播选择框。
+- [x] 字幕/轨道/倍速/进度完整接入播放器。
+- [x] 私有字幕生命周期与登录/cache 事件一致。
+- [x] 无历史页面或续播选择框。
+
+## 实现证据
+
+- `playback_api_test.dart` 覆盖字幕下载、影片进度、心跳、严格进度版本和 manifest 字幕授权集合；`subtitle_cache_test.dart` 覆盖四格式、8 MiB 上限、UUID 路径、复用、到期、cleaned job 和下载跨期隔离。
+- `track_controller_test.dart` 与 `player_page_test.dart` 覆盖内嵌音轨/字幕、默认和手动外置字幕、失败隔离、陈旧 manifest 竞态及字幕/音轨/倍速/全屏/进度菜单调用。
+- `progress_controller_test.dart` 与 `player_controller_test.dart` 覆盖自动续播、15 秒心跳、暂停/完成/退出 flush、CAS 冲突收敛、模式切换结束旧 lease 和乱序版本隔离；媒体库、详情、排行榜和女优页面消费即时权威进度。
+- Final：89 个 Dart 文件格式无变化，`flutter analyze` 无问题，完整 `flutter test` 201 项通过，Windows debug build 通过并生成 `sakuraplayer_windows.exe`；未执行 TASK-212 release/安装包或 TASK-213 真实 115 门禁。
 
 **依赖**: TASK-210, TASK-110, TASK-111
 

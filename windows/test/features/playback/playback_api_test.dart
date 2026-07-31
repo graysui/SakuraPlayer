@@ -65,9 +65,121 @@ void main() {
       throwsA(isA<ProtocolException>()),
     );
   });
+
+  test('manifest rejects duplicate or out-of-queue subtitle grants', () {
+    final subtitle = <String, Object?>{
+      'id': _subtitleId,
+      'media_id': _mediaId,
+      'name': 'movie.zh.srt',
+      'format': 'srt',
+      'language': 'zh',
+      'selected_by_default': true,
+    };
+    for (final subtitles in <List<Object?>>[
+      <Object?>[subtitle, Map<String, Object?>.from(subtitle)],
+      <Object?>[
+        <String, Object?>{
+          ...subtitle,
+          'media_id': '00000000-0000-4000-8000-000000000099',
+        },
+      ],
+    ]) {
+      expect(
+        () => PlaybackManifestDto.fromJson(
+          _manifestJson('/api/v1/playback/streams/$_sessionId')
+            ..['subtitles'] = subtitles,
+          serverOrigin: Uri.parse('https://server.test'),
+        ),
+        throwsA(isA<ProtocolException>()),
+      );
+    }
+  });
+
+  test('progress responses require positive versions and known durations', () {
+    for (final progress in <Map<String, Object?>>[
+      <String, Object?>{
+        'position_seconds': 5,
+        'duration_seconds': 60,
+        'completed': false,
+        'version': 0,
+      },
+      <String, Object?>{
+        'position_seconds': 0,
+        'duration_seconds': 0,
+        'completed': false,
+        'version': 1,
+      },
+    ]) {
+      expect(
+        () => PlaybackProgressDto.fromJson(progress),
+        throwsA(isA<ProtocolException>()),
+      );
+    }
+  });
+
+  test(
+    'subtitle, progress and heartbeat use exact authenticated APIs',
+    () async {
+      final adapter = _RoutingAdapter();
+      final api = await _apiForAdapter(adapter);
+
+      final bytes = await api.downloadSubtitle(
+        playbackSessionId: _sessionId,
+        subtitleId: _subtitleId,
+      );
+      final progress = await api.updateProgress(
+        movieId: _movieId,
+        positionSeconds: 12.5,
+        durationSeconds: null,
+        version: 0,
+      );
+      final heartbeat = await api.heartbeat(
+        playbackSessionId: _sessionId,
+        positionSeconds: 15,
+        durationSeconds: 60,
+        version: progress.version,
+        playing: false,
+      );
+
+      expect(bytes, utf8.encode('subtitle'));
+      expect(progress.version, 1);
+      expect(heartbeat.leaseExpiresAt, isNull);
+      expect(heartbeat.progress!.version, 2);
+      expect(adapter.requests.map((request) => request.path), <String>[
+        'playback/sessions/$_sessionId/subtitles/$_subtitleId',
+        'movies/$_movieId/progress',
+        'playback/sessions/$_sessionId/heartbeat',
+      ]);
+      expect(adapter.requests[1].data, <String, Object?>{
+        'position_seconds': 12.5,
+        'duration_seconds': null,
+        'version': 0,
+      });
+      expect(adapter.requests[2].data, <String, Object?>{
+        'client_instance_id': _clientId,
+        'progress': <String, Object?>{
+          'position_seconds': 15.0,
+          'duration_seconds': 60.0,
+          'version': 1,
+        },
+        'playing': false,
+      });
+      expect(
+        adapter.requests.every(
+          (request) =>
+              request.headers['Authorization'] == 'Bearer access-token',
+        ),
+        isTrue,
+      );
+    },
+  );
 }
 
 Future<PlaybackApi> _api(_PlaybackAdapter adapter) async {
+  return _apiForAdapter(adapter);
+}
+
+Future<PlaybackApi> _apiForAdapter(HttpClientAdapter adapter) async {
   final session = SessionStore(SecureStore(MemorySecureKeyValueStore()));
   await session.setTokens(
     TokenPair(
@@ -146,8 +258,55 @@ class _PlaybackAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class _RoutingAdapter implements HttpClientAdapter {
+  final List<RequestOptions> requests = <RequestOptions>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    if (options.path.endsWith('/subtitles/$_subtitleId')) {
+      return ResponseBody.fromBytes(utf8.encode('subtitle'), 200);
+    }
+    if (options.path.endsWith('/progress')) {
+      return _jsonResponse(<String, Object?>{
+        'position_seconds': 12.5,
+        'duration_seconds': null,
+        'completed': false,
+        'version': 1,
+      });
+    }
+    return _jsonResponse(<String, Object?>{
+      'lease_expires_at': null,
+      'progress': <String, Object?>{
+        'position_seconds': 15,
+        'duration_seconds': 60,
+        'completed': false,
+        'version': 2,
+      },
+    });
+  }
+
+  ResponseBody _jsonResponse(Map<String, Object?> body) =>
+      ResponseBody.fromString(
+        jsonEncode(body),
+        200,
+        headers: <String, List<String>>{
+          Headers.contentTypeHeader: <String>['application/json'],
+        },
+      );
+
+  @override
+  void close({bool force = false}) {}
+}
+
 const _jobId = '00000000-0000-4000-8000-000000000001';
 const _mediaId = '00000000-0000-4000-8000-000000000002';
 const _candidateId = '00000000-0000-4000-8000-000000000003';
 const _sessionId = '00000000-0000-4000-8000-000000000004';
 const _clientId = '00000000-0000-4000-8000-000000000005';
+const _subtitleId = '00000000-0000-4000-8000-000000000006';
+const _movieId = '00000000-0000-4000-8000-000000000007';
