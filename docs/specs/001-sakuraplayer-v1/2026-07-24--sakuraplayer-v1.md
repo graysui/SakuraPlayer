@@ -184,7 +184,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
   [TASK-107 缓存生命周期确定性边界](changes/2026-07-28--task-107-cache-lifecycle-determinism.md)
   冻结。
 - **AC-092 `[IMP]`**: 离线完成后递归枚举视频和字幕文件，排除明显广告、样片和低于技术方案阈值的文件。
-- **AC-093 `[IMP]`**: 能明确识别主视频时自动选中；存在多个有效候选时显示文件选择器；连续分段按顺序组成播放队列。
+- **AC-093 `[IMP]`**: 能明确识别主视频时自动选中；存在多个有效候选时显示文件选择器；连续分段按顺序组成播放队列。Windows 候选组选择、ready 播放入口与显式播放交接遵循 [Windows 播放器客户端契约](contracts/windows-playback-client.md)。
 - **AC-094 `[IMP]`**: 已物化的待选择/就绪缓存采用默认 24 小时滑动 TTL，可由管理员设置为 1 小时至 7 天；设置变更作用于新缓存和下一次成功访问，Windows 输入和失败恢复遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
 - **AC-095 `[IMP]`**: 就绪容量默认收敛到最多 20 个，超过目标时按稳定的最后访问顺序清理最久未访问且可清理的缓存；删除未确认或失败时不得虚减容量。
 - **AC-096 `[IMP]`**: 正在播放的缓存拥有租约，租约有效时不得自动清理。
@@ -198,6 +198,9 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - AC-101/103 的自动回退白名单、HLS DTO 选择、协议/播放层职责和 UA 跨任务责任由
   [TASK-109 HLS 回退确定性边界](changes/2026-07-28--task-109-hls-fallback-boundaries.md)
   冻结。
+- Windows 的 ready route、候选选择、manifest、固定 UA、模式、错误恢复和 seek 合并由
+  [TASK-210 Windows 播放器确定性边界](changes/2026-07-31--task-210-windows-player-boundaries.md)
+  与 [Windows 播放器客户端契约](contracts/windows-playback-client.md) 冻结。
 - **AC-099 `[IMP]`**: 后端按媒体生成 12 小时有效的 HMAC 签名播放 URL，每次点击播放重新签发。
 - **AC-100 `[IMP]`**: Windows 和 HarmonyOS 使用各自固定的 SakuraPlayer User-Agent，后端获取 115 地址时必须使用播放器后续请求的同一 User-Agent。
 - **AC-101 `[IMP]`**: 后端优先获取 115 原画直链；只有 `cloud115_original_unavailable` 可自动回退，或用户切换兼容播放时，才使用可用的最高码率 HLS。

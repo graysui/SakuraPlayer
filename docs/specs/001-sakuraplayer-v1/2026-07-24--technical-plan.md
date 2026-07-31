@@ -255,7 +255,11 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
 6. 返回 `302` 和 `Cache-Control: no-store`，不保存上游 URL。
 7. 客户端从已认证字幕接口下载最多 8 MiB `(derived)` 的 `.srt/.ass/.ssa/.vtt` 到应用私有缓存并交给播放器。
 
-Windows 的 Player 包装器覆盖 `seek`：已有 seek 在飞时只保留最后目标，完成后再执行。HarmonyOS 在 AVPlayer 上实现等价串行 seek 队列，真实设备门禁验证 Range、302 和 HLS 子请求 UA。
+Windows 的 Player 包装器覆盖 `seek`：已有 seek 在飞时只保留最后目标，完成后再执行；失败清空 pending
+并向 controller 返回错误。ready job/首媒体 typed route、候选组选择、同 origin capability、
+media_kit `http-header-fields` 固定 UA、过期重签和所有 seek 入口由
+[Windows 播放器客户端契约](contracts/windows-playback-client.md) 冻结。HarmonyOS 在 AVPlayer 上
+实现等价串行 seek 队列，真实设备门禁验证 Range、302 和 HLS 子请求 UA。
 
 ### 4.5 播放进度
 
@@ -303,6 +307,8 @@ Riverpod controller
 - 影片详情聚合基础资料、永久图片、演员、收藏、影片进度和来源列表；来源列表按标签、资源大小和可用状态扫描。
 - 点击来源播放后，根据响应选择全屏等待、排队提示或直接播放器。
 - 全屏等待只允许二次确认取消；应用在 60 秒内仍通过事件/快照更新进度。
+- 歧义媒体在缓存页按候选组选择完整有序分段；ready 缓存只在用户显式动作后进入携带 job/首媒体
+  UUID 的播放器 route，后台 ready 或通知不自动播放。
 - 播放器只有原画/兼容播放、字幕、音轨、倍速、全屏和标准进度控制；内嵌字幕/音轨由客户端播放器枚举，后端 manifest 只发布已选媒体队列授权的外置字幕及私有缓存期限。
 - 主题默认跟随系统，播放器固定深色；桌面使用左侧导航和窗口最小尺寸约束 `(derived)`。
 

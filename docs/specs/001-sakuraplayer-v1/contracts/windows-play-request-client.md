@@ -17,14 +17,17 @@
 
 | 返回/事件 | 客户端动作 | 自动播放 |
 |---|---|---|
-| `ready` + `job.status=ready` | 进入 `/player` 占位 route | 是，一次 |
+| `ready` + `job.status=ready` | 复制 job/首媒体 ID 后进入 typed player route | 是，一次 |
 | `started` + deadline | 进入 `/wait`，锁定普通导航 | deadline 前同 job ready 时是，一次 |
 | `queued` | 立即退出等待，提示排队并保留 cache snapshot | 否 |
-| `reused` + `ready` | 进入 `/player` 占位 route | 是，一次 |
+| `reused` + `ready` | 复制 job/首媒体 ID 后进入 typed player route | 是，一次 |
 | `reused` + 非 ready | 提示任务已存在，等待后台事件/通知 | 否 |
 | deadline 后收到 ready | 更新 snapshot 并触发通知 | 否 |
 
-重复点击在请求在途时只保留一个本地请求；响应返回后再次点击同一 source 依赖服务端活动任务复用，不创建客户端预取或第二个后台请求。`awaiting_selection` 不在本任务内自动选择媒体，用户进入缓存页处理。
+重复点击在请求在途时只保留一个本地请求；响应返回后再次点击同一 source 依赖服务端活动任务复用，不创建客户端预取或第二个后台请求。`awaiting_selection` 不在本任务内自动选择媒体，用户进入缓存页并按 [Windows 播放器客户端契约](windows-playback-client.md) 显式选择候选组。
+
+ready 交接必须在 reset controller 前复制 `cache_job.id` 和首个 `selected_media_ids`；TASK-210
+把既有无参数占位 route 替换为只含两个 UUID 的受认证 typed route。空选择不得导航或猜测媒体。
 
 ## 3. 阻断等待页
 
