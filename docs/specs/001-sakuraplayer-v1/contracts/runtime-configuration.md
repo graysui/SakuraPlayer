@@ -1,6 +1,6 @@
 # SakuraPlayer v1 运行配置契约
 
-**版本**: 1.1.0
+**版本**: 1.2.0
 
 **适用范围**: Docker 后端、Windows 客户端、HarmonyOS 客户端、显式外部验收
 
@@ -107,3 +107,16 @@ TASK-009 固定公共地址：
 | `SAKURAPLAYER_TEST_HARMONY_API24=1` | HarmonyOS API 24 真机探针 |
 
 缺少 marker 时套件必须明确 skip，不能尝试网络。测试报告不得输出 secret、Cookie、磁力或完整签名 URL。
+
+Windows real115 harness 还要求以下本地运行环境；这些值不写入仓库、发布包或测试快照：
+
+| 名称 | 用途与约束 |
+|---|---|
+| `SAKURAPLAYER_REAL115_API_BASE_URL` | 待验收后端 `/api/v1` 基址；遵循客户端后端地址规则 |
+| `SAKURAPLAYER_REAL115_USERNAME` | 专用验收管理员用户名；不得输出 |
+| `SAKURAPLAYER_REAL115_PASSWORD` | 专用验收管理员密码；不得输出 |
+| `SAKURAPLAYER_REAL115_MOVIE_ID` | 位于验收样本内的影片 UUID |
+| `SAKURAPLAYER_REAL115_SOURCE_ID` | 位于应用受管测试根的来源 UUID |
+| `SAKURAPLAYER_REAL115_CONFIRM_MANAGED_ROOT=1` | 操作者确认样本只使用应用受管测试根；缺少时拒绝运行 |
+
+TASK-212 harness 只输出阶段、HTTP 状态以及 source/job/session UUID，并把二维码 PNG 临时写入系统临时目录；结束时删除二维码副本。失败后若仍有 job/session，仅输出其 UUID 供操作者通过后端受管接口清理，不输出 Cookie、密码、磁力、二维码内容或完整能力 URL。TASK-213 负责实际执行、专属目录确认与 AC-130 最终证据。

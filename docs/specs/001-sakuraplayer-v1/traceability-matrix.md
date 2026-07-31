@@ -56,6 +56,11 @@
   `AuthSessionState` 由 [TASK-201 Windows 脚手架实施边界](changes/2026-07-29--task-201-scaffold-boundaries.md)
   冻结。TASK-201 实现 Windows debug 脚手架、工程许可证、主题和应用内播放器路由；
   AC-008 的 Windows 私有安装包归 TASK-212，AC-059 的最终左侧导航归 TASK-203。
+- AC-005、AC-008、AC-009、AC-128、AC-129 的 Windows release、私有 ZIP、当前用户安装/卸载、
+  SHA-256/可选 Authenticode、GPL/Windows 依赖/项目移植来源 NOTICE、默认离线统一测试和显式
+  real115 harness 由 TASK-212 完成；自动证据位于 `license_bundle_test.dart`、
+  `tooling_contract_test.dart`、`fake_backend_flow_test.dart` 和 real115 默认 skip build，真实账号与
+  AC-130 证据仍只归 TASK-213。
 - AC-083 至 AC-085、AC-091 的 SourceSubmissionPort、独立请求幂等事实、持久容量类别、
   binding 解绑历史、CacheJob/媒体迁移归属和复数媒体选择由
   [TASK-103 缓存容量与幂等确定性边界](changes/2026-07-27--task-103-cache-capacity-idempotency.md)

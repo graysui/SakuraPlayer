@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-07-31
 
-**当前阶段**: Phase 3 Windows 客户端进行中，TASK-211 已完成；下一任务为 TASK-212。
+**当前阶段**: Phase 3 Windows 客户端进行中，TASK-212 已完成；下一任务为 TASK-213。
 
 ## 1. 当前成果
 
@@ -186,12 +186,14 @@
 - TASK-210 Final 为 181 项 Flutter 测试通过，静态分析零问题；Windows debug build 通过并生成新的 `sakuraplayer_windows.exe`，默认测试未访问真实 115、JavDB 写操作或付费 AI。
 - TASK-211 已交付四格式私有字幕缓存、内嵌/外置字幕与音轨选择、倍速/全屏/进度控制、自动续播、15 秒心跳、暂停/退出/完成 flush、CAS 冲突收敛、三类字幕清理和页面即时进度刷新。
 - TASK-211 Final 为 201 项 Flutter 测试通过，静态分析零问题；Windows debug build 通过并生成新的 `sakuraplayer_windows.exe`，默认测试未访问真实 115、JavDB 写操作或付费 AI。
+- TASK-212 已交付 Windows release/private ZIP、当前用户安装/卸载、SHA-256 与可选 Authenticode、GPL/Windows 依赖/项目移植来源许可证包、默认离线统一测试和显式 real115 QR/播放 harness。
+- TASK-212 Fast 为冻结 Python 3.10.16 后端 AC-129 清单 173 项、Flutter unit/widget 206 项和 Windows Fake integration 1 项通过；Final release build 与 34 文件内容/许可证/native/hash 扫描通过，真实 AC-130 未执行。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-211 已完成；下一任务为 TASK-212。
-- **最近绿色快速门禁**: TASK-211 `dart format`、`flutter analyze`、完整 201 项 `flutter test`、差异和秘密检查通过。
-- **最终门禁状态**: TASK-211 `flutter analyze`、201 项 `flutter test` 和 Windows debug build 通过并生成 `sakuraplayer_windows.exe`；未执行 TASK-212 release/安装包或 TASK-213 真实 115 门禁。
+- **当前任务门禁阶段**: TASK-212 已完成；下一任务为 TASK-213。
+- **最近绿色快速门禁**: TASK-212 后端 AC-129 173 项、`flutter analyze`、完整 206 项 `flutter test`、Windows Fake integration 1 项、差异和秘密检查通过。
+- **最终门禁状态**: TASK-212 Windows release build、PowerShell AST、5 项发布契约和 34 文件安装包内容/许可证/native/hash 扫描通过；未执行 TASK-213 真实 115/AC-130 门禁。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -208,20 +210,19 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211。
-- **下一任务**: TASK-212 Windows 私有安装包与真实验收工具。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212。
+- **下一任务**: TASK-213 Windows 端到端与真实 115 门禁。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-213 Windows/真实 115 与 TASK-312 HarmonyOS API 24 真机门禁，仍保持未完成。
 
-下一会话从 TASK-212 开始：
+下一会话从 TASK-213 开始：
 
 ```text
-/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-212.md"
+/developer-kit-specs:specs.task-implementation --lang=general --task="docs/specs/001-sakuraplayer-v1/tasks/TASK-213.md"
 ```
 
-TASK-211 的字幕缓存、轨道控制、自动续播、心跳/flush、即时进度、测试、任务状态与交接已同步；
-提交事实以 Git 为准。TASK-212 开始前复核 release 构建、许可证产物、默认离线测试与显式 real115 harness 边界；
-真实 115 门禁仍由 TASK-213 执行。
+TASK-212 的 release/私有 ZIP、安装/卸载、许可证、默认离线入口、显式 real115 harness、任务状态与交接已同步；
+提交事实以 Git 为准。TASK-213 使用同一产物执行 Fake 用户旅程与真实 115 AC-130；未提供真实账号、样本和专属测试根时不得把外部门禁标记为通过。
 
 ## 4. 必读契约
 
