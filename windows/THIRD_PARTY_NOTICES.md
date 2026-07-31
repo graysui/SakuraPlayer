@@ -41,6 +41,15 @@ The Windows native package uses the libmpv build published by
 `652a1dd90711839acdccc08004056d25514ef2d8`. TASK-212 must retain the exact
 licenses and notices emitted for the native binaries in the private package.
 
+## flutter_local_notifications
+
+`flutter_local_notifications` 19.5.0 and its Windows FFI implementation
+`flutter_local_notifications_windows` 1.0.3 are distributed under the BSD
+3-Clause license. Sources and license text are available from
+<https://github.com/MaikuB/flutter_local_notifications> at the corresponding
+tags. The plugin is used only for immediate Windows toast display; TASK-212
+must retain the resolved transitive notices in the private package.
+
 ## SakuraMedia consultation boundary
 
 TASK-201 does not copy application source from SakuraMedia. Later Windows tasks

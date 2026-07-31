@@ -193,6 +193,7 @@ v1 是单机单管理员产品，不做水平自动扩展。所有上限由数�
 | Windows HTTP | dio | 5.7.0 | REST、字节下载、WebSocket 握手配置 |
 | Windows 播放 | media_kit / media_kit_video / media_kit_libs_video | 1.1.11 / 1.2.5 / 1.0.5 | libmpv、libass、Range/HLS |
 | Windows 安全存储 | flutter_secure_storage | 9.2.0 | 刷新令牌与客户端实例 ID |
+| Windows 通知 | flutter_local_notifications / Windows FFI | 19.5.0 / 1.0.3 | 即时系统通知；不依赖 MSIX 历史通知查询 |
 | HarmonyOS | ArkTS / ArkUI / AVPlayer | API 24 | 无跨平台 UI 运行时 |
 
 ### 3.2 数据架构
