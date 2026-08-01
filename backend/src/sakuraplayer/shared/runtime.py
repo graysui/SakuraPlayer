@@ -70,6 +70,8 @@ def configure_component_logging(
         handlers=[stream_handler, file_handler],
         force=True,
     )
+    for logger_name in ("httpx", "httpcore"):
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
     return logging.getLogger(component)
 
 

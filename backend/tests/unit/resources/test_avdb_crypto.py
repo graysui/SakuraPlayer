@@ -112,6 +112,58 @@ def test_decrypts_the_contract_format_and_reads_utf8_bom_csv() -> None:
     ]
 
 
+def test_decrypts_current_public_envelope_manifest() -> None:
+    manifest = {
+        "format": "avdb-resource-library",
+        "version": 1,
+        "payload": "avdb-resource-library.bin",
+        "original_filename": "30D_2026-07-30-14-03-27.zip",
+    }
+
+    with decrypt_asset(encrypted_asset(manifest_overrides=manifest)) as asset:
+        assert len(list(asset.iter_rows())) == 1
+
+
+@pytest.mark.parametrize(
+    "manifest_overrides",
+    [
+        {"format": "avdb-resource-library"},
+        {
+            "format": "other-format",
+            "version": 1,
+            "payload": "avdb-resource-library.bin",
+            "original_filename": "30D_2026-07-30-14-03-27.zip",
+        },
+        {
+            "format": "avdb-resource-library",
+            "version": "1",
+            "payload": "avdb-resource-library.bin",
+            "original_filename": "30D_2026-07-30-14-03-27.zip",
+        },
+        {
+            "format": "avdb-resource-library",
+            "version": 1,
+            "payload": "other.bin",
+            "original_filename": "30D_2026-07-30-14-03-27.zip",
+        },
+        {
+            "format": "avdb-resource-library",
+            "version": 1,
+            "payload": "avdb-resource-library.bin",
+            "original_filename": "path/30D_2026-07-30-14-03-27.zip",
+        },
+        {"unknown": "field"},
+    ],
+)
+def test_rejects_incomplete_or_invalid_public_envelope_manifest(
+    manifest_overrides: dict[str, object],
+) -> None:
+    with pytest.raises(AvdbAssetError) as error:
+        decrypt_asset(encrypted_asset(manifest_overrides=manifest_overrides))
+
+    assert error.value.code == "avdb_asset_invalid"
+
+
 @pytest.mark.parametrize(
     "kwargs, expected_code",
     [
@@ -133,10 +185,25 @@ def test_rejects_invalid_manifest_or_unauthenticated_ciphertext(
 
 def test_validates_complete_asset_names_and_digest() -> None:
     validate_asset_name("30D_202607250300.zip", mode="incremental_30d")
+    validate_asset_name("30D_2026-07-31-12-03-28.zip", mode="incremental_30d")
     validate_asset_name("All_sehuatang_100_202607250400.zip", mode="full_reconcile")
+    validate_asset_name(
+        "All_sehuatang_100_2026-07-31-12-03-28.zip",
+        mode="full_reconcile",
+    )
+    validate_asset_name(
+        "All_X1080X_100_2026-07-31-12-03-28.zip",
+        mode="full_reconcile",
+    )
 
-    with pytest.raises(AvdbAssetError):
-        validate_asset_name("prefix-30D_202607250300.zip", mode="incremental_30d")
+    for invalid in (
+        "prefix-30D_202607250300.zip",
+        "30D_2026-07-31-12-03.zip",
+        "path/30D_2026-07-31-12-03-28.zip",
+        "30D_2026-07-31-12-03-28.zip.bak",
+    ):
+        with pytest.raises(AvdbAssetError):
+            validate_asset_name(invalid, mode="incremental_30d")
     with pytest.raises(AvdbAssetError) as error:
         verify_asset_digest(b"asset", "0" * 64)
 

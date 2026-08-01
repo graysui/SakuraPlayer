@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -167,6 +168,31 @@ async def test_original_success_does_not_call_hls() -> None:
 
     assert location == "https://cdn.115.com/original"
     assert [call.operation for call in fake.calls] == ["resolve_original"]
+
+
+@pytest.mark.asyncio
+async def test_concurrent_original_resolves_use_independent_capability_urls() -> None:
+    urls = [f"https://cdn.115.com/original-{index}" for index in range(3)]
+    fake = FakeCloud115(
+        original_urls=[
+            OriginalUrl(
+                url=url,
+                expires_at=None,
+                file_id="file",
+                file_name="movie.mkv",
+                file_size_bytes=300_000_000,
+                sha1="sha1",
+                pickcode="pickcode",
+                user_agent=WINDOWS_USER_AGENT,
+            )
+            for url in urls
+        ]
+    )
+    resolver = OriginalStreamResolver(CloudScopeStub(fake))  # type: ignore[arg-type]
+    context = _context("original")
+
+    assert await asyncio.gather(*(resolver.resolve(context) for _ in range(3))) == urls
+    assert [call.operation for call in fake.calls] == ["resolve_original"] * 3
 
 
 @pytest.mark.asyncio

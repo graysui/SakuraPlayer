@@ -1,6 +1,6 @@
 # AVdb 数据源与解密契约
 
-**版本**: 1.0.0
+**版本**: 1.2.0
 
 **性质**: v1 资源接入防腐层的权威输入契约
 
@@ -21,7 +21,10 @@
 | 全量 | `All_X1080X_{count}_{timestamp}.zip` | 与 sehuatang 全量资产组成同一对账批次 |
 | 增量 | `30D_{timestamp}.zip` | 每日导入最近 30 天来源 |
 
-资产名必须完整匹配白名单正则，不能使用子串判断。全量批次只有两个全量资产均验证并导入成功后才标记完成；其中一个失败时已提交批次保留，但当前同步运行标记失败且不执行“缺失对账”。
+`timestamp` 只允许既有 8 至 14 位紧凑数字格式或官方现行格式
+`YYYY-MM-DD-HH-MM-SS`；兼容边界由
+[TASK-213 AVdb 资产名兼容边界](../changes/2026-07-31--task-213-avdb-asset-name-compatibility.md)
+冻结。资产名必须完整匹配白名单正则，不能使用子串判断。全量批次只有两个全量资产均验证并导入成功后才标记完成；其中一个失败时已提交批次保留，但当前同步运行标记失败且不执行“缺失对账”。
 
 每日 03:00 运行 30D 增量；每周日 04:00 运行全量对账，时区固定 `Asia/Shanghai`。同一 `(repository, release_id, mode)` 幂等。
 
@@ -44,6 +47,13 @@ avdb-resource-library.bin
 | `iterations` | 整数且恰好 200000 |
 
 若清单包含算法、KDF 或密钥长度字段，其值必须分别等价于 `AES-256-GCM`、`PBKDF2-HMAC-SHA256` 和 32 字节。未知算法、重复文件、绝对路径、`..` 路径、符号链接或额外可执行文件必须拒绝。
+
+官方现行 manifest 的兼容边界由
+[TASK-213 AVdb manifest 兼容边界](../changes/2026-07-31--task-213-avdb-manifest-compatibility.md)
+冻结。若出现公开信封声明，则 `format`、`version`、`payload` 和 `original_filename` 必须成组出现，
+值分别严格等于 `avdb-resource-library`、整数 `1`、`avdb-resource-library.bin` 和完整匹配第 2 节
+增量或全量白名单的资产名。旧 manifest 继续兼容；缺项、错误固定值、路径形式文件名和其他未知字段
+继续返回 `avdb_asset_invalid`。
 
 ## 4. 密钥派生与解密
 

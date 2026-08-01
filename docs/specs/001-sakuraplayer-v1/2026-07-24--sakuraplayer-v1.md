@@ -60,7 +60,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-005 数据获取、解密与同步
 
-- **AC-018 `[IMP]`**: 后端可发现 AVdb GitHub Release，下载并按文档规定的 PBKDF2-HMAC-SHA256 与 AES-256-GCM 流程解密资源包。
+- **AC-018 `[IMP]`**: 后端可发现 AVdb GitHub Release，按 [TASK-213 AVdb 资产名兼容边界](changes/2026-07-31--task-213-avdb-asset-name-compatibility.md) 识别冻结的紧凑或带连字符时间戳资产名，按 [TASK-213 AVdb manifest 兼容边界](changes/2026-07-31--task-213-avdb-manifest-compatibility.md) 严格验证旧版或官方现行公开信封声明，并按文档规定的 PBKDF2-HMAC-SHA256 与 AES-256-GCM 流程下载和解密资源包。
 - **AC-019 `[IMP]`**: 后端使用一个主源和一个备用源；切换来源时必须校验资产 SHA-256 后才能导入。
 - **AC-020 `[IMP]`**: 每天 03:00（Asia/Shanghai）幂等导入 30D 增量包。
 - **AC-021 `[IMP]`**: 每周日 04:00（Asia/Shanghai）读取全量包做插入与更新对账。
@@ -251,7 +251,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 - **AC-128 `[IMP]`**: 默认自动测试不得访问真实 115、JavDB 写操作或真实 AI 付费接口，必须使用替身和固定样本；Phase 1 跨边界测试遵循 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md)，115 协议测试遵循 [TASK-101 Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md)，Phase 2 后端组合测试遵循 [TASK-113 115 缓存播放后端 E2E 边界](changes/2026-07-29--task-113-backend-e2e-boundaries.md)。
 - **AC-129 `[IMP]`**: AVdb 解密、幂等导入、番号合并、分类标签、元数据超时、任务优先级、缓存状态机、安全删除、签名校验、播放进度和字幕生命周期都有自动测试；各工作流只对已交付算法负责，TASK-013 固化 Phase 1 测试清单，后续缓存与播放测试仍由对应任务交付。
-- **AC-130 `[EXT]`**: Windows 发布前使用真实 115 验证扫码、离线、原画、HLS 回退、Range seek、字幕下载和安全清理。
+- **AC-130 `[EXT]`**: Windows 发布前使用真实 115 验证扫码、离线、原画、HLS 回退、Range seek、字幕下载和安全清理；上游能力域漂移只按 [TASK-213 Cloud115 能力域兼容边界](changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md) 扩展精确 HTTPS 子域白名单，真实 Range 按 [TASK-213 Range seek 证据串行化](changes/2026-08-01--task-213-range-seek-evidence-serialization.md) 与生产 seek 合并行为一致。TASK-213 本轮真实来源缺少外置字幕时，仅允许按 [外置字幕真实证据豁免](changes/2026-08-01--task-213-external-subtitle-evidence-waiver.md) 显式记录操作者批准的 `.srt` / `.ass` 跳过证据；字幕产品契约和默认自动测试不变。
 - **AC-131 `[EXT]`**: HarmonyOS 开发前使用真实 API 24 设备验证固定 User-Agent、302、Range、HLS、MKV 与 ASS 字幕；任何关键项失败都阻断鸿蒙功能开发。
 - **AC-132 `[SEF]`**: 单个外部元数据源、AI 或 GFriends 故障不会使已入库影片、排行榜快照或 115 播放整体不可用。
 

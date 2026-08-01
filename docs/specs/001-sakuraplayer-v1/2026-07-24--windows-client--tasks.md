@@ -30,7 +30,7 @@
 | [TASK-210](tasks/TASK-210.md) | media_kit 原画/HLS 播放器 | 候选选择、ready 播放、固定 UA、302、seek 合并、模式；[客户端契约](contracts/windows-playback-client.md) | TASK-209,TASK-109 | 是 |
 | [TASK-211](tasks/TASK-211.md) | 字幕、音轨、倍速与影片进度 | libass、私有缓存、自动续播 | TASK-210,TASK-110,TASK-111 | 是 |
 | [TASK-212](tasks/TASK-212.md) | Windows 私有安装包与真实验收工具 | release、许可证、显式 real-115 suite | TASK-201..211 | 是 |
-| [TASK-213](tasks/TASK-213.md) | Windows E2E 与真实 115 门禁 | AC-130 完整流程 | TASK-201..212,TASK-113 | 是 |
+| [TASK-213](tasks/TASK-213.md) | Windows E2E 与真实 115 门禁 | AVdb 现行资产名/manifest、Cloud115 能力域、外置字幕证据豁免、AC-130 流程 | TASK-201..212,TASK-113 | 是 |
 | [TASK-214](tasks/TASK-214.md) | Windows 客户端清理 | specs-code-cleanup | TASK-213 | 否 |
 
 ## 数量检查

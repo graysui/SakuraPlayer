@@ -54,3 +54,16 @@ def test_component_handlers_filter_propagated_access_logs(tmp_path) -> None:
     assert "/play/stream" in content
     assert "private-signature" not in content
     assert "private-token" not in content
+
+
+def test_component_logging_suppresses_third_party_http_request_urls(tmp_path) -> None:
+    runtime.configure_component_logging("worker", "INFO", log_directory=tmp_path)
+    logging.getLogger("httpx").info(
+        'HTTP Request: GET %s "HTTP/1.1 200 OK"',
+        "https://upstream.example/private-release-path",
+    )
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+
+    content = (tmp_path / "worker.log").read_text(encoding="utf-8")
+    assert "private-release-path" not in content

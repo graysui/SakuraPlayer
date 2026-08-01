@@ -24,6 +24,10 @@
   和 [SourceRejectionPort 契约](contracts/source-rejection-port.md) 冻结，并由 TASK-006 提供、
   TASK-106 调用；TASK-112 不重复发布 TASK-106 已持久化的确定性失败事件。
 - AC-028/AC-030 的标准番号、FC2、保守拒绝和固定样本由 [影片番号规范化输入边界](changes/2026-07-25--movie-number-normalization.md) 冻结，并由 TASK-005 实现。
+- AC-018 至 AC-021 的 AVdb 资产名与公开信封兼容由 [TASK-213 AVdb 资产名兼容边界](changes/2026-07-31--task-213-avdb-asset-name-compatibility.md) 和 [TASK-213 AVdb manifest 兼容边界](changes/2026-07-31--task-213-avdb-manifest-compatibility.md) 冻结；TASK-004 保持发现、摘要、解密和导入主责，TASK-213 只修复真实门禁发现的官方带连字符时间戳与严格 manifest 阻断并验证隔离 30D 导入。
+- AC-105/AC-130 的真实原画能力域兼容由 [TASK-213 Cloud115 能力域兼容边界](changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md) 与 [Cloud115Port 契约](contracts/cloud115-port.md) 冻结；TASK-213 只增加真实观察且批准参考实现已记录的 `*.115cdn.net` HTTPS 子域，并保持每个并发 stream 请求独立签发能力 URL，其他主机、完整能力 URL 持久化和日志输出继续拒绝。
+- AC-130 的 TASK-213 本轮外置字幕真实证据由 [TASK-213 外置字幕真实证据豁免](changes/2026-08-01--task-213-external-subtitle-evidence-waiver.md) 冻结；只有显式 marker 可把 `.srt` / `.ass` 下载替换为 `subtitle_external_skipped state=operator_approved`，字幕产品契约、默认自动测试及后续真实设备 ASS 门禁不变。
+- AC-105/AC-130 的真实 Range seek 证据由 [TASK-213 Range seek 证据串行化](changes/2026-08-01--task-213-range-seek-evidence-serialization.md) 冻结；Windows probe 按生产 `ThrottlingPlayer` 顺序验证三个偏移，每次独立请求 stream，后端并发请求独立签发和不缓存能力 URL 的自动回归继续保留。
 - AC-026/AC-027 的 90 日历日边界、5000 截断、稳定排序和无上限历史候选由 [首批元数据范围边界与排序](changes/2026-07-25--initial-metadata-scope-ordering.md) 冻结，并由 TASK-005 输出、TASK-007 消费。
 - TASK-007 的元数据队列表、活动 attempt 部分唯一约束和 claim expiry 由 [元数据队列 DoR 迁移归属修正](changes/2026-07-25--metadata-queue-dor-correction.md) 明确归属 TASK-007，不改变 AC-037 至 AC-043、AC-122 或任务依赖。
 - AC-047/AC-048 的永久图片精确 HTTPS 主机、MIME、8 MiB、重定向、像素、完整解码和原子替换边界由 [TASK-008 永久图片安全边界](changes/2026-07-26--task-008-image-security-boundaries.md) 冻结，并由 TASK-008 实现。
@@ -61,6 +65,9 @@
   real115 harness 由 TASK-212 完成；自动证据位于 `license_bundle_test.dart`、
   `tooling_contract_test.dart`、`fake_backend_flow_test.dart` 和 real115 默认 skip build，真实账号与
   AC-130 证据仍只归 TASK-213。
+- AC-005、AC-018 至 AC-021、AC-059 至 AC-122、AC-128 至 AC-130、AC-132 至 AC-135 的 Windows
+  Fake 全用户旅程、现行 AVdb 兼容阻断、真实 115 扫码/离线/原画/HLS/Range/进度/租约/清理和首次连接
+  证据由 TASK-213 完成；本轮 `.srt` / `.ass` 只按批准 Delta 记录操作者跳过，默认字幕自动测试不变。
 - AC-083 至 AC-085、AC-091 的 SourceSubmissionPort、独立请求幂等事实、持久容量类别、
   binding 解绑历史、CacheJob/媒体迁移归属和复数媒体选择由
   [TASK-103 缓存容量与幂等确定性边界](changes/2026-07-27--task-103-cache-capacity-idempotency.md)
@@ -134,10 +141,10 @@
 | `AC-015` | `[I]` | `REQ-004` | `TASK-003`, `TASK-102` |
 | `AC-016` | `[I]` | `REQ-004` | `TASK-101`, `TASK-102`, `TASK-208`, `TASK-308` |
 | `AC-017` | `[I]` | `REQ-004` | `TASK-003`, `TASK-101` |
-| `AC-018` | `[I]` | `REQ-005` | `TASK-004` |
-| `AC-019` | `[I]` | `REQ-005` | `TASK-004` |
-| `AC-020` | `[I]` | `REQ-005` | `TASK-004`, `TASK-005` |
-| `AC-021` | `[I]` | `REQ-005` | `TASK-004`, `TASK-005` |
+| `AC-018` | `[I]` | `REQ-005` | `TASK-004`, `TASK-213` |
+| `AC-019` | `[I]` | `REQ-005` | `TASK-004`, `TASK-213` |
+| `AC-020` | `[I]` | `REQ-005` | `TASK-004`, `TASK-005`, `TASK-213` |
+| `AC-021` | `[I]` | `REQ-005` | `TASK-004`, `TASK-005`, `TASK-213` |
 | `AC-022` | `[I]` | `REQ-005` | `TASK-004`, `TASK-005` |
 | `AC-023` | `[S]` | `REQ-005` | `TASK-014` |
 | `AC-024` | `[I]` | `REQ-005` | `TASK-004` |

@@ -131,7 +131,8 @@ class QrSessionService:
             elif record.status not in {QrStatus.EXPIRED, QrStatus.CANCELED}:
                 token = self._token(record)
                 async with self._cloud_factory(None) as cloud:
-                    record.status = await cloud.poll_qr_session(token)
+                    if record.status != QrStatus.CONFIRMED:
+                        record.status = await cloud.poll_qr_session(token)
                     if record.status != QrStatus.CONFIRMED:
                         if record.status in {QrStatus.EXPIRED, QrStatus.CANCELED}:
                             self._discard_sensitive(record)

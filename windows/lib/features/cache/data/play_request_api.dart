@@ -27,14 +27,15 @@ class PlayRequestResultDto {
   });
 
   factory PlayRequestResultDto.fromJson(Map<String, Object?> json) {
-    const expectedKeys = <String>{'disposition', 'wait_deadline', 'cache_job'};
-    if (json.keys.toSet().difference(expectedKeys).isNotEmpty ||
-        expectedKeys.difference(json.keys.toSet()).isNotEmpty) {
+    const allowedKeys = <String>{'disposition', 'wait_deadline', 'cache_job'};
+    const requiredKeys = <String>{'disposition', 'cache_job'};
+    if (json.keys.toSet().difference(allowedKeys).isNotEmpty ||
+        requiredKeys.difference(json.keys.toSet()).isNotEmpty) {
       throw const ProtocolException('PlayRequestResult has unknown fields');
     }
     final reader = JsonReader(json, 'PlayRequestResult');
     final disposition = PlayDisposition.parse(reader.string('disposition'));
-    final deadline = reader.nullableDateTime('wait_deadline');
+    final deadline = reader.optionalDateTime('wait_deadline');
     final cacheJob = CacheJobDto.fromJson(reader.object('cache_job'));
     if (disposition == PlayDisposition.started) {
       if (deadline == null || cacheJob.status != 'submitting') {

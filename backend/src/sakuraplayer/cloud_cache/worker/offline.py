@@ -197,7 +197,6 @@ class CacheOfflineWorker:
         expected_pages: int | None = None
         expected_total: int | None = None
         expected_page_size: int | None = None
-        seen_tasks = 0
         page_number = 1
         while expected_pages is None or page_number <= expected_pages:
             page = await cloud.list_offline_tasks(page_number, OFFLINE_PAGE_SIZE)
@@ -211,13 +210,11 @@ class CacheOfflineWorker:
             expected_pages = page.page_count
             expected_total = page.total_tasks
             expected_page_size = page.page_size
-            seen_tasks += len(page.tasks)
             matches.extend(task for task in page.tasks if predicate(task))
             if len(matches) > 1:
                 raise Cloud115Problem("cloud115_protocol_error")
             page_number += 1
-        if expected_total is None or seen_tasks != expected_total:
-            raise Cloud115Problem("cloud115_protocol_error")
+        # 115 reports the monthly quota as total; page_count owns traversal.
         return matches[0] if matches else None
 
     @staticmethod

@@ -118,5 +118,6 @@ Windows real115 harness 还要求以下本地运行环境；这些值不写入�
 | `SAKURAPLAYER_REAL115_MOVIE_ID` | 位于验收样本内的影片 UUID |
 | `SAKURAPLAYER_REAL115_SOURCE_ID` | 位于应用受管测试根的来源 UUID |
 | `SAKURAPLAYER_REAL115_CONFIRM_MANAGED_ROOT=1` | 操作者确认样本只使用应用受管测试根；缺少时拒绝运行 |
+| `SAKURAPLAYER_REAL115_SKIP_EXTERNAL_SUBTITLES=1` | 仅 TASK-213 本轮按批准 Delta 跳过真实 `.srt` / `.ass` 样本下载；默认不设置，其他非空值拒绝 |
 
-TASK-212 harness 只输出阶段、HTTP 状态以及 source/job/session UUID，并把二维码 PNG 临时写入系统临时目录；结束时删除二维码副本。失败后若仍有 job/session，仅输出其 UUID 供操作者通过后端受管接口清理，不输出 Cookie、密码、磁力、二维码内容或完整能力 URL。TASK-213 负责实际执行、专属目录确认与 AC-130 最终证据。
+TASK-212 harness 只输出阶段、HTTP 状态以及 source/job/session UUID，并把二维码 PNG 临时写入系统临时目录；结束时删除二维码副本。失败后若仍有 job/session，仅输出其 UUID 供操作者通过后端受管接口清理，不输出 Cookie、密码、磁力、二维码内容或完整能力 URL。TASK-213 负责实际执行、专属目录确认与 AC-130 最终证据；本轮外置字幕豁免必须输出 `subtitle_external_skipped state=operator_approved`，不得写成 `subtitle_download`。

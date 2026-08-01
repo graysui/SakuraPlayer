@@ -48,11 +48,26 @@ _REQUIRED_FIELDS = {
     "create_time",
     "update_time",
 }
-_INCREMENTAL_NAME = re.compile(r"30D_[0-9]{8,14}\.zip")
-_FULL_NAME = re.compile(r"All_(?:sehuatang|X1080X)_[1-9][0-9]*_[0-9]{8,14}\.zip")
+_ASSET_TIMESTAMP = r"(?:[0-9]{8,14}|[0-9]{4}(?:-[0-9]{2}){5})"
+_INCREMENTAL_NAME = re.compile(rf"30D_{_ASSET_TIMESTAMP}\.zip")
+_FULL_NAME = re.compile(
+    rf"All_(?:sehuatang|X1080X)_[1-9][0-9]*_{_ASSET_TIMESTAMP}\.zip"
+)
 _SHA256 = re.compile(r"[0-9a-f]{64}")
+_PUBLIC_ENVELOPE_FIELDS = frozenset(
+    {"format", "version", "payload", "original_filename"}
+)
 _MANIFEST_FIELDS = frozenset(
-    {"salt", "nonce", "tag", "iterations", "algorithm", "kdf", "key_length"}
+    {
+        "salt",
+        "nonce",
+        "tag",
+        "iterations",
+        "algorithm",
+        "kdf",
+        "key_length",
+        *_PUBLIC_ENVELOPE_FIELDS,
+    }
 )
 _SUPPORTED_COMPRESSION = frozenset({ZIP_STORED, ZIP_DEFLATED})
 _LOGGER = logging.getLogger(__name__)
@@ -290,6 +305,23 @@ def _load_manifest(raw: bytes) -> dict[str, object]:
         raise AvdbAssetError()
     if not set(manifest).issubset(_MANIFEST_FIELDS):
         raise AvdbAssetError()
+    envelope_fields = set(manifest).intersection(_PUBLIC_ENVELOPE_FIELDS)
+    if envelope_fields and envelope_fields != _PUBLIC_ENVELOPE_FIELDS:
+        raise AvdbAssetError()
+    if envelope_fields:
+        original_filename = manifest["original_filename"]
+        if (
+            manifest["format"] != "avdb-resource-library"
+            or type(manifest["version"]) is not int
+            or manifest["version"] != 1
+            or manifest["payload"] != "avdb-resource-library.bin"
+            or not isinstance(original_filename, str)
+            or (
+                _INCREMENTAL_NAME.fullmatch(original_filename) is None
+                and _FULL_NAME.fullmatch(original_filename) is None
+            )
+        ):
+            raise AvdbAssetError()
     if (
         type(manifest.get("iterations")) is not int
         or manifest["iterations"] != PBKDF2_ITERATIONS

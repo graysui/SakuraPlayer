@@ -242,15 +242,15 @@ class CacheJobDto {
       sourceId: reader.uuid('source_id'),
       status: reader.enumeration('status', cacheJobStatuses),
       remotePercent: percent,
-      errorCode: reader.nullableString('error_code'),
+      errorCode: reader.optionalString('error_code'),
       mediaCandidates: reader.objectList(
         'media_candidates',
         RemoteMediaDto.fromJson,
       ),
       selectedMediaIds: reader.uuidList('selected_media_ids'),
       subtitles: reader.objectList('subtitles', SubtitleOptionDto.fromJson),
-      readyAt: reader.nullableDateTime('ready_at'),
-      expiresAt: reader.nullableDateTime('expires_at'),
+      readyAt: reader.optionalDateTime('ready_at'),
+      expiresAt: reader.optionalDateTime('expires_at'),
       createdAt: reader.dateTime('created_at'),
       updatedAt: reader.dateTime('updated_at'),
     );
@@ -615,6 +615,11 @@ class JsonReader {
     return value;
   }
 
+  String? optionalString(String key) {
+    if (!json.containsKey(key)) return null;
+    return nullableString(key);
+  }
+
   bool boolean(String key) {
     final value = _required(key);
     if (value is! bool) {
@@ -674,6 +679,16 @@ class JsonReader {
 
   DateTime? nullableDateTime(String key) {
     final raw = nullableString(key);
+    if (raw == null) return null;
+    final value = DateTime.tryParse(raw);
+    if (value == null) {
+      throw ProtocolException('$context.$key must be an RFC 3339 timestamp');
+    }
+    return value.toUtc();
+  }
+
+  DateTime? optionalDateTime(String key) {
+    final raw = optionalString(key);
     if (raw == null) return null;
     final value = DateTime.tryParse(raw);
     if (value == null) {

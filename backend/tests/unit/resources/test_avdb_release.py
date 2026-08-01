@@ -13,7 +13,7 @@ from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
 PRIMARY = "li-peifeng/AVdb-Only"
 BACKUP = "jzdxjk/AVdb-Only"
 TAG = "2026.07.25"
-ASSET_NAME = "30D_202607250300.zip"
+ASSET_NAME = "30D_2026-07-31-12-03-28.zip"
 
 
 class CloseTracker:
@@ -45,8 +45,8 @@ def release(repository: str, content: bytes, *, asset_url: str | None = None) ->
 
 def full_release(repository: str, contents: tuple[bytes, bytes]) -> dict:
     names = (
-        "All_sehuatang_1_202607250400.zip",
-        "All_X1080X_1_202607250400.zip",
+        "All_sehuatang_1_2026-07-31-12-03-28.zip",
+        "All_X1080X_1_2026-07-31-12-03-28.zip",
     )
     return {
         "id": 42,

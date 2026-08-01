@@ -40,6 +40,31 @@ void main() {
       );
     });
 
+    test('accepts omitted nullable cache job fields from play request', () {
+      final json = _resultJson(PlayDisposition.started);
+      final cacheJob = json['cache_job']! as Map<String, Object?>;
+      cacheJob
+        ..remove('error_code')
+        ..remove('ready_at')
+        ..remove('expires_at');
+
+      final result = PlayRequestResultDto.fromJson(json);
+
+      expect(result.cacheJob.errorCode, isNull);
+      expect(result.cacheJob.readyAt, isNull);
+      expect(result.cacheJob.expiresAt, isNull);
+    });
+
+    test('accepts omitted wait deadline for a ready reuse response', () {
+      final json = _resultJson(PlayDisposition.ready)..remove('wait_deadline');
+
+      final result = PlayRequestResultDto.fromJson(json);
+
+      expect(result.disposition, PlayDisposition.ready);
+      expect(result.waitDeadline, isNull);
+      expect(result.cacheJob.status, 'ready');
+    });
+
     test(
       'gateway sends only source_id with a safe idempotency header',
       () async {

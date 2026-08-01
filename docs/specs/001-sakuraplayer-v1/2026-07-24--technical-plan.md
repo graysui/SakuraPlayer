@@ -130,7 +130,7 @@
 
 **背景**: 115 上游 URL短期且绑定 User-Agent，客户端不能持有 Cookie，NAS 不能代理视频。
 
-**决策**: 已认证接口为完整有序媒体选择创建 12 小时播放会话，签名绑定管理员 session epoch、平台 UA、缓存、媒体和模式。流入口校验后解析上游地址并返回 `302 no-store`。TASK-108 默认且只解析原画；TASK-109 才在可回退失败或用户选择兼容播放时解析最高码率 HLS。
+**决策**: 已认证接口为完整有序媒体选择创建 12 小时播放会话，签名绑定管理员 session epoch、平台 UA、缓存、媒体和模式。流入口校验后解析上游地址并返回 `302 no-store`。TASK-108 默认且只解析原画；TASK-109 才在可回退失败或用户选择兼容播放时解析最高码率 HLS。能力 URL 严格按 Cloud115Port 契约校验；TASK-213 只按 [Cloud115 能力域兼容边界](changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md) 增加真实观察到的 `*.115cdn.net` HTTPS 子域。
 
 **后果**: 上游 URL 不落库。播放器必须固定 UA 并合并 seek；用户切换兼容模式会创建新会话。
 
@@ -170,6 +170,10 @@ GitHub Release API
 - 每天 03:00 Asia/Shanghai 导入 30D 包。
 - 每周日 04:00 对全量包做插入与更新，不删除缺失旧来源。
 - 主源与备用源若发布同名资产，导入前摘要必须一致；不一致时停止并报警。
+- Release 资产名只接受冻结前缀/计数以及既有 8 至 14 位紧凑数字或官方现行
+  `YYYY-MM-DD-HH-MM-SS` 时间戳；TASK-213 真实门禁不得通过关闭全名白名单绕过上游命名漂移。
+- manifest 继续拒绝未知字段；官方现行公开信封声明只允许固定 format/version/payload 和完整白名单
+  original filename，四项必须成组出现，且不得放宽 GCM、摘要或 ZIP/CSV 校验。
 - 单批默认 1,000 行 `(derived)`，失败只回滚该批；同步批次记录成功、失败和跳过数。
 - 首批元数据选择最近 90 天最多 5,000 个唯一番号；之后按发布日期持续历史补齐。
 
@@ -252,14 +256,17 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
    均保持原错误。
 5. 兼容模式直接调用 `get_video_info`；Cloud115 适配器解析 master 并校验能力 URL，播放层只
    校验类型化 DTO 并选择 bandwidth 最大的 variant，同码率选择 master 中首项。
-6. 返回 `302` 和 `Cache-Control: no-store`，不保存上游 URL。
+6. 返回 `302` 和 `Cache-Control: no-store`，不保存上游 URL；每个并发 stream 请求独立解析能力
+   URL，避免多个 Range 共享同一条存在并发额度的上游直链。
 7. 客户端从已认证字幕接口下载最多 8 MiB `(derived)` 的 `.srt/.ass/.ssa/.vtt` 到应用私有缓存并交给播放器。
 
 Windows 的 Player 包装器覆盖 `seek`：已有 seek 在飞时只保留最后目标，完成后再执行；失败清空 pending
 并向 controller 返回错误。ready job/首媒体 typed route、候选组选择、同 origin capability、
 media_kit `http-header-fields` 固定 UA、过期重签和所有 seek 入口由
 [Windows 播放器客户端契约](contracts/windows-playback-client.md) 冻结。HarmonyOS 在 AVPlayer 上
-实现等价串行 seek 队列，真实设备门禁验证 Range、302 和 HLS 子请求 UA。
+实现等价串行 seek 队列，真实设备门禁验证 Range、302 和 HLS 子请求 UA。TASK-213 的真实
+Range 证据按 [Range seek 证据串行化](changes/2026-08-01--task-213-range-seek-evidence-serialization.md)
+与生产 in-flight 合并一致地顺序执行，每次仍独立请求 stream 入口；后端并发请求独立签发责任不变。
 
 ### 4.5 播放进度
 
@@ -362,7 +369,7 @@ Riverpod controller
 - media_kit 原画/HLS、seek 合并、字幕/音轨、影片进度。
 - Flutter 单元/Widget/集成测试和 Windows release 构建。
 
-**完成门禁**: 自动测试通过，并用真实 115 完成 AC-130 的扫码、离线、原画、HLS、Range seek、字幕和清理。
+**完成门禁**: 自动测试通过，并用真实 115 完成 AC-130 的扫码、离线、原画、HLS、Range seek、字幕和清理。TASK-213 本轮可按 [外置字幕真实证据豁免](changes/2026-08-01--task-213-external-subtitle-evidence-waiver.md) 以显式、脱敏的操作者批准记录替代 `.srt` / `.ass` 真实样本下载；默认字幕门禁与产品能力不放宽。
 
 ### Phase 4: HarmonyOS 客户端
 
@@ -465,7 +472,7 @@ Riverpod controller
 | 安全 | bootstrap 抢占、密钥复用、凭据脱敏、传输边界、XML XXE、路径穿越、签名篡改、目录越界 |
 | Fake E2E | 浏览 -> 来源 -> 离线 -> 解析 -> 播放 -> 字幕 -> 清理 |
 | Windows | analyze、test、integration_test、release build |
-| 真实 115 | 仅显式运行，完整覆盖 AC-130 |
+| 真实 115 | 仅显式运行，覆盖 AC-130；TASK-213 本轮外置字幕证据仅按批准 Delta 显式跳过 |
 | HarmonyOS | Windows 门禁后，API 24 探针和 AC-131 先通过 |
 | 许可证 | GPLv3、第三方声明、移植来源随产物 |
 

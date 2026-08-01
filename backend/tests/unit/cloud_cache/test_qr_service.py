@@ -63,6 +63,30 @@ async def test_qr_session_create_poll_confirm_and_consume() -> None:
 
 
 @pytest.mark.asyncio
+async def test_qr_confirmed_poll_is_not_repeated_before_cookie_exchange() -> None:
+    token = QrToken(uid="private-upstream-token", time=1, sign="private-sign")
+    fake = FakeCloud115(
+        qr_sessions=[QrSession(token, b"PNG-private")],
+        qr_statuses=[QrStatus.CONFIRMED],
+        qr_results=[QrLoginResult("account-private", "UID=private-cookie")],
+    )
+    service = QrSessionService(_factory(fake))
+    created = await service.create()
+
+    assert (await service.poll(created.id)).status == "confirmed"
+
+    async def save(_result: QrLoginResult) -> str:
+        return "bound"
+
+    assert await service.confirm(created.id, save) == "bound"
+    assert [call.operation for call in fake.calls] == [
+        "create_qr_session",
+        "poll_qr_session",
+        "finish_qr_session",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_qr_local_expiry_does_not_call_upstream() -> None:
     current = datetime(2026, 7, 27, tzinfo=timezone.utc)
     fake = FakeCloud115(

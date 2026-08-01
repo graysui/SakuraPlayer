@@ -919,7 +919,10 @@ class Cloud115Adapter:
         allowed = host in _PROTOCOL_HOSTS
         if capability:
             allowed = (
-                allowed or host.endswith(".115.com") or host.endswith(".115cdn.com")
+                allowed
+                or host.endswith(".115.com")
+                or host.endswith(".115cdn.com")
+                or host.endswith(".115cdn.net")
             )
         if not allowed:
             raise Cloud115Problem("cloud115_protocol_error")

@@ -8,7 +8,8 @@
 
 **就绪变更**: [TASK-101 Cloud115 协议就绪边界](../changes/2026-07-27--task-101-cloud115-readiness.md)、
 [TASK-106 来源拒绝确定性边界](../changes/2026-07-28--task-106-source-rejection-determinism.md)、
-[TASK-109 HLS 回退确定性边界](../changes/2026-07-28--task-109-hls-fallback-boundaries.md)
+[TASK-109 HLS 回退确定性边界](../changes/2026-07-28--task-109-hls-fallback-boundaries.md)、
+[TASK-213 Cloud115 能力域兼容边界](../changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md)
 
 ## 1. 目标与分层
 
@@ -162,7 +163,7 @@ unavailable 后自动重提。
 - QR：`qrcodeapi.115.com`、`passportapi.115.com`
 - 目录/离线/文件/探活：`my.115.com`、`webapi.115.com`、`115.com`、`proapi.115.com`
 - 原画/HLS 元数据：`proapi.115.com`、`v.anxia.com`
-- 上游返回的原画/HLS 能力 URL：`*.115.com`、`*.115cdn.com` 的 HTTPS 子域；只作为
+- 上游返回的原画/HLS 能力 URL：`*.115.com`、`*.115cdn.com`、`*.115cdn.net` 的 HTTPS 子域；只作为
   `OriginalUrl`/`HlsVariant` 返回，不由带 Cookie 的协议 client 跟随到未批准主机。
 
 禁止 `follow_redirects=True` 的无条件跟随。每一跳在发出下一请求前重新校验 scheme、

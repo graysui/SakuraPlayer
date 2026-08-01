@@ -105,6 +105,30 @@ def test_submit_success_is_single_dispatch_and_completed_poll_enters_resolving(
         assert session.scalar(select(func.count(CachePlayRequest.idempotency_key))) == 1
 
 
+def test_offline_reported_total_is_quota_not_task_count(context) -> None:
+    factory, source_port, play = context
+    job_id = _create_started(factory, play)
+    remote_hash = "9" * 40
+    _mark_offlining(factory, job_id, remote_hash)
+    fake = FakeCloud115(
+        offline_pages=[
+            OfflineTaskPage(
+                page=1,
+                page_count=1,
+                page_size=1000,
+                total_tasks=1500,
+                tasks=(_snapshot(remote_hash, OfflineStatus.COMPLETED, 100.0),),
+            )
+        ]
+    )
+
+    assert (
+        _worker(factory, source_port, fake).run_once(worker_id="worker-a") == "worked"
+    )
+    job = _job(factory, job_id)
+    assert (job.status, float(job.remote_percent)) == ("resolving", 100.0)
+
+
 @pytest.mark.parametrize("matched", [True, False])
 def test_submit_uncertain_reconciles_without_automatic_resubmit(
     context, matched
@@ -167,6 +191,11 @@ def test_submit_reconcile_rejects_inconsistent_or_ambiguous_pages(
         pages = [
             OfflineTaskPage(1, 2, 1000, 0, ()),
             OfflineTaskPage(2, 2, 999, 0, ()),
+        ]
+    elif scenario == "inconsistent":
+        pages = [
+            OfflineTaskPage(1, 2, 1000, 1500, ()),
+            OfflineTaskPage(2, 3, 1000, 1500, ()),
         ]
     else:
         pages = [

@@ -339,9 +339,18 @@ async def test_hls_parses_variants_and_rejects_unapproved_capability_host() -> N
         assert info.variants[0].bandwidth == 1_800_000
         assert info.variants[0].user_agent == "SakuraPlayer-Test/1"
 
-        with pytest.raises(Cloud115Problem) as raised:
-            adapter.validate_capability_url("https://attacker.invalid/video.m3u8")
-        assert raised.value.code == "cloud115_protocol_error"
+        adapter.validate_capability_url(
+            "https://cdnfhnfile.115cdn.net/video/file?capability=redacted"
+        )
+
+        for rejected_url in (
+            "https://attacker.invalid/video.m3u8",
+            "https://115cdn.net.attacker.invalid/video.m3u8",
+            "https://attacker115cdn.net/video.m3u8",
+        ):
+            with pytest.raises(Cloud115Problem) as raised:
+                adapter.validate_capability_url(rejected_url)
+            assert raised.value.code == "cloud115_protocol_error"
     finally:
         await client.aclose()
 

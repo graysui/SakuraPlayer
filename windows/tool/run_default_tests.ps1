@@ -62,6 +62,9 @@ try {
         Invoke-CheckedCommand {
             flutter test integration_test/fake_backend_flow_test.dart -d windows
         } 'Offline Windows integration test failed.'
+        Invoke-CheckedCommand {
+            flutter test integration_test/windows_user_journey_test.dart -d windows
+        } 'Offline Windows user journey failed.'
     }
 }
 finally {
