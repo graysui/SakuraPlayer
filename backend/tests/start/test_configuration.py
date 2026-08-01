@@ -29,6 +29,7 @@ def test_loads_valid_production_configuration(production_env: dict[str, str]) ->
     assert settings.environment == "production-private"
     assert settings.publish_host == "127.0.0.1"
     assert settings.api_port == 8000
+    assert settings.javdb_host == "jdforrepam.com"
     assert settings.settings_key_id == "v1"
     assert settings.bootstrap_token == production_env[
         "SAKURAPLAYER_BOOTSTRAP_TOKEN"
@@ -192,3 +193,19 @@ def test_rejects_same_key_material_with_different_base64_padding(
 
     assert error.value.code == "startup_configuration_invalid"
     assert "secret purposes" in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["", "https://javdb.example", "javdb.example:443", "javdb.example/path"],
+)
+def test_rejects_invalid_javdb_host(
+    production_env: dict[str, str],
+    host: str,
+) -> None:
+    production_env["SAKURAPLAYER_JAVDB_HOST"] = host
+
+    with pytest.raises(StartupConfigurationError) as error:
+        load_settings(production_env)
+
+    assert error.value.variable == "SAKURAPLAYER_JAVDB_HOST"

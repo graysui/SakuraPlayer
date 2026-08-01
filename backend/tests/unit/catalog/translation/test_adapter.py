@@ -112,6 +112,40 @@ def test_adapter_uses_frozen_prompt_and_strict_single_field_json() -> None:
 
 
 @pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (200, None),
+        (401, "translation_credentials_invalid"),
+        (403, "translation_credentials_invalid"),
+        (503, "translation_upstream_error"),
+    ],
+)
+def test_connection_probe_only_reads_models(status: int, expected: str | None) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(outbound: httpx.Request) -> httpx.Response:
+        seen.append(outbound)
+        return httpx.Response(status)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        adapter = OpenAiTranslationAdapter(client)
+        if expected is None:
+            assert adapter.probe(configuration()) is None
+        else:
+            with pytest.raises(TranslationAdapterError) as error:
+                adapter.probe(configuration())
+            assert error.value.code == expected
+    finally:
+        client.close()
+
+    assert len(seen) == 1
+    assert str(seen[0].url) == "https://ai.example.test/root/v1/models"
+    assert seen[0].method == "GET"
+    assert seen[0].headers["Authorization"] == "Bearer private-fixture-key"
+
+
+@pytest.mark.parametrize(
     ("handler", "code"),
     [
         (lambda request: httpx.Response(401), "translation_upstream_error"),

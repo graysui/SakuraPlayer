@@ -58,9 +58,18 @@ void main() {
       );
     });
 
-    test('maps binding, QR and unknown errors to Chinese labels', () {
+    test('maps binding, QR, provider and unknown errors to Chinese labels', () {
       expect(cloud115BindingStatusLabel('active'), '已绑定');
       expect(qrStatusLabel('waiting'), '等待扫码');
+      expect(settingsErrorLabel('dmm_upstream_error'), 'DMM 暂时无法访问');
+      expect(
+        settingsErrorLabel('gfriends_upstream_error'),
+        'GFriends 暂时无法访问',
+      );
+      expect(
+        settingsErrorLabel('translation_credentials_invalid'),
+        'AI API key 无效',
+      );
       expect(settingsErrorLabel('new_server_error'), '未知错误');
     });
 

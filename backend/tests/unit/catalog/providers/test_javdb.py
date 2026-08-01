@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -31,9 +32,11 @@ def fixture(name: str) -> str:
     return (FIXTURES / name).read_text(encoding="utf-8")
 
 
-def provider(handler) -> JavdbProvider:
+def provider(handler, *, host: str = "javdb.example.test") -> JavdbProvider:
     return JavdbProvider(
-        http_client=httpx.Client(transport=httpx.MockTransport(handler))
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        host=host,
+        timestamp=lambda: 1_700_000_000,
     )
 
 
@@ -42,11 +45,19 @@ def test_search_requires_exact_normalized_number_and_fetches_boundary_dto() -> N
 
     def handler(request: httpx.Request) -> httpx.Response:
         requested.append(str(request.url))
-        if request.url.path == "/search":
+        assert request.url.host == "javdb.example.test"
+        assert request.headers["host"] == "javdb.example.test"
+        assert re.fullmatch(
+            r"1700000000\.lpw6vgqzsp\.[0-9a-f]{32}",
+            request.headers["jdsignature"],
+        )
+        if request.url.path == "/api/v2/search":
             assert request.url.params["q"] == "ABP-123"
-            return httpx.Response(200, text=fixture("javdb-search.html"))
-        assert request.url.path == "/v/fixture-abp-123"
-        return httpx.Response(200, text=fixture("javdb-detail.html"))
+            assert request.url.params["type"] == "movie"
+            return httpx.Response(200, text=fixture("javdb-search.json"))
+        assert request.url.path == "/api/v4/movies/fixture-abp-123"
+        assert request.url.params["from_rankings"] == "true"
+        return httpx.Response(200, text=fixture("javdb-detail.json"))
 
     javdb = provider(handler)
     candidate = javdb.search_movie("ABP-123")
@@ -76,7 +87,7 @@ def test_public_core_lookup_works_without_credentials() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert "cookie" not in request.headers
         assert "authorization" not in request.headers
-        return httpx.Response(200, text=fixture("javdb-search.html"))
+        return httpx.Response(200, text=fixture("javdb-search.json"))
 
     assert provider(handler).search_movie("ABP-123") is not None
 
@@ -191,6 +202,48 @@ def test_top250_login_rejection_maps_to_credentials_error() -> None:
     assert "fixture" not in str(error.value)
 
 
+def test_connection_probe_logs_in_without_exposing_token() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v1/sessions"
+        return httpx.Response(200, json={"success": 1, "data": {"token": "t"}})
+
+    javdb = provider(handler)
+
+    assert (
+        javdb.probe_credentials(JavdbCredentials("fixture-user", "fixture-password"))
+        is None
+    )
+
+
+@pytest.mark.parametrize("status_code", [401, 403])
+def test_connection_probe_maps_login_rejection_to_credentials_invalid(
+    status_code: int,
+) -> None:
+    javdb = provider(lambda request: httpx.Response(status_code))
+
+    with pytest.raises(MetadataProviderProblem) as error:
+        javdb.probe_credentials(JavdbCredentials("fixture-user", "fixture-password"))
+
+    assert error.value.code == "javdb_credentials_invalid"
+
+
+@pytest.mark.parametrize("failure", [503, "network"])
+def test_connection_probe_maps_upstream_failure_to_unavailable(
+    failure: int | str,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if failure == "network":
+            raise httpx.ConnectError("fixture network failure", request=request)
+        return httpx.Response(failure)
+
+    javdb = provider(handler)
+
+    with pytest.raises(MetadataProviderProblem) as error:
+        javdb.probe_credentials(JavdbCredentials("fixture-user", "fixture-password"))
+
+    assert error.value.code == "javdb_upstream_error"
+
+
 def test_core_dto_merges_duplicate_actor_ids_and_rejects_conflicting_names() -> None:
     duplicate = CoreMovieMetadata(
         javdb_id="movie-1",
@@ -225,18 +278,32 @@ def test_core_dto_merges_duplicate_actor_ids_and_rejects_conflicting_names() -> 
 
 
 def test_search_not_found_and_structure_change_are_distinct() -> None:
-    not_found = provider(lambda request: httpx.Response(404))
+    not_found = provider(
+        lambda request: httpx.Response(
+            200,
+            json={"success": 1, "data": {"movies": []}},
+        )
+    )
     assert not_found.search_movie("ABP-123") is None
 
     changed = provider(
         lambda request: httpx.Response(
             200,
-            text=fixture("javdb-structure-changed.html"),
+            json={"success": 1, "data": {"movie": {"id": "fixture-abp-123"}}},
         )
     )
     with pytest.raises(MetadataProviderProblem) as error:
         changed.fetch_movie("fixture-abp-123")
     assert error.value.code == "javdb_upstream_error"
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["", "https://javdb.example", "javdb.example/path", "user@javdb.example"],
+)
+def test_rejects_unsafe_provider_host(host: str) -> None:
+    with pytest.raises(ValueError, match="invalid JavDB host"):
+        provider(lambda request: httpx.Response(200), host=host)
 
 
 @pytest.mark.parametrize("status", [408, 429, 500, 502, 503, 504])

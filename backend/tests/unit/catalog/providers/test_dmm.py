@@ -22,7 +22,9 @@ def provider(handler) -> DmmProvider:
 def test_extracts_text_only_description() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.host == "www.dmm.co.jp"
-        assert request.url.params["searchstr"] == "ABP-123"
+        assert request.url.path == "/search/=/searchstr=ABP-123/limit=30/sort=date/"
+        assert request.headers["cookie"] == "age_check_done=1; ckcy=1"
+        assert "Mozilla/5.0" in request.headers["user-agent"]
         return httpx.Response(200, text=fixture("dmm-description.html"))
 
     description = provider(handler).fetch_description("ABP-123")
@@ -50,3 +52,15 @@ def test_unavailable_or_changed_response_is_warning_error() -> None:
         with pytest.raises(MetadataProviderProblem) as error:
             dmm.fetch_description("ABP-123")
         assert error.value.code == "dmm_upstream_error"
+
+
+def test_probe_is_read_only_and_accepts_reachable_not_found() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(404)
+
+    assert provider(handler).probe() is None
+    assert len(seen) == 1
+    assert seen[0].method == "GET"

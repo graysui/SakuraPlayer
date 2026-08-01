@@ -107,10 +107,15 @@ def app_settings(database_url: str) -> Settings:
 
 def fake_client(*, fail_optional: bool) -> httpx.Client:
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.host == "javdb.com" and request.url.path == "/search":
-            return httpx.Response(200, text=fixture("javdb-search.html"))
-        if request.url.host == "javdb.com":
-            return httpx.Response(200, text=fixture("javdb-detail.html"))
+        if (
+            request.url.host == "jdforrepam.com"
+            and request.url.path == "/api/v2/search"
+        ):
+            return httpx.Response(200, text=fixture("javdb-search.json"))
+        if request.url.host == "jdforrepam.com" and request.url.path.startswith(
+            "/api/v4/movies/"
+        ):
+            return httpx.Response(200, text=fixture("javdb-detail.json"))
         if request.url.host == "www.dmm.co.jp":
             if fail_optional:
                 return httpx.Response(503)

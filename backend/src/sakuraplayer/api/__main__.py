@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import httpx
 import uvicorn
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -16,11 +17,18 @@ from sakuraplayer.api.settings import ProbeResult, SettingsService
 from sakuraplayer.catalog.cache_availability import CacheSourceAvailabilityPort
 from sakuraplayer.catalog.metadata_api import MetadataAdminService
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
+from sakuraplayer.catalog.provider_snapshots import (
+    GFRIENDS_SOURCE,
+    ProviderSnapshotDownloader,
+)
+from sakuraplayer.catalog.providers.dmm import DmmProvider
 from sakuraplayer.catalog.providers.javdb import (
     EncryptedJavdbCredentialStore,
+    JavdbProvider,
     MetadataProviderProblem,
 )
 from sakuraplayer.catalog.query_service import CatalogQueryService
+from sakuraplayer.catalog.translation.adapter import OpenAiTranslationAdapter
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
 from sakuraplayer.cloud_cache.binding_service import BindingService
 from sakuraplayer.cloud_cache.cancellation import CancellationService
@@ -107,6 +115,15 @@ def main() -> None:
     cache_event_publisher = CacheEventPublisher(event_writer, notification_writer)
     metadata_queue = MetadataQueue(factory, event_writer=event_writer)
     credential_store = EncryptedJavdbCredentialStore(secret_repository)
+    ai_store = EncryptedAiConfigurationStore(secret_repository)
+    provider_http_client = httpx.Client(headers={"User-Agent": "SakuraPlayer/0.1"})
+    javdb_provider = JavdbProvider(
+        http_client=provider_http_client,
+        host=settings.javdb_host,
+    )
+    dmm_provider = DmmProvider(http_client=provider_http_client)
+    snapshot_downloader = ProviderSnapshotDownloader(provider_http_client)
+    ai_provider = OpenAiTranslationAdapter(provider_http_client)
 
     @asynccontextmanager
     async def cloud115_scope(cookies: str | None):
@@ -167,12 +184,40 @@ def main() -> None:
             return ProbeResult("not_configured")
         return ProbeResult("unavailable", "cloud115_unavailable")
 
+    def probe_javdb() -> ProbeResult:
+        credentials = credential_store.load()
+        if credentials is None:
+            return ProbeResult("not_configured")
+        javdb_provider.probe_credentials(credentials)
+        return ProbeResult("available")
+
+    def probe_dmm() -> ProbeResult:
+        dmm_provider.probe()
+        return ProbeResult("available")
+
+    def probe_gfriends() -> ProbeResult:
+        snapshot_downloader.probe(GFRIENDS_SOURCE)
+        return ProbeResult("available")
+
+    def probe_ai() -> ProbeResult:
+        configuration = ai_store.load()
+        if configuration is None:
+            return ProbeResult("not_configured")
+        ai_provider.probe(configuration)
+        return ProbeResult("available")
+
     settings_service = SettingsService(
         factory,
         secret_repository,
         credential_store,
-        EncryptedAiConfigurationStore(secret_repository),
-        probes={"cloud115": probe_cloud115},
+        ai_store,
+        probes={
+            "cloud115": probe_cloud115,
+            "javdb": probe_javdb,
+            "dmm": probe_dmm,
+            "gfriends": probe_gfriends,
+            "ai": probe_ai,
+        },
     )
 
     def credential_status() -> str:
@@ -230,6 +275,7 @@ def main() -> None:
         playback_heartbeat_service=playback_heartbeat_service,
     )
     app.add_event_handler("shutdown", engine.dispose)
+    app.add_event_handler("shutdown", provider_http_client.close)
     app.state.secret_repository = secret_repository
     uvicorn.run(
         app,

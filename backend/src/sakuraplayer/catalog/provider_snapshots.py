@@ -165,6 +165,40 @@ class ProviderSnapshotDownloader:
             raise SnapshotProblem(source.upstream_error) from None
         raise SnapshotProblem
 
+    def probe(self, source: SnapshotSource) -> None:
+        current_url = source.url
+        try:
+            for redirect_count in range(4):
+                response = self._http_client.head(
+                    current_url,
+                    follow_redirects=False,
+                    timeout=httpx.Timeout(15.0, connect=10.0, pool=10.0),
+                )
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    location = response.headers.get("Location")
+                    if not location or redirect_count == 3:
+                        raise SnapshotProblem
+                    current_url = urljoin(current_url, location)
+                    if current_url != source.url:
+                        raise SnapshotProblem
+                    continue
+                if response.status_code != 200:
+                    raise SnapshotProblem(source.upstream_error)
+                declared = response.headers.get("Content-Length")
+                if declared is not None:
+                    try:
+                        declared_size = int(declared)
+                    except ValueError:
+                        raise SnapshotProblem from None
+                    if declared_size < 0 or declared_size > source.max_bytes:
+                        raise SnapshotProblem
+                return
+        except SnapshotProblem:
+            raise
+        except (httpx.HTTPError, OSError):
+            raise SnapshotProblem(source.upstream_error) from None
+        raise SnapshotProblem
+
 
 class ProviderSnapshotStore:
     def __init__(self, root: Path) -> None:

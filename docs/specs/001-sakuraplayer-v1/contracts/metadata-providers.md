@@ -26,6 +26,8 @@ fetch_rankings(board, year?) -> ordered MovieNumber list
 
 可选 JavDB 用户名和密码作为单个 `javdb.credentials` AES-GCM JSON envelope 通过 TASK-003 设置仓储 CAS 读写，避免分键读取产生混合版本。未配置或配置无效不得阻断公开影片核心抓取；需登录的 TOP250 由排行榜任务明确跳过或报告凭据无效。
 
+生产 JavDB 默认 host 为 `jdforrepam.com`，搜索使用 `/api/v2/search`，详情使用 `/api/v4/movies/{id}`，排行榜与登录保持既有 JSON 路径。每次 API 请求携带参考固定 revision 的时间签名与确定性请求头；host 可由严格运行配置覆盖，但不得来自客户端或上游响应。连接测试在已配置时执行只读登录，token 只存在于调用栈，不持久化、不记录。
+
 ### 2.1 JavDB 排行榜端口
 
 ```text
@@ -57,6 +59,8 @@ RankedMovieNumber = {rank: positive integer, normalized_number: MovieNumber}
 
 ## 3. DMM 端口
 
+DMM 搜索使用路径式番号 URL、年龄确认 Cookie 和固定浏览器请求头。连接测试使用只读固定搜索；200 且响应结构可识别为可用，地区限制、非 200、超限、网络或结构错误映射 `dmm_upstream_error`。DMM 始终是可选富化，不得影响 core_ready。
+
 ```text
 fetch_description(normalized_number) -> Description | NotFound | Unavailable
 ```
@@ -83,7 +87,7 @@ store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
 ## 4. Actor Mapping 与 GFriends
 
 - 固定地址、下载和解析边界由 [TASK-009 提供方快照安全与重建边界](../changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结；地址不接受运行配置覆盖。
-- scheduler 每周日 05:00 `Asia/Shanghai` 只持久入队 `provider_snapshots_weekly`；worker claim 后执行外部下载。重复调度 slot 幂等，明确失败不自动创建新请求。
+- scheduler 每周日 05:00 `Asia/Shanghai` 只持久入队 `provider_snapshots_weekly`；没有任何 request 且任一 current snapshot 缺失的首次部署会立即幂等入队一次。worker claim 后执行外部下载。重复调度 slot 幂等，明确失败不自动创建新请求。
 - Actor Mapping/Filetree 正文最多 16/32 MiB，最多三跳且每跳重新验证固定 HTTPS URL。文件完成大小、结构、SHA-256、同目录临时写和 `fsync` 后才原子激活。
 - 两个来源独立保留最近成功快照；单源失败不替换该源 current，也不回滚另一个已验证成功快照。
 - Actor Mapping 使用 defusedxml 0.7.1，拒绝 DTD、实体和网络。只用当前 JavDB 名称及 `authority=javdb` 别名匹配既有 Actor；只有唯一 Actor 命中才保存中文名、可用中文简介和 mapping 别名，禁止按姓名创建或合并身份。
@@ -95,6 +99,8 @@ store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
 - 影片 `actor_map/gfriends` stage 只检查相应 current 快照存在；从未成功时记录 `provider_snapshot_unavailable` warning，不在每个影片子进程重复解析全量文件。
 
 ## 5. OpenAI-compatible 翻译
+
+连接测试只对配置 root 请求 `/v1/models`，携带 Bearer key 但不发送 prompt、不创建 reservation/dispatch。200 为 available，401/403 为 `translation_credentials_invalid`，其余网络/HTTP/超限错误为 `translation_upstream_error`。
 
 完整安全与付费幂等边界由 [TASK-010 翻译协议与付费幂等边界](../changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结。
 

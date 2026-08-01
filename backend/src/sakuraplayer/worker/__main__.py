@@ -236,7 +236,7 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             queue=ranking_queue,
             synchronizer=RankingSnapshotSynchronizer(
                 ranking_queue,
-                JavdbProvider(http_client=http_client),
+                JavdbProvider(http_client=http_client, host=settings.javdb_host),
                 credentials=credential_store.load,
             ),
         )

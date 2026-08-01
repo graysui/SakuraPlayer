@@ -271,7 +271,7 @@ def build_metadata_stage_executor(
         )
     return CatalogMetadataStageExecutor(
         session_factory=session_factory,
-        javdb=JavdbProvider(http_client=http_client),
+        javdb=JavdbProvider(http_client=http_client, host=settings.javdb_host),
         dmm=DmmProvider(http_client=http_client),
         image_store=image_store,
         core_importer=CoreMetadataImporter(

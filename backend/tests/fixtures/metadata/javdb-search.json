@@ -1,0 +1,19 @@
+{
+  "success": 1,
+  "data": {
+    "movies": [
+      {
+        "id": "fixture-abp-123",
+        "number": "ABP-123",
+        "title": "Fixture Original Title",
+        "release_date": "2026-07-01"
+      },
+      {
+        "id": "fixture-other",
+        "number": "ABP-012",
+        "title": "Other Fixture",
+        "release_date": "2026-06-01"
+      }
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "success": 1,
+  "data": {
+    "movie": {
+      "id": "fixture-abp-123",
+      "number": "ABP-123",
+      "title": "Fixture Original Title",
+      "release_date": "2026-07-01",
+      "maker_name": "Fixture Maker",
+      "series_name": "Fixture Series",
+      "director_name": "Fixture Director",
+      "score": "4.25",
+      "cover_url": "https://c0.jdbstatic.com/covers/fixture.jpg",
+      "actors": [
+        {
+          "id": "actor-one",
+          "name": "Actor One",
+          "name_zht": "Actor One",
+          "other_name": "Alias One, Actor One"
+        },
+        {
+          "id": "actor-two",
+          "name": "Actor Two",
+          "other_name": ""
+        }
+      ],
+      "tags": [
+        {"id": "tag-drama", "name": "Drama"},
+        {"id": "tag-hd", "name": "HD"}
+      ],
+      "preview_images": [
+        {"large_url": "https://c0.jdbstatic.com/samples/fixture-1.jpg"},
+        {"large_url": "https://c0.jdbstatic.com/samples/fixture-2.webp"}
+      ]
+    }
+  }
+}

@@ -597,17 +597,22 @@ def fake_metadata_client(*, fail_optional: bool) -> httpx.Client:
     metadata_fixtures = FIXTURES / "metadata"
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.host == "javdb.com" and request.url.path == "/search":
+        if (
+            request.url.host == "jdforrepam.com"
+            and request.url.path == "/api/v2/search"
+        ):
             return httpx.Response(
                 200,
-                text=(metadata_fixtures / "javdb-search.html").read_text(
+                text=(metadata_fixtures / "javdb-search.json").read_text(
                     encoding="utf-8"
                 ),
             )
-        if request.url.host == "javdb.com":
+        if request.url.host == "jdforrepam.com" and request.url.path.startswith(
+            "/api/v4/movies/"
+        ):
             return httpx.Response(
                 200,
-                text=(metadata_fixtures / "javdb-detail.html").read_text(
+                text=(metadata_fixtures / "javdb-detail.json").read_text(
                     encoding="utf-8"
                 ),
             )

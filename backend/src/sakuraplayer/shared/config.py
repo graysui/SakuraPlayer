@@ -29,6 +29,7 @@ class Settings:
     token_key: bytes | None = field(repr=False)
     playback_key: bytes | None = field(repr=False)
     bootstrap_token: bytes | None = field(repr=False)
+    javdb_host: str = "jdforrepam.com"
 
 
 _SECURE_ENVIRONMENTS = frozenset({"production-private", "acceptance-real115"})
@@ -39,6 +40,10 @@ _LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR"})
 _URL_SAFE_TEXT = re.compile(r"^[A-Za-z0-9_-]+$")
 _URL_SAFE_BASE64 = re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
 _KEY_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_DNS_HOSTNAME = re.compile(
+    r"(?=^.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"
+)
 
 
 def _required(values: Mapping[str, str], name: str) -> str:
@@ -163,6 +168,13 @@ def load_settings(environment: Mapping[str, str] | None = None) -> Settings:
     if not 1 <= api_port <= 65535:
         raise StartupConfigurationError("SAKURAPLAYER_API_PORT", "invalid port")
 
+    javdb_host = values.get("SAKURAPLAYER_JAVDB_HOST", "jdforrepam.com").strip()
+    if not _DNS_HOSTNAME.fullmatch(javdb_host):
+        raise StartupConfigurationError(
+            "SAKURAPLAYER_JAVDB_HOST", "expected a DNS hostname"
+        )
+    javdb_host = javdb_host.lower()
+
     settings_key, settings_key_source = _decode_key(
         values, "SAKURAPLAYER_SETTINGS_KEY", minimum=32, exact=True
     )
@@ -224,6 +236,7 @@ def load_settings(environment: Mapping[str, str] | None = None) -> Settings:
         trust_proxy_headers=_parse_bool(
             values, "SAKURAPLAYER_TRUST_PROXY_HEADERS", False
         ),
+        javdb_host=javdb_host,
         settings_key_id=settings_key_id,
         settings_key=settings_key,
         token_key=token_key,

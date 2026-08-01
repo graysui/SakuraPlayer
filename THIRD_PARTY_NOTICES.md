@@ -12,6 +12,15 @@ at revision `670ca75b2d35b606ffc0caa6fd47fd04c4c95870` under GPL-3.0-only. Consu
 The exact retained symbols and explicitly excluded upload/copy/media-library code are
 listed in `backend/src/sakuraplayer/cloud_cache/infrastructure/cloud115/NOTICE.md`.
 
+## JavDB and DMM provider compatibility
+
+TASK-216 adapts the JavDB signed JSON request shape, strict field mapping, and DMM
+age-confirmed browser request shape from `sakuramediabe`, available at
+<https://github.com/tinypinglite/sakuramediabe.git>, fixed at revision
+`670ca75b2d35b606ffc0caa6fd47fd04c4c95870` under GPL-3.0-only. Consulted files are
+`src/metadata/_providers/javdb.py` and `src/metadata/_providers/dmm.py`; SakuraPlayer
+retains its own DTOs, encrypted setting store, queue semantics, and provider error codes.
+
 ## Pillow
 
 TASK-008 adds Pillow 11.2.1 for complete JPEG, PNG, and WebP decoding and image-dimension validation. Pillow is distributed under the HPND license; its upstream package and license are available at <https://python-pillow.org/> and are included by the locked Python dependency installation.

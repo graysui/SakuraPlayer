@@ -92,6 +92,23 @@ class OpenAiTranslationAdapter:
     def __init__(self, http_client: httpx.Client) -> None:
         self._http_client = http_client
 
+    def probe(self, configuration: AiConfigurationSnapshot) -> None:
+        try:
+            with self._http_client.stream(
+                "GET",
+                f"{configuration.base_url}/v1/models",
+                headers={"Authorization": f"Bearer {configuration.api_key}"},
+                timeout=min(configuration.timeout_seconds, 30),
+            ) as response:
+                if response.status_code in {401, 403}:
+                    raise TranslationAdapterError("translation_credentials_invalid")
+                if response.status_code != 200:
+                    raise TranslationAdapterError("translation_upstream_error")
+        except TranslationAdapterError:
+            raise
+        except httpx.HTTPError:
+            raise TranslationAdapterError("translation_upstream_error") from None
+
     def translate(
         self,
         request: TranslationRequest,

@@ -33,6 +33,7 @@ services:
       SAKURAPLAYER_PLAYBACK_KEY_FILE: /run/secrets/playback_key
       SAKURAPLAYER_BOOTSTRAP_TOKEN_FILE: /run/secrets/bootstrap_token
       SAKURAPLAYER_TRUST_PROXY_HEADERS: ${SAKURAPLAYER_TRUST_PROXY_HEADERS:-false}
+      SAKURAPLAYER_JAVDB_HOST: ${SAKURAPLAYER_JAVDB_HOST:-jdforrepam.com}
       POSTGRES_DB: ${POSTGRES_DB:-sakuraplayer}
       POSTGRES_USER: ${POSTGRES_USER:-sakuraplayer}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password

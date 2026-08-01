@@ -156,6 +156,23 @@ def test_snapshot_downloader_validates_payload_and_digest() -> None:
     client.close()
 
 
+def test_snapshot_probe_uses_head_without_downloading_payload() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, headers={"Content-Length": "1024"})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        assert ProviderSnapshotDownloader(client).probe(GFRIENDS_SOURCE) is None
+    finally:
+        client.close()
+
+    assert len(seen) == 1
+    assert seen[0].method == "HEAD"
+
+
 def test_snapshot_downloader_revalidates_redirect_and_stops_at_limit() -> None:
     calls = 0
 

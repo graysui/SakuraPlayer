@@ -95,20 +95,20 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-039 `[IMP]`**: 单个影片任务总执行时间超过 600 秒时必须被父进程强制终止并标记失败。
 - **AC-040 `[IMP]`**: 600 秒超时或其他任务失败后不得自动重试，只能由管理员手动重试。
 - **AC-041 `[IMP]`**: 队列优先级依次为后台手动重试和用户搜索、排行榜缺失影片、每日新增、首批 90 天、历史补齐；同优先级按发布日期从新到旧。
-- **AC-042 `[IMP]`**: JavDB 核心影片资料和关系成功保存即视为可展示；DMM、图片、GFriends 和 AI 失败不得阻塞影片上线。
+- **AC-042 `[IMP]`**: JavDB 核心影片资料和关系成功保存即视为可展示；DMM、图片、GFriends 和 AI 失败不得阻塞影片上线；真实 provider 运行链路遵循 [外部元数据服务运行可用性](changes/2026-08-01--provider-runtime-availability.md)。
 - **AC-043 `[IMP]`**: 任务必须记录当前阶段、开始时间、耗时、尝试次数和失败原因。
 
 ### REQ-009 元数据来源
 
-- **AC-044 `[IMP]`**: JavDB 是影片、演员关系和排行榜的主来源。
+- **AC-044 `[IMP]`**: JavDB 是影片、演员关系和排行榜的主来源；生产搜索、详情与榜单必须使用已验证的严格 JSON 防腐层，不得依赖已被上游拒绝的 HTML 页面。
 - **AC-045 `[IMP]`**: DMM 仅补充影片简介，失败时保留 JavDB 核心资料。
-- **AC-046 `[IMP]`**: JavDB 用户名和密码是可选的加密配置；未配置时跳过需要登录的 TOP250，并以稳定的“榜单暂无快照”状态返回，不影响其他功能或既有榜单快照。
+- **AC-046 `[IMP]`**: JavDB 用户名和密码是可选的加密配置；未配置时跳过需要登录的 TOP250，并以稳定的“榜单暂无快照”状态返回，不影响其他功能或既有榜单快照；配置后的连接测试必须执行只读登录并区分凭据无效与上游不可用。
 - **AC-047 `[IMP]`**: 影片封面、剧照和其他媒体库图片下载到后端持久化卷并永久保留，不随 115 缓存删除。
 - **AC-048 `[IMP]`**: 图片下载失败时使用占位图并进入可重试补齐状态。
 
 ### REQ-010 演员映射与 GFriends
 
-- **AC-049 `[IMP]`**: 后端每周刷新 `actor-mapping.xml` 和 GFriends `Filetree.json`，失败时继续使用最近一次成功缓存。
+- **AC-049 `[IMP]`**: 后端每周刷新 `actor-mapping.xml` 和 GFriends `Filetree.json`，失败时继续使用最近一次成功缓存；首次部署没有任何持久快照事实时立即幂等排入一次初始刷新。
 - **AC-050 `[IMP]`**: 演员映射保存中文名、日文名、权威别名和可用简介，不把用户搜索词写入别名。
 - **AC-051 `[IMP]`**: GFriends 同时提供头像和写真图库，但只有唯一、明确的姓名或别名匹配才能关联；歧义匹配必须丢弃，Windows 客户端只消费后端关联结果和精确 URL 边界由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结。
 - **AC-052 `[IMP]`**: GFriends 只持久化索引和 URL，图片按需进入客户端缓存，不镜像全部图片；Windows 下载并发、取消、大小和文件缓存遵循 [Windows 女优客户端契约](contracts/windows-actors-client.md)。
@@ -142,7 +142,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-014 排行榜
 
-- **AC-069 `[IMP]`**: 排行榜使用 JavDB 本地不可变快照，不在页面打开时实时抓取；同步由 scheduler 持久入队、worker 执行，Windows 页面消费与恢复边界由 [TASK-205 Windows 排行榜客户端边界](changes/2026-07-30--task-205-rankings-client-boundaries.md) 冻结。
+- **AC-069 `[IMP]`**: 排行榜使用 JavDB 本地不可变快照，不在页面打开时实时抓取；同步由 scheduler 持久入队、worker 执行；首次部署没有任何排行榜持久事实时立即幂等排入一次当前目标，Windows 页面消费与恢复边界由 [TASK-205 Windows 排行榜客户端边界](changes/2026-07-30--task-205-rankings-client-boundaries.md) 冻结。
 - **AC-070 `[IMP]`**: 页面支持日榜、周榜、月榜、TOP250，以及 TOP250 总榜和 2008 至当前年的年度筛选；完整参数与调度边界由 [TASK-012 排行榜快照确定性与执行边界](changes/2026-07-26--task-012-ranking-snapshot-boundaries.md) 冻结，Windows 选择、分页与布局遵循 [Windows 排行榜客户端契约](contracts/windows-rankings-client.md)。
 - **AC-071 `[IMP]`**: 榜单只展示存在 AVdb 资源且核心元数据已完成的影片。
 - **AC-072 `[IMP]`**: 榜单命中“有 AVdb 资源但元数据未完成”的影片时，幂等创建或提升为 priority 20，running 复用且 failed 不自动重试。
@@ -232,9 +232,9 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-022 管理员设置与诊断
 
-- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；同步状态同时显示持久统计中的已导入总数；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
+- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；五个连接目标必须执行真实只读 probe，未配置、凭据无效与上游不可用不得混淆；同步状态同时显示持久统计中的已导入总数；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
-- **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、连接测试和元数据总体进度；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
+- **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试和元数据总体进度；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
 - **AC-122 `[IMP]`**: 管理员可查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 冻结。
 
 ## 11. 部署、可靠性与验收
@@ -249,7 +249,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-024 测试与外部验收
 
-- **AC-128 `[IMP]`**: 默认自动测试不得访问真实 115、JavDB 写操作或真实 AI 付费接口，必须使用替身和固定样本；Phase 1 跨边界测试遵循 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md)，115 协议测试遵循 [TASK-101 Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md)，Phase 2 后端组合测试遵循 [TASK-113 115 缓存播放后端 E2E 边界](changes/2026-07-29--task-113-backend-e2e-boundaries.md)。
+- **AC-128 `[IMP]`**: 默认自动测试不得访问真实 115、JavDB/DMM/GFriends 或真实 AI 付费接口，必须使用替身和固定样本；显式本机 provider 验收只允许无写 JavDB 登录、固定公开源和 AI models 读取，不得输出 secret；Phase 1 跨边界测试遵循 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md)，115 协议测试遵循 [TASK-101 Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md)，Phase 2 后端组合测试遵循 [TASK-113 115 缓存播放后端 E2E 边界](changes/2026-07-29--task-113-backend-e2e-boundaries.md)。
 - **AC-129 `[IMP]`**: AVdb 解密、幂等导入、番号合并、分类标签、元数据超时、任务优先级、缓存状态机、安全删除、签名校验、播放进度和字幕生命周期都有自动测试；各工作流只对已交付算法负责，TASK-013 固化 Phase 1 测试清单，后续缓存与播放测试仍由对应任务交付。
 - **AC-130 `[EXT]`**: Windows 发布前使用真实 115 验证扫码、离线、原画、HLS 回退、Range seek、字幕下载和安全清理；上游能力域漂移只按 [TASK-213 Cloud115 能力域兼容边界](changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md) 扩展精确 HTTPS 子域白名单，真实 Range 按 [TASK-213 Range seek 证据串行化](changes/2026-08-01--task-213-range-seek-evidence-serialization.md) 与生产 seek 合并行为一致。TASK-213 本轮真实来源缺少外置字幕时，仅允许按 [外置字幕真实证据豁免](changes/2026-08-01--task-213-external-subtitle-evidence-waiver.md) 显式记录操作者批准的 `.srt` / `.ass` 跳过证据；字幕产品契约和默认自动测试不变。
 - **AC-131 `[EXT]`**: HarmonyOS 开发前使用真实 API 24 设备验证固定 User-Agent、302、Range、HLS、MKV 与 ASS 字幕；任何关键项失败都阻断鸿蒙功能开发。

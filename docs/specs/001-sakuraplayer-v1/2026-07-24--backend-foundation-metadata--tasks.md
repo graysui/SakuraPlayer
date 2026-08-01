@@ -33,10 +33,12 @@
 | [TASK-013](tasks/TASK-013.md) | 管理设置、诊断与持久事件 | 设置、任务管理、有界 REST snapshot/WS | TASK-002,TASK-003,TASK-007,TASK-011,TASK-012 | 是 | 否 |
 | [TASK-014](tasks/TASK-014.md) | 后端基础与元数据 E2E | Phase 1 全链路和 `[SEF]` 故障隔离 | TASK-001..013 | 是 | 是 |
 | [TASK-015](tasks/TASK-015.md) | 后端基础与元数据清理 | 固定 Git 清单、锁定静态工具与等价基线 | TASK-014 | 否 | 否 |
+| [TASK-216](tasks/TASK-216.md) | 外部元数据服务可用性修复 | JavDB 签名 JSON、五类 probe、DMM 兼容和中文错误 | TASK-008,009,010,012,013,215 | 是 | 是 |
+| [TASK-217](tasks/TASK-217.md) | 首次元数据快照启动修复 | 首次 provider/ranking 持久请求 | TASK-216 | 是 | 是 |
 
 ## 数量检查
 
-- 实现任务：13，未超过 15。
+- 实现任务：15，未超过 15。
 - E2E：1。
 - 清理：1。
 

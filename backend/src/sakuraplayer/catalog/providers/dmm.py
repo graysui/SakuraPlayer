@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import quote
+
 import httpx
 
 from sakuraplayer.catalog.providers._html import parse_html
@@ -7,6 +9,16 @@ from sakuraplayer.catalog.providers.javdb import MetadataProviderProblem
 
 _BASE_URL = "https://www.dmm.co.jp"
 _MAX_HTML_BYTES = 2 * 1024 * 1024
+_REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/138.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Cookie": "age_check_done=1; ckcy=1",
+}
 
 
 class DmmProvider:
@@ -19,8 +31,9 @@ class DmmProvider:
             raise ValueError("invalid normalized movie number")
         try:
             response = self._http.get(
-                f"{_BASE_URL}/search/",
-                params={"searchstr": number},
+                f"{_BASE_URL}/search/=/searchstr={quote(number, safe='')}/"
+                "limit=30/sort=date/",
+                headers=_REQUEST_HEADERS,
                 timeout=httpx.Timeout(30.0, connect=10.0, pool=10.0),
             )
         except httpx.HTTPError:
@@ -39,6 +52,9 @@ class DmmProvider:
         if not candidates:
             raise MetadataProviderProblem("dmm_upstream_error")
         return candidates[0].text() or None
+
+    def probe(self) -> None:
+        self.fetch_description("SONE-248")
 
 
 __all__ = ["DmmProvider"]

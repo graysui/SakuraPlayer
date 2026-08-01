@@ -98,10 +98,15 @@ def fake_client(
     image = png_bytes()
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.host == "javdb.com" and request.url.path == "/search":
-            return httpx.Response(200, text=fixture("javdb-search.html"))
-        if request.url.host == "javdb.com":
-            return httpx.Response(200, text=fixture("javdb-detail.html"))
+        if (
+            request.url.host == "jdforrepam.com"
+            and request.url.path == "/api/v2/search"
+        ):
+            return httpx.Response(200, text=fixture("javdb-search.json"))
+        if request.url.host == "jdforrepam.com" and request.url.path.startswith(
+            "/api/v4/movies/"
+        ):
+            return httpx.Response(200, text=fixture("javdb-detail.json"))
         if request.url.host == "www.dmm.co.jp":
             if dmm_status != 200:
                 return httpx.Response(dmm_status)

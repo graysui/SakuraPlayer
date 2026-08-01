@@ -293,6 +293,7 @@ class SettingsService:
                         in {
                             "javdb_credentials_invalid",
                             "cloud115_credentials_expired",
+                            "translation_credentials_invalid",
                         }
                         else "unavailable",
                         code,

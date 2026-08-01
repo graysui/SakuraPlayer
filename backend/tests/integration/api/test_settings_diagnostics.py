@@ -13,6 +13,7 @@ from sakuraplayer.api.diagnostics import DiagnosticsService
 from sakuraplayer.api.settings import ProbeResult, SettingsService
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
 from sakuraplayer.catalog.providers.javdb import EncryptedJavdbCredentialStore
+from sakuraplayer.catalog.translation.adapter import TranslationAdapterError
 from sakuraplayer.catalog.translation.config import EncryptedAiConfigurationStore
 from sakuraplayer.cloud_cache.models import CacheJob, Cloud115Binding
 from sakuraplayer.identity.crypto import (
@@ -48,7 +49,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
         EncryptedAiConfigurationStore(repository),
         probes={
             "javdb": lambda: ProbeResult("available"),
-            "ai": lambda: ProbeResult("available"),
+            "ai": _translation_credentials_probe,
             "dmm": lambda: ProbeResult("available"),
             "gfriends": _timeout_probe,
         },
@@ -156,6 +157,13 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             )
             assert timed_out.json()["status"] == "unavailable"
             assert timed_out.json()["error_code"] == "service_unavailable"
+            ai_test = client.post(
+                "/api/v1/settings/connection-tests",
+                headers=headers,
+                json={"target": "ai"},
+            )
+            assert ai_test.json()["status"] == "credentials_invalid"
+            assert ai_test.json()["error_code"] == ("translation_credentials_invalid")
 
             failed_movie = Movie(
                 id=uuid.uuid4(),
@@ -252,7 +260,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             assert components["scheduler"]["status"] == "unknown"
             assert components["avdb"]["status"] == "healthy"
             assert "actor_mapping" not in components
-            assert len(diagnostics.json()["connection_tests"]) == 3
+            assert len(diagnostics.json()["connection_tests"]) == 4
             assert diagnostics.json()["queues"] == {
                 "metadata_queued": 0,
                 "metadata_running": 0,
@@ -391,3 +399,7 @@ def _auth_headers(client: TestClient) -> dict[str, str]:
 
 def _timeout_probe() -> ProbeResult:
     raise TimeoutError
+
+
+def _translation_credentials_probe() -> ProbeResult:
+    raise TranslationAdapterError("translation_credentials_invalid")
