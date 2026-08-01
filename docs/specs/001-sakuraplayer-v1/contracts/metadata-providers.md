@@ -90,6 +90,7 @@ store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
 - scheduler 每周日 05:00 `Asia/Shanghai` 只持久入队 `provider_snapshots_weekly`；没有任何 request 且任一 current snapshot 缺失的首次部署会立即幂等入队一次。worker claim 后执行外部下载。重复调度 slot 幂等，明确失败不自动创建新请求。
 - Actor Mapping/Filetree 正文最多 16/32 MiB，最多三跳且每跳重新验证固定 HTTPS URL。文件完成大小、结构、SHA-256、同目录临时写和 `fsync` 后才原子激活。
 - 两个来源独立保留最近成功快照；单源失败不替换该源 current，也不回滚另一个已验证成功快照。
+- Actor Mapping 根节点只允许无属性的 `actor` 与 `actor-blacklist` 分组；`actor` 必须非空，blacklist 可以为空。非空 blacklist 条目按 `actor/a` 的同一严格白名单校验但不进入映射结果；未知分组、字段、子节点或仅 blacklist 的文件继续拒绝。
 - Actor Mapping 使用 defusedxml 0.7.1，拒绝 DTD、实体和网络。只用当前 JavDB 名称及 `authority=javdb` 别名匹配既有 Actor；只有唯一 Actor 命中才保存中文名、可用中文简介和 mapping 别名，禁止按姓名创建或合并身份。
 - mapping 别名使用与 JavDB 相同的 casefold/空白折叠规则。成功重建全量替换 `authority=actor_mapping` 派生行，保留 JavDB 别名；同一演员同一规范名已由 JavDB 保存时不重复写入。
 - Filetree 只接受 `Content/<目录>/<别名文件名> -> <图片文件名>?t=<数字>`。受校验路径段与固定 Content 基址构造最终 URL，不接受绝对路径、scheme、斜杠、反斜杠或 `.`/`..` 段。

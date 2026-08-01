@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.models import ProviderSnapshotRequest
 from sakuraplayer.cloud_cache.models import Notification
+from sakuraplayer.discovery.models import RankingSyncRequest
 from sakuraplayer.resources.models import AvdbSyncRequest, AvdbSyncRun, Base
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
 from sakuraplayer.scheduler.__main__ import build_scheduler
@@ -228,6 +229,12 @@ def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> No
         requests = list(session.scalars(select(ProviderSnapshotRequest)))
         assert len(requests) == 1
         assert requests[0].status == "queued"
+        ranking_requests = list(session.scalars(select(RankingSyncRequest)))
+        assert {(item.board, item.year) for item in ranking_requests} == {
+            ("daily", None),
+            ("weekly", None),
+            ("monthly", None),
+        }
         assert session.scalar(select(Notification.id)) is None
     engine.dispose()
 

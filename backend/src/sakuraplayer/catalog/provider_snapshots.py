@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import httpx
-from sqlalchemy import or_, select, update
+from sqlalchemy import or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -38,6 +38,7 @@ ACTOR_MAPPING_URL = (
 GFRIENDS_FILETREE_URL = (
     "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Filetree.json"
 )
+_INITIAL_REQUEST_LOCK_KEY = 0x53414B5552410009
 
 
 class SnapshotProblem(RuntimeError):
@@ -438,6 +439,49 @@ class ProviderSnapshotQueue:
                 if existing is None:
                     raise
                 return ProviderSnapshotEnqueueOutcome(existing.id, created=False)
+        return ProviderSnapshotEnqueueOutcome(request_id, created=True)
+
+    def ensure_initial(self) -> ProviderSnapshotEnqueueOutcome | None:
+        current = self._utc_now()
+        scheduled_for = current.replace(second=0, microsecond=0)
+        request_id = uuid.uuid4()
+        with self._session_factory.begin() as session:
+            if session.get_bind().dialect.name == "postgresql":
+                session.execute(
+                    text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                    {"lock_key": _INITIAL_REQUEST_LOCK_KEY},
+                )
+            existing_request = session.scalar(
+                select(ProviderSnapshotRequest.id).limit(1)
+            )
+            actor_mapping_current = session.scalar(
+                select(ActorMappingSnapshot.id)
+                .where(ActorMappingSnapshot.status == "current")
+                .limit(1)
+            )
+            gfriends_current = session.scalar(
+                select(GfriendsSnapshot.id)
+                .where(GfriendsSnapshot.status == "current")
+                .limit(1)
+            )
+            if existing_request is not None or (
+                actor_mapping_current is not None and gfriends_current is not None
+            ):
+                return None
+            session.add(
+                ProviderSnapshotRequest(
+                    id=request_id,
+                    scheduled_for=scheduled_for,
+                    status="queued",
+                    claim_owner=None,
+                    claim_token=None,
+                    claim_expires_at=None,
+                    attempt_count=0,
+                    created_at=current,
+                    completed_at=None,
+                    failure_code=None,
+                )
+            )
         return ProviderSnapshotEnqueueOutcome(request_id, created=True)
 
     def claim_next(

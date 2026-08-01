@@ -24,15 +24,26 @@ class RankingSchedulerJob:
         self._now = now or (lambda: datetime.now(ZoneInfo(SHANGHAI_TIMEZONE)))
 
     def __call__(self) -> object:
-        current = self._now()
-        if current.tzinfo is None:
-            raise ValueError("ranking scheduler clock must be timezone-aware")
-        local = current.astimezone(ZoneInfo(SHANGHAI_TIMEZONE))
+        local = self._local_now()
         return self._queue.enqueue_due_targets(
             scheduled_for=local,
             current_year=local.year,
             credentials_configured=self._credentials_configured(),
         )
+
+    def ensure_initial(self) -> object:
+        local = self._local_now()
+        return self._queue.ensure_initial_targets(
+            scheduled_for=local,
+            current_year=local.year,
+            credentials_configured=self._credentials_configured(),
+        )
+
+    def _local_now(self) -> datetime:
+        current = self._now()
+        if current.tzinfo is None:
+            raise ValueError("ranking scheduler clock must be timezone-aware")
+        return current.astimezone(ZoneInfo(SHANGHAI_TIMEZONE))
 
 
 def register_ranking_job(

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -20,6 +20,7 @@ from sakuraplayer.shared.redaction import stable_error_code
 
 RANKING_BOARDS = ("daily", "weekly", "monthly", "top250")
 TOP250_START_YEAR = 2008
+_INITIAL_REQUEST_LOCK_KEY = 0x53414B5552410012
 
 
 @dataclass(frozen=True)
@@ -166,6 +167,64 @@ class RankingSyncQueue:
             )
             for board, year in targets
         )
+
+    def ensure_initial_targets(
+        self,
+        *,
+        scheduled_for: datetime,
+        current_year: int,
+        credentials_configured: bool,
+    ) -> tuple[RankingEnqueueOutcome, ...]:
+        if current_year < TOP250_START_YEAR or current_year > 2200:
+            raise ValueError("invalid ranking current year")
+        slot = _utc_minute(scheduled_for)
+        current = self._utc_now()
+        targets: list[tuple[str, int | None]] = [
+            ("daily", None),
+            ("weekly", None),
+            ("monthly", None),
+        ]
+        if credentials_configured:
+            targets.append(("top250", current_year))
+        outcomes: list[RankingEnqueueOutcome] = []
+        with self._session_factory.begin() as session:
+            if session.get_bind().dialect.name == "postgresql":
+                session.execute(
+                    text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                    {"lock_key": _INITIAL_REQUEST_LOCK_KEY},
+                )
+            existing_request = session.scalar(select(RankingSyncRequest.id).limit(1))
+            existing_snapshot = session.scalar(select(RankingSnapshot.id).limit(1))
+            if existing_request is not None or existing_snapshot is not None:
+                return ()
+            for board, year in targets:
+                request_id = uuid.uuid4()
+                session.add(
+                    RankingSyncRequest(
+                        id=request_id,
+                        board=board,
+                        year=year,
+                        scheduled_for=slot,
+                        status="queued",
+                        claim_owner=None,
+                        claim_token=None,
+                        claim_expires_at=None,
+                        attempt_count=0,
+                        snapshot_id=None,
+                        completed_at=None,
+                        failure_code=None,
+                        created_at=current,
+                    )
+                )
+                outcomes.append(
+                    RankingEnqueueOutcome(
+                        request_id=request_id,
+                        board=board,
+                        year=year,
+                        created=True,
+                    )
+                )
+        return tuple(outcomes)
 
     def claim_next(
         self,

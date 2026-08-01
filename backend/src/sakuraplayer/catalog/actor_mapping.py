@@ -16,6 +16,7 @@ from sakuraplayer.catalog.models import Actor, ActorAlias
 _REQUIRED_ATTRIBUTES = frozenset({"zh_cn", "zh_tw", "jp", "keyword"})
 _OPTIONAL_ATTRIBUTES = frozenset({"tmdb_id", "verified", "bio_graphy"})
 _ALLOWED_ATTRIBUTES = _REQUIRED_ATTRIBUTES | _OPTIONAL_ATTRIBUTES
+_ALLOWED_GROUPS = frozenset({"actor", "actor-blacklist"})
 
 
 class ActorMappingProblem(ValueError):
@@ -52,10 +53,18 @@ def parse_actor_mapping(payload: bytes) -> tuple[ActorMappingEntry, ...]:
         raise ActorMappingProblem
     entries: list[ActorMappingEntry] = []
     for group in root:
-        if group.tag != "actor" or group.attrib or not list(group):
+        if (
+            group.tag not in _ALLOWED_GROUPS
+            or group.attrib
+            or (group.tag == "actor" and not list(group))
+        ):
             raise ActorMappingProblem
         for element in group:
-            entries.append(_parse_entry(element))
+            entry = _parse_entry(element)
+            if group.tag == "actor":
+                entries.append(entry)
+    if not entries:
+        raise ActorMappingProblem
     return tuple(entries)
 
 

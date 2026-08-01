@@ -129,6 +129,93 @@ def test_due_targets_skip_credentials_and_completed_history() -> None:
         engine.dispose()
 
 
+def test_initial_targets_are_current_only_and_never_recreated() -> None:
+    engine, factory, queue, _ = _context()
+    try:
+        initial = queue.ensure_initial_targets(
+            scheduled_for=NOW,
+            current_year=2026,
+            credentials_configured=True,
+        )
+        repeated = queue.ensure_initial_targets(
+            scheduled_for=NOW + timedelta(days=1),
+            current_year=2026,
+            credentials_configured=True,
+        )
+
+        assert {(item.board, item.year) for item in initial} == {
+            ("daily", None),
+            ("weekly", None),
+            ("monthly", None),
+            ("top250", 2026),
+        }
+        assert repeated == ()
+        with factory() as session:
+            requests = list(session.scalars(select(RankingSyncRequest)))
+            assert len(requests) == 4
+    finally:
+        engine.dispose()
+
+
+def test_initial_targets_skip_top250_without_credentials() -> None:
+    engine, _, queue, _ = _context()
+    try:
+        initial = queue.ensure_initial_targets(
+            scheduled_for=NOW,
+            current_year=2026,
+            credentials_configured=False,
+        )
+
+        assert {(item.board, item.year) for item in initial} == {
+            ("daily", None),
+            ("weekly", None),
+            ("monthly", None),
+        }
+    finally:
+        engine.dispose()
+
+
+def test_initial_targets_do_not_retry_existing_failed_request_or_snapshot() -> None:
+    engine, factory, queue, _ = _context()
+    try:
+        failed = queue.enqueue("daily", year=None, scheduled_for=NOW)
+        claim = queue.claim_next("worker", lease_duration=timedelta(minutes=5))
+        assert claim is not None and claim.request_id == failed.request_id
+        queue.fail(claim, code="javdb_upstream_error")
+
+        assert (
+            queue.ensure_initial_targets(
+                scheduled_for=NOW + timedelta(days=1),
+                current_year=2026,
+                credentials_configured=True,
+            )
+            == ()
+        )
+
+        with factory.begin() as session:
+            session.query(RankingSyncRequest).delete()
+            session.add(
+                RankingSnapshot(
+                    id=uuid.uuid4(),
+                    board="daily",
+                    year=None,
+                    status="current",
+                    source_synced_at=NOW,
+                    created_at=NOW,
+                )
+            )
+        assert (
+            queue.ensure_initial_targets(
+                scheduled_for=NOW + timedelta(days=2),
+                current_year=2026,
+                credentials_configured=True,
+            )
+            == ()
+        )
+    finally:
+        engine.dispose()
+
+
 @pytest.mark.parametrize(
     ("board", "year"),
     [("daily", 2026), ("unknown", None), ("top250", 2007), ("top250", 2027)],

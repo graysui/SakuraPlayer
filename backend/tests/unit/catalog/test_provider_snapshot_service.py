@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.models import (
     ActorMappingSnapshot,
+    GfriendsSnapshot,
     ProviderSnapshotRequest,
 )
 from sakuraplayer.catalog.provider_snapshots import (
@@ -64,6 +66,63 @@ def test_snapshot_queue_coalesces_duplicate_scheduler_minute() -> None:
         assert requests[0].scheduled_for == datetime(2026, 7, 26, 21, 0)
         assert requests[0].status == "queued"
         assert requests[0].attempt_count == 0
+    engine.dispose()
+
+
+def test_initial_snapshot_request_is_created_once_and_failure_is_not_retried() -> None:
+    engine, factory = _factory()
+    current = [datetime(2026, 7, 26, 21, 0, tzinfo=timezone.utc)]
+    queue = ProviderSnapshotQueue(factory, now=lambda: current[0])
+
+    first = queue.ensure_initial()
+    repeated = queue.ensure_initial()
+
+    assert first is not None and first.created is True
+    assert repeated is None
+    claim = queue.claim_next("worker-1", lease_duration=timedelta(minutes=5))
+    assert claim is not None
+    queue.fail(claim, code="provider_snapshot_upstream_error")
+    current[0] += timedelta(days=1)
+    assert queue.ensure_initial() is None
+    with factory() as session:
+        requests = list(session.scalars(select(ProviderSnapshotRequest)))
+        assert len(requests) == 1
+        assert requests[0].status == "failed"
+    engine.dispose()
+
+
+def test_initial_snapshot_request_skips_complete_current_snapshots() -> None:
+    engine, factory = _factory()
+    current = datetime(2026, 7, 26, 21, 0, tzinfo=timezone.utc)
+    with factory.begin() as session:
+        session.add_all(
+            [
+                ActorMappingSnapshot(
+                    id=uuid.uuid4(),
+                    sha256="a" * 64,
+                    byte_size=1,
+                    relative_path="metadata/actor_mapping/current.xml",
+                    status="current",
+                    fetched_at=current,
+                    activated_at=current,
+                ),
+                GfriendsSnapshot(
+                    id=uuid.uuid4(),
+                    sha256="b" * 64,
+                    byte_size=1,
+                    relative_path="metadata/gfriends/current.json",
+                    status="current",
+                    fetched_at=current,
+                    activated_at=current,
+                ),
+            ]
+        )
+
+    queue = ProviderSnapshotQueue(factory, now=lambda: current)
+
+    assert queue.ensure_initial() is None
+    with factory() as session:
+        assert session.scalar(select(ProviderSnapshotRequest.id)) is None
     engine.dispose()
 
 

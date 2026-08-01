@@ -51,17 +51,15 @@ def build_scheduler(
         notifications.prune_expired()
 
     register_event_prune_job(scheduler, prune_realtime_history)
-    register_provider_snapshot_job(
-        scheduler,
-        ProviderSnapshotQueue(session_factory).enqueue,
+    provider_snapshot_queue = ProviderSnapshotQueue(session_factory)
+    provider_snapshot_queue.ensure_initial()
+    register_provider_snapshot_job(scheduler, provider_snapshot_queue.enqueue)
+    ranking_job = RankingSchedulerJob(
+        RankingSyncQueue(session_factory),
+        credentials_configured=credentials_configured or (lambda: False),
     )
-    register_ranking_job(
-        scheduler,
-        RankingSchedulerJob(
-            RankingSyncQueue(session_factory),
-            credentials_configured=credentials_configured or (lambda: False),
-        ),
-    )
+    ranking_job.ensure_initial()
+    register_ranking_job(scheduler, ranking_job)
     return scheduler
 
 

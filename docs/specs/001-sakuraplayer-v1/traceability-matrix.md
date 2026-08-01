@@ -275,3 +275,7 @@ REQ-CHG-250 至 REQ-CHG-256 约束；它不新增 AC，总任务数增至 63。
 TASK-221 的 AC-074/104 映射还受
 [Windows 播放返回与详情布局恢复](changes/2026-08-01--windows-playback-return-detail-layout.md) 中
 REQ-CHG-257 至 REQ-CHG-260 约束；它不新增 AC，总任务数增至 64。
+
+TASK-217 的 AC-049 映射还受
+[Actor Mapping blacklist 结构兼容](changes/2026-08-01--actor-mapping-blacklist-compatibility.md) 中
+REQ-CHG-261 至 REQ-CHG-263 约束；它不新增 AC 或任务，总任务数仍为 64。
