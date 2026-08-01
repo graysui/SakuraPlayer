@@ -119,7 +119,14 @@ def fake_client(*, fail_optional: bool) -> httpx.Client:
         if request.url.host == "www.dmm.co.jp":
             if fail_optional:
                 return httpx.Response(503)
-            return httpx.Response(200, text=fixture("dmm-description.html"))
+            return httpx.Response(
+                200,
+                text=fixture(
+                    "dmm-search.html"
+                    if request.url.path.startswith("/search/")
+                    else "dmm-mono-detail.html"
+                ),
+            )
         if request.url.host == "c0.jdbstatic.com":
             if fail_optional:
                 return httpx.Response(503)

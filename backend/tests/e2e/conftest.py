@@ -621,9 +621,14 @@ def fake_metadata_client(*, fail_optional: bool) -> httpx.Client:
                 return httpx.Response(503)
             return httpx.Response(
                 200,
-                text=(metadata_fixtures / "dmm-description.html").read_text(
-                    encoding="utf-8"
-                ),
+                text=(
+                    metadata_fixtures
+                    / (
+                        "dmm-search.html"
+                        if request.url.path.startswith("/search/")
+                        else "dmm-mono-detail.html"
+                    )
+                ).read_text(encoding="utf-8"),
             )
         if request.url.host == "c0.jdbstatic.com":
             if fail_optional:

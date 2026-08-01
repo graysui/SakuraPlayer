@@ -13,11 +13,11 @@
 - ready job 必须有非空有序 `selected_media_ids`。详情直接 ready、等待期 ready 与缓存页 ready 都复制
   `cache_job_id` 和首个 `media_id` 后进入 `/player/:cache_job_id/:media_id`；复制完成后才 reset
   TASK-209 controller。
-- route path 只包含 job/media 两个 UUID，不是播放能力。从详情发起的本次播放可额外携带可选
-  `return_movie_id` UUID query；等待期 ready 必须在 reset controller 前复制同一 MovieId。缓存页播放不
-  携带该 query。直接打开、参数非法或服务端判定 job/media 已失效时回到 `/app/cache` 并显示稳定错误；
+- route path 只包含 job/media 两个 UUID，不是播放能力。应用内从详情、等待页或缓存页进入播放器时使用
+  GoRouter 页面栈保留实际来源，返回优先 pop；`return_movie_id` UUID query 只作为既有详情/深链兼容回退。
+  直接打开、参数非法、无页面栈或服务端判定 job/media 已失效时回到 `/app/cache` 并显示稳定错误；
   不得接受自由格式 return URL，也不得把来源 ID、标题、manifest、stream URL、UA、Cookie 或磁力写入 route。
-- 播放器返回时，合法 `return_movie_id` 回到对应影片详情；缺失或非法时回到 `/app/cache`。返回动作
+- 播放器返回时，存在应用内页面栈则返回栈顶来源；否则合法 `return_movie_id` 回到对应影片详情，缺失或非法时回到 `/app/cache`。返回动作
   只结束当前 Player 页面和其 session/lease，不取消或清理 CacheJob。
 - 后台 ready、通知点击和 snapshot 更新只刷新缓存页。只有用户本次播放动作或 deadline 前仍等待同
   job 的 ready 才能进入 player route。

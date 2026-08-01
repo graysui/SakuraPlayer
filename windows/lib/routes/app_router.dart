@@ -27,6 +27,9 @@ sealed class AppRouteLocation {
   String get location;
 
   void go(BuildContext context) => context.go(location);
+
+  Future<T?> push<T extends Object?>(BuildContext context) =>
+      context.push<T>(location);
 }
 
 final class LoginRoute extends AppRouteLocation {
@@ -299,8 +302,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 (context, state) => CachePage(
                   key: const ValueKey('cache-page'),
                   onPlay:
-                      (jobId, mediaId) =>
-                          FullscreenPlayerRoute(jobId, mediaId).go(context),
+                      (jobId, mediaId) => unawaited(
+                        FullscreenPlayerRoute(
+                          jobId,
+                          mediaId,
+                        ).push<void>(context),
+                      ),
                 ),
           ),
           GoRoute(
@@ -340,7 +347,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 if (location == null) {
                   const CacheStatusRoute().go(context);
                 } else {
-                  context.go(location);
+                  context.pushReplacement(location);
                 }
               },
               onTimedOut: () {
@@ -387,10 +394,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return PlayerPage(
             cacheJobId: state.pathParameters['cache_job_id']!,
             mediaId: state.pathParameters['media_id']!,
-            onBack:
-                safeReturnMovieId == null
-                    ? () => const CacheStatusRoute().go(context)
-                    : () => MovieDetailRoute(safeReturnMovieId).go(context),
+            onBack: () {
+              if (context.canPop()) {
+                context.pop();
+              } else if (safeReturnMovieId != null) {
+                MovieDetailRoute(safeReturnMovieId).go(context);
+              } else {
+                const CacheStatusRoute().go(context);
+              }
+            },
           );
         },
       ),
@@ -418,10 +430,10 @@ Future<void> _submitPlayRequest(
         const CacheStatusRoute().go(context);
         _showMessage(context, '缓存任务缺少可播放媒体，请在缓存页处理');
       } else {
-        context.go(location);
+        unawaited(context.push<void>(location));
       }
     case PlayRequestAction.openWait:
-      const BlockingWaitRoute().go(context);
+      unawaited(const BlockingWaitRoute().push<void>(context));
     case PlayRequestAction.showQueued:
       _showMessage(context, '任务已排队，开始和完成时会通知你');
     case PlayRequestAction.showExisting:

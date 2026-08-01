@@ -163,19 +163,19 @@
 | `AC-037` | `[I]` | `REQ-008` | `TASK-007` |
 | `AC-038` | `[I]` | `REQ-008` | `TASK-007` |
 | `AC-039` | `[I]` | `REQ-008` | `TASK-007` |
-| `AC-040` | `[I]` | `REQ-008` | `TASK-007` |
+| `AC-040` | `[I]` | `REQ-008` | `TASK-007`, `TASK-222` |
 | `AC-041` | `[I]` | `REQ-008` | `TASK-007` |
 | `AC-042` | `[I]` | `REQ-008` | `TASK-007`, `TASK-008`, `TASK-216` |
 | `AC-043` | `[I]` | `REQ-008` | `TASK-007` |
 | `AC-044` | `[I]` | `REQ-009` | `TASK-008`, `TASK-216` |
-| `AC-045` | `[I]` | `REQ-009` | `TASK-008`, `TASK-216` |
+| `AC-045` | `[I]` | `REQ-009` | `TASK-008`, `TASK-216`, `TASK-222` |
 | `AC-046` | `[I]` | `REQ-009` | `TASK-008`, `TASK-012`, `TASK-205`, `TASK-216`, `TASK-305` |
 | `AC-047` | `[I]` | `REQ-009` | `TASK-008` |
 | `AC-048` | `[I]` | `REQ-009` | `TASK-008` |
 | `AC-049` | `[I]` | `REQ-010` | `TASK-009`, `TASK-217` |
 | `AC-050` | `[I]` | `REQ-010` | `TASK-009` |
-| `AC-051` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306` |
-| `AC-052` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306` |
+| `AC-051` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-306` |
+| `AC-052` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-306` |
 | `AC-053` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306` |
 | `AC-054` | `[I]` | `REQ-011` | `TASK-010` |
 | `AC-055` | `[I]` | `REQ-011` | `TASK-010` |
@@ -192,10 +192,10 @@
 | `AC-066` | `[I]` | `REQ-013` | `TASK-011`, `TASK-203`, `TASK-218`, `TASK-303` |
 | `AC-067` | `[I]` | `REQ-013` | `TASK-011`, `TASK-204`, `TASK-218`, `TASK-304` |
 | `AC-068` | `[I]` | `REQ-013` | `TASK-011`, `TASK-111`, `TASK-204`, `TASK-207`, `TASK-211`, `TASK-304`, `TASK-307`, `TASK-311` |
-| `AC-069` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-217`, `TASK-305` |
+| `AC-069` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-217`, `TASK-222`, `TASK-305` |
 | `AC-070` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
-| `AC-071` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
-| `AC-072` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
+| `AC-071` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-222`, `TASK-305` |
+| `AC-072` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-222`, `TASK-305` |
 | `AC-073` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
 | `AC-074` | `[I]` | `REQ-015` | `TASK-011`, `TASK-207`, `TASK-221`, `TASK-307` |
 | `AC-075` | `[I]` | `REQ-015` | `TASK-011`, `TASK-206`, `TASK-306` |
@@ -227,7 +227,7 @@
 | `AC-101` | `[I]` | `REQ-019` | `TASK-109`, `TASK-210`, `TASK-310` |
 | `AC-102` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
 | `AC-103` | `[I]` | `REQ-019` | `TASK-109`, `TASK-210`, `TASK-310` |
-| `AC-104` | `[I]` | `REQ-019` | `TASK-108`, `TASK-201`, `TASK-210`, `TASK-221`, `TASK-310` |
+| `AC-104` | `[I]` | `REQ-019` | `TASK-108`, `TASK-201`, `TASK-210`, `TASK-221`, `TASK-222`, `TASK-310` |
 | `AC-105` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
 | `AC-106` | `[I]` | `REQ-019` | `TASK-210`, `TASK-310` |
 | `AC-107` | `[I]` | `REQ-020` | `TASK-110`, `TASK-211`, `TASK-311` |
@@ -244,8 +244,8 @@
 | `AC-118` | `[I]` | `REQ-021` | `TASK-112`, `TASK-203`, `TASK-208`, `TASK-303`, `TASK-308` |
 | `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308` |
 | `AC-120` | `[I]` | `REQ-022` | `TASK-003`, `TASK-013`, `TASK-208`, `TASK-308` |
-| `AC-121` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-218`, `TASK-308` |
-| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-308` |
+| `AC-121` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-218`, `TASK-222`, `TASK-308` |
+| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-308` |
 | `AC-123` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-124` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-125` | `[I]` | `REQ-023` | `TASK-001` |
@@ -279,3 +279,7 @@ REQ-CHG-257 至 REQ-CHG-260 约束；它不新增 AC，总任务数增至 64。
 TASK-217 的 AC-049 映射还受
 [Actor Mapping blacklist 结构兼容](changes/2026-08-01--actor-mapping-blacklist-compatibility.md) 中
 REQ-CHG-261 至 REQ-CHG-263 约束；它不新增 AC 或任务，总任务数仍为 64。
+
+TASK-222 的 AC-040/045/051/052/069/071/072/104/121/122 映射还受
+[实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md) 中
+REQ-CHG-264 至 REQ-CHG-270 约束；它不新增 AC，总任务数增至 65。

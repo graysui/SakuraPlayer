@@ -93,7 +93,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-037 `[IMP]`**: 元数据任务和结果必须持久化，后端重启后可继续调度。
 - **AC-038 `[IMP]`**: 固定同时执行 3 个影片元数据任务，不提供并发数配置。
 - **AC-039 `[IMP]`**: 单个影片任务总执行时间超过 600 秒时必须被父进程强制终止并标记失败。
-- **AC-040 `[IMP]`**: 600 秒超时或其他任务失败后不得自动重试，只能由管理员手动重试。
+- **AC-040 `[IMP]`**: 600 秒超时或其他任务失败后不得自动重试，只能由管理员手动重试；当前榜单瞬时失败的显式运行恢复遵循 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md)。
 - **AC-041 `[IMP]`**: 队列优先级依次为后台手动重试和用户搜索、排行榜缺失影片、每日新增、首批 90 天、历史补齐；同优先级按发布日期从新到旧。
 - **AC-042 `[IMP]`**: JavDB 核心影片资料和关系成功保存即视为可展示；DMM、图片、GFriends 和 AI 失败不得阻塞影片上线；真实 provider 运行链路遵循 [外部元数据服务运行可用性](changes/2026-08-01--provider-runtime-availability.md)。
 - **AC-043 `[IMP]`**: 任务必须记录当前阶段、开始时间、耗时、尝试次数和失败原因。
@@ -101,7 +101,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 ### REQ-009 元数据来源
 
 - **AC-044 `[IMP]`**: JavDB 是影片、演员关系和排行榜的主来源；生产搜索、详情与榜单必须使用已验证的严格 JSON 防腐层，不得依赖已被上游拒绝的 HTML 页面。
-- **AC-045 `[IMP]`**: DMM 仅补充影片简介，失败时保留 JavDB 核心资料。
+- **AC-045 `[IMP]`**: DMM 仅补充影片简介，失败时保留 JavDB 核心资料；搜索到详情的精确解析与既有 warning 显式恢复遵循 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md)。
 - **AC-046 `[IMP]`**: JavDB 用户名和密码是可选的加密配置；未配置时跳过需要登录的 TOP250，并以稳定的“榜单暂无快照”状态返回，不影响其他功能或既有榜单快照；配置后的连接测试必须执行只读登录并区分凭据无效与上游不可用。
 - **AC-047 `[IMP]`**: 影片封面、剧照和其他媒体库图片下载到后端持久化卷并永久保留，不随 115 缓存删除。
 - **AC-048 `[IMP]`**: 图片下载失败时使用占位图并进入可重试补齐状态。
@@ -145,7 +145,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-069 `[IMP]`**: 排行榜使用 JavDB 本地不可变快照，不在页面打开时实时抓取；同步由 scheduler 持久入队、worker 执行；首次部署没有任何排行榜持久事实时立即幂等排入一次当前目标，Windows 页面消费与恢复边界由 [TASK-205 Windows 排行榜客户端边界](changes/2026-07-30--task-205-rankings-client-boundaries.md) 冻结。
 - **AC-070 `[IMP]`**: 页面支持日榜、周榜、月榜、TOP250，以及 TOP250 总榜和 2008 至当前年的年度筛选；完整参数与调度边界由 [TASK-012 排行榜快照确定性与执行边界](changes/2026-07-26--task-012-ranking-snapshot-boundaries.md) 冻结，Windows 选择、分页与布局遵循 [Windows 排行榜客户端契约](contracts/windows-rankings-client.md)。
 - **AC-071 `[IMP]`**: 榜单只展示存在 AVdb 资源且核心元数据已完成的影片。
-- **AC-072 `[IMP]`**: 榜单命中“有 AVdb 资源但元数据未完成”的影片时，幂等创建或提升为 priority 20，running 复用且 failed 不自动重试。
+- **AC-072 `[IMP]`**: 榜单命中“有 AVdb 资源但元数据未完成”的影片时，幂等创建或提升为 priority 20，running 复用且 failed 不自动重试；修复 provider 后的 transient failed 仍只允许管理员按 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md) 显式恢复。
 - **AC-073 `[IMP]`**: 榜单同步失败、空响应或全无效响应时保留最近一次成功快照，不清空现有榜单；从未成功时返回结构化稳定不可用状态，Windows 错误动作与刷新保留语义由 [Windows 排行榜客户端契约](contracts/windows-rankings-client.md) 约束。
 
 ### REQ-015 影片详情与女优详情
@@ -206,7 +206,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-101 `[IMP]`**: 后端优先获取 115 原画直链；只有 `cloud115_original_unavailable` 可自动回退，或用户切换兼容播放时，才使用可用的最高码率 HLS。
 - **AC-102 `[IMP]`**: 播放入口校验身份、签名、过期时间和缓存归属后返回 `302` 与 `Cache-Control: no-store`，不得代理视频字节。
 - **AC-103 `[IMP]`**: 播放器菜单只提供“原画”和“兼容播放”，不展示全部 HLS 档位。
-- **AC-104 `[IMP]`**: 首版只支持应用内播放器，不调用外部播放器。
+- **AC-104 `[IMP]`**: 首版只支持应用内播放器，不调用外部播放器；应用内播放返回实际来源页面的导航栈语义遵循 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md)。
 - **AC-105 `[IMP]`**: Windows 播放器必须合并高频 seek，避免同一签名 URL 上出现不受控的并发 Range 请求。
 - **AC-106 `[IMP]`**: 首版不生成时间轴预览缩略图。
 
@@ -234,7 +234,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 - **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；五个连接目标必须执行真实只读 probe，未配置、凭据无效与上游不可用不得混淆；同步状态同时显示持久统计中的已导入总数；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
-- **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试、元数据总体进度和持久暂停状态；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
+- **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试、元数据总体进度、失败数量和持久暂停状态；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
 - **AC-122 `[IMP]`**: 管理员可暂停或恢复元数据新任务领取、查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；暂停不中断运行中任务，恢复不创建或自动重试任务；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 冻结。
 
 ## 11. 部署、可靠性与验收

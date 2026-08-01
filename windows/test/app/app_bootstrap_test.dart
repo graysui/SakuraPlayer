@@ -317,14 +317,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(PlayerPage), findsOneWidget);
-    expect(
-      router
-          .routeInformationProvider
-          .value
-          .uri
-          .queryParameters['return_movie_id'],
-      _movieId,
-    );
+    expect(router.canPop(), isTrue);
     await tester.tap(find.byTooltip('返回上一页'));
     await tester.pumpAndSettle();
 

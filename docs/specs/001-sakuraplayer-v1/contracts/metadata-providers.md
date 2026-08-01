@@ -59,7 +59,7 @@ RankedMovieNumber = {rank: positive integer, normalized_number: MovieNumber}
 
 ## 3. DMM 端口
 
-DMM 搜索使用路径式番号 URL、年龄确认 Cookie 和固定浏览器请求头。连接测试使用只读固定搜索；200 且响应结构可识别为可用，地区限制、非 200、超限、网络或结构错误映射 `dmm_upstream_error`。DMM 始终是可选富化，不得影响 core_ready。
+DMM 搜索使用路径式番号 URL、年龄确认 Cookie 和固定浏览器请求头。搜索页只提取固定 `www.dmm.co.jp` 详情链接，按 CID 规范化番号精确匹配后再读取详情页；rental 只接受 Product JSON-LD description，mono 只接受固定简介块。连接测试使用只读固定番号完成搜索与详情解析；地区限制、非 200、超限、网络或结构错误映射 `dmm_upstream_error`，搜索无精确详情返回无简介。DMM 始终是可选富化，不得影响 core_ready。
 
 ```text
 fetch_description(normalized_number) -> Description | NotFound | Unavailable

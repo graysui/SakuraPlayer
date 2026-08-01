@@ -182,6 +182,8 @@ class _MetadataProgress extends StatelessWidget {
       LinearProgressIndicator(value: progress.fraction, minHeight: 8),
       const SizedBox(height: 8),
       Text('已处理 ${progress.finished} / ${progress.total}'),
+      const SizedBox(height: 4),
+      Text('失败 ${progress.failed}'),
       const SizedBox(height: 8),
       Text(
         progress.currentNumbers.isEmpty

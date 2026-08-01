@@ -204,12 +204,14 @@
 - TASK-221 Windows Final 为 `flutter analyze` 零问题、完整 Flutter 测试 228 项、Fake 集成 4 项和 Release 构建通过；最新 Release 已直接启动供继续实际体验。
 - TASK-217 已交付 provider/ranking 首次启动事务性幂等排队、既有失败事实保护和 Actor Mapping 当前空 blacklist 兼容；原周日 05:00 与每日 01:45 调度不变。
 - TASK-217 修复后 Fast 为 821 项；Compose Final 尝试 2 通过 821 项自包含和 127 项 PostgreSQL integration/E2E。正式 Actor Mapping/GFriends 各有 1 个 current，GFriends 关联 839 个头像与 5,320 张剧照，四个 ranking 请求均 completed。
+- TASK-222 已交付应用内播放导航栈返回、DMM 搜索到精确详情的两阶段简介解析和诊断失败计数，并显式恢复 230 个当前榜单 transient full retry 与 1,990 个 DMM-only 富化 retry；永久未找到、active、core-ready 和其他富化未重试。
+- TASK-222 Fast 为后端 824 项与 Windows 228 项，Compose Final 首次通过 824 项自包含和 127 项 PostgreSQL integration/E2E；Windows Fake 集成 5 项、Release 与 34 文件包扫描通过。正式 daily/weekly/monthly 可见数分别达到 19/5/2，DMM available 且 15 部本轮 retry 影片已有简介，GFriends 首屏 24 位中 10 位投影头像并完成真实图片读取。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-217 已完成；TASK-214 保持 pending，未开始。
-- **最近绿色快速门禁**: TASK-217 Ruff format/check、宿主 Docker 配置和 821 项后端自包含测试通过。
-- **最终门禁状态**: TASK-217 Compose Final 尝试 2 与正式快照门禁通过；后端使用普通 Compose 运行，Windows Release 保持直接启动。
+- **当前任务门禁阶段**: TASK-222 已完成；TASK-214 保持 pending，未开始。
+- **最近绿色快速门禁**: TASK-222 后端 824 项、Windows 228 项、Ruff、analyze、宿主 Docker 配置和差异审计通过。
+- **最终门禁状态**: TASK-222 Compose Final 首次与 Windows Final、正式内容恢复门禁通过；后端使用普通 Compose 运行，Windows Release PID 11032 直接启动，元数据队列运行中。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -226,12 +228,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222。
 - **下一任务**: TASK-214 Windows 代码清理；保持 pending，等待用户明确开始。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-312 HarmonyOS API 24 真机门禁仍未完成；TASK-213 Windows/真实 115 已通过。
 
-TASK-214 尚未开始。后端当前使用普通 Compose，Windows 使用 Release 直接启动；用户实际体验仍发现日/周/月榜单因 JavDB 修复前既有元数据失败而无可见项、DMM 简介不可用和元数据进度缺少失败数量，开始 TASK-214 前需先按变更规格决定是否新增运行修复任务。提交事实以 Git 为准。
+TASK-214 尚未开始。后端当前使用普通 Compose，Windows 使用 Release 直接启动；元数据队列已恢复运行，230 个榜单 full retry 和 1,990 个 DMM-only retry 正在按既有三槽领取处理。提交事实以 Git 为准。
 
 ## 4. 必读契约
 

@@ -300,6 +300,7 @@ void main() {
       expect(gateway.metadataPageCalls, 0);
       expect(find.text('元数据刮削进度'), findsOneWidget);
       expect(find.text('已处理 4 / 10'), findsOneWidget);
+      expect(find.text('失败 1'), findsOneWidget);
       expect(find.textContaining('ABC-123'), findsOneWidget);
       expect(find.textContaining('排队 5'), findsNothing);
       expect(find.textContaining('image_failed'), findsNothing);

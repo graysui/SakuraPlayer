@@ -110,7 +110,14 @@ def fake_client(
         if request.url.host == "www.dmm.co.jp":
             if dmm_status != 200:
                 return httpx.Response(dmm_status)
-            return httpx.Response(200, text=fixture("dmm-description.html"))
+            return httpx.Response(
+                200,
+                text=fixture(
+                    "dmm-search.html"
+                    if request.url.path.startswith("/search/")
+                    else "dmm-mono-detail.html"
+                ),
+            )
         if request.url.host == "c0.jdbstatic.com":
             if image_status != 200:
                 return httpx.Response(image_status)

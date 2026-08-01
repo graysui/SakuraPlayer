@@ -34,7 +34,7 @@
 | [TASK-215](tasks/TASK-215.md) | 首次同步与聚合进度体验修复 | 首次全量、AVdb 数量、元数据进度、中文状态 | TASK-213 | 否 |
 | [TASK-218](tasks/TASK-218.md) | 元数据失败详情与队列开始暂停 | 受限详情、持久 pause/resume、诊断控制 | TASK-207,TASK-208,TASK-215,TASK-216 | 否 |
 | [TASK-219](tasks/TASK-219.md) | 前后端开发期热更新 | Compose Watch、Flutter Hot Reload、默认 API 地址 | TASK-001,TASK-202 | 否 |
-| [TASK-214](tasks/TASK-214.md) | Windows 客户端清理 | specs-code-cleanup | TASK-213,TASK-215,TASK-216,TASK-217,TASK-218,TASK-219,TASK-220,TASK-221 | 否 |
+| [TASK-214](tasks/TASK-214.md) | Windows 客户端清理 | specs-code-cleanup | TASK-213,TASK-215,TASK-216,TASK-217,TASK-218,TASK-219,TASK-220,TASK-221,TASK-222 | 否 |
 
 ## 数量检查
 
