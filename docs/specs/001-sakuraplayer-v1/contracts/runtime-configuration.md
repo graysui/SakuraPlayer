@@ -1,6 +1,6 @@
 # SakuraPlayer v1 运行配置契约
 
-**版本**: 1.2.0
+**版本**: 1.2.1
 
 **适用范围**: Docker 后端、Windows 客户端、HarmonyOS 客户端、显式外部验收
 
@@ -95,7 +95,7 @@ TASK-009 固定公共地址：
 - 禁止 userinfo、query、fragment 和路径穿越；规范化后路径为 `/api/v1`。
 - 保存前调用 `/auth/bootstrap-status` 做连接测试，并显示 TLS、超时和 API 版本错误。
 - HTTPS 接受系统信任链，不提供“忽略证书错误”开关。
-- Windows 可通过 `--dart-define=SAKURAPLAYER_DEFAULT_API_BASE_URL=...` 预置默认值；HarmonyOS 可由本地构建参数预置，但用户仍可在退出登录后修改。
+- Windows 可通过 `--dart-define=SAKURAPLAYER_DEFAULT_API_BASE_URL=...` 预置默认值；仅在没有已保存地址时校验、测试并保存该值，已保存地址优先且非法默认值不得绕过同一地址策略。HarmonyOS 可由本地构建参数预置，但用户仍可在退出登录后修改。
 - 更改地址必须先尝试注销当前会话；无论旧服务端是否可达都清除本机令牌、字幕缓存和内存状态，不同服务端的状态不得混合。
 
 ## 9. 测试与验收开关

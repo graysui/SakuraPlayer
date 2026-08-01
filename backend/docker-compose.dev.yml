@@ -1,0 +1,22 @@
+x-app-develop: &app-develop
+  watch:
+    - action: sync+restart
+      path: ./src
+      target: /workspace/backend/src
+      ignore:
+        - "**/__pycache__/**"
+        - "**/*.pyc"
+    - action: rebuild
+      path: ./pyproject.toml
+    - action: rebuild
+      path: ./docker/api.Dockerfile
+    - action: rebuild
+      path: ./docker/entrypoint.sh
+
+services:
+  api:
+    develop: *app-develop
+  worker:
+    develop: *app-develop
+  scheduler:
+    develop: *app-develop

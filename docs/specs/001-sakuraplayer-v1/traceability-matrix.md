@@ -257,9 +257,13 @@
 | `AC-131` | `[E]` | `REQ-024` | `TASK-312` |
 | `AC-132` | `[S]` | `REQ-024` | `TASK-014`, `TASK-113`, `TASK-213`, `TASK-313` |
 | `AC-133` | `[I]` | `REQ-025` | `TASK-001`, `TASK-002`, `TASK-202`, `TASK-302` |
-| `AC-134` | `[I]` | `REQ-025` | `TASK-001` |
-| `AC-135` | `[I]` | `REQ-025` | `TASK-202`, `TASK-302` |
+| `AC-134` | `[I]` | `REQ-025` | `TASK-001`, `TASK-219` |
+| `AC-135` | `[I]` | `REQ-025` | `TASK-202`, `TASK-219`, `TASK-302` |
 
 TASK-101 的 AC-013/016/017/128/129 映射还受
 [Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md) 中
 REQ-CHG-128 至 REQ-CHG-136 约束；它不新增 AC，也不改变任务总数。
+
+TASK-219 的 AC-134/135 映射还受
+[前后端开发期热更新](changes/2026-08-01--development-hot-reload.md) 中
+REQ-CHG-245 至 REQ-CHG-249 约束；它不新增 AC，总任务数增至 62。

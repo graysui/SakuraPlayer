@@ -4,7 +4,7 @@ title: "Windows 客户端代码清理"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
-dependencies: [TASK-213, TASK-215, TASK-216, TASK-217, TASK-218]
+dependencies: [TASK-213, TASK-215, TASK-216, TASK-217, TASK-218, TASK-219]
 ac-mapping: []
 imp-requirements: []
 cross-boundary: false
@@ -20,14 +20,14 @@ provides: [reviewed Windows client files]
 
 ## 验收条件
 
-- [ ] 只处理 TASK-201 至 TASK-213 review 列出的文件。
+- [ ] 只处理 TASK-201 至 TASK-213 及其后置运行修复任务 review 列出的 Windows 文件。
 - [ ] 移除 debugPrint/console、临时注释、无用 import/asset 和明显死代码。
 - [ ] 运行 `dart format`、`flutter analyze`、`flutter test`、integration test 和 Windows release build。
 - [ ] 不新增其他平台、不升级依赖、不改变播放器签名/seek 行为。
 
 ## Definition of Ready
 
-- [ ] TASK-213 reviewed/implemented，AC-130 证据已批准。
+- [ ] 所有依赖任务 completed，AC-130 证据已批准。
 - [ ] 当前 Flutter 测试和 release build 通过。
 - [ ] 所有清理文件在 review report 中。
 
@@ -57,7 +57,7 @@ provides: [reviewed Windows client files]
 - [ ] 安装包仍含许可证且无 debug secret。
 - [ ] 追加 Cleanup Summary 并完成任务。
 
-**依赖**: TASK-213, TASK-215, TASK-216, TASK-217, TASK-218
+**依赖**: TASK-213, TASK-215, TASK-216, TASK-217, TASK-218, TASK-219
 
 **实现命令**:
 

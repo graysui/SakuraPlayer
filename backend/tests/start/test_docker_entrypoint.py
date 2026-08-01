@@ -13,6 +13,7 @@ except ModuleNotFoundError:
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = BACKEND_ROOT / "docker-compose.yml"
+DEVELOPMENT_COMPOSE_FILE = BACKEND_ROOT / "docker-compose.dev.yml"
 RUN_COMPOSE_SCRIPT = BACKEND_ROOT / "tests" / "run-compose.ps1"
 pytestmark = pytest.mark.host_docker if pytest is not None else None
 
@@ -34,6 +35,38 @@ def _compose_config() -> dict:
             "compose",
             "-f",
             str(COMPOSE_FILE),
+            "config",
+            "--format",
+            "json",
+        ],
+        cwd=BACKEND_ROOT,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(result.stdout)
+
+
+def _development_compose_config() -> dict:
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "SAKURAPLAYER_POSTGRES_PASSWORD_SECRET_FILE": "./tests/fixtures/postgres_password.txt",
+            "SAKURAPLAYER_SETTINGS_KEY_SECRET_FILE": "./tests/fixtures/settings_key.txt",
+            "SAKURAPLAYER_TOKEN_KEY_SECRET_FILE": "./tests/fixtures/token_key.txt",
+            "SAKURAPLAYER_PLAYBACK_KEY_SECRET_FILE": "./tests/fixtures/playback_key.txt",
+            "SAKURAPLAYER_BOOTSTRAP_TOKEN_SECRET_FILE": "./tests/fixtures/bootstrap_token.txt",
+        }
+    )
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(COMPOSE_FILE),
+            "-f",
+            str(DEVELOPMENT_COMPOSE_FILE),
             "config",
             "--format",
             "json",
@@ -81,6 +114,28 @@ def test_compose_has_required_volumes_and_healthchecks() -> None:
     }
     for service_name in ("api", "scheduler", "worker", "postgres"):
         assert "healthcheck" in config["services"][service_name]
+
+
+def test_development_compose_watches_all_and_only_long_running_app_services() -> None:
+    production = _compose_config()
+    development = _development_compose_config()
+
+    for service_name in ("postgres", "migrate"):
+        assert "develop" not in development["services"][service_name]
+    for service_name in ("api", "worker", "scheduler"):
+        assert "develop" not in production["services"][service_name]
+        watch = development["services"][service_name]["develop"]["watch"]
+        assert len(watch) == 4
+        assert watch[0]["action"] == "sync+restart"
+        assert watch[0]["path"] == str(BACKEND_ROOT / "src")
+        assert watch[0]["target"] == "/workspace/backend/src"
+        assert watch[0]["ignore"] == ["**/__pycache__/**", "**/*.pyc"]
+        assert {item["path"] for item in watch[1:]} == {
+            str(BACKEND_ROOT / "pyproject.toml"),
+            str(BACKEND_ROOT / "docker" / "api.Dockerfile"),
+            str(BACKEND_ROOT / "docker" / "entrypoint.sh"),
+        }
+        assert {item["action"] for item in watch[1:]} == {"rebuild"}
 
 
 def test_entrypoint_percent_encodes_database_password() -> None:
@@ -165,6 +220,7 @@ def test_compose_finally_covers_secret_setup_and_skips_down_without_env_file() -
 if __name__ == "__main__":
     test_compose_has_isolated_processes_and_pinned_postgres()
     test_compose_has_required_volumes_and_healthchecks()
+    test_development_compose_watches_all_and_only_long_running_app_services()
     test_entrypoint_percent_encodes_database_password()
     test_powershell_verbose_alias_consumes_short_volume_flag()
     test_compose_cleanup_uses_unambiguous_volume_and_image_flags()

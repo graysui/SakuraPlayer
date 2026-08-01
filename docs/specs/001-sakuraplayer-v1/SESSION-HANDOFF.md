@@ -2,13 +2,13 @@
 
 **更新时间**: 2026-08-01
 
-**当前阶段**: Phase 3 运行修复阶段，TASK-218 已完成；下一工作为独立热更新任务，TASK-217 暂缓。
+**当前阶段**: Phase 3 运行修复阶段，TASK-219 已完成并以热更新方式运行；下一任务为 TASK-217。
 
 ## 1. 当前成果
 
 - 功能规格包含 135 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 61 个任务已拆为后端元数据、115 缓存播放、Windows 和 HarmonyOS 四个工作流。
+- 62 个任务已拆为后端元数据、115 缓存播放、Windows 和 HarmonyOS 四个工作流。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
@@ -196,12 +196,14 @@
 - TASK-216 后端 Fast 为 807 项、Windows 完整测试 211 项；Compose Final 第二次尝试通过 807 项自包含和 125 项 PostgreSQL integration/E2E。正式 probe 中 JavDB/GFriends/AI available，DMM 如实 unavailable，`core_ready` 从 10 增长到 26。
 - TASK-218 已交付搜索 pending MovieId 与受限详情、仅 AVdb 安全字段投影、收藏防御，以及持久元数据领取 pause/resume、诊断真相和 Windows 中文控制。
 - TASK-218 后端 Fast 为 812 项、Windows 完整测试 215 项、隔离 PostgreSQL pause/claim 与 Schema guard 通过；Compose Final 第三次尝试通过 812 项自包含和 127 项 PostgreSQL integration/E2E，迁移、健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部完成。
+- TASK-219 已交付三常驻服务 Compose Watch、Windows 默认 API 基址安全接线和实际热更新启动；开发命令固定 `sakuraplayer` 项目名以复用现有卷，正式 Compose 和 release 默认不变。
+- TASK-219 后端 Fast 为 812 项、host Compose 9 项，Windows 完整测试 218 项且 analyze 零问题；Compose Final 通过 812 项自包含和 127 项 PostgreSQL integration/E2E，Windows release 构建成功。Compose Watch 与 Windows debug 会话当前保持运行。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-218 已完成；下一工作为独立热更新任务，TASK-217 与 TASK-214 保持 pending。
-- **最近绿色快速门禁**: TASK-218 后端 812 项、Ruff、`flutter analyze`、Windows 215 项、隔离 PostgreSQL 锁/Schema、差异和秘密检查通过。
-- **最终门禁状态**: TASK-218 Compose Final 第三次尝试通过 812 项自包含和 127 项 PostgreSQL integration/E2E；迁移、健康、认证、秘密扫描、重启、ready 降级恢复和资源清理全部通过。
+- **当前任务门禁阶段**: TASK-219 已完成；TASK-217 为下一任务，TASK-214 保持 pending。
+- **最近绿色快速门禁**: TASK-219 后端 812 项、host Compose 9 项、Ruff、`flutter analyze`、Windows 218 项、差异和秘密检查通过。
+- **最终门禁状态**: TASK-219 Compose Final 通过 812 项自包含和 127 项 PostgreSQL integration/E2E；Windows release 构建成功，实际 Compose Watch、Windows debug 窗口和 API ready 运行正常。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -218,12 +220,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-218。
-- **下一任务**: 按用户优先级先建立并实施独立热更新任务；TASK-217 首次元数据快照启动修复随后继续。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-218、TASK-219。
+- **下一任务**: TASK-217 首次元数据快照启动修复。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-312 HarmonyOS API 24 真机门禁仍未完成；TASK-213 Windows/真实 115 已通过。
 
-下一工作先依据 `docs/development-hot-reload.md` 建立独立热更新任务并单独提交；TASK-217 只负责首次 provider/ranking 持久请求，不自动重试已有失败事实。TASK-218 的失败搜索详情、刮削开始/暂停、任务状态和交接已同步，提交事实以 Git 为准。
+下一工作实施 TASK-217，只负责首次 provider/ranking 持久请求，不自动重试已有失败事实。TASK-219 的开发 Watch 与 Windows debug 会话已启动；停止或重启步骤见 `docs/development-hot-reload.md`，提交事实以 Git 为准。
 
 ## 4. 必读契约
 

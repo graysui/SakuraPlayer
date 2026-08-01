@@ -10,10 +10,81 @@ import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/core/api/server_profile.dart';
 import 'package:sakuraplayer_windows/core/storage/secure_store.dart';
 import 'package:sakuraplayer_windows/core/storage/subtitle_cache.dart';
+import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/server_setup_page.dart';
 
 void main() {
+  test('default server is used only when no saved profile exists', () async {
+    final memory = MemorySecureKeyValueStore();
+    final probed = <Uri>[];
+    final container = _container(
+      memory: memory,
+      subtitle: MemorySubtitleCache(),
+      handler: (request) async => throw StateError('unexpected request'),
+      initialized: true,
+      defaultServerAddress: 'http://127.0.0.1:8000',
+      probed: probed,
+    );
+    addTearDown(container.dispose);
+
+    await container.read(authControllerProvider.notifier).initialize();
+
+    expect(
+      container.read(authControllerProvider).serverBaseUri.toString(),
+      'http://127.0.0.1:8000',
+    );
+    expect(probed, <Uri>[Uri.parse('http://127.0.0.1:8000')]);
+    expect(
+      memory.values[SecureStore.serverBaseUrlKey],
+      'http://127.0.0.1:8000',
+    );
+  });
+
+  test('saved server profile takes priority over the build default', () async {
+    final memory = MemorySecureKeyValueStore();
+    memory.values[SecureStore.serverBaseUrlKey] = 'https://saved.test';
+    final probed = <Uri>[];
+    final container = _container(
+      memory: memory,
+      subtitle: MemorySubtitleCache(),
+      handler: (request) async => throw StateError('unexpected request'),
+      initialized: true,
+      defaultServerAddress: 'http://127.0.0.1:8000',
+      probed: probed,
+    );
+    addTearDown(container.dispose);
+
+    await container.read(authControllerProvider.notifier).initialize();
+
+    expect(
+      container.read(authControllerProvider).serverBaseUri.toString(),
+      'https://saved.test',
+    );
+    expect(probed, <Uri>[Uri.parse('https://saved.test')]);
+  });
+
+  test(
+    'invalid build default is rejected by the server address policy',
+    () async {
+      final container = _container(
+        memory: MemorySecureKeyValueStore(),
+        subtitle: MemorySubtitleCache(),
+        handler: (request) async => throw StateError('unexpected request'),
+        initialized: true,
+        defaultServerAddress: 'http://public.example/api/v1?token=secret',
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authControllerProvider.notifier).initialize();
+
+      final state = container.read(authControllerProvider);
+      expect(state.status, AuthSessionStatus.serverRequired);
+      expect(state.errorCode, 'server_url_components_forbidden');
+      expect(state.errorMessage, contains('不能包含'));
+    },
+  );
+
   test(
     'bootstrap token is header-only and neither password nor tokens leak',
     () async {
@@ -238,11 +309,14 @@ ProviderContainer _container({
   required bool initialized,
   RuntimeResetCoordinator? reset,
   PrivateCacheResetCoordinator? privateCacheReset,
+  String defaultServerAddress = '',
+  List<Uri>? probed,
 }) => ProviderContainer(
   overrides: [
     secureKeyValueStoreProvider.overrideWithValue(memory),
     subtitleCacheProvider.overrideWithValue(subtitle),
-    serverProbeProvider.overrideWithValue(_Probe(initialized)),
+    defaultServerAddressProvider.overrideWithValue(defaultServerAddress),
+    serverProbeProvider.overrideWithValue(_Probe(initialized, probed)),
     if (reset != null) runtimeResetProvider.overrideWithValue(reset),
     if (privateCacheReset != null)
       privateCacheResetProvider.overrideWithValue(privateCacheReset),
@@ -255,13 +329,16 @@ ProviderContainer _container({
 );
 
 class _Probe implements ServerProbe {
-  const _Probe(this.initialized);
+  const _Probe(this.initialized, [this.probed]);
 
   final bool initialized;
+  final List<Uri>? probed;
 
   @override
-  Future<BootstrapStatus> test(ServerProfile profile) async =>
-      BootstrapStatus(initialized: initialized, apiVersion: 1);
+  Future<BootstrapStatus> test(ServerProfile profile) async {
+    probed?.add(profile.baseUri);
+    return BootstrapStatus(initialized: initialized, apiVersion: 1);
+  }
 }
 
 class _Adapter implements HttpClientAdapter {

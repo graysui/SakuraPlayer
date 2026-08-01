@@ -26,6 +26,10 @@ final serverAddressPolicyProvider = Provider<ServerAddressPolicy>(
   (ref) => const ServerAddressPolicy(),
 );
 
+final defaultServerAddressProvider = Provider<String>(
+  (ref) => const String.fromEnvironment('SAKURAPLAYER_DEFAULT_API_BASE_URL'),
+);
+
 final serverProfileRepositoryProvider = Provider<ServerProfileRepository>(
   (ref) => ServerProfileRepository(
     ref.watch(secureStoreProvider),
@@ -114,10 +118,43 @@ class AuthController extends Notifier<AuthSessionState> {
     await secure.clientInstanceId();
     final profile = await ref.read(serverProfileRepositoryProvider).load();
     if (profile == null) {
-      state = const AuthSessionState.serverRequired();
+      await _configureDefaultServer();
       return;
     }
     await _restoreProfile(profile);
+  }
+
+  Future<void> _configureDefaultServer() async {
+    final input = ref.read(defaultServerAddressProvider).trim();
+    if (input.isEmpty) {
+      state = const AuthSessionState.serverRequired();
+      return;
+    }
+    try {
+      final profile = ref.read(serverAddressPolicyProvider).normalize(input);
+      final status = await ref.read(serverProbeProvider).test(profile);
+      await ref.read(serverProfileRepositoryProvider).save(profile);
+      _apiClient = ref.read(apiClientFactoryProvider)(
+        profile,
+        ref.read(sessionStoreProvider),
+      );
+      state = AuthSessionState.unauthenticated(
+        serverBaseUri: profile.baseUri,
+        bootstrapRequired: !status.initialized,
+      );
+    } on ServerAddressException catch (error) {
+      state = AuthSessionState(
+        status: AuthSessionStatus.serverRequired,
+        errorCode: error.code,
+        errorMessage: error.message,
+      );
+    } on ApiException catch (error) {
+      state = AuthSessionState(
+        status: AuthSessionStatus.serverRequired,
+        errorCode: error.code,
+        errorMessage: error.message,
+      );
+    }
   }
 
   Future<void> configureServer(

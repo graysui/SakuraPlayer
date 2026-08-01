@@ -4,7 +4,7 @@
 
 本文说明如何为 SakuraPlayer 建立接近 `npm run dev` 的本地开发体验，减少修改代码后的重复完整构建。
 
-本文当前是一份开发流程提案。Windows Flutter 热重载已经可用；后端 Compose Watch 需要先新增本文所示的开发覆盖文件。开发期热更新只用于快速反馈，不能替代任务要求的 Focused、Fast、Final 验证、完整 Compose 构建或发布构建。
+本文记录仓库已经落地的开发流程。Windows 使用 Flutter Hot Reload，后端使用 `docker-compose.dev.yml` 中的 Compose Watch。开发期热更新只用于快速反馈，不能替代任务要求的 Focused、Fast、Final 验证、完整 Compose 构建或发布构建。
 
 ## 2. 当前为什么需要重新构建
 
@@ -33,16 +33,10 @@
 ```powershell
 cd windows
 flutter pub get
-flutter run -d windows
+flutter run -d windows --dart-define=SAKURAPLAYER_DEFAULT_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-应用启动后，在登录前设置页把后端地址配置为：
-
-```text
-http://127.0.0.1:8000
-```
-
-当前代码尚未实际读取 `SAKURAPLAYER_DEFAULT_API_BASE_URL` 的 Dart define，因此不要把 `--dart-define=SAKURAPLAYER_DEFAULT_API_BASE_URL=...` 当作现有可用能力。契约与实现的差异应通过独立任务修复，不在开发文档中静默假定已经实现。
+没有已保存地址时，应用会用同一地址安全策略校验并测试该默认值，连接成功后保存；已有地址始终优先，不会被 Dart define 覆盖。省略 define 时仍可在登录前手工配置地址。
 
 ### 3.2 修改后的操作
 
@@ -77,9 +71,9 @@ docker compose watch --help
 
 当前开发机的 Docker Compose v5.1.4 支持该功能。
 
-### 4.2 建议的开发覆盖文件
+### 4.2 开发覆盖文件
 
-新增 `backend/docker-compose.dev.yml`，不要把开发期源码同步配置写入正式 Compose：
+仓库中的 `backend/docker-compose.dev.yml` 只包含开发期源码同步配置，正式 Compose 不包含 Watch：
 
 ```yaml
 x-app-develop: &app-develop
@@ -108,7 +102,7 @@ services:
 
 这里必须同时监视 `api`、`worker` 和 `scheduler`。Python 源码变化使用 `sync+restart`：Compose 把变化同步到容器，然后只重启相关进程，不重建镜像。依赖和镜像定义变化使用 `rebuild`。
 
-该文件落地前需要按正式任务流程补充验证，特别是三个服务是否都能读取同步后的 `/workspace/backend/src`，以及重启期间的健康检查能否正常恢复。
+自动验证会合并两份 Compose 文件，确认三个服务读取同步后的 `/workspace/backend/src`，同时确保 `postgres` 和一次性 `migrate` 不进入 Watch。
 
 ### 4.3 日常启动
 
@@ -116,21 +110,22 @@ services:
 
 ```powershell
 cd backend
-docker compose -f docker-compose.yml -f docker-compose.dev.yml watch
+docker compose -p sakuraplayer -f docker-compose.yml -f docker-compose.dev.yml up -d --build --wait
+docker compose -p sakuraplayer -f docker-compose.yml -f docker-compose.dev.yml watch --no-up
 ```
 
-首次运行仍会构建并启动服务。此后修改 `backend/src` 下的 Python 文件时，Compose 会自动同步并重启对应容器；PostgreSQL 和命名卷不会因此重建。
+第一条命令显式构建镜像、执行现有迁移并等待服务健康。第二条命令保持 Watch；此后修改 `backend/src` 下的 Python 文件时，Compose 会自动同步并重启对应容器，PostgreSQL 和命名卷不会因此重建。
 
-如果服务已经由其他终端启动，可以使用：
+如果两份 Compose 文件已经启动且 Schema 是当前 head，可以直接使用：
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.dev.yml watch --no-up
+docker compose -p sakuraplayer -f docker-compose.yml -f docker-compose.dev.yml watch --no-up
 ```
 
 按 `Ctrl+C` 停止 Watch。需要同时停止开发服务时，再显式执行：
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+docker compose -p sakuraplayer -f docker-compose.yml -f docker-compose.dev.yml down
 ```
 
 不要在仍有其他验证或开发流程使用同一 Compose 项目时直接执行 `down`。
@@ -140,9 +135,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 Alembic 迁移不应由 Watch 自动执行。`migrate` 是一次性服务，Schema 变化必须显式处理：
 
 1. 停止当前 Watch。
-2. 按当前任务的迁移流程重新构建相关镜像。
-3. 显式运行 `migrate`。
-4. 重新启动 `api`、`worker` 和 `scheduler`。
+2. 运行 `docker compose -p sakuraplayer -f docker-compose.yml -f docker-compose.dev.yml build`。
+3. 运行 `docker compose -p sakuraplayer -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate`。
+4. 运行 `docker compose -p sakuraplayer -f docker-compose.yml -f docker-compose.dev.yml up -d --force-recreate api worker scheduler`。
 5. 重新进入 Watch，并运行受影响的 Focused/Fast 测试。
 
 下列变化也可能需要 recreate 或 rebuild，不能依赖源码同步：
@@ -159,8 +154,8 @@ Alembic 迁移不应由 Watch 自动执行。`migrate` 是一次性服务，Sche
 
 1. 在一个终端中启动后端 Compose Watch。
 2. 等待 `postgres`、`api`、`worker` 和 `scheduler` 健康。
-3. 在另一个终端中运行 `flutter run -d windows`。
-4. 在客户端登录前设置页配置 `http://127.0.0.1:8000`。
+3. 在另一个终端中运行 `flutter run -d windows --dart-define=SAKURAPLAYER_DEFAULT_API_BASE_URL=http://127.0.0.1:8000`。
+4. Windows 启动命令通过 Dart define 预置 `http://127.0.0.1:8000`；已有地址则保持原值。
 5. 修改 Dart/UI 后使用 `r`；修改 Python 后等待 Compose 自动同步并重启。
 6. 修改跨进程契约时，确认 API、worker 和 scheduler 均已重启并执行受影响测试。
 7. TASK 完成前退出快速反馈循环，按 [统一实施与验证工作流](specs/001-sakuraplayer-v1/implementation-workflow.md) 执行完整差异自审、Fast 和 Final。
