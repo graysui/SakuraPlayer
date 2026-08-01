@@ -101,17 +101,29 @@ final class SettingsDiagnosticsRoute extends AppRouteLocation {
 }
 
 final class FullscreenPlayerRoute extends AppRouteLocation {
-  FullscreenPlayerRoute(this.cacheJobId, this.mediaId) {
+  FullscreenPlayerRoute(this.cacheJobId, this.mediaId, {this.returnMovieId}) {
     requireUuid(cacheJobId, 'cacheJobId');
     requireUuid(mediaId, 'mediaId');
+    if (returnMovieId case final movieId?) {
+      requireMovieId(movieId);
+    }
   }
 
   final String cacheJobId;
   final String mediaId;
+  final String? returnMovieId;
 
   @override
-  String get location =>
-      '/player/${Uri.encodeComponent(cacheJobId)}/${Uri.encodeComponent(mediaId)}';
+  String get location {
+    final path =
+        '/player/${Uri.encodeComponent(cacheJobId)}/${Uri.encodeComponent(mediaId)}';
+    return returnMovieId == null
+        ? path
+        : Uri(
+          path: path,
+          queryParameters: <String, String>{'return_movie_id': returnMovieId!},
+        ).toString();
+  }
 }
 
 final class BlockingWaitRoute extends AppRouteLocation {
@@ -366,12 +378,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         isValidUuid(state.pathParameters['media_id'] ?? '')
                     ? null
                     : const CacheStatusRoute().location,
-        builder:
-            (context, state) => PlayerPage(
-              cacheJobId: state.pathParameters['cache_job_id']!,
-              mediaId: state.pathParameters['media_id']!,
-              onBack: () => const CacheStatusRoute().go(context),
-            ),
+        builder: (context, state) {
+          final returnMovieId = state.uri.queryParameters['return_movie_id'];
+          final safeReturnMovieId =
+              returnMovieId != null && isValidMovieId(returnMovieId)
+                  ? returnMovieId
+                  : null;
+          return PlayerPage(
+            cacheJobId: state.pathParameters['cache_job_id']!,
+            mediaId: state.pathParameters['media_id']!,
+            onBack:
+                safeReturnMovieId == null
+                    ? () => const CacheStatusRoute().go(context)
+                    : () => MovieDetailRoute(safeReturnMovieId).go(context),
+          );
+        },
       ),
     ],
   );
@@ -416,7 +437,8 @@ Future<void> _submitPlayRequest(
 }
 
 String? _readyPlayerLocation(Ref ref) {
-  final job = ref.read(playRequestControllerProvider).job;
+  final request = ref.read(playRequestControllerProvider);
+  final job = request.job;
   if (job == null ||
       job.status != 'ready' ||
       job.selectedMediaIds.isEmpty ||
@@ -424,7 +446,12 @@ String? _readyPlayerLocation(Ref ref) {
       !isValidUuid(job.selectedMediaIds.first)) {
     return null;
   }
-  return FullscreenPlayerRoute(job.id, job.selectedMediaIds.first).location;
+  final movieId = request.movieId;
+  return FullscreenPlayerRoute(
+    job.id,
+    job.selectedMediaIds.first,
+    returnMovieId: movieId != null && isValidMovieId(movieId) ? movieId : null,
+  ).location;
 }
 
 void _showMessage(BuildContext context, String message) {

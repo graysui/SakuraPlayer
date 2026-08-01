@@ -197,7 +197,7 @@
 | `AC-071` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
 | `AC-072` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
 | `AC-073` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
-| `AC-074` | `[I]` | `REQ-015` | `TASK-011`, `TASK-207`, `TASK-307` |
+| `AC-074` | `[I]` | `REQ-015` | `TASK-011`, `TASK-207`, `TASK-221`, `TASK-307` |
 | `AC-075` | `[I]` | `REQ-015` | `TASK-011`, `TASK-206`, `TASK-306` |
 | `AC-076` | `[I]` | `REQ-015` | `TASK-011`, `TASK-206`, `TASK-306` |
 | `AC-077` | `[I]` | `REQ-015` | `TASK-011`, `TASK-204`, `TASK-206`, `TASK-207`, `TASK-304`, `TASK-306`, `TASK-307` |
@@ -227,7 +227,7 @@
 | `AC-101` | `[I]` | `REQ-019` | `TASK-109`, `TASK-210`, `TASK-310` |
 | `AC-102` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
 | `AC-103` | `[I]` | `REQ-019` | `TASK-109`, `TASK-210`, `TASK-310` |
-| `AC-104` | `[I]` | `REQ-019` | `TASK-108`, `TASK-201`, `TASK-210`, `TASK-310` |
+| `AC-104` | `[I]` | `REQ-019` | `TASK-108`, `TASK-201`, `TASK-210`, `TASK-221`, `TASK-310` |
 | `AC-105` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
 | `AC-106` | `[I]` | `REQ-019` | `TASK-210`, `TASK-310` |
 | `AC-107` | `[I]` | `REQ-020` | `TASK-110`, `TASK-211`, `TASK-311` |
@@ -271,3 +271,7 @@ REQ-CHG-245 至 REQ-CHG-249 约束；它不新增 AC，总任务数增至 62。
 TASK-220 的 AC-135 映射还受
 [Windows 启动初始化恢复](changes/2026-08-01--windows-startup-recovery.md) 中
 REQ-CHG-250 至 REQ-CHG-256 约束；它不新增 AC，总任务数增至 63。
+
+TASK-221 的 AC-074/104 映射还受
+[Windows 播放返回与详情布局恢复](changes/2026-08-01--windows-playback-return-detail-layout.md) 中
+REQ-CHG-257 至 REQ-CHG-260 约束；它不新增 AC，总任务数增至 64。

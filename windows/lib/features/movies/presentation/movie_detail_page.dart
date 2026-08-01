@@ -106,38 +106,58 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
                       ],
                     ),
                   const SizedBox(height: 28),
-                  _sectionTitle(context, '简介'),
-                  const SizedBox(height: 8),
-                  Text(
-                    detail.description?.trim().isNotEmpty == true
-                        ? detail.description!
-                        : '暂无简介',
-                  ),
-                  if (_isDistinct(
-                    detail.descriptionOriginal,
-                    detail.description,
-                  )) ...[
-                    const SizedBox(height: 10),
-                    Text(detail.descriptionOriginal!),
-                  ],
-                  const SizedBox(height: 28),
-                  _sectionTitle(context, '剧照'),
-                  const SizedBox(height: 10),
-                  _PlotGrid(
-                    urls: detail.plotImageUrls,
-                    loader:
-                        ref.read(movieDetailGatewayProvider).loadCatalogImage,
+                  Column(
+                    key: const ValueKey('movie-detail-sources-section'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(context, '来源 ${detail.sourceCount}'),
+                      const SizedBox(height: 8),
+                      SourceList(
+                        sources: detail.sources,
+                        selectedSourceId: state.selectedSourceId,
+                        onSelected:
+                            ref
+                                .read(movieDetailControllerProvider.notifier)
+                                .selectSource,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 28),
-                  _sectionTitle(context, '来源 ${detail.sourceCount}'),
-                  const SizedBox(height: 8),
-                  SourceList(
-                    sources: detail.sources,
-                    selectedSourceId: state.selectedSourceId,
-                    onSelected:
-                        ref
-                            .read(movieDetailControllerProvider.notifier)
-                            .selectSource,
+                  Column(
+                    key: const ValueKey('movie-detail-description-section'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(context, '简介'),
+                      const SizedBox(height: 8),
+                      Text(
+                        detail.description?.trim().isNotEmpty == true
+                            ? detail.description!
+                            : '暂无简介',
+                      ),
+                      if (_isDistinct(
+                        detail.descriptionOriginal,
+                        detail.description,
+                      )) ...[
+                        const SizedBox(height: 10),
+                        Text(detail.descriptionOriginal!),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Column(
+                    key: const ValueKey('movie-detail-plot-section'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(context, '剧照'),
+                      const SizedBox(height: 10),
+                      _PlotGrid(
+                        urls: detail.plotImageUrls,
+                        loader:
+                            ref
+                                .read(movieDetailGatewayProvider)
+                                .loadCatalogImage,
+                      ),
+                    ],
                   ),
                 ],
               ),

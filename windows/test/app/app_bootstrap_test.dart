@@ -13,8 +13,10 @@ import 'package:sakuraplayer_windows/features/actors/presentation/actor_detail_p
 import 'package:sakuraplayer_windows/features/auth/domain/auth_session_state.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/login_page.dart';
+import 'package:sakuraplayer_windows/features/cache/data/cache_api.dart';
 import 'package:sakuraplayer_windows/features/cache/data/play_request_api.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/blocking_wait_page.dart';
+import 'package:sakuraplayer_windows/features/cache/presentation/cache_page.dart';
 import 'package:sakuraplayer_windows/features/cache/presentation/play_request_controller.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart'
     hide PlaybackProgressDto;
@@ -274,6 +276,105 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('ready detail playback returns to the originating movie', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        authSessionStateProvider.overrideWithValue(
+          AuthSessionState.authenticated(
+            serverBaseUri: Uri.parse('https://server.test'),
+          ),
+        ),
+        moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+        movieDetailGatewayProvider.overrideWithValue(
+          const _MovieDetailGateway(),
+        ),
+        playRequestGatewayProvider.overrideWithValue(const _ReadyPlayGateway()),
+        playbackGatewayProvider.overrideWithValue(_RoutePlaybackGateway()),
+        playbackEngineFactoryProvider.overrideWithValue(
+          () => _RoutePlaybackEngine(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(tester.element(find.byType(DesktopShell)));
+    router.go(MovieDetailRoute(_movieId).location);
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('路由来源'));
+    await tester.tap(find.text('路由来源'));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('movie-detail-play')));
+    await tester.tap(find.byKey(const ValueKey('movie-detail-play')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlayerPage), findsOneWidget);
+    expect(
+      router
+          .routeInformationProvider
+          .value
+          .uri
+          .queryParameters['return_movie_id'],
+      _movieId,
+    );
+    await tester.tap(find.byTooltip('返回上一页'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MovieDetailPage), findsOneWidget);
+    expect(find.text('路由影片'), findsOneWidget);
+  });
+
+  testWidgets('untrusted player return targets fall back to cache', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        authSessionStateProvider.overrideWithValue(
+          AuthSessionState.authenticated(
+            serverBaseUri: Uri.parse('https://server.test'),
+          ),
+        ),
+        moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+        cacheGatewayProvider.overrideWithValue(const _EmptyCacheGateway()),
+        playbackGatewayProvider.overrideWithValue(_RoutePlaybackGateway()),
+        playbackEngineFactoryProvider.overrideWithValue(
+          () => _RoutePlaybackEngine(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SakuraPlayerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(tester.element(find.byType(DesktopShell)));
+
+    for (final location in <String>[
+      FullscreenPlayerRoute(_jobId, _mediaId).location,
+      '${FullscreenPlayerRoute(_jobId, _mediaId).location}'
+          '?return_movie_id=not-a-movie-id',
+    ]) {
+      router.go(location);
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayerPage), findsOneWidget);
+
+      await tester.tap(find.byTooltip('返回上一页'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CachePage), findsOneWidget);
+    }
+  });
+
   testWidgets('ready arriving before wait route redirects to player', (
     tester,
   ) async {
@@ -286,6 +387,9 @@ void main() {
           ),
         ),
         moviesGatewayProvider.overrideWithValue(const _EmptyMoviesGateway()),
+        movieDetailGatewayProvider.overrideWithValue(
+          const _MovieDetailGateway(),
+        ),
         playRequestGatewayProvider.overrideWithValue(playGateway),
         playRequestClockProvider.overrideWithValue(const _RouteClock()),
         playbackGatewayProvider.overrideWithValue(_RoutePlaybackGateway()),
@@ -320,6 +424,14 @@ void main() {
 
     expect(find.byType(PlayerPage), findsOneWidget);
     expect(find.byType(BlockingWaitPage), findsNothing);
+    expect(
+      router
+          .routeInformationProvider
+          .value
+          .uri
+          .queryParameters['return_movie_id'],
+      _movieId,
+    );
     container.read(playRequestControllerProvider.notifier).reset();
   });
 
@@ -407,6 +519,28 @@ void main() {
       throwsArgumentError,
     );
     expect(
+      FullscreenPlayerRoute(_jobId, _mediaId).location,
+      '/player/$_jobId/$_mediaId',
+    );
+    expect(
+      Uri.parse(
+        FullscreenPlayerRoute(
+          _jobId,
+          _mediaId,
+          returnMovieId: _movieId,
+        ).location,
+      ).queryParameters['return_movie_id'],
+      _movieId,
+    );
+    expect(
+      () => FullscreenPlayerRoute(
+        _jobId,
+        _mediaId,
+        returnMovieId: 'not-a-movie-id',
+      ),
+      throwsArgumentError,
+    );
+    expect(
       const SettingsDiagnosticsRoute().location,
       '/app/settings/diagnostics',
     );
@@ -439,6 +573,37 @@ class _EmptyMoviesGateway implements MoviesGateway {
 
   @override
   Future<List<int>> loadCover(String coverUrl) async => <int>[];
+}
+
+class _EmptyCacheGateway implements CacheGateway {
+  const _EmptyCacheGateway();
+
+  @override
+  Future<CacheJobPageDto> listJobs({
+    Set<String> statuses = const <String>{},
+    String? cursor,
+  }) async => const CacheJobPageDto(
+    items: <CacheJobDto>[],
+    capacity: CacheCapacityDto(
+      running: 0,
+      runningLimit: 2,
+      queued: 0,
+      queuedLimit: 10,
+      ready: 0,
+      readyLimit: 20,
+    ),
+    nextCursor: null,
+  );
+
+  @override
+  Future<CacheJobDto> cancel(String jobId) => throw UnimplementedError();
+
+  @override
+  Future<CacheJobDto> cleanup(String jobId) => throw UnimplementedError();
+
+  @override
+  Future<CacheJobDto> selectMedia(String jobId, List<String> mediaIds) =>
+      throw UnimplementedError();
 }
 
 class _EmptyRankingsGateway implements RankingsGateway {
@@ -650,6 +815,25 @@ class _WaitingPlayGateway implements PlayRequestGateway {
       cacheJob: _routeJob('submitting'),
     );
   }
+
+  @override
+  Future<CacheJobDto> cancel(String jobId, {required bool confirmed}) async =>
+      _routeJob('cleaned');
+}
+
+class _ReadyPlayGateway implements PlayRequestGateway {
+  const _ReadyPlayGateway();
+
+  @override
+  Future<PlayRequestResultDto> request({
+    required String movieId,
+    required String sourceId,
+    required String idempotencyKey,
+  }) async => PlayRequestResultDto(
+    disposition: PlayDisposition.ready,
+    waitDeadline: null,
+    cacheJob: _routeJob('ready'),
+  );
 
   @override
   Future<CacheJobDto> cancel(String jobId, {required bool confirmed}) async =>

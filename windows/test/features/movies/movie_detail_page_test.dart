@@ -82,6 +82,40 @@ void main() {
     expect(played, <String>[_sourceId(0)]);
   });
 
+  testWidgets('detail orders sources before description and plot images', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    for (final width in <double>[700, 1200]) {
+      tester.view.physicalSize = Size(width, 1000);
+      await _pumpPage(tester, gateway: _MovieGateway(_detail()));
+
+      final sources = find.byKey(
+        const ValueKey('movie-detail-sources-section'),
+      );
+      final description = find.byKey(
+        const ValueKey('movie-detail-description-section'),
+      );
+      final plotImages = find.byKey(
+        const ValueKey('movie-detail-plot-section'),
+      );
+      expect(sources, findsOneWidget);
+      expect(description, findsOneWidget);
+      expect(plotImages, findsOneWidget);
+      expect(
+        tester.getTopLeft(sources).dy,
+        lessThan(tester.getTopLeft(description).dy),
+      );
+      expect(
+        tester.getTopLeft(description).dy,
+        lessThan(tester.getTopLeft(plotImages).dy),
+      );
+    }
+  });
+
   testWidgets('ready source never falls back to AVdb size', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

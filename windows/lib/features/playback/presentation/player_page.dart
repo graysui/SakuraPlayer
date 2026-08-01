@@ -186,7 +186,7 @@ class _PlayerHeader extends StatelessWidget {
       children: [
         IconButton(
           onPressed: onBack,
-          tooltip: '返回缓存页',
+          tooltip: '返回上一页',
           icon: const Icon(Icons.arrow_back),
         ),
         const Spacer(),
