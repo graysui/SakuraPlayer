@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakuraplayer_windows/core/api/api_client.dart';
@@ -28,6 +30,10 @@ final serverAddressPolicyProvider = Provider<ServerAddressPolicy>(
 
 final defaultServerAddressProvider = Provider<String>(
   (ref) => const String.fromEnvironment('SAKURAPLAYER_DEFAULT_API_BASE_URL'),
+);
+
+final authInitializationTimeoutProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 5),
 );
 
 final serverProfileRepositoryProvider = Provider<ServerProfileRepository>(
@@ -104,6 +110,7 @@ class PrivateCacheResetCoordinator {
 class AuthController extends Notifier<AuthSessionState> {
   ApiClient? _apiClient;
   bool _initialized = false;
+  int _initializationGeneration = 0;
 
   ApiClient? get apiClient => _apiClient;
 
@@ -113,27 +120,62 @@ class AuthController extends Notifier<AuthSessionState> {
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
+    final generation = ++_initializationGeneration;
     state = const AuthSessionState.initializing();
-    final secure = ref.read(secureStoreProvider);
-    await secure.clientInstanceId();
-    final profile = await ref.read(serverProfileRepositoryProvider).load();
-    if (profile == null) {
-      await _configureDefaultServer();
-      return;
+    final timeoutSignal = Completer<void>();
+    final timeoutTimer = Timer(ref.read(authInitializationTimeoutProvider), () {
+      _recoverInitializationTimeout(generation);
+      timeoutSignal.complete();
+    });
+    try {
+      await Future.any<void>([
+        _restoreInitialState(generation),
+        timeoutSignal.future,
+      ]);
+    } on TimeoutException {
+      _recoverInitializationTimeout(generation);
+    } on ServerAddressException catch (error) {
+      if (!_invalidateInitialization(generation)) return;
+      state = AuthSessionState(
+        status: AuthSessionStatus.serverRequired,
+        errorCode: error.code,
+        errorMessage: error.message,
+      );
+    } catch (_) {
+      if (!_invalidateInitialization(generation)) return;
+      state = const AuthSessionState(
+        status: AuthSessionStatus.serverRequired,
+        errorCode: 'local_initialization_failed',
+        errorMessage: '读取本机配置失败，请重新输入服务端地址。',
+      );
+    } finally {
+      timeoutTimer.cancel();
     }
-    await _restoreProfile(profile);
   }
 
-  Future<void> _configureDefaultServer() async {
+  Future<void> _restoreInitialState(int generation) async {
+    await ref.read(secureStoreProvider).clientInstanceId();
+    if (!_isInitializationCurrent(generation)) return;
+    final profile = await ref.read(serverProfileRepositoryProvider).load();
+    if (!_isInitializationCurrent(generation)) return;
+    await (profile == null
+        ? _configureDefaultServer(generation)
+        : _restoreProfile(profile, generation));
+  }
+
+  Future<void> _configureDefaultServer(int generation) async {
     final input = ref.read(defaultServerAddressProvider).trim();
     if (input.isEmpty) {
+      if (!_isInitializationCurrent(generation)) return;
       state = const AuthSessionState.serverRequired();
       return;
     }
     try {
       final profile = ref.read(serverAddressPolicyProvider).normalize(input);
       final status = await ref.read(serverProbeProvider).test(profile);
+      if (!_isInitializationCurrent(generation)) return;
       await ref.read(serverProfileRepositoryProvider).save(profile);
+      if (!_isInitializationCurrent(generation)) return;
       _apiClient = ref.read(apiClientFactoryProvider)(
         profile,
         ref.read(sessionStoreProvider),
@@ -143,12 +185,14 @@ class AuthController extends Notifier<AuthSessionState> {
         bootstrapRequired: !status.initialized,
       );
     } on ServerAddressException catch (error) {
+      if (!_isInitializationCurrent(generation)) return;
       state = AuthSessionState(
         status: AuthSessionStatus.serverRequired,
         errorCode: error.code,
         errorMessage: error.message,
       );
     } on ApiException catch (error) {
+      if (!_isInitializationCurrent(generation)) return;
       state = AuthSessionState(
         status: AuthSessionStatus.serverRequired,
         errorCode: error.code,
@@ -161,20 +205,25 @@ class AuthController extends Notifier<AuthSessionState> {
     String input, {
     bool allowPrivateHttp = false,
   }) async {
+    _initializationGeneration++;
     state = state.copyWith(busy: true, clearError: true);
     try {
       final profile = ref
           .read(serverAddressPolicyProvider)
           .normalize(input, allowPrivateHttp: allowPrivateHttp);
       final status = await ref.read(serverProbeProvider).test(profile);
-      await ref.read(secureStoreProvider).clientInstanceId();
-      final oldProfile = await ref.read(serverProfileRepositoryProvider).load();
+      await _localStorage(ref.read(secureStoreProvider).clientInstanceId());
+      final oldProfile = await _localStorage(
+        ref.read(serverProfileRepositoryProvider).load(),
+      );
       final wasAuthenticated = state.isAuthenticated;
       if (oldProfile != null && oldProfile.baseUri != profile.baseUri) {
         await _attemptOldLogout(oldProfile);
         await _clearLocalSession();
       }
-      await ref.read(serverProfileRepositoryProvider).save(profile);
+      await _localStorage(
+        ref.read(serverProfileRepositoryProvider).save(profile),
+      );
       _apiClient = ref.read(apiClientFactoryProvider)(
         profile,
         ref.read(sessionStoreProvider),
@@ -201,6 +250,12 @@ class AuthController extends Notifier<AuthSessionState> {
         errorMessage: error.message,
       );
       rethrow;
+    } on _LocalConfigurationFailure catch (error) {
+      state = state.copyWith(
+        busy: false,
+        errorCode: error.code,
+        errorMessage: error.message,
+      );
     }
   }
 
@@ -278,17 +333,21 @@ class AuthController extends Notifier<AuthSessionState> {
     }
   }
 
-  Future<void> _restoreProfile(ServerProfile profile) async {
-    _apiClient = ref.read(apiClientFactoryProvider)(
+  Future<void> _restoreProfile(ServerProfile profile, int generation) async {
+    final client = ref.read(apiClientFactoryProvider)(
       profile,
       ref.read(sessionStoreProvider),
     );
     try {
       final status = await ref.read(serverProbeProvider).test(profile);
+      if (!_isInitializationCurrent(generation)) return;
       final refresh = await ref.read(sessionStoreProvider).readRefreshToken();
+      if (!_isInitializationCurrent(generation)) return;
       if (refresh != null && status.initialized) {
         try {
-          await _apiClient!.refreshSession();
+          await client.refreshSession();
+          if (!_isInitializationCurrent(generation)) return;
+          _apiClient = client;
           state = AuthSessionState.authenticated(
             serverBaseUri: profile.baseUri,
           );
@@ -297,16 +356,58 @@ class AuthController extends Notifier<AuthSessionState> {
           // Refresh failure already clears the local token pair.
         }
       }
+      if (!_isInitializationCurrent(generation)) return;
+      _apiClient = client;
       state = AuthSessionState.unauthenticated(
         serverBaseUri: profile.baseUri,
         bootstrapRequired: !status.initialized,
       );
     } on ApiException catch (error) {
+      if (!_isInitializationCurrent(generation)) return;
+      _apiClient = client;
       state = AuthSessionState.unauthenticated(
         serverBaseUri: profile.baseUri,
         bootstrapRequired: false,
         errorCode: error.code,
         errorMessage: error.message,
+      );
+    }
+  }
+
+  bool _isInitializationCurrent(int generation) =>
+      _initializationGeneration == generation;
+
+  bool _invalidateInitialization(int generation) {
+    if (!_isInitializationCurrent(generation)) return false;
+    _initializationGeneration++;
+    return true;
+  }
+
+  void _recoverInitializationTimeout(int generation) {
+    if (!_invalidateInitialization(generation)) return;
+    state = const AuthSessionState(
+      status: AuthSessionStatus.serverRequired,
+      errorCode: 'local_initialization_timeout',
+      errorMessage: '读取本机配置超时，请重新输入服务端地址。',
+    );
+  }
+
+  Future<T> _localStorage<T>(Future<T> operation) async {
+    try {
+      return await operation.timeout(
+        ref.read(authInitializationTimeoutProvider),
+      );
+    } on TimeoutException {
+      throw const _LocalConfigurationFailure(
+        'local_configuration_timeout',
+        '保存本机配置超时，请稍后重试。',
+      );
+    } on ServerAddressException {
+      rethrow;
+    } catch (_) {
+      throw const _LocalConfigurationFailure(
+        'local_configuration_failed',
+        '保存本机配置失败，请稍后重试。',
       );
     }
   }
@@ -339,4 +440,11 @@ class AuthController extends Notifier<AuthSessionState> {
     }
     return client;
   }
+}
+
+class _LocalConfigurationFailure implements Exception {
+  const _LocalConfigurationFailure(this.code, this.message);
+
+  final String code;
+  final String message;
 }

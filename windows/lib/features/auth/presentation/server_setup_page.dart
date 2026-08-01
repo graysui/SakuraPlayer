@@ -60,7 +60,9 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
                     const SizedBox(height: 28),
                     TextField(
                       controller: _serverController,
-                      enabled: !auth.busy,
+                      enabled:
+                          auth.status == AuthSessionStatus.initializing ||
+                          !auth.busy,
                       decoration: const InputDecoration(
                         labelText: '服务端地址',
                         hintText: 'https://server.example',
@@ -68,7 +70,7 @@ class _ServerSetupPageState extends ConsumerState<ServerSetupPage> {
                       ),
                       keyboardType: TextInputType.url,
                       textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _configureServer(),
+                      onSubmitted: auth.busy ? null : (_) => _configureServer(),
                     ),
                     const SizedBox(height: 8),
                     CheckboxListTile(

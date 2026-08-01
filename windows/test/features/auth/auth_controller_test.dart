@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -15,6 +16,149 @@ import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.
 import 'package:sakuraplayer_windows/features/auth/presentation/server_setup_page.dart';
 
 void main() {
+  test('initialization timeout returns to an editable Chinese error', () async {
+    final store =
+        _HangingSecureKeyValueStore()
+          ..values[SecureStore.serverBaseUrlKey] = 'https://saved.test'
+          ..values[SecureStore.refreshTokenKey] = 'saved-refresh';
+    final container = _container(
+      memory: store,
+      subtitle: MemorySubtitleCache(),
+      handler: (request) async => throw StateError('unexpected request'),
+      initialized: true,
+      initializationTimeout: const Duration(milliseconds: 10),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(authControllerProvider.notifier).initialize();
+
+    final state = container.read(authControllerProvider);
+    expect(state.status, AuthSessionStatus.serverRequired);
+    expect(state.busy, isFalse);
+    expect(state.errorCode, 'local_initialization_timeout');
+    expect(state.errorMessage, '读取本机配置超时，请重新输入服务端地址。');
+    expect(store.values[SecureStore.serverBaseUrlKey], 'https://saved.test');
+    expect(store.values[SecureStore.refreshTokenKey], 'saved-refresh');
+  });
+
+  test('local initialization failure never remains busy', () async {
+    final container = _container(
+      memory: _ThrowingSecureKeyValueStore(),
+      subtitle: MemorySubtitleCache(),
+      handler: (request) async => throw StateError('unexpected request'),
+      initialized: true,
+      initializationTimeout: const Duration(milliseconds: 50),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(authControllerProvider.notifier).initialize();
+
+    final state = container.read(authControllerProvider);
+    expect(state.status, AuthSessionStatus.serverRequired);
+    expect(state.busy, isFalse);
+    expect(state.errorCode, 'local_initialization_failed');
+    expect(state.errorMessage, '读取本机配置失败，请重新输入服务端地址。');
+  });
+
+  test('late initialization cannot overwrite a new server profile', () async {
+    final store =
+        _DelayedRefreshReadSecureKeyValueStore()
+          ..values[SecureStore.clientInstanceIdKey] =
+              '123e4567-e89b-42d3-a456-426614174000'
+          ..values[SecureStore.serverBaseUrlKey] = 'https://old.test';
+    final container = _container(
+      memory: store,
+      subtitle: MemorySubtitleCache(),
+      handler: (request) async => throw StateError('unexpected request'),
+      initialized: true,
+      initializationTimeout: const Duration(milliseconds: 10),
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(authControllerProvider.notifier);
+    await controller.initialize();
+
+    await controller.configureServer('https://new.test');
+    store.completeDelayedRefresh(null);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      container.read(authControllerProvider).serverBaseUri,
+      Uri.parse('https://new.test'),
+    );
+    expect(store.values[SecureStore.serverBaseUrlKey], 'https://new.test');
+  });
+
+  test('manual recovery clears busy when local storage still hangs', () async {
+    final container = _container(
+      memory: _HangingSecureKeyValueStore(),
+      subtitle: MemorySubtitleCache(),
+      handler: (request) async => throw StateError('unexpected request'),
+      initialized: true,
+      initializationTimeout: const Duration(milliseconds: 10),
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(authControllerProvider.notifier);
+    await controller.initialize();
+
+    await controller.configureServer('https://server.test');
+
+    final state = container.read(authControllerProvider);
+    expect(state.status, AuthSessionStatus.serverRequired);
+    expect(state.busy, isFalse);
+    expect(state.errorCode, 'local_configuration_timeout');
+    expect(state.errorMessage, '保存本机配置超时，请稍后重试。');
+  });
+
+  testWidgets('server address stays editable while initialization is pending', (
+    tester,
+  ) async {
+    final container = _container(
+      memory: _HangingSecureKeyValueStore(),
+      subtitle: MemorySubtitleCache(),
+      handler: (request) async => throw StateError('unexpected request'),
+      initialized: true,
+      initializationTimeout: const Duration(seconds: 1),
+    );
+    addTearDown(container.dispose);
+    final initialization =
+        container.read(authControllerProvider.notifier).initialize();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ServerSetupPage()),
+      ),
+    );
+
+    final addressFinder = find.widgetWithText(TextField, '服务端地址');
+    expect(tester.widget<TextField>(addressFinder).enabled, isTrue);
+    await tester.enterText(addressFinder, 'http://127.0.0.1:8000');
+    expect(
+      tester.widget<TextField>(addressFinder).controller!.text,
+      'http://127.0.0.1:8000',
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.ancestor(
+              of: find.text('测试并保存地址'),
+              matching: find.byWidgetPredicate(
+                (widget) => widget is OutlinedButton,
+              ),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).onChanged,
+      isNull,
+    );
+
+    await tester.pump(const Duration(seconds: 1));
+    await initialization;
+  });
+
   test('default server is used only when no saved profile exists', () async {
     final memory = MemorySecureKeyValueStore();
     final probed = <Uri>[];
@@ -303,7 +447,7 @@ void main() {
 }
 
 ProviderContainer _container({
-  required MemorySecureKeyValueStore memory,
+  required SecureKeyValueStore memory,
   required MemorySubtitleCache subtitle,
   required Future<ResponseBody> Function(RequestOptions request) handler,
   required bool initialized,
@@ -311,11 +455,13 @@ ProviderContainer _container({
   PrivateCacheResetCoordinator? privateCacheReset,
   String defaultServerAddress = '',
   List<Uri>? probed,
+  Duration initializationTimeout = const Duration(seconds: 5),
 }) => ProviderContainer(
   overrides: [
     secureKeyValueStoreProvider.overrideWithValue(memory),
     subtitleCacheProvider.overrideWithValue(subtitle),
     defaultServerAddressProvider.overrideWithValue(defaultServerAddress),
+    authInitializationTimeoutProvider.overrideWithValue(initializationTimeout),
     serverProbeProvider.overrideWithValue(_Probe(initialized, probed)),
     if (reset != null) runtimeResetProvider.overrideWithValue(reset),
     if (privateCacheReset != null)
@@ -327,6 +473,41 @@ ProviderContainer _container({
     }),
   ],
 );
+
+class _HangingSecureKeyValueStore extends MemorySecureKeyValueStore {
+  final Completer<String?> _read = Completer<String?>();
+
+  @override
+  Future<String?> read(String key) => _read.future;
+}
+
+class _DelayedRefreshReadSecureKeyValueStore extends MemorySecureKeyValueStore {
+  final Completer<String?> _refreshRead = Completer<String?>();
+  bool _didDelayRefresh = false;
+
+  @override
+  Future<String?> read(String key) {
+    if (key == SecureStore.refreshTokenKey && !_didDelayRefresh) {
+      _didDelayRefresh = true;
+      return _refreshRead.future;
+    }
+    return super.read(key);
+  }
+
+  void completeDelayedRefresh(String? value) => _refreshRead.complete(value);
+}
+
+class _ThrowingSecureKeyValueStore implements SecureKeyValueStore {
+  @override
+  Future<void> delete(String key) async => throw StateError('storage failed');
+
+  @override
+  Future<String?> read(String key) async => throw StateError('storage failed');
+
+  @override
+  Future<void> write(String key, String value) async =>
+      throw StateError('storage failed');
+}
 
 class _Probe implements ServerProbe {
   const _Probe(this.initialized, [this.probed]);

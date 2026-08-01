@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_secure_storage_windows/flutter_secure_storage_windows.dart';
+import 'package:flutter/services.dart';
 
 abstract interface class SecureKeyValueStore {
   Future<String?> read(String key);
@@ -10,21 +14,142 @@ abstract interface class SecureKeyValueStore {
   Future<void> delete(String key);
 }
 
+enum SecureStorageOperation { read, write, delete }
+
+typedef SecureStorageWorkerRunner =
+    Future<Object?> Function(
+      SecureStorageOperation operation,
+      String key,
+      String? value,
+    );
+
 class FlutterSecureKeyValueStore implements SecureKeyValueStore {
-  FlutterSecureKeyValueStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+  FlutterSecureKeyValueStore({
+    FlutterSecureStorage? storage,
+    SecureStorageWorkerRunner? workerRunner,
+    this.operationTimeout = const Duration(seconds: 5),
+  }) : _storage = storage,
+       _workerRunner = workerRunner;
 
-  final FlutterSecureStorage _storage;
+  final FlutterSecureStorage? _storage;
+  final SecureStorageWorkerRunner? _workerRunner;
+  final Duration operationTimeout;
 
   @override
-  Future<String?> read(String key) => _storage.read(key: key);
+  Future<String?> read(String key) async =>
+      await _perform(SecureStorageOperation.read, key, null) as String?;
 
   @override
-  Future<void> write(String key, String value) =>
-      _storage.write(key: key, value: value);
+  Future<void> write(String key, String value) async {
+    await _perform(SecureStorageOperation.write, key, value);
+  }
 
   @override
-  Future<void> delete(String key) => _storage.delete(key: key);
+  Future<void> delete(String key) async {
+    await _perform(SecureStorageOperation.delete, key, null);
+  }
+
+  Future<Object?> _perform(
+    SecureStorageOperation operation,
+    String key,
+    String? value,
+  ) {
+    final storage = _storage;
+    final workerRunner = _workerRunner;
+    final operationFuture =
+        storage != null
+            ? _performWithStorage(storage, operation, key, value)
+            : workerRunner != null
+            ? workerRunner(operation, key, value)
+            : _performInIsolate(operation, key, value);
+    return operationFuture.timeout(operationTimeout);
+  }
+
+  static Future<Object?> _performWithStorage(
+    FlutterSecureStorage storage,
+    SecureStorageOperation operation,
+    String key,
+    String? value,
+  ) => switch (operation) {
+    SecureStorageOperation.read => storage.read(key: key),
+    SecureStorageOperation.write => storage.write(key: key, value: value!),
+    SecureStorageOperation.delete => storage.delete(key: key),
+  };
+
+  Future<Object?> _performInIsolate(
+    SecureStorageOperation operation,
+    String key,
+    String? value,
+  ) async {
+    final rootToken = RootIsolateToken.instance;
+    if (rootToken == null) {
+      throw StateError('root isolate token is unavailable');
+    }
+    final responsePort = ReceivePort();
+    final errorPort = ReceivePort();
+    final result = Completer<Object?>();
+    final responseSubscription = responsePort.listen((message) {
+      if (result.isCompleted) return;
+      if (message is List<Object?> && message.firstOrNull == true) {
+        result.complete(message.length > 1 ? message[1] : null);
+      } else {
+        result.completeError(const SecureStorageWorkerException());
+      }
+    });
+    final errorSubscription = errorPort.listen((_) {
+      if (!result.isCompleted) {
+        result.completeError(const SecureStorageWorkerException());
+      }
+    });
+    final isolate = await Isolate.spawn<List<Object?>>(
+      _secureStorageWorker,
+      <Object?>[rootToken, responsePort.sendPort, operation.index, key, value],
+      onError: errorPort.sendPort,
+      errorsAreFatal: true,
+    );
+    try {
+      return await result.future.timeout(operationTimeout);
+    } finally {
+      isolate.kill(priority: Isolate.immediate);
+      await responseSubscription.cancel();
+      await errorSubscription.cancel();
+      responsePort.close();
+      errorPort.close();
+    }
+  }
+}
+
+class SecureStorageWorkerException implements Exception {
+  const SecureStorageWorkerException();
+}
+
+@pragma('vm:entry-point')
+Future<void> _secureStorageWorker(List<Object?> request) async {
+  final rootToken = request[0] as RootIsolateToken;
+  final responsePort = request[1] as SendPort;
+  final operation = SecureStorageOperation.values[request[2] as int];
+  final key = request[3] as String;
+  final value = request[4] as String?;
+  try {
+    BackgroundIsolateBinaryMessenger.ensureInitialized(rootToken);
+    final storage = FlutterSecureStorageWindows();
+    const options = <String, String>{'useBackwardCompatibility': 'false'};
+    Object? result;
+    switch (operation) {
+      case SecureStorageOperation.read:
+        result = await storage.read(key: key, options: options);
+        break;
+      case SecureStorageOperation.write:
+        await storage.write(key: key, value: value!, options: options);
+        break;
+      case SecureStorageOperation.delete:
+        await storage.delete(key: key, options: options);
+        break;
+    }
+    responsePort.send(<Object?>[true, result]);
+  } catch (_) {
+    responsePort.send(<Object?>[false]);
+  }
 }
 
 class MemorySecureKeyValueStore implements SecureKeyValueStore {
