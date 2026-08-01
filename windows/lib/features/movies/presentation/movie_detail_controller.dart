@@ -113,6 +113,7 @@ class MovieDetailController extends Notifier<MovieDetailState> {
     if (state.status != MovieDetailStatus.ready ||
         detail == null ||
         movieId == null ||
+        detail.isLimited ||
         state.isFavoriteInFlight) {
       return;
     }

@@ -4,7 +4,7 @@ title: "Windows 客户端代码清理"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
-dependencies: [TASK-213, TASK-215, TASK-216, TASK-217]
+dependencies: [TASK-213, TASK-215, TASK-216, TASK-217, TASK-218]
 ac-mapping: []
 imp-requirements: []
 cross-boundary: false
@@ -57,7 +57,7 @@ provides: [reviewed Windows client files]
 - [ ] 安装包仍含许可证且无 debug secret。
 - [ ] 追加 Cleanup Summary 并完成任务。
 
-**依赖**: TASK-213, TASK-215, TASK-216, TASK-217
+**依赖**: TASK-213, TASK-215, TASK-216, TASK-217, TASK-218
 
 **实现命令**:
 

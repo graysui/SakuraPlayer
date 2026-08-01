@@ -117,6 +117,31 @@ void main() {
     expect(find.text('继续播放 25%'), findsNothing);
   });
 
+  testWidgets('failed limited detail hides favorite and keeps source action', (
+    tester,
+  ) async {
+    final played = <String>[];
+    await _pumpPage(
+      tester,
+      gateway: _MovieGateway(
+        _detail(
+          metadataState: 'failed',
+          metadataErrorCode: 'javdb_movie_not_found',
+        ),
+      ),
+      onPlaySource: played.add,
+    );
+
+    expect(find.textContaining('资料补全失败'), findsOneWidget);
+    expect(find.byTooltip('收藏影片'), findsNothing);
+    await tester.ensureVisible(find.byKey(const ValueKey('source-row-0')));
+    await tester.tap(find.byKey(const ValueKey('source-row-0')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('movie-detail-play')));
+    await tester.tap(find.byKey(const ValueKey('movie-detail-play')));
+    expect(played, <String>[_sourceId(0)]);
+  });
+
   testWidgets('wide and narrow layouts keep fixed cover geometry', (
     tester,
   ) async {
@@ -178,6 +203,8 @@ MovieSourceDto _source(
 MovieDetailDto _detail({
   String title = '测试影片',
   List<String> plotImageUrls = const <String>[],
+  String metadataState = 'core_ready',
+  String? metadataErrorCode,
 }) => MovieDetailDto.fromJson(<String, Object?>{
   'id': movieId,
   'number': 'ABC-123',
@@ -194,6 +221,8 @@ MovieDetailDto _detail({
     'completed': false,
     'version': 1,
   },
+  'metadata_state': metadataState,
+  'metadata_error_code': metadataErrorCode,
   'release_date': '2026-07-29',
   'maker': '测试厂商',
   'series': '测试系列',

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from threading import Event, local
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -257,3 +259,126 @@ def test_admin_retry_endpoints_create_new_attempts_and_keep_parent_immutable(
             )
         )
     assert {job.status for job in parents} == {"failed", "completed_with_warnings"}
+
+
+def test_admin_metadata_queue_pause_and_resume_preserve_running_attempt(
+    api_context,
+) -> None:
+    client, queue, factory = api_context
+    movies = [add_movie(factory, "ABP-103"), add_movie(factory, "ABP-104")]
+    for movie in movies:
+        queue.enqueue(
+            movie_id=movie.id,
+            normalized_number=movie.normalized_number,
+            sort_date=date(2026, 7, 22),
+            reason="manual_or_search",
+        )
+    running = queue.claim_next("worker-api", lease_duration=timedelta(seconds=30))
+    assert running is not None
+
+    anonymous = client.put(
+        "/api/v1/admin/metadata-queue",
+        json={"paused": True},
+    )
+    headers = auth_headers(client)
+    paused = client.put(
+        "/api/v1/admin/metadata-queue",
+        json={"paused": True},
+        headers=headers,
+    )
+
+    assert anonymous.status_code == 401
+    assert paused.status_code == 200
+    assert paused.json() == {"paused": True, "queued": 1, "running": 1}
+    assert (
+        queue.claim_next("worker-after-pause", lease_duration=timedelta(seconds=30))
+        is None
+    )
+    with factory() as session:
+        assert session.get(MetadataJob, running.job_id).status == "running"
+
+    resumed = client.put(
+        "/api/v1/admin/metadata-queue",
+        json={"paused": False},
+        headers=headers,
+    )
+    assert resumed.json() == {"paused": False, "queued": 1, "running": 1}
+    assert (
+        queue.claim_next(
+            "worker-after-resume",
+            lease_duration=timedelta(seconds=30),
+        )
+        is not None
+    )
+
+
+def test_postgres_pause_commits_before_a_later_waiting_claim(api_context) -> None:
+    _client, queue, factory = api_context
+    movie = add_movie(factory, "ABP-105")
+    queue.enqueue(
+        movie_id=movie.id,
+        normalized_number=movie.normalized_number,
+        sort_date=date(2026, 7, 22),
+        reason="manual_or_search",
+    )
+    engine = factory.kw["bind"]
+    operation = local()
+    pause_submitted = Event()
+    claim_submitted = Event()
+    observed_locks: list[tuple[str, int]] = []
+
+    def observe_lock(
+        _connection,
+        _cursor,
+        statement,
+        parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        name = getattr(operation, "name", None)
+        if name is None or "pg_advisory_xact_lock" not in statement:
+            return
+        observed_locks.append((name, int(parameters["lock_key"])))
+        (pause_submitted if name == "pause" else claim_submitted).set()
+
+    def pause_queue():
+        operation.name = "pause"
+        return queue.set_paused(True)
+
+    def claim_job():
+        operation.name = "claim"
+        return queue.claim_next(
+            "worker-waiting-after-pause",
+            lease_duration=timedelta(seconds=30),
+        )
+
+    blocker = factory()
+    executor = ThreadPoolExecutor(max_workers=2)
+    event.listen(engine, "before_cursor_execute", observe_lock)
+    try:
+        blocker.begin()
+        blocker.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": 0x53414B5552410007},
+        )
+        pause_future = executor.submit(pause_queue)
+        assert pause_submitted.wait(timeout=5)
+        claim_future = executor.submit(claim_job)
+        assert claim_submitted.wait(timeout=5)
+
+        blocker.commit()
+        paused = pause_future.result(timeout=5)
+        claim = claim_future.result(timeout=5)
+    finally:
+        if blocker.in_transaction():
+            blocker.rollback()
+        blocker.close()
+        executor.shutdown(wait=True, cancel_futures=True)
+        event.remove(engine, "before_cursor_execute", observe_lock)
+
+    assert observed_locks == [
+        ("pause", 0x53414B5552410007),
+        ("claim", 0x53414B5552410007),
+    ]
+    assert paused.paused is True
+    assert claim is None

@@ -71,7 +71,7 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
                 else if (state.status == DiagnosticsStatus.failed)
                   _Message(code: state.errorCode)
                 else if (state.diagnostics != null)
-                  ..._content(context, state.diagnostics!),
+                  ..._content(context, state),
               ],
             ),
           ),
@@ -80,7 +80,8 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
     );
   }
 
-  List<Widget> _content(BuildContext context, DiagnosticsDto diagnostics) {
+  List<Widget> _content(BuildContext context, DiagnosticsState state) {
+    final diagnostics = state.diagnostics!;
     final cacheFailures = diagnostics.recentFailures
         .where((item) => item.taskType == 'cache')
         .toList(growable: false);
@@ -89,7 +90,16 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
       const SizedBox(height: 8),
       _Components(diagnostics: diagnostics),
       const SizedBox(height: 24),
-      _MetadataProgress(progress: diagnostics.metadataProgress),
+      _MetadataProgress(
+        progress: diagnostics.metadataProgress,
+        paused: diagnostics.queues.metadataPaused,
+        controlInFlight: state.controlInFlight,
+        errorCode: state.errorCode,
+        onToggle:
+            () => ref
+                .read(diagnosticsControllerProvider.notifier)
+                .setMetadataPaused(!diagnostics.queues.metadataPaused),
+      ),
       const SizedBox(height: 24),
       Text('连接测试', style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 8),
@@ -128,14 +138,46 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
 }
 
 class _MetadataProgress extends StatelessWidget {
-  const _MetadataProgress({required this.progress});
+  const _MetadataProgress({
+    required this.progress,
+    required this.paused,
+    required this.controlInFlight,
+    required this.errorCode,
+    required this.onToggle,
+  });
   final MetadataProgressDto progress;
+  final bool paused;
+  final bool controlInFlight;
+  final String? errorCode;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('元数据刮削进度', style: Theme.of(context).textTheme.titleMedium),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              '元数据刮削进度',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          OutlinedButton.icon(
+            key: const ValueKey('metadata-queue-control'),
+            onPressed: controlInFlight ? null : onToggle,
+            icon: Icon(paused ? Icons.play_arrow : Icons.pause),
+            label: Text(paused ? '开始刮削' : '暂停刮削'),
+          ),
+        ],
+      ),
+      if (errorCode != null) ...[
+        const SizedBox(height: 8),
+        Text(
+          settingsErrorLabel(errorCode),
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      ],
       const SizedBox(height: 12),
       LinearProgressIndicator(value: progress.fraction, minHeight: 8),
       const SizedBox(height: 8),

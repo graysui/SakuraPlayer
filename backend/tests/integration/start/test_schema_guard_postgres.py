@@ -146,6 +146,7 @@ def test_upgrade_to_head_is_idempotent_and_creates_expected_tables(
             "metadata_job",
             "metadata_queue_state",
             "metadata_stage",
+            "metadata_worker_control",
             "movie",
             "movie_actor",
             "movie_playback_state",

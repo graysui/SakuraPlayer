@@ -136,8 +136,8 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-063 `[IMP]`**: 媒体库使用一个去重影片网格，六个 AVdb 分类作为可组合筛选条件；多来源筛选必须按同一来源闭合，完整服务端语义由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，Windows 客户端消费边界由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 冻结。
 - **AC-064 `[IMP]`**: 默认按满足筛选的 AVdb 来源最新发布日期从新到旧稳定排序，并支持字幕、破解、4K、有码、来源、可播放状态和资源大小筛选；游标绑定完整筛选与排序，Windows 布局与分页恢复遵循 [Windows 媒体库客户端契约](contracts/windows-library-client.md)。
 - **AC-065 `[IMP]`**: 全局搜索支持番号、影片标题、演员姓名和别名，结果按影片与女优分组；番号精确结果优先，歧义别名返回全部演员结果。
-- **AC-066 `[IMP]`**: 搜索命中尚未刮削的 AVdb 番号时显示补全状态；无任务时创建最高优先级任务，既有 queued 任务原子提升，running 复用，failed 不自动重试。
-- **AC-067 `[IMP]`**: 只有核心元数据成功的影片可以显示正式影片卡片和详情页。
+- **AC-066 `[IMP]`**: 搜索命中尚未刮削的 AVdb 番号时显示补全状态与稳定 MovieId；无任务时创建最高优先级任务，既有 queued 任务原子提升，running 复用，failed 不自动重试；queued/running/failed 占位均可进入明确的受限待补全详情。
+- **AC-067 `[IMP]`**: 只有核心元数据成功的影片可以显示正式影片卡片和正式详情页；存在 active 来源的非 core-ready 影片只允许从补全占位进入受限详情，不得进入媒体库、排行榜或演员关联影片。
 - **AC-068 `[IMP]`**: 影片卡片和详情页播放按钮显示影片级播放进度或已看完状态；TASK-111 交付前通过稳定只读端口返回 null，Windows 未知时长显示遵循 [Windows 媒体库客户端契约](contracts/windows-library-client.md)，详情来源选择与固定操作几何遵循 [Windows 影片详情客户端契约](contracts/windows-movie-detail-client.md)。
 
 ### REQ-014 排行榜
@@ -234,8 +234,8 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 - **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；五个连接目标必须执行真实只读 probe，未配置、凭据无效与上游不可用不得混淆；同步状态同时显示持久统计中的已导入总数；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
-- **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试和元数据总体进度；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
-- **AC-122 `[IMP]`**: 管理员可查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 冻结。
+- **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试、元数据总体进度和持久暂停状态；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
+- **AC-122 `[IMP]`**: 管理员可暂停或恢复元数据新任务领取、查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；暂停不中断运行中任务，恢复不创建或自动重试任务；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 冻结。
 
 ## 11. 部署、可靠性与验收
 

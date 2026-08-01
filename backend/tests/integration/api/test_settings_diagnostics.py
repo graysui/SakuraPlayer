@@ -264,6 +264,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             assert diagnostics.json()["queues"] == {
                 "metadata_queued": 0,
                 "metadata_running": 0,
+                "metadata_paused": False,
                 "cache_queued": 0,
                 "cache_running": 0,
                 "cache_ready": 0,

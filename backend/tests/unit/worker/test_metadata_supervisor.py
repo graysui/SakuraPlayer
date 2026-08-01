@@ -378,12 +378,15 @@ def test_subprocess_launcher_kills_the_complete_child_process_group(
     )
     process = launcher.start(claim(99))
     deadline = time.monotonic() + 5
-    while not pid_file.exists() and time.monotonic() < deadline:
+    pid_values: list[str] = []
+    while time.monotonic() < deadline:
+        if pid_file.exists():
+            pid_values = pid_file.read_text(encoding="utf-8").split()
+            if len(pid_values) == 2:
+                break
         time.sleep(0.02)
-    assert pid_file.exists()
-    parent_pid, grandchild_pid = [
-        int(value) for value in pid_file.read_text(encoding="utf-8").split()
-    ]
+    assert len(pid_values) == 2
+    parent_pid, grandchild_pid = [int(value) for value in pid_values]
 
     process.terminate_group()
     process.wait(timeout=5)

@@ -6,6 +6,8 @@ import 'package:sakuraplayer_windows/features/actors/data/actors_api.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 
+enum MovieMetadataState { coreReady, queued, running, failed }
+
 enum MovieSourceAvailability {
   available,
   queued,
@@ -120,6 +122,8 @@ class MovieDetailDto extends MovieSummaryDto {
     required this.tags,
     required this.plotImageUrls,
     required this.sources,
+    this.metadataState = MovieMetadataState.coreReady,
+    this.metadataErrorCode,
   });
 
   factory MovieDetailDto.fromJson(Map<String, Object?> json) {
@@ -151,6 +155,27 @@ class MovieDetailDto extends MovieSummaryDto {
       throw const ProtocolException('MovieDetail.plot_image_urls is invalid');
     }
     final score = _nullableFiniteNumber(json, 'score', 'MovieDetail');
+    final metadataStateValue = reader.enumeration('metadata_state', const {
+      'core_ready',
+      'queued',
+      'running',
+      'failed',
+    });
+    final metadataState = switch (metadataStateValue) {
+      'core_ready' => MovieMetadataState.coreReady,
+      'queued' => MovieMetadataState.queued,
+      'running' => MovieMetadataState.running,
+      'failed' => MovieMetadataState.failed,
+      _ =>
+        throw const ProtocolException('MovieDetail.metadata_state is invalid'),
+    };
+    final metadataErrorCode = reader.nullableString('metadata_error_code');
+    if (metadataState != MovieMetadataState.failed &&
+        metadataErrorCode != null) {
+      throw const ProtocolException(
+        'MovieDetail.metadata_error_code is invalid',
+      );
+    }
     return MovieDetailDto(
       id: summary.id,
       number: summary.number,
@@ -173,6 +198,8 @@ class MovieDetailDto extends MovieSummaryDto {
       tags: tags,
       plotImageUrls: plotImageUrls,
       sources: sources,
+      metadataState: metadataState,
+      metadataErrorCode: metadataErrorCode,
     );
   }
 
@@ -187,6 +214,10 @@ class MovieDetailDto extends MovieSummaryDto {
   final List<String> tags;
   final List<String> plotImageUrls;
   final List<MovieSourceDto> sources;
+  final MovieMetadataState metadataState;
+  final String? metadataErrorCode;
+
+  bool get isLimited => metadataState != MovieMetadataState.coreReady;
 
   MovieDetailDto copyWith({bool? favorite}) => MovieDetailDto(
     id: id,
@@ -210,6 +241,8 @@ class MovieDetailDto extends MovieSummaryDto {
     tags: tags,
     plotImageUrls: plotImageUrls,
     sources: sources,
+    metadataState: metadataState,
+    metadataErrorCode: metadataErrorCode,
   );
 }
 

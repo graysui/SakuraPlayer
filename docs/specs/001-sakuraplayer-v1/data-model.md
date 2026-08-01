@@ -315,6 +315,16 @@ Domain aggregate 1 --- N DomainEvent
 
 `metadata_queue_state` 以固定 `singleton_key=true` 保存首批范围的 `initial_as_of`、`initial_completed_at` 和更新时间。worker 分批入队时必须复用冻结日期；完成标记后不得因重启或新来源把后续影片重新归入 initial。读取 initial 剩余额度、初始化状态行和整批入队必须处于同一 PostgreSQL advisory lock 生命周期，保证多 worker 下不超过 5000 部。候选查询 anti-join 已有任意 attempt 的影片并继续补足新任务，不得因失败影片仍为 `raw_only` 而阻塞或反复扫描后续 initial/history 候选，也不得借此自动重试失败任务。
 
+`metadata_worker_control` 是与首次范围生命周期解耦的持久单例：
+
+| 字段 | 类型 | 规则 | 来源 |
+|---|---|---|---|
+| `singleton_key` | boolean | 固定 true，主键与 CHECK | AC-122 |
+| `paused` | boolean | 非空，默认 false | AC-121/122 |
+| `updated_at` | timestamptz | 非空 | AC-121 |
+
+pause/resume 写入与 `metadata_job` claim 复用元数据槽位 PostgreSQL advisory transaction lock。paused 只阻止新的 claim，不改变 queued/running/failed 事实；恢复也不创建任务或改变优先级。
+
 `metadata_job`:
 
 | 字段 | 类型 | 规则 | 来源 |

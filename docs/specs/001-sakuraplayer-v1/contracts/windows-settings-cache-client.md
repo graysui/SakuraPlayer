@@ -9,7 +9,7 @@
 ## 1. API 与严格 DTO
 
 - TASK-208 建立 settings/cache gateway，复用 TASK-202 的 `ApiClient`、`CacheJobDto`、`MetadataJobDto`、`Cloud115BindingDto` 和 snapshot state，不复制或放宽这些共享 DTO。
-- 新增 DTO 严格读取 `QrSession`、`CacheCapacity/CacheJobPage`、`Settings`、`ConnectionTest`、`Diagnostics`。未知枚举、非法 UUID/时间、负数计数、越界 TTL、重复 ID/阶段、超过契约上限或秘密响应字段均视为 `client_protocol_error`。
+- 新增 DTO 严格读取 `QrSession`、`CacheCapacity/CacheJobPage`、`Settings`、`ConnectionTest`、`Diagnostics` 与 `MetadataQueueControl`。未知枚举、非法 UUID/时间、负数计数、越界 TTL、重复 ID/阶段、超过契约上限或秘密响应字段均视为 `client_protocol_error`。
 - `ProviderState.status` 固定允许 `unknown/available/unavailable/credentials_invalid/not_configured`；`ConnectionTest.status` 固定允许 `available/unavailable/credentials_invalid/not_configured`。客户端不得把 `unavailable` 推断成凭据失效。
 - 所有路径 ID 必须先通过 UUID 校验。缓存列表 status 使用单个逗号分隔查询值，页面按服务端 cursor 和顺序追加，不在客户端重排任务真相。
 
@@ -42,6 +42,8 @@
 
 - 诊断页严格显示 component status、队列计数、最近最多 100 条失败和最多 5 条连接测试；只展示稳定 stage/error code、elapsed、attempt 和时间。worker/scheduler 的 `unknown` 原样显示，不伪造健康。
 - Windows 主诊断视图不再请求元数据任务分页，只消费 `metadata_progress`，显示总体进度、完成/总数和最多 3 个当前 running 番号；不得展示元数据队列明细或逐条铺开全部番号。既有逐任务分页和 retry API 继续作为兼容管理接口保留。
+- diagnostics `queues.metadata_paused` 是元数据领取控制真相。进度标题行显示单个控制按钮：paused 时为“开始刮削”，否则为“暂停刮削”；请求在途禁用，成功后刷新 diagnostics，失败保留原状态并显示中文错误。
+- 控制只调用 `PUT /admin/metadata-queue` 并发送单一布尔 `paused`。客户端不得把 resume 解释为排队、重试或更改并发；不得新增元数据逐任务列表或 WebSocket 控制事件。
 - 富化阶段固定为 `images/dmm/actor_map/gfriends/translation`，永不显示 `javdb_core`。默认不选择 `translation`；仅当服务端把它列入 `retryable_stages` 且管理员显式勾选时发送。提交空集合、重复阶段或客户端自行推导的阶段均禁止。
 - `metadata_job_no_retryable_enrichment`、`metadata_job_already_active` 与普通失败保留任务状态并允许刷新。任何重试成功都只显示新 queued attempt，不改写旧 attempt。
 

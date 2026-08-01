@@ -9,7 +9,7 @@
 ## 1. API 所有权与 DTO
 
 - TASK-207 在 `windows/lib/features/movies/data/movie_detail_api.dart` 实现 `MovieDetailDto`、`MovieSourceDto` 与 MovieDetail gateway。影片摘要与进度复用 TASK-204 的 `MovieSummaryDto`/`PlaybackProgressDto`，演员复用 TASK-206 的 `ActorSummaryDto`；不得复制或放宽共享 DTO。
-- `MovieDetailDto` 严格读取摘要字段、可空 `release_date/maker/series/director/score/description/description_original`、最多 100 个演员/标签/剧照/来源。标签、剧照 URL和来源 ID不得重复；客户端保持服务端集合顺序，不按显示文本重新匹配或排序。
+- `MovieDetailDto` 严格读取摘要字段、`metadata_state=core_ready/queued/running/failed`、可空稳定 `metadata_error_code`、可空 `release_date/maker/series/director/score/description/description_original`、最多 100 个演员/标签/剧照/来源。标签、剧照 URL和来源 ID不得重复；客户端保持服务端集合顺序，不按显示文本重新匹配或排序。
 - 封面和剧照只接受 `/api/v1/catalog/images/{uuid}`，并通过现有认证 `ApiClient` 读取字节。绝对 URL、路径穿越、非图片 API 路径和 GFriends URL 均不得进入目录图片 loader。
 - `MovieSourceDto` 严格读取 UUID `id`、`sehuatang/x1080x`、整数帖子 ID、非空标题、可空日期、六分类之一、最多四个不重复来源标签、非负可空 `resource_size_mb/video_file_size_bytes`，以及 `available/queued/running/ready/failed/rejected`。客户端不得接受 `raw` 或未知状态。
 - 收藏只调用 `PUT` 或 `DELETE movies/{movie_id}/favorite`，成功必须是空 `204`；请求不得携带标题、番号、来源、进度或图片字段。
@@ -17,6 +17,7 @@
 ## 2. 加载与收藏状态
 
 - 详情按 MovieId 加载。切换 MovieId、认证服务端或会话必须增加 generation，清空旧详情、来源选择和收藏在途状态；旧 generation 的成功或失败均忽略。
+- `metadata_state != core_ready` 是受限待补全详情：页面显示“资料排队中/正在补全资料/资料补全失败”和已本地化错误；不显示收藏按钮，不调用 favorite API。来源选择与 source_id-only 播放边界保持可用。
 - 初始加载显示稳定占位；普通失败显示重试；`resource_not_found` 显示“影片资料不存在”并允许返回，不把旧影片内容保留在新路由下。重试只请求当前 MovieId。
 - 同一影片的收藏请求在途时禁用重复提交。成功后更新当前详情；失败保留服务端确认前的旧值并显示非阻断重试。不得通过连续点击并发翻转，也不得在失败时乐观保留未确认状态。
 - TASK-207 不建立独立观看历史或自定义列表。影片收藏列表仍由 TASK-204 的 `favorite=true` 媒体库筛选读取；离开详情后的列表以自身下次刷新为准。
@@ -24,7 +25,7 @@
 ## 3. 路由与入口
 
 - TASK-207 建立 `/app/movies/:movie_id` typed route；MovieId 必须先通过 UUID 路径段校验。非法路径重定向媒体库，详情在 Shell 中归属媒体库 destination。
-- 媒体库 MovieCard、排行榜 MovieCard、女优详情关联 MovieCard 和全局搜索影片结果进入同一详情 route。搜索结果先关闭对话框；卡片正文与卡片播放按钮都只进入详情，不直接创建离线任务。
+- 媒体库 MovieCard、排行榜 MovieCard、女优详情关联 MovieCard、全局搜索正式影片结果和 pending 补全项进入同一详情 route。搜索结果先关闭对话框；pending queued/running/failed 使用响应 `movie_id` 导航。卡片正文与卡片播放按钮都只进入详情，不直接创建离线任务。
 - 详情演员项只使用 TASK-206 的 `ActorDetailRoute(actor_id)`；不得按姓名、别名或 URL 建立演员路由。
 - 详情返回优先弹出当前 route；没有可弹出的 route 时返回媒体库。导航不得丢失 MovieId 或把标题放入路径。
 

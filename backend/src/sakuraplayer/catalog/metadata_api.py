@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.catalog.metadata_queue import (
     MetadataQueue,
+    MetadataQueueControlSnapshot,
     MetadataQueueProblem,
     retryable_enrichment_stages,
 )
@@ -115,6 +116,9 @@ class MetadataAdminService:
     def retry(self, job_id: uuid.UUID) -> MetadataJobView:
         outcome = self._queue.manual_retry(job_id)
         return self.get(outcome.job_id)
+
+    def set_paused(self, paused: bool) -> MetadataQueueControlSnapshot:
+        return self._queue.set_paused(paused)
 
     def retry_enrichment(
         self,
@@ -270,6 +274,18 @@ class MetadataJobPageOutput(BaseModel):
     next_cursor: str | None
 
 
+class MetadataQueueControlInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    paused: bool
+
+
+class MetadataQueueControlOutput(BaseModel):
+    paused: bool
+    queued: int = Field(ge=0)
+    running: int = Field(ge=0, le=3)
+
+
 class EnrichmentRetryInput(BaseModel):
     stages: list[EnrichmentStage] = Field(min_length=1)
 
@@ -287,12 +303,22 @@ def create_metadata_api(
     current_admin_dependency: Callable[..., object],
 ) -> APIRouter:
     router = APIRouter(
-        prefix="/api/v1/admin/metadata-jobs",
+        prefix="/api/v1/admin",
         tags=["Admin"],
         dependencies=[Depends(current_admin_dependency)],
     )
 
-    @router.get("", response_model=MetadataJobPageOutput)
+    @router.put("/metadata-queue", response_model=MetadataQueueControlOutput)
+    def set_metadata_queue_control(
+        body: MetadataQueueControlInput,
+    ) -> MetadataQueueControlOutput:
+        snapshot = service.set_paused(body.paused)
+        return MetadataQueueControlOutput.model_validate(
+            snapshot,
+            from_attributes=True,
+        )
+
+    @router.get("/metadata-jobs", response_model=MetadataJobPageOutput)
     def list_metadata_jobs(
         status: MetadataStatus | None = None,
         cursor: str | None = None,
@@ -308,7 +334,9 @@ def create_metadata_api(
         )
 
     @router.post(
-        "/{metadata_job_id}/retry", response_model=MetadataJobOutput, status_code=201
+        "/metadata-jobs/{metadata_job_id}/retry",
+        response_model=MetadataJobOutput,
+        status_code=201,
     )
     def retry_metadata_job(metadata_job_id: uuid.UUID) -> MetadataJobOutput:
         try:
@@ -318,7 +346,7 @@ def create_metadata_api(
         return MetadataJobOutput(**view.__dict__)
 
     @router.post(
-        "/{metadata_job_id}/retry-enrichment",
+        "/metadata-jobs/{metadata_job_id}/retry-enrichment",
         response_model=MetadataJobOutput,
         status_code=201,
     )

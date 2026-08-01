@@ -14,6 +14,7 @@ from sakuraplayer.identity.api import ApiProblem
 
 
 class PendingMetadataOutput(BaseModel):
+    movie_id: uuid.UUID
     number: str
     state: str
     metadata_job_id: uuid.UUID

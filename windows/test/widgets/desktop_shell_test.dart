@@ -266,6 +266,7 @@ class _SearchGateway implements SearchGateway {
       ],
       'pending_metadata': <Object?>[
         <String, Object?>{
+          'movie_id': '00000000-0000-4000-8000-000000000001',
           'number': 'ABC-123',
           'state': 'failed',
           'metadata_job_id': '00000000-0000-4000-8000-000000000003',

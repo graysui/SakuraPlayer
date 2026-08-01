@@ -49,6 +49,22 @@ class MetadataQueueState(Base):
     )
 
 
+class MetadataWorkerControl(Base):
+    __tablename__ = "metadata_worker_control"
+    __table_args__ = (
+        CheckConstraint(
+            "singleton_key",
+            name="ck_metadata_worker_control_singleton",
+        ),
+    )
+
+    singleton_key: Mapped[bool] = mapped_column(Boolean, primary_key=True, default=True)
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class MetadataJob(Base):
     __tablename__ = "metadata_job"
     __table_args__ = (
@@ -637,6 +653,7 @@ __all__ = [
     "GfriendsSnapshot",
     "MetadataJob",
     "MetadataQueueState",
+    "MetadataWorkerControl",
     "MetadataStage",
     "MovieActor",
     "MovieTag",

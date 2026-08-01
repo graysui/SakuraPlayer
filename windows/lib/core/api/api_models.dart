@@ -108,6 +108,7 @@ class QueueSnapshot {
   const QueueSnapshot({
     required this.metadataQueued,
     required this.metadataRunning,
+    this.metadataPaused = false,
     required this.cacheQueued,
     required this.cacheRunning,
     required this.cacheReady,
@@ -118,6 +119,10 @@ class QueueSnapshot {
     return QueueSnapshot(
       metadataQueued: reader.nonNegativeInteger('metadata_queued'),
       metadataRunning: reader.nonNegativeInteger('metadata_running'),
+      metadataPaused:
+          json.containsKey('metadata_paused')
+              ? reader.boolean('metadata_paused')
+              : false,
       cacheQueued: reader.nonNegativeInteger('cache_queued'),
       cacheRunning: reader.nonNegativeInteger('cache_running'),
       cacheReady: reader.nonNegativeInteger('cache_ready'),
@@ -126,6 +131,7 @@ class QueueSnapshot {
 
   final int metadataQueued;
   final int metadataRunning;
+  final bool metadataPaused;
   final int cacheQueued;
   final int cacheRunning;
   final int cacheReady;

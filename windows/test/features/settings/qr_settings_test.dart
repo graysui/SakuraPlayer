@@ -62,10 +62,7 @@ void main() {
       expect(cloud115BindingStatusLabel('active'), '已绑定');
       expect(qrStatusLabel('waiting'), '等待扫码');
       expect(settingsErrorLabel('dmm_upstream_error'), 'DMM 暂时无法访问');
-      expect(
-        settingsErrorLabel('gfriends_upstream_error'),
-        'GFriends 暂时无法访问',
-      );
+      expect(settingsErrorLabel('gfriends_upstream_error'), 'GFriends 暂时无法访问');
       expect(
         settingsErrorLabel('translation_credentials_invalid'),
         'AI API key 无效',
@@ -156,6 +153,7 @@ void main() {
       expect(diagnostics.metadataProgress.total, 10);
       expect(diagnostics.metadataProgress.finished, 4);
       expect(diagnostics.metadataProgress.currentNumbers, const ['ABC-123']);
+      expect(diagnostics.queues.metadataPaused, isFalse);
 
       final invalid = _diagnosticsJson();
       (invalid['queues']! as Map<String, Object?>)['cache_running'] = 3;
@@ -308,6 +306,28 @@ void main() {
       expect(find.text('加载更多'), findsNothing);
     },
   );
+
+  testWidgets('diagnostics pauses and resumes metadata claims', (tester) async {
+    final gateway = _DiagnosticsGateway();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [settingsGatewayProvider.overrideWithValue(gateway)],
+        child: const MaterialApp(home: Scaffold(body: DiagnosticsPage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('暂停刮削'));
+    await tester.pumpAndSettle();
+    expect(gateway.controlRequests, <bool>[true]);
+    expect(gateway.diagnosticsCalls, 2);
+    expect(find.text('开始刮削'), findsOneWidget);
+
+    await tester.tap(find.text('开始刮削'));
+    await tester.pumpAndSettle();
+    expect(gateway.controlRequests, <bool>[true, false]);
+    expect(find.text('暂停刮削'), findsOneWidget);
+  });
 }
 
 const _qrId = '00000000-0000-4000-8000-000000000208';
@@ -478,11 +498,20 @@ class _SettingsPageGateway implements SettingsGateway {
 class _DiagnosticsGateway extends _SettingsPageGateway {
   int diagnosticsCalls = 0;
   int metadataPageCalls = 0;
+  bool paused = false;
+  final List<bool> controlRequests = <bool>[];
 
   @override
   Future<DiagnosticsDto> getDiagnostics() async {
     diagnosticsCalls++;
-    return DiagnosticsDto.fromJson(_diagnosticsJson());
+    return DiagnosticsDto.fromJson(_diagnosticsJson(paused: paused));
+  }
+
+  @override
+  Future<MetadataQueueControlDto> setMetadataPaused(bool value) async {
+    controlRequests.add(value);
+    paused = value;
+    return MetadataQueueControlDto(paused: value, queued: 1, running: 1);
   }
 
   @override
@@ -518,53 +547,55 @@ Map<String, Object?> _metadataJson() => <String, Object?>{
   'created_at': '2026-07-30T12:00:00Z',
 };
 
-Map<String, Object?> _diagnosticsJson() => <String, Object?>{
-  'generated_at': '2026-07-30T12:02:00Z',
-  'components': <Object?>[
+Map<String, Object?> _diagnosticsJson({bool paused = false}) =>
     <String, Object?>{
-      'component': 'api',
-      'status': 'healthy',
-      'error_code': null,
-      'checked_at': '2026-07-30T12:00:00Z',
-    },
-  ],
-  'queues': <String, Object?>{
-    'metadata_queued': 1,
-    'metadata_running': 1,
-    'cache_queued': 1,
-    'cache_running': 1,
-    'cache_ready': 2,
-  },
-  'metadata_progress': <String, Object?>{
-    'total': 10,
-    'queued': 5,
-    'running': 1,
-    'completed': 3,
-    'failed': 1,
-    'finished': 4,
-    'current_numbers': <Object?>['ABC-123'],
-  },
-  'recent_failures': <Object?>[
-    <String, Object?>{
-      'task_type': 'metadata',
-      'task_id': _metadataJobId,
-      'stage': 'images',
-      'error_code': 'image_failed',
-      'elapsed_ms': 250,
-      'attempt_no': 2,
-      'occurred_at': '2026-07-30T12:01:00Z',
-    },
-  ],
-  'connection_tests': <Object?>[
-    <String, Object?>{
-      'target': 'cloud115',
-      'status': 'available',
-      'error_code': null,
-      'elapsed_ms': 12,
-      'checked_at': '2026-07-30T12:00:30Z',
-    },
-  ],
-};
+      'generated_at': '2026-07-30T12:02:00Z',
+      'components': <Object?>[
+        <String, Object?>{
+          'component': 'api',
+          'status': 'healthy',
+          'error_code': null,
+          'checked_at': '2026-07-30T12:00:00Z',
+        },
+      ],
+      'queues': <String, Object?>{
+        'metadata_queued': 1,
+        'metadata_running': 1,
+        'metadata_paused': paused,
+        'cache_queued': 1,
+        'cache_running': 1,
+        'cache_ready': 2,
+      },
+      'metadata_progress': <String, Object?>{
+        'total': 10,
+        'queued': 5,
+        'running': 1,
+        'completed': 3,
+        'failed': 1,
+        'finished': 4,
+        'current_numbers': <Object?>['ABC-123'],
+      },
+      'recent_failures': <Object?>[
+        <String, Object?>{
+          'task_type': 'metadata',
+          'task_id': _metadataJobId,
+          'stage': 'images',
+          'error_code': 'image_failed',
+          'elapsed_ms': 250,
+          'attempt_no': 2,
+          'occurred_at': '2026-07-30T12:01:00Z',
+        },
+      ],
+      'connection_tests': <Object?>[
+        <String, Object?>{
+          'target': 'cloud115',
+          'status': 'available',
+          'error_code': null,
+          'elapsed_ms': 12,
+          'checked_at': '2026-07-30T12:00:30Z',
+        },
+      ],
+    };
 
 class _SettingsAdapter implements HttpClientAdapter {
   final requests = <RequestOptions>[];

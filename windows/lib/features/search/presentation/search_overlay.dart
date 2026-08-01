@@ -223,7 +223,16 @@ class _SearchResults extends StatelessWidget {
             if (result.pendingMetadata.isNotEmpty) ...[
               const _GroupHeading('元数据补全'),
               for (final pending in result.pendingMetadata)
-                _PendingMetadataTile(pending: pending),
+                _PendingMetadataTile(
+                  pending: pending,
+                  onTap:
+                      onMovieSelected == null
+                          ? null
+                          : () {
+                            Navigator.of(context).pop();
+                            onMovieSelected!(pending.movieId);
+                          },
+                ),
             ],
           ],
         ),
@@ -254,9 +263,10 @@ class _GroupHeading extends StatelessWidget {
 }
 
 class _PendingMetadataTile extends StatelessWidget {
-  const _PendingMetadataTile({required this.pending});
+  const _PendingMetadataTile({required this.pending, required this.onTap});
 
   final PendingMetadataDto pending;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -281,6 +291,7 @@ class _PendingMetadataTile extends StatelessWidget {
       ),
     };
     return ListTile(
+      onTap: onTap,
       leading: leading,
       title: Text(pending.number, maxLines: 1),
       subtitle: Text(label),

@@ -196,25 +196,30 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
-            SizedBox.square(
-              dimension: 48,
-              child: IconButton(
-                onPressed:
-                    state.isFavoriteInFlight
-                        ? null
-                        : () => unawaited(
-                          ref
-                              .read(movieDetailControllerProvider.notifier)
-                              .setFavorite(enabled: !detail.favorite),
-                        ),
-                tooltip: detail.favorite ? '取消收藏影片' : '收藏影片',
-                icon: Icon(
-                  detail.favorite ? Icons.favorite : Icons.favorite_border,
+            if (!detail.isLimited)
+              SizedBox.square(
+                dimension: 48,
+                child: IconButton(
+                  onPressed:
+                      state.isFavoriteInFlight
+                          ? null
+                          : () => unawaited(
+                            ref
+                                .read(movieDetailControllerProvider.notifier)
+                                .setFavorite(enabled: !detail.favorite),
+                          ),
+                  tooltip: detail.favorite ? '取消收藏影片' : '收藏影片',
+                  icon: Icon(
+                    detail.favorite ? Icons.favorite : Icons.favorite_border,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
+        if (detail.isLimited) ...[
+          const SizedBox(height: 8),
+          _MetadataStatus(detail: detail),
+        ],
         if (_isDistinct(detail.titleOriginal, detail.title)) ...[
           const SizedBox(height: 4),
           Text(
@@ -294,6 +299,45 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _MetadataStatus extends StatelessWidget {
+  const _MetadataStatus({required this.detail});
+
+  final MovieDetailDto detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (detail.metadataState) {
+      MovieMetadataState.coreReady => '',
+      MovieMetadataState.queued => '资料排队中',
+      MovieMetadataState.running => '正在补全资料',
+      MovieMetadataState.failed => '资料补全失败',
+    };
+    final error = switch (detail.metadataErrorCode) {
+      'javdb_movie_not_found' => 'JavDB 未找到该番号',
+      'metadata_timeout' => '元数据刮削超时',
+      null => null,
+      _ => '请在诊断页查看失败原因',
+    };
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          detail.metadataState == MovieMetadataState.failed
+              ? Icons.error_outline
+              : Icons.hourglass_top,
+          size: 18,
+          color:
+              detail.metadataState == MovieMetadataState.failed
+                  ? Theme.of(context).colorScheme.error
+                  : null,
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(error == null ? label : '$label：$error')),
       ],
     );
   }

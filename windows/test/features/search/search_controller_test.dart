@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/core/events/snapshot_controller.dart';
 import 'package:sakuraplayer_windows/features/search/data/search_api.dart';
 import 'package:sakuraplayer_windows/features/search/presentation/search_controller.dart';
+import 'package:sakuraplayer_windows/features/search/presentation/search_overlay.dart';
 
 void main() {
   test('strict DTO groups movies, actors and pending metadata', () {
@@ -16,6 +18,39 @@ void main() {
     expect(result.movies.single.number, 'ABC-123');
     expect(result.actors.single.aliases, contains('小樱'));
     expect(result.pendingMetadata.single.state, PendingMetadataState.queued);
+    expect(result.pendingMetadata.single.movieId, movieId);
+  });
+
+  testWidgets('failed pending metadata navigates with its movie id', (
+    tester,
+  ) async {
+    final selected = <String>[];
+    final gateway = _SequenceSearchGateway(<SearchResultDto>[
+      SearchResultDto.fromJson(
+        _searchJson(movie: false, pendingState: 'failed'),
+      ),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchGatewayProvider.overrideWithValue(gateway),
+          searchDebounceDurationProvider.overrideWithValue(Duration.zero),
+        ],
+        child: MaterialApp(
+          home: Scaffold(body: SearchOverlay(onMovieSelected: selected.add)),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('搜索番号、影片或女优'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'ABC-123');
+    await tester.pumpAndSettle();
+    expect(find.text('补全失败'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'ABC-123'));
+    await tester.pumpAndSettle();
+    expect(selected, <String>[movieId]);
   });
 
   test(
@@ -201,12 +236,15 @@ Map<String, Object?> _searchJson({
   'pending_metadata': <Object?>[
     if (pendingState != null)
       <String, Object?>{
+        'movie_id': movieId,
         'number': number,
         'state': pendingState,
         'metadata_job_id': '00000000-0000-4000-8000-000000000003',
       },
   ],
 };
+
+const movieId = '00000000-0000-4000-8000-000000000001';
 
 class _ControlledSearchGateway implements SearchGateway {
   final Map<String, Completer<SearchResultDto>> _requests =

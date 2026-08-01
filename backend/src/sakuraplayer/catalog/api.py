@@ -69,6 +69,8 @@ class MovieSourceOutput(BaseModel):
 
 
 class MovieDetailOutput(MovieSummaryOutput):
+    metadata_state: Literal["core_ready", "queued", "running", "failed"]
+    metadata_error_code: str | None
     release_date: date | None
     maker: str | None
     series: str | None

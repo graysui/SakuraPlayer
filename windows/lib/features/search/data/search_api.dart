@@ -11,6 +11,7 @@ enum PendingMetadataState { queued, running, failed }
 @immutable
 class PendingMetadataDto {
   const PendingMetadataDto({
+    required this.movieId,
     required this.number,
     required this.state,
     required this.metadataJobId,
@@ -24,12 +25,14 @@ class PendingMetadataDto {
       'failed',
     });
     return PendingMetadataDto(
+      movieId: reader.uuid('movie_id'),
       number: reader.nonEmptyString('number'),
       state: PendingMetadataState.values.byName(state),
       metadataJobId: reader.uuid('metadata_job_id'),
     );
   }
 
+  final String movieId;
   final String number;
   final PendingMetadataState state;
   final String metadataJobId;

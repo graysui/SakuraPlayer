@@ -202,18 +202,22 @@ class DiagnosticsState {
     required this.status,
     required this.diagnostics,
     required this.errorCode,
+    required this.controlInFlight,
   });
   const DiagnosticsState.initial()
     : status = DiagnosticsStatus.idle,
       diagnostics = null,
-      errorCode = null;
+      errorCode = null,
+      controlInFlight = false;
   final DiagnosticsStatus status;
   final DiagnosticsDto? diagnostics;
   final String? errorCode;
+  final bool controlInFlight;
   DiagnosticsState copyWith({
     DiagnosticsStatus? status,
     Object? diagnostics = _absent,
     Object? errorCode = _absent,
+    bool? controlInFlight,
   }) => DiagnosticsState(
     status: status ?? this.status,
     diagnostics:
@@ -222,6 +226,7 @@ class DiagnosticsState {
             : diagnostics as DiagnosticsDto?,
     errorCode:
         identical(errorCode, _absent) ? this.errorCode : errorCode as String?,
+    controlInFlight: controlInFlight ?? this.controlInFlight,
   );
 }
 
@@ -241,7 +246,11 @@ class DiagnosticsController extends Notifier<DiagnosticsState> {
 
   Future<void> load() async {
     final generation = ++_generation;
-    state = state.copyWith(status: DiagnosticsStatus.loading, errorCode: null);
+    state = state.copyWith(
+      status: DiagnosticsStatus.loading,
+      errorCode: null,
+      controlInFlight: false,
+    );
     try {
       final gateway = ref.read(settingsGatewayProvider);
       final diagnostics = await gateway.getDiagnostics();
@@ -258,6 +267,35 @@ class DiagnosticsController extends Notifier<DiagnosticsState> {
           errorCode: error.code,
         );
       }
+    }
+  }
+
+  Future<void> setMetadataPaused(bool paused) async {
+    if (state.status != DiagnosticsStatus.ready ||
+        state.diagnostics == null ||
+        state.controlInFlight) {
+      return;
+    }
+    final generation = _generation;
+    state = state.copyWith(controlInFlight: true, errorCode: null);
+    try {
+      final gateway = ref.read(settingsGatewayProvider);
+      await gateway.setMetadataPaused(paused);
+      final diagnostics = await gateway.getDiagnostics();
+      if (generation != _generation) return;
+      state = state.copyWith(
+        status: DiagnosticsStatus.ready,
+        diagnostics: diagnostics,
+        errorCode: null,
+        controlInFlight: false,
+      );
+    } on ApiException catch (error) {
+      if (generation != _generation) return;
+      state = state.copyWith(
+        status: DiagnosticsStatus.ready,
+        errorCode: error.code,
+        controlInFlight: false,
+      );
     }
   }
 }

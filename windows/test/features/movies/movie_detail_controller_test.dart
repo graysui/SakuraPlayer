@@ -53,6 +53,18 @@ void main() {
       expect(isValidMovieId('not-a-movie-id'), isFalse);
     });
 
+    test('accepts a failed limited detail without a stable error code', () {
+      final detail = MovieDetailDto.fromJson(
+        _detailJson()
+          ..['metadata_state'] = 'failed'
+          ..['metadata_error_code'] = null,
+      );
+
+      expect(detail.metadataState, MovieMetadataState.failed);
+      expect(detail.metadataErrorCode, isNull);
+      expect(detail.isLimited, isTrue);
+    });
+
     test(
       'uses authenticated detail, image and empty favorite requests',
       () async {
@@ -324,6 +336,8 @@ Map<String, Object?> _detailJson({
     'completed': false,
     'version': 1,
   },
+  'metadata_state': 'core_ready',
+  'metadata_error_code': null,
   'release_date': '2026-07-29',
   'maker': '测试厂商',
   'series': '测试系列',

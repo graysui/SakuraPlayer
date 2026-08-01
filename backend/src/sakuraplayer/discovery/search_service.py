@@ -28,6 +28,7 @@ class MetadataCompletionPort(Protocol):
 
 @dataclass(frozen=True)
 class PendingMetadataView:
+    movie_id: uuid.UUID
     number: str
     state: str
     metadata_job_id: uuid.UUID
@@ -63,6 +64,7 @@ class SearchService:
             else:
                 pending.append(
                     PendingMetadataView(
+                        movie_id=result.raw_candidate.movie_id,
                         number=result.raw_candidate.number,
                         state=outcome.state,
                         metadata_job_id=outcome.job_id,

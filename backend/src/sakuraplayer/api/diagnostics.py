@@ -16,7 +16,11 @@ from sakuraplayer.api.settings import (
     SettingsService,
 )
 from sakuraplayer.catalog.metadata_state import ALL_STAGES
-from sakuraplayer.catalog.models import MetadataJob, MetadataStage
+from sakuraplayer.catalog.models import (
+    MetadataJob,
+    MetadataStage,
+    MetadataWorkerControl,
+)
 from sakuraplayer.cloud_cache.capacity import capacity_snapshot
 from sakuraplayer.cloud_cache.models import CacheCleanupAttempt, CacheJob
 
@@ -51,6 +55,7 @@ class ComponentDiagnosticOutput(BaseModel):
 class QueueDiagnosticOutput(BaseModel):
     metadata_queued: int = Field(ge=0)
     metadata_running: int = Field(ge=0, le=3)
+    metadata_paused: bool
     cache_queued: int = Field(default=0, ge=0, le=10)
     cache_running: int = Field(default=0, ge=0, le=2)
     cache_ready: int = Field(default=0, ge=0)
@@ -121,6 +126,7 @@ class DiagnosticsService:
                     .limit(3)
                 )
             )
+            control = session.get(MetadataWorkerControl, True)
             failures = list(
                 session.scalars(
                     select(MetadataJob)
@@ -223,6 +229,9 @@ class DiagnosticsService:
             queues=QueueDiagnosticOutput(
                 metadata_queued=counts.get("queued", 0),
                 metadata_running=counts.get("running", 0),
+                metadata_paused=(
+                    bool(control.paused) if control is not None else False
+                ),
                 cache_queued=cache_capacity.queued,
                 cache_running=cache_capacity.running,
                 cache_ready=cache_capacity.ready,

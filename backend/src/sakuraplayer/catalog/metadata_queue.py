@@ -17,7 +17,11 @@ from sakuraplayer.catalog.metadata_state import (
     stage_plan,
     validate_enrichment_stages,
 )
-from sakuraplayer.catalog.models import MetadataJob, MetadataStage
+from sakuraplayer.catalog.models import (
+    MetadataJob,
+    MetadataStage,
+    MetadataWorkerControl,
+)
 from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.resources.models import Movie
 from sakuraplayer.shared.redaction import redact_text, stable_error_code
@@ -51,6 +55,13 @@ class EnqueueOutcome:
 class MetadataCompletionOutcome:
     job_id: uuid.UUID
     state: str
+
+
+@dataclass(frozen=True)
+class MetadataQueueControlSnapshot:
+    paused: bool
+    queued: int
+    running: int
 
 
 @dataclass(frozen=True)
@@ -366,6 +377,34 @@ class MetadataQueue:
             movie = session.get(Movie, job.movie_id)
             return retryable_enrichment_stages(session, job, movie=movie)
 
+    def control_snapshot(self) -> MetadataQueueControlSnapshot:
+        with self._session_factory() as session:
+            return self._control_snapshot_in_session(session)
+
+    def set_paused(self, paused: bool) -> MetadataQueueControlSnapshot:
+        if not isinstance(paused, bool):
+            raise ValueError("metadata paused control must be boolean")
+        current = self._utc_now()
+        with self._session_factory.begin() as session:
+            self._acquire_slot_lock(session)
+            control = session.get(
+                MetadataWorkerControl,
+                True,
+                with_for_update=True,
+            )
+            if control is None:
+                control = MetadataWorkerControl(
+                    singleton_key=True,
+                    paused=paused,
+                    updated_at=current,
+                )
+                session.add(control)
+                session.flush()
+            else:
+                control.paused = paused
+                control.updated_at = current
+            return self._control_snapshot_in_session(session)
+
     def claim_next(
         self,
         worker_id: str,
@@ -376,11 +415,10 @@ class MetadataQueue:
             raise ValueError("invalid metadata worker claim")
         current = self._utc_now()
         with self._session_factory.begin() as session:
-            if session.get_bind().dialect.name == "postgresql":
-                session.execute(
-                    text("SELECT pg_advisory_xact_lock(:lock_key)"),
-                    {"lock_key": _SLOT_LOCK_KEY},
-                )
+            self._acquire_slot_lock(session)
+            control = session.get(MetadataWorkerControl, True)
+            if control is not None and control.paused:
+                return None
             active_count = session.scalar(
                 select(func.count(MetadataJob.id)).where(
                     MetadataJob.status == "running",
@@ -989,6 +1027,33 @@ class MetadataQueue:
         job.failure_detail = failure_detail
 
     @staticmethod
+    def _acquire_slot_lock(session: Session) -> None:
+        if session.get_bind().dialect.name == "postgresql":
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                {"lock_key": _SLOT_LOCK_KEY},
+            )
+
+    @staticmethod
+    def _control_snapshot_in_session(
+        session: Session,
+    ) -> MetadataQueueControlSnapshot:
+        control = session.get(MetadataWorkerControl, True)
+        counts = {
+            status: int(count)
+            for status, count in session.execute(
+                select(MetadataJob.status, func.count(MetadataJob.id))
+                .where(MetadataJob.status.in_(("queued", "running")))
+                .group_by(MetadataJob.status)
+            )
+        }
+        return MetadataQueueControlSnapshot(
+            paused=bool(control.paused) if control is not None else False,
+            queued=counts.get("queued", 0),
+            running=counts.get("running", 0),
+        )
+
+    @staticmethod
     def _claim_lost() -> MetadataQueueProblem:
         return MetadataQueueProblem(status_code=409, code="metadata_claim_lost")
 
@@ -1078,6 +1143,7 @@ __all__ = [
     "MetadataClaim",
     "MetadataCompletionOutcome",
     "MetadataQueue",
+    "MetadataQueueControlSnapshot",
     "MetadataQueueProblem",
     "retryable_enrichment_stages",
 ]

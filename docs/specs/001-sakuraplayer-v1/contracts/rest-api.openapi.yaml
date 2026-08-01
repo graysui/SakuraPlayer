@@ -360,6 +360,7 @@ paths:
         Exact normalized movie numbers are evaluated first. A raw-only exact hit
         idempotently creates or promotes a metadata job to priority 10; running
         jobs are reused and failed jobs are reported without automatic retry.
+        Pending items include the stable movie ID and may open a limited detail.
         The limit applies independently to each result group.
       parameters:
         - name: q
@@ -1001,6 +1002,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionTest'
+  /admin/metadata-queue:
+    put:
+      tags: [Admin]
+      operationId: setMetadataQueueControl
+      description: >-
+        Pauses or resumes future metadata claims. Existing running attempts are
+        not terminated, and resume never creates or retries metadata jobs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [paused]
+              properties:
+                paused:
+                  type: boolean
+      responses:
+        '200':
+          description: Committed metadata claim control and current counts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataQueueControl'
   /admin/metadata-jobs:
     get:
       tags: [Admin]
@@ -1615,8 +1641,15 @@ components:
       allOf:
         - $ref: '#/components/schemas/MovieSummary'
         - type: object
-          required: [actors, tags, plot_image_urls, sources]
+          required: [metadata_state, metadata_error_code, actors, tags, plot_image_urls, sources]
           properties:
+            metadata_state:
+              type: string
+              enum: [core_ready, queued, running, failed]
+              description: Non-core states identify a limited pending detail.
+            metadata_error_code:
+              type: [string, 'null']
+              description: Stable redacted code; only populated for failed limited details.
             release_date:
               type: [string, 'null']
               format: date
@@ -1715,8 +1748,11 @@ components:
           maxItems: 100
           items:
             type: object
-            required: [number, state, metadata_job_id]
+            required: [movie_id, number, state, metadata_job_id]
             properties:
+              movie_id:
+                type: string
+                format: uuid
               number:
                 type: string
               state:
@@ -2318,7 +2354,7 @@ components:
           format: date-time
     QueueDiagnostic:
       type: object
-      required: [metadata_queued, metadata_running, cache_queued, cache_running, cache_ready]
+      required: [metadata_queued, metadata_running, metadata_paused, cache_queued, cache_running, cache_ready]
       properties:
         metadata_queued:
           type: integer
@@ -2327,6 +2363,8 @@ components:
           type: integer
           minimum: 0
           maximum: 3
+        metadata_paused:
+          type: boolean
         cache_queued:
           type: integer
           minimum: 0
@@ -2338,6 +2376,19 @@ components:
         cache_ready:
           type: integer
           minimum: 0
+    MetadataQueueControl:
+      type: object
+      required: [paused, queued, running]
+      properties:
+        paused:
+          type: boolean
+        queued:
+          type: integer
+          minimum: 0
+        running:
+          type: integer
+          minimum: 0
+          maximum: 3
     FailureDiagnostic:
       type: object
       required: [task_type, task_id, error_code, attempt_no, occurred_at]

@@ -126,6 +126,7 @@ def test_search_promotes_raw_candidate_and_never_retries_failed(context) -> None
         assert promoted is not None
         assert (promoted.priority, promoted.reason) == (10, "manual_or_search")
     assert pending.movies == []
+    assert pending.pending_metadata[0].movie_id == raw.id
     assert pending.pending_metadata[0].state == "queued"
 
     claim = queue.claim_next("search-worker", lease_duration=timedelta(seconds=30))
@@ -135,6 +136,7 @@ def test_search_promotes_raw_candidate_and_never_retries_failed(context) -> None
     with factory() as session:
         assert session.scalar(select(func.count(MetadataJob.id))) == 1
     assert failed.pending_metadata[0].state == "failed"
+    assert failed.pending_metadata[0].movie_id == raw.id
 
 
 def test_search_returns_all_actors_for_ambiguous_alias(context) -> None:

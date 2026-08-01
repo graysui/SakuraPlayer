@@ -428,7 +428,13 @@ class DiagnosticsDto {
         tests.map((item) => item.target).toSet().length != tests.length) {
       throw const ProtocolException('Diagnostics collections are invalid');
     }
-    final queues = QueueSnapshot.fromJson(reader.object('queues'));
+    final queuesJson = reader.object('queues');
+    if (!queuesJson.containsKey('metadata_paused')) {
+      throw const ProtocolException(
+        'Diagnostics.queues.metadata_paused is required',
+      );
+    }
+    final queues = QueueSnapshot.fromJson(queuesJson);
     final metadataProgress = MetadataProgressDto.fromJson(
       reader.object('metadata_progress'),
     );
@@ -453,6 +459,32 @@ class DiagnosticsDto {
   final MetadataProgressDto metadataProgress;
   final List<FailureDiagnosticDto> recentFailures;
   final List<ConnectionTestDto> connectionTests;
+}
+
+@immutable
+class MetadataQueueControlDto {
+  const MetadataQueueControlDto({
+    required this.paused,
+    required this.queued,
+    required this.running,
+  });
+
+  factory MetadataQueueControlDto.fromJson(Map<String, Object?> json) {
+    final reader = JsonReader(json, 'MetadataQueueControl');
+    final running = reader.nonNegativeInteger('running');
+    if (running > 3) {
+      throw const ProtocolException('MetadataQueueControl.running is invalid');
+    }
+    return MetadataQueueControlDto(
+      paused: reader.boolean('paused'),
+      queued: reader.nonNegativeInteger('queued'),
+      running: running,
+    );
+  }
+
+  final bool paused;
+  final int queued;
+  final int running;
 }
 
 @immutable
@@ -592,6 +624,7 @@ abstract interface class SettingsGateway {
   Future<SettingsDto> clearAi(int expectedVersion);
   Future<ConnectionTestDto> testConnection(String target);
   Future<DiagnosticsDto> getDiagnostics();
+  Future<MetadataQueueControlDto> setMetadataPaused(bool paused);
   Future<MetadataJobPageDto> listMetadataJobs({String? cursor});
   Future<MetadataJobDto> retryMetadataJob(String jobId);
   Future<MetadataJobDto> retryMetadataEnrichment(
@@ -735,6 +768,12 @@ class SettingsApi implements SettingsGateway {
   @override
   Future<DiagnosticsDto> getDiagnostics() =>
       _client.get('admin/diagnostics', decode: DiagnosticsDto.fromJson);
+  @override
+  Future<MetadataQueueControlDto> setMetadataPaused(bool paused) => _client.put(
+    'admin/metadata-queue',
+    data: <String, Object?>{'paused': paused},
+    decode: MetadataQueueControlDto.fromJson,
+  );
   @override
   Future<MetadataJobPageDto> listMetadataJobs({String? cursor}) => _client.get(
     'admin/metadata-jobs',

@@ -18,6 +18,7 @@ from sakuraplayer.catalog.models import (
     ActorAlias,
     CatalogImage,
     GfriendsActorAsset,
+    MetadataJob,
     MovieActor,
     MovieTag,
     Tag,
@@ -123,6 +124,8 @@ class ActorSummaryView:
 
 @dataclass(frozen=True)
 class MovieDetailView(MovieSummaryView):
+    metadata_state: str
+    metadata_error_code: str | None
     release_date: date | None
     maker: str | None
     series: str | None
@@ -370,7 +373,6 @@ class CatalogQueryService:
             movie = session.scalar(
                 select(Movie).where(
                     Movie.id == movie_id,
-                    Movie.catalog_state == "core_ready",
                     _has_active_source(Movie.id),
                 )
             )
@@ -400,20 +402,63 @@ class CatalogQueryService:
                 or 0
             )
             source_views = self._source_views(session, sources)
+            publish_date = max(
+                (source.publish_date for source in sources if source.publish_date),
+                default=None,
+            )
+            if movie.catalog_state != "core_ready":
+                job = session.scalar(
+                    select(MetadataJob)
+                    .where(
+                        MetadataJob.movie_id == movie.id,
+                        MetadataJob.status.in_(("queued", "running", "failed")),
+                    )
+                    .order_by(
+                        MetadataJob.attempt_no.desc(),
+                        MetadataJob.created_at.desc(),
+                        MetadataJob.id.desc(),
+                    )
+                    .limit(1)
+                )
+                if job is None:
+                    raise CatalogProblem(
+                        status_code=404,
+                        code="resource_not_found",
+                    )
+                return MovieDetailView(
+                    id=movie.id,
+                    number=movie.normalized_number,
+                    title=sources[0].title or movie.normalized_number,
+                    title_original=None,
+                    cover_url=None,
+                    publish_date=publish_date,
+                    labels=sorted(
+                        {label for source in source_views for label in source.labels}
+                    ),
+                    favorite=False,
+                    source_count=source_count,
+                    progress=None,
+                    metadata_state=job.status,
+                    metadata_error_code=(
+                        job.failure_code if job.status == "failed" else None
+                    ),
+                    release_date=None,
+                    maker=None,
+                    series=None,
+                    director=None,
+                    score=None,
+                    description=None,
+                    description_original=None,
+                    actors=[],
+                    tags=[],
+                    plot_image_urls=[],
+                    sources=source_views,
+                )
             favorite_ids = self._favorites.target_ids("movie")
             summary = self._movie_summaries(
                 session,
                 [movie],
-                publish_dates={
-                    movie.id: max(
-                        (
-                            source.publish_date
-                            for source in sources
-                            if source.publish_date
-                        ),
-                        default=None,
-                    )
-                },
+                publish_dates={movie.id: publish_date},
                 favorite_ids=favorite_ids,
                 source_counts={movie.id: source_count},
             )[0]
@@ -442,6 +487,8 @@ class CatalogQueryService:
             ]
             return MovieDetailView(
                 **summary.__dict__,
+                metadata_state="core_ready",
+                metadata_error_code=None,
                 release_date=movie.release_date,
                 maker=movie.maker,
                 series=movie.series,

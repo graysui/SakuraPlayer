@@ -41,12 +41,20 @@ MetadataCompletionPort.ensure_search_priority(movie_id, normalized_number, sort_
 - running：原样复用，state 为 running。
 - 最近 attempt 为 failed：不创建 attempt，state 为 failed。
 - 在目录首次读取与 attempt 加锁之间变成 core_ready 时，端口向协调器返回内部 `completed` 信号；协调器刷新正式结果，`completed` 不进入公开补全占位。
+- 公开补全占位同时返回稳定 `movie_id`；queued/running/failed 均可作为受限详情路由输入。
 
 ## 5. 目录读取
 
 发现只能通过目录查询服务读取安全 DTO。端口响应禁止磁力、上游正文、provider/translation 内部事实、claim 字段和文件系统绝对路径。所有批量端口输入和公开集合上限为 100。
 
 永久图片 DTO 使用 `/api/v1/catalog/images/{image_id}`；图片读取端点按 ID 和受管根解析文件，不把 `relative_path/source_url` 公开给客户端。
+
+### 5.1 受限待补全详情
+
+- `get_movie(movie_id)` 对 `core_ready + active source` 返回现有正式详情，并显式投影 `metadata_state=core_ready`、`metadata_error_code=null`。
+- 对非 core-ready 影片，只有存在 active identified/manual 来源且最近 attempt 为 queued/running/failed 时才返回受限详情；其他情况仍为 `resource_not_found`。
+- 受限详情只从 Movie/ResourceSource 与 availability 端口投影番号、来源标题/日期/分类/标签/大小/状态；`cover/actors/tags/plot/description/maker/series/director/score/progress` 为空，`favorite=false`。
+- failed 使用最近 attempt 的脱敏稳定 `failure_code`；queued/running 的 error 必须为 null。受限详情不改变 `list_movies`、`movie_summaries_by_ids`、排行榜或演员关联影片的 core-ready 过滤。
 
 ## 6. 收藏状态
 

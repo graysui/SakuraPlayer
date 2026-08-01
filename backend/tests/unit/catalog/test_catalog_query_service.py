@@ -3,13 +3,14 @@ from __future__ import annotations
 import base64
 import json
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.models import (
     Actor,
     ActorAlias,
@@ -251,6 +252,8 @@ def test_phase_one_ports_and_safe_aggregated_detail(catalog) -> None:
     image = service.resolve_image(image_id)
 
     assert not_playable.items == []
+    assert detail.metadata_state == "core_ready"
+    assert detail.metadata_error_code is None
     assert detail.progress is None
     assert detail.cover_url == f"/api/v1/catalog/images/{image_id}"
     assert detail.sources[0].availability == "available"
@@ -261,6 +264,50 @@ def test_phase_one_ports_and_safe_aggregated_detail(catalog) -> None:
     serialized = repr(detail)
     assert "magnet" not in serialized
     assert "sehuatang.net" not in serialized
+
+
+def test_failed_metadata_movie_has_limited_detail_but_stays_out_of_lists(
+    catalog,
+) -> None:
+    service, factory, _ = catalog
+    movie = _movie("ABP-011", state="raw_only")
+    movie.title_original = "未提交的 JavDB 原始标题"
+    movie.title_zh = "未提交的 JavDB 中文标题"
+    source = _source(
+        movie,
+        11,
+        publish_date=date(2026, 7, 25),
+        section="中文字幕",
+    )
+    with factory.begin() as session:
+        session.add_all([movie, source])
+    queue = MetadataQueue(factory, now=lambda: NOW)
+    queue.enqueue(
+        movie_id=movie.id,
+        normalized_number=movie.normalized_number,
+        sort_date=source.publish_date,
+        reason="manual_or_search",
+    )
+    claim = queue.claim_next("detail-worker", lease_duration=timedelta(seconds=30))
+    assert claim is not None
+    queue.fail(claim, code="javdb_movie_not_found", detail="redacted fixture")
+
+    detail = service.get_movie(movie.id)
+    page = service.list_movies(filters=MovieFilters(), cursor=None, limit=24)
+
+    assert detail.metadata_state == "failed"
+    assert detail.metadata_error_code == "javdb_movie_not_found"
+    assert detail.number == "ABP-011"
+    assert detail.title == source.title
+    assert detail.title_original is None
+    assert detail.favorite is False
+    assert detail.progress is None
+    assert detail.cover_url is None
+    assert detail.actors == []
+    assert detail.tags == []
+    assert [item.id for item in detail.sources] == [source.id]
+    assert "未提交的 JavDB" not in repr(detail)
+    assert page.items == []
 
 
 def test_invalid_size_range_and_escaping_image_are_rejected(catalog) -> None:
