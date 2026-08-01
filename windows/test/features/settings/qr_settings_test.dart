@@ -11,6 +11,8 @@ import 'package:sakuraplayer_windows/core/auth/session_store.dart';
 import 'package:sakuraplayer_windows/core/storage/secure_store.dart';
 import 'package:sakuraplayer_windows/features/settings/data/settings_api.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/qr_binding_controller.dart';
+import 'package:sakuraplayer_windows/features/settings/presentation/diagnostics_page.dart';
+import 'package:sakuraplayer_windows/features/settings/presentation/settings_labels.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/settings_page.dart';
 
 void main() {
@@ -54,6 +56,12 @@ void main() {
         () => SettingsDto.fromJson(_settingsJson()..['api_key'] = 'forbidden'),
         throwsA(isA<ProtocolException>()),
       );
+    });
+
+    test('maps binding, QR and unknown errors to Chinese labels', () {
+      expect(cloud115BindingStatusLabel('active'), '已绑定');
+      expect(qrStatusLabel('waiting'), '等待扫码');
+      expect(settingsErrorLabel('new_server_error'), '未知错误');
     });
 
     test('selects only server-provided optional enrichment stages', () {
@@ -136,6 +144,9 @@ void main() {
         DateTime.utc(2026, 7, 30, 12, 1),
       );
       expect(diagnostics.connectionTests.single.target, 'cloud115');
+      expect(diagnostics.metadataProgress.total, 10);
+      expect(diagnostics.metadataProgress.finished, 4);
+      expect(diagnostics.metadataProgress.currentNumbers, const ['ABC-123']);
 
       final invalid = _diagnosticsJson();
       (invalid['queues']! as Map<String, Object?>)['cache_running'] = 3;
@@ -234,6 +245,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(TabBar), findsOneWidget);
+    expect(find.text('tester · 已绑定'), findsOneWidget);
     await tester.tap(find.text('缓存'));
     await tester.pumpAndSettle();
     expect(find.text('就绪缓存上限：20'), findsOneWidget);
@@ -251,7 +263,7 @@ void main() {
     expect(find.text('secret-value'), findsNothing);
     expect(find.text('密码已配置：是'), findsOneWidget);
     expect(find.text('API key 已配置：是'), findsOneWidget);
-    expect(find.text('状态：not_configured · 无错误'), findsNWidgets(2));
+    expect(find.text('状态：未配置 · 无错误'), findsNWidgets(2));
     final cloud115Button = find.byKey(
       const ValueKey('connection-test-cloud115'),
       skipOffstage: false,
@@ -260,12 +272,33 @@ void main() {
     await tester.tap(cloud115Button);
     await tester.pumpAndSettle();
     expect(
-      find.textContaining(
-        'cloud115 · unavailable · cloud115_unavailable · 123 ms',
-      ),
+      find.textContaining('115 · 不可用 · 115 服务暂时不可用 · 123 ms'),
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'diagnostics shows aggregate metadata progress without job list',
+    (tester) async {
+      final gateway = _DiagnosticsGateway();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [settingsGatewayProvider.overrideWithValue(gateway)],
+          child: const MaterialApp(home: Scaffold(body: DiagnosticsPage())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(gateway.diagnosticsCalls, 1);
+      expect(gateway.metadataPageCalls, 0);
+      expect(find.text('元数据刮削进度'), findsOneWidget);
+      expect(find.text('已处理 4 / 10'), findsOneWidget);
+      expect(find.textContaining('ABC-123'), findsOneWidget);
+      expect(find.textContaining('排队 5'), findsNothing);
+      expect(find.textContaining('image_failed'), findsNothing);
+      expect(find.text('加载更多'), findsNothing);
+    },
+  );
 }
 
 const _qrId = '00000000-0000-4000-8000-000000000208';
@@ -282,6 +315,7 @@ Map<String, Object?> _provider({String status = 'unknown'}) =>
 
 Map<String, Object?> _sync() => <String, Object?>{
   'status': 'never',
+  'imported_count': 0,
   'release_id': null,
   'started_at': null,
   'completed_at': null,
@@ -432,6 +466,23 @@ class _SettingsPageGateway implements SettingsGateway {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+class _DiagnosticsGateway extends _SettingsPageGateway {
+  int diagnosticsCalls = 0;
+  int metadataPageCalls = 0;
+
+  @override
+  Future<DiagnosticsDto> getDiagnostics() async {
+    diagnosticsCalls++;
+    return DiagnosticsDto.fromJson(_diagnosticsJson());
+  }
+
+  @override
+  Future<MetadataJobPageDto> listMetadataJobs({String? cursor}) async {
+    metadataPageCalls++;
+    return const MetadataJobPageDto(items: [], nextCursor: null);
+  }
+}
+
 TokenPair _tokens() => TokenPair(
   accessToken: 'access-token',
   refreshToken: 'refresh-token',
@@ -474,6 +525,15 @@ Map<String, Object?> _diagnosticsJson() => <String, Object?>{
     'cache_queued': 1,
     'cache_running': 1,
     'cache_ready': 2,
+  },
+  'metadata_progress': <String, Object?>{
+    'total': 10,
+    'queued': 5,
+    'running': 1,
+    'completed': 3,
+    'failed': 1,
+    'finished': 4,
+    'current_numbers': <Object?>['ABC-123'],
   },
   'recent_failures': <Object?>[
     <String, Object?>{

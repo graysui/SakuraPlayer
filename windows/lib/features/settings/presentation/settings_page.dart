@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakuraplayer_windows/features/settings/data/settings_api.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/qr_binding_controller.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/settings_controller.dart';
+import 'package:sakuraplayer_windows/features/settings/presentation/settings_labels.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({this.onOpenDiagnostics, super.key});
@@ -129,7 +130,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        state.errorCode!,
+                        settingsErrorLabel(state.errorCode),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
                         ),
@@ -228,7 +229,7 @@ class _Cloud115Section extends ConsumerWidget {
         Text(
           binding == null
               ? '尚未读取绑定状态'
-              : '${binding.displayName ?? '未绑定账号'} · ${binding.status}',
+              : '${binding.displayName ?? '未绑定账号'} · ${cloud115BindingStatusLabel(binding.status)}',
         ),
         if (state.errorCode != null)
           Padding(
@@ -250,7 +251,7 @@ class _Cloud115Section extends ConsumerWidget {
               ),
             ),
           ),
-        if (state.status != null) Text('扫码状态：${state.status}'),
+        if (state.status != null) Text('扫码状态：${qrStatusLabel(state.status!)}'),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
@@ -375,7 +376,7 @@ class _ProviderSettings extends ConsumerWidget {
       children: [
         Text('JavDB', style: Theme.of(context).textTheme.titleLarge),
         Text(
-          '状态：${settings?.javdb.status ?? 'unknown'} · ${settings?.javdb.lastErrorCode ?? '无错误'}',
+          '状态：${settingsStatusLabel(settings?.javdb.status ?? 'unknown')} · ${settingsErrorLabel(settings?.javdb.lastErrorCode)}',
         ),
         Text('密码已配置：${settings?.javdb.passwordConfigured == true ? '是' : '否'}'),
         const SizedBox(height: 8),
@@ -426,7 +427,7 @@ class _ProviderSettings extends ConsumerWidget {
         const Divider(height: 40),
         Text('AI 翻译', style: Theme.of(context).textTheme.titleLarge),
         Text(
-          '状态：${settings?.ai.status ?? 'unknown'} · ${settings?.ai.lastErrorCode ?? '无错误'}',
+          '状态：${settingsStatusLabel(settings?.ai.status ?? 'unknown')} · ${settingsErrorLabel(settings?.ai.lastErrorCode)}',
         ),
         Text(
           'API key 已配置：${settings?.ai.apiKeyConfigured == true ? '是' : '否'}',
@@ -504,7 +505,7 @@ class _ProviderSettings extends ConsumerWidget {
             (entry) => Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(
-                '${entry.key} · ${entry.value.status} · ${entry.value.lastErrorCode ?? '无错误'}',
+                '${settingsTargetLabel(entry.key)} · ${settingsStatusLabel(entry.value.status)} · ${settingsErrorLabel(entry.value.lastErrorCode)}',
               ),
             ),
           ),
@@ -523,7 +524,7 @@ class _ProviderSettings extends ConsumerWidget {
             (result) => Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(
-                '${result.target} · ${result.status} · ${result.errorCode ?? '无错误'} · ${result.elapsedMs} ms · ${_formatTimestamp(result.checkedAt)}',
+                '${settingsTargetLabel(result.target)} · ${settingsStatusLabel(result.status)} · ${settingsErrorLabel(result.errorCode)} · ${result.elapsedMs} ms · ${_formatTimestamp(result.checkedAt)}',
               ),
             ),
           ),
@@ -549,7 +550,11 @@ class _TestButton extends ConsumerWidget {
                   .read(settingsControllerProvider.notifier)
                   .testConnection(target),
       icon: const Icon(Icons.network_check),
-      label: Text(result == null ? target : '$target · ${result.status}'),
+      label: Text(
+        result == null
+            ? settingsTargetLabel(target)
+            : '${settingsTargetLabel(target)} · ${settingsStatusLabel(result.status)}',
+      ),
     );
   }
 }
@@ -584,7 +589,9 @@ class _SyncRow extends StatelessWidget {
     child: Row(
       children: [
         Expanded(child: Text(label)),
-        Text(value?.status ?? 'unknown'),
+        Text(
+          '${settingsStatusLabel(value?.status ?? 'unknown')} · 已导入 ${value?.importedCount ?? 0} 条',
+        ),
       ],
     ),
   );
@@ -625,7 +632,7 @@ String _qrError(String code) => switch (code) {
   'cloud115_credentials_expired' => '凭据已失效，请重新扫码',
   'cloud115_unavailable' => '115 暂时不可用，请稍后重试',
   'cloud115_qr_session_not_found' => '二维码已失效，请重新扫码',
-  _ => code,
+  _ => settingsErrorLabel(code),
 };
 
 String _formatTimestamp(DateTime value) =>

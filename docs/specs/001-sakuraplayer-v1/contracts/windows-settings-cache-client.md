@@ -36,12 +36,12 @@
 - JavDB/AI 使用对象级 replace/clear CAS。replace 必须提交响应中的 `version` 作为 `expected_version` 和完整非秘密字段加新输入的 password/API key；clear 使用当前正版本。`state_conflict` 后重新加载，不自动用旧输入覆盖新版本。
 - password/API key 控件初始为空，不用占位值伪装已保存秘密；响应、页面树、错误和测试快照只显示 `password_configured/api_key_configured`。提交完成或离开页面时清空输入 controller。
 - 连接测试目标固定为 `cloud115/javdb/dmm/gfriends/ai`，同一目标在途时禁用。响应只显示 status、稳定 error code、耗时和检查时间，不展示上游正文。
-- 设置页显示 30D 增量与全量同步的 `never/running/succeeded/failed`、最近成功与下次计划；不在 TASK-208 增加手动同步入口。
+- 设置页显示 30D 增量与全量同步的中文状态、已导入总数、最近成功与下次计划；不增加手动同步入口。协议枚举保持 `never/running/succeeded/failed`，显示映射由 TASK-215 统一处理。
 
 ## 5. 诊断与元数据操作
 
 - 诊断页严格显示 component status、队列计数、最近最多 100 条失败和最多 5 条连接测试；只展示稳定 stage/error code、elapsed、attempt 和时间。worker/scheduler 的 `unknown` 原样显示，不伪造健康。
-- 元数据任务列表每页 24 项并保持服务端顺序。完整 retry 只对 `failed` 显示，调用 `/retry`；`completed_with_warnings` 或当前 attempt 已提交核心的失败任务，只从服务端 `retryable_stages` 中选择可选阶段。
+- Windows 主诊断视图不再请求元数据任务分页，只消费 `metadata_progress`，显示总体进度、完成/总数和最多 3 个当前 running 番号；不得展示元数据队列明细或逐条铺开全部番号。既有逐任务分页和 retry API 继续作为兼容管理接口保留。
 - 富化阶段固定为 `images/dmm/actor_map/gfriends/translation`，永不显示 `javdb_core`。默认不选择 `translation`；仅当服务端把它列入 `retryable_stages` 且管理员显式勾选时发送。提交空集合、重复阶段或客户端自行推导的阶段均禁止。
 - `metadata_job_no_retryable_enrichment`、`metadata_job_already_active` 与普通失败保留任务状态并允许刷新。任何重试成功都只显示新 queued attempt，不改写旧 attempt。
 
@@ -56,4 +56,4 @@
 
 - DTO/API：五组端点、13 个 cache 状态、Provider `not_configured`、集合/范围/重复、严格秘密响应、CAS payload、UUID 路径和 202/201/200/204 响应。
 - Controller：QR 轮询串行/停止/释放、expired/unavailable 区分、generation、分页、snapshot 刷新、操作在途、TTL/CAS、连接测试、完整/富化 retry。
-- Widget/Route：宽窄布局、QR 内存图片、容量与任务动作、取消/解绑确认、active lease、只读常量、秘密不回显、同步/诊断 unknown、阶段选择、设置与诊断 route。
+- Widget/Route：宽窄布局、QR 内存图片、容量与任务动作、取消/解绑确认、active lease、只读常量、秘密不回显、同步/诊断中文状态、元数据聚合进度与当前番号、设置与诊断 route。

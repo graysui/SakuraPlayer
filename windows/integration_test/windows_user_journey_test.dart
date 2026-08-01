@@ -829,6 +829,15 @@ class _FakeSettingsGateway implements SettingsGateway {
       cacheRunning: 0,
       cacheReady: 1,
     ),
+    metadataProgress: const MetadataProgressDto(
+      total: 0,
+      queued: 0,
+      running: 0,
+      completed: 0,
+      failed: 0,
+      finished: 0,
+      currentNumbers: <String>[],
+    ),
     recentFailures: const <FailureDiagnosticDto>[],
     connectionTests: const <ConnectionTestDto>[],
   );

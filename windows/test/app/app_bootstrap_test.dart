@@ -529,6 +529,15 @@ class _RouteSettingsGateway implements SettingsGateway {
       cacheRunning: 0,
       cacheReady: 0,
     ),
+    metadataProgress: const MetadataProgressDto(
+      total: 0,
+      queued: 0,
+      running: 0,
+      completed: 0,
+      failed: 0,
+      finished: 0,
+      currentNumbers: <String>[],
+    ),
     recentFailures: const <FailureDiagnosticDto>[],
     connectionTests: const <ConnectionTestDto>[],
   );

@@ -62,8 +62,8 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 - **AC-018 `[IMP]`**: 后端可发现 AVdb GitHub Release，按 [TASK-213 AVdb 资产名兼容边界](changes/2026-07-31--task-213-avdb-asset-name-compatibility.md) 识别冻结的紧凑或带连字符时间戳资产名，按 [TASK-213 AVdb manifest 兼容边界](changes/2026-07-31--task-213-avdb-manifest-compatibility.md) 严格验证旧版或官方现行公开信封声明，并按文档规定的 PBKDF2-HMAC-SHA256 与 AES-256-GCM 流程下载和解密资源包。
 - **AC-019 `[IMP]`**: 后端使用一个主源和一个备用源；切换来源时必须校验资产 SHA-256 后才能导入。
-- **AC-020 `[IMP]`**: 每天 03:00（Asia/Shanghai）幂等导入 30D 增量包。
-- **AC-021 `[IMP]`**: 每周日 04:00（Asia/Shanghai）读取全量包做插入与更新对账。
+- **AC-020 `[IMP]`**: 首次部署先幂等排入一次全量基线；基线事实建立后每天 03:00（Asia/Shanghai）幂等导入 30D 增量包。首次与周期边界由 [TASK-215 首次同步与聚合进度体验](changes/2026-08-01--task-215-runtime-progress-ux.md) 冻结。
+- **AC-021 `[IMP]`**: 每周日 04:00（Asia/Shanghai）读取全量包做插入与更新对账；首次全量不得因 scheduler 重启重复排入。
 - **AC-022 `[IMP]`**: 全量包中缺失的既有资源不得自动删除、失效或禁止提交。
 - **AC-023 `[SEF]`**: 同一 Release 或同一资源重复执行不会产生重复记录。
 - **AC-024 `[IMP]`**: 同步游标、Release 标识、资产摘要、开始时间、完成时间和失败原因必须持久化。
@@ -232,9 +232,9 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-022 管理员设置与诊断
 
-- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
+- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；同步状态同时显示持久统计中的已导入总数；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
-- **AC-121 `[IMP]`**: 诊断页显示脱敏后的元数据/缓存任务阶段、稳定错误码、耗时、尝试次数和连接测试结果；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
+- **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、连接测试和元数据总体进度；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
 - **AC-122 `[IMP]`**: 管理员可查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 冻结。
 
 ## 11. 部署、可靠性与验收

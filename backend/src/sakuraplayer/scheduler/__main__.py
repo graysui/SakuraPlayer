@@ -37,7 +37,9 @@ def build_scheduler(
     credentials_configured: Callable[[], bool] | None = None,
 ) -> BackgroundScheduler:
     scheduler = BackgroundScheduler(timezone=SHANGHAI_TIMEZONE)
-    register_avdb_jobs(scheduler, AvdbSyncQueue(session_factory).enqueue)
+    avdb_queue = AvdbSyncQueue(session_factory)
+    avdb_queue.ensure_initial_full()
+    register_avdb_jobs(scheduler, avdb_queue.enqueue)
     event_log = EventLog(session_factory)
     notifications = NotificationService(
         session_factory,

@@ -22,7 +22,7 @@ from sakuraplayer.identity.crypto import (
 from sakuraplayer.identity.models import Base, EncryptedSetting
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
-from sakuraplayer.resources.models import Movie
+from sakuraplayer.resources.models import AvdbSyncRun, Movie
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=timezone.utc)
 BOOTSTRAP_TOKEN = b"bootstrap-token-with-at-least-32-bytes"
@@ -82,6 +82,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             assert defaults["javdb"]["version"] == 0
             assert defaults["ai"]["version"] == 0
             assert defaults["providers"]["cloud115"]["configured"] is False
+            assert defaults["avdb_sync"]["full_reconcile"]["imported_count"] == 0
 
             response = client.patch(
                 "/api/v1/settings",
@@ -188,6 +189,27 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             with factory.begin() as session:
                 session.add_all(
                     [
+                        AvdbSyncRun(
+                            id=uuid.uuid4(),
+                            mode="full_reconcile",
+                            repository="fixture/repository",
+                            release_id="fixture-release",
+                            status="completed",
+                            cursor={},
+                            started_at=NOW,
+                            completed_at=NOW,
+                            failure_code=None,
+                            failure_detail=None,
+                            stats={
+                                "inserted": 120,
+                                "updated": 7,
+                                "skipped": 3,
+                                "pending": 4,
+                            },
+                            claim_token=None,
+                            claim_expires_at=None,
+                            attempt_count=1,
+                        ),
                         failed_movie,
                         failed_job,
                         MetadataStage(
@@ -228,7 +250,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             assert components["postgres"]["status"] == "healthy"
             assert components["worker"]["status"] == "unknown"
             assert components["scheduler"]["status"] == "unknown"
-            assert components["avdb"]["status"] == "unknown"
+            assert components["avdb"]["status"] == "healthy"
             assert "actor_mapping" not in components
             assert len(diagnostics.json()["connection_tests"]) == 3
             assert diagnostics.json()["queues"] == {
@@ -238,6 +260,17 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
                 "cache_running": 0,
                 "cache_ready": 0,
             }
+            assert diagnostics.json()["metadata_progress"] == {
+                "total": 1,
+                "queued": 0,
+                "running": 0,
+                "completed": 0,
+                "failed": 1,
+                "finished": 1,
+                "current_numbers": [],
+            }
+            sync = client.get("/api/v1/settings", headers=headers).json()["avdb_sync"]
+            assert sync["full_reconcile"]["imported_count"] == 127
             recent_failures = diagnostics.json()["recent_failures"]
             assert {item["task_type"] for item in recent_failures} == {
                 "metadata",

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/settings/data/settings_api.dart';
 import 'package:sakuraplayer_windows/features/settings/presentation/settings_controller.dart';
+import 'package:sakuraplayer_windows/features/settings/presentation/settings_labels.dart';
 
 class DiagnosticsPage extends ConsumerStatefulWidget {
   const DiagnosticsPage({this.onBack, super.key});
   final VoidCallback? onBack;
+
   @override
   ConsumerState<DiagnosticsPage> createState() => _DiagnosticsPageState();
 }
@@ -69,56 +70,8 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
                   )
                 else if (state.status == DiagnosticsStatus.failed)
                   _Message(code: state.errorCode)
-                else if (state.diagnostics != null) ...[
-                  Text('生成时间：${_formatTime(state.diagnostics!.generatedAt)}'),
-                  const SizedBox(height: 8),
-                  _Components(diagnostics: state.diagnostics!),
-                  const SizedBox(height: 24),
-                  Text('连接测试', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (state.diagnostics!.connectionTests.isEmpty)
-                    const Text('暂无连接测试')
-                  else
-                    ...state.diagnostics!.connectionTests.map(
-                      (item) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text('${item.target} · ${item.status}'),
-                        subtitle: Text(
-                          '${item.elapsedMs} ms · ${item.errorCode ?? '无错误'} · ${_formatTime(item.checkedAt)}',
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  Text('最近失败', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (state.diagnostics!.recentFailures.isEmpty)
-                    const Text('暂无失败记录')
-                  else
-                    ...state.diagnostics!.recentFailures.map(
-                      (item) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.error_outline),
-                        title: Text('${item.taskType} · ${item.errorCode}'),
-                        subtitle: Text(
-                          '${item.stage ?? '无阶段'} · 第 ${item.attemptNo} 次 · ${item.elapsedMs == null ? '耗时未知' : '${item.elapsedMs} ms'} · ${_formatTime(item.occurredAt)}',
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  Text('元数据任务', style: Theme.of(context).textTheme.titleMedium),
-                  ...state.jobs.map((job) => _MetadataRow(job: job)),
-                  if (state.nextCursor != null)
-                    OutlinedButton.icon(
-                      onPressed:
-                          state.isAppending
-                              ? null
-                              : ref
-                                  .read(diagnosticsControllerProvider.notifier)
-                                  .loadMore,
-                      icon: const Icon(Icons.expand_more),
-                      label: const Text('加载更多'),
-                    ),
-                ],
+                else if (state.diagnostics != null)
+                  ..._content(context, state.diagnostics!),
               ],
             ),
           ),
@@ -126,11 +79,83 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
       },
     );
   }
+
+  List<Widget> _content(BuildContext context, DiagnosticsDto diagnostics) {
+    final cacheFailures = diagnostics.recentFailures
+        .where((item) => item.taskType == 'cache')
+        .toList(growable: false);
+    return [
+      Text('生成时间：${_formatTime(diagnostics.generatedAt)}'),
+      const SizedBox(height: 8),
+      _Components(diagnostics: diagnostics),
+      const SizedBox(height: 24),
+      _MetadataProgress(progress: diagnostics.metadataProgress),
+      const SizedBox(height: 24),
+      Text('连接测试', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 8),
+      if (diagnostics.connectionTests.isEmpty)
+        const Text('暂无连接测试')
+      else
+        ...diagnostics.connectionTests.map(
+          (item) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              '${settingsTargetLabel(item.target)} · ${settingsStatusLabel(item.status)}',
+            ),
+            subtitle: Text(
+              '${item.elapsedMs} ms · ${settingsErrorLabel(item.errorCode)} · ${_formatTime(item.checkedAt)}',
+            ),
+          ),
+        ),
+      const SizedBox(height: 24),
+      Text('缓存最近失败', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 8),
+      if (cacheFailures.isEmpty)
+        const Text('暂无失败记录')
+      else
+        ...cacheFailures.map(
+          (item) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.error_outline),
+            title: Text('缓存 · ${settingsErrorLabel(item.errorCode)}'),
+            subtitle: Text(
+              '${metadataStageLabel(item.stage)} · 第 ${item.attemptNo} 次 · ${item.elapsedMs == null ? '耗时未知' : '${item.elapsedMs} ms'} · ${_formatTime(item.occurredAt)}',
+            ),
+          ),
+        ),
+    ];
+  }
+}
+
+class _MetadataProgress extends StatelessWidget {
+  const _MetadataProgress({required this.progress});
+  final MetadataProgressDto progress;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('元数据刮削进度', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 12),
+      LinearProgressIndicator(value: progress.fraction, minHeight: 8),
+      const SizedBox(height: 8),
+      Text('已处理 ${progress.finished} / ${progress.total}'),
+      const SizedBox(height: 8),
+      Text(
+        progress.currentNumbers.isEmpty
+            ? '当前刮削番号：暂无'
+            : '当前刮削番号：${progress.currentNumbers.join('、')}',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ],
+  );
 }
 
 class _Components extends StatelessWidget {
   const _Components({required this.diagnostics});
   final DiagnosticsDto diagnostics;
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,7 +169,7 @@ class _Components extends StatelessWidget {
             diagnostics.components
                 .map(
                   (item) => SizedBox(
-                    width: 210,
+                    width: 240,
                     child: Row(
                       children: [
                         Icon(
@@ -156,7 +181,7 @@ class _Components extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '${item.component} · ${item.status} · ${item.errorCode ?? '无错误'} · ${_formatTime(item.checkedAt)}',
+                            '${settingsTargetLabel(item.component)} · ${settingsStatusLabel(item.status)} · ${settingsErrorLabel(item.errorCode)}',
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -168,149 +193,7 @@ class _Components extends StatelessWidget {
       ),
       const SizedBox(height: 16),
       Text(
-        '队列：元数据 ${diagnostics.queues.metadataQueued} / ${diagnostics.queues.metadataRunning}，缓存 ${diagnostics.queues.cacheQueued} / ${diagnostics.queues.cacheRunning} / ${diagnostics.queues.cacheReady}',
-      ),
-    ],
-  );
-}
-
-class _MetadataRow extends ConsumerWidget {
-  const _MetadataRow({required this.job});
-  final MetadataJobDto job;
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final busy = ref
-        .watch(diagnosticsControllerProvider)
-        .inFlightIds
-        .contains(job.id);
-    final coreSucceeded = job.stages.any(
-      (stage) => stage.stage == 'javdb_core' && stage.status == 'succeeded',
-    );
-    final canFull = job.status == 'failed' && !coreSucceeded;
-    final retryable = job.retryableStages
-        .where(enrichmentStages.contains)
-        .toList(growable: false);
-    return Container(
-      constraints: const BoxConstraints(minHeight: 96),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(job.number, maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(
-                  '${job.status} · ${job.stage ?? '无阶段'} · 第 ${job.attemptNo} 次',
-                  maxLines: 2,
-                ),
-                if (job.errorCode != null)
-                  Text(
-                    job.errorCode!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          if (busy)
-            const SizedBox.square(
-              dimension: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else if (canFull)
-            IconButton(
-              onPressed:
-                  () => ref
-                      .read(diagnosticsControllerProvider.notifier)
-                      .retryFull(job.id),
-              tooltip: '完整重试',
-              icon: const Icon(Icons.replay),
-            )
-          else if (retryable.isNotEmpty)
-            IconButton(
-              onPressed: () => _chooseStages(context, ref, job, retryable),
-              tooltip: '重试富化阶段',
-              icon: const Icon(Icons.tune),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-Future<void> _chooseStages(
-  BuildContext context,
-  WidgetRef ref,
-  MetadataJobDto job,
-  List<String> retryable,
-) async {
-  final selected = defaultEnrichmentSelection(retryable);
-  final result = await showDialog<List<String>>(
-    context: context,
-    builder: (context) => _StageDialog(retryable: retryable, initial: selected),
-  );
-  if (result != null && result.isNotEmpty) {
-    await ref
-        .read(diagnosticsControllerProvider.notifier)
-        .retryEnrichment(job.id, result);
-  }
-}
-
-class _StageDialog extends StatefulWidget {
-  const _StageDialog({required this.retryable, required this.initial});
-  final List<String> retryable;
-  final Set<String> initial;
-  @override
-  State<_StageDialog> createState() => _StageDialogState();
-}
-
-class _StageDialogState extends State<_StageDialog> {
-  late final selected = {...widget.initial};
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('选择富化阶段'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children:
-          widget.retryable
-              .map(
-                (stage) => CheckboxListTile(
-                  value: selected.contains(stage),
-                  title: Text(stage),
-                  onChanged:
-                      (value) => setState(() {
-                        if (value ?? false) {
-                          selected.add(stage);
-                        } else {
-                          selected.remove(stage);
-                        }
-                      }),
-                ),
-              )
-              .toList(),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('取消'),
-      ),
-      FilledButton(
-        onPressed:
-            selected.isEmpty
-                ? null
-                : () => Navigator.pop(context, selected.toList()),
-        child: const Text('重试'),
+        '缓存队列：排队 ${diagnostics.queues.cacheQueued} · 运行 ${diagnostics.queues.cacheRunning} · 就绪 ${diagnostics.queues.cacheReady}',
       ),
     ],
   );
@@ -319,11 +202,12 @@ class _StageDialogState extends State<_StageDialog> {
 class _Message extends StatelessWidget {
   const _Message({required this.code});
   final String? code;
+
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
-      child: Text(code ?? '诊断加载失败'),
+      child: Text(code == null ? '诊断加载失败' : settingsErrorLabel(code)),
     ),
   );
 }

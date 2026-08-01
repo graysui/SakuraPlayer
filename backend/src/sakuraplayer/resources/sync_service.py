@@ -159,6 +159,22 @@ class AvdbSyncQueue:
                 return EnqueueOutcome(existing.id, created=False)
         return EnqueueOutcome(request_id, created=True)
 
+    def ensure_initial_full(self) -> EnqueueOutcome | None:
+        with self._session_factory() as session:
+            existing_request = session.scalar(
+                select(AvdbSyncRequest.id)
+                .where(AvdbSyncRequest.mode == "full_reconcile")
+                .limit(1)
+            )
+            existing_run = session.scalar(
+                select(AvdbSyncRun.id)
+                .where(AvdbSyncRun.mode == "full_reconcile")
+                .limit(1)
+            )
+        if existing_request is not None or existing_run is not None:
+            return None
+        return self.enqueue("full_reconcile")
+
     def claim_next(
         self,
         worker_id: str,

@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.models import ProviderSnapshotRequest
 from sakuraplayer.cloud_cache.models import Notification
-from sakuraplayer.resources.models import AvdbSyncRequest, Base
+from sakuraplayer.resources.models import AvdbSyncRequest, AvdbSyncRun, Base
 from sakuraplayer.resources.sync_service import AvdbSyncQueue
 from sakuraplayer.scheduler.__main__ import build_scheduler
 from sakuraplayer.scheduler.events import register_event_prune_job
@@ -66,6 +66,45 @@ def test_database_queue_coalesces_duplicate_scheduler_slot() -> None:
             tzinfo=timezone.utc,
         ).replace(tzinfo=None)
         assert requests[0].status == "queued"
+    engine.dispose()
+
+
+def test_initial_full_is_enqueued_once_and_never_recreated_after_a_run() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    current = datetime(2026, 7, 25, 19, 0, 30, tzinfo=timezone.utc)
+    queue = AvdbSyncQueue(factory, now=lambda: current)
+
+    first = queue.ensure_initial_full()
+    repeated = queue.ensure_initial_full()
+
+    assert first is not None and first.created is True
+    assert repeated is None
+    with factory.begin() as session:
+        request = session.scalar(select(AvdbSyncRequest))
+        assert request is not None
+        session.delete(request)
+        session.add(
+            AvdbSyncRun(
+                id=uuid.uuid4(),
+                mode="full_reconcile",
+                repository="fixture/repository",
+                release_id="fixture-release",
+                status="failed",
+                cursor={},
+                started_at=current,
+                completed_at=current,
+                failure_code="service_unavailable",
+                failure_detail="service_unavailable",
+                stats={"inserted": 0, "updated": 0, "skipped": 0, "pending": 0},
+                claim_token=None,
+                claim_expires_at=None,
+                attempt_count=1,
+            )
+        )
+
+    assert queue.ensure_initial_full() is None
     engine.dispose()
 
 
@@ -180,6 +219,12 @@ def test_scheduler_main_build_registers_persistent_provider_snapshot_job() -> No
         )
     jobs["domain_events_daily_prune"].func()
     with factory() as session:
+        initial_full = list(
+            session.scalars(
+                select(AvdbSyncRequest).where(AvdbSyncRequest.mode == "full_reconcile")
+            )
+        )
+        assert len(initial_full) == 1
         requests = list(session.scalars(select(ProviderSnapshotRequest)))
         assert len(requests) == 1
         assert requests[0].status == "queued"

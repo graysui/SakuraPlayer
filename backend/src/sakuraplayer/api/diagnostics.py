@@ -66,10 +66,21 @@ class FailureDiagnosticOutput(BaseModel):
     occurred_at: datetime
 
 
+class MetadataProgressOutput(BaseModel):
+    total: int = Field(ge=0)
+    queued: int = Field(ge=0)
+    running: int = Field(ge=0, le=3)
+    completed: int = Field(ge=0)
+    failed: int = Field(ge=0)
+    finished: int = Field(ge=0)
+    current_numbers: list[str] = Field(max_length=3)
+
+
 class DiagnosticsOutput(BaseModel):
     generated_at: datetime
     components: list[ComponentDiagnosticOutput]
     queues: QueueDiagnosticOutput
+    metadata_progress: MetadataProgressOutput
     recent_failures: list[FailureDiagnosticOutput]
     connection_tests: list[ConnectionTestOutput]
 
@@ -98,6 +109,18 @@ class DiagnosticsService:
                     )
                 )
             }
+            current_numbers = list(
+                session.scalars(
+                    select(MetadataJob.normalized_number)
+                    .where(MetadataJob.status == "running")
+                    .order_by(
+                        MetadataJob.priority.desc(),
+                        MetadataJob.started_at,
+                        MetadataJob.id,
+                    )
+                    .limit(3)
+                )
+            )
             failures = list(
                 session.scalars(
                     select(MetadataJob)
@@ -204,6 +227,7 @@ class DiagnosticsService:
                 cache_running=cache_capacity.running,
                 cache_ready=cache_capacity.ready,
             ),
+            metadata_progress=_metadata_progress(counts, current_numbers),
             recent_failures=sorted(
                 [self._failure_output(job, stages_by_job[job.id]) for job in failures]
                 + [
@@ -335,6 +359,25 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _metadata_progress(
+    counts: dict[str, int],
+    current_numbers: list[str],
+) -> MetadataProgressOutput:
+    queued = counts.get("queued", 0)
+    running = counts.get("running", 0)
+    completed = counts.get("completed", 0) + counts.get("completed_with_warnings", 0)
+    failed = counts.get("failed", 0)
+    return MetadataProgressOutput(
+        total=queued + running + completed + failed,
+        queued=queued,
+        running=running,
+        completed=completed,
+        failed=failed,
+        finished=completed + failed,
+        current_numbers=current_numbers,
+    )
 
 
 __all__ = ["DiagnosticsOutput", "DiagnosticsService", "create_diagnostics_api"]

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakuraplayer_windows/core/api/api_client.dart';
-import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 import 'package:sakuraplayer_windows/features/settings/data/settings_api.dart';
 
@@ -202,50 +201,27 @@ class DiagnosticsState {
   const DiagnosticsState({
     required this.status,
     required this.diagnostics,
-    required this.jobs,
-    required this.nextCursor,
     required this.errorCode,
-    required this.isAppending,
-    required this.inFlightIds,
   });
   const DiagnosticsState.initial()
     : status = DiagnosticsStatus.idle,
       diagnostics = null,
-      jobs = const [],
-      nextCursor = null,
-      errorCode = null,
-      isAppending = false,
-      inFlightIds = const {};
+      errorCode = null;
   final DiagnosticsStatus status;
   final DiagnosticsDto? diagnostics;
-  final List<MetadataJobDto> jobs;
-  final String? nextCursor;
   final String? errorCode;
-  final bool isAppending;
-  final Set<String> inFlightIds;
   DiagnosticsState copyWith({
     DiagnosticsStatus? status,
     Object? diagnostics = _absent,
-    List<MetadataJobDto>? jobs,
-    Object? nextCursor = _absent,
     Object? errorCode = _absent,
-    bool? isAppending,
-    Set<String>? inFlightIds,
   }) => DiagnosticsState(
     status: status ?? this.status,
     diagnostics:
         identical(diagnostics, _absent)
             ? this.diagnostics
             : diagnostics as DiagnosticsDto?,
-    jobs: jobs ?? this.jobs,
-    nextCursor:
-        identical(nextCursor, _absent)
-            ? this.nextCursor
-            : nextCursor as String?,
     errorCode:
         identical(errorCode, _absent) ? this.errorCode : errorCode as String?,
-    isAppending: isAppending ?? this.isAppending,
-    inFlightIds: inFlightIds ?? this.inFlightIds,
   );
 }
 
@@ -265,25 +241,14 @@ class DiagnosticsController extends Notifier<DiagnosticsState> {
 
   Future<void> load() async {
     final generation = ++_generation;
-    state = state.copyWith(
-      status: DiagnosticsStatus.loading,
-      jobs: const [],
-      nextCursor: null,
-      errorCode: null,
-    );
+    state = state.copyWith(status: DiagnosticsStatus.loading, errorCode: null);
     try {
       final gateway = ref.read(settingsGatewayProvider);
-      final results = await Future.wait<Object>([
-        gateway.getDiagnostics(),
-        gateway.listMetadataJobs(),
-      ]);
+      final diagnostics = await gateway.getDiagnostics();
       if (generation != _generation) return;
-      final page = results[1] as MetadataJobPageDto;
       state = state.copyWith(
         status: DiagnosticsStatus.ready,
-        diagnostics: results[0] as DiagnosticsDto,
-        jobs: page.items,
-        nextCursor: page.nextCursor,
+        diagnostics: diagnostics,
         errorCode: null,
       );
     } on ApiException catch (error) {
@@ -293,103 +258,6 @@ class DiagnosticsController extends Notifier<DiagnosticsState> {
           errorCode: error.code,
         );
       }
-    }
-  }
-
-  Future<void> loadMore() async {
-    final cursor = state.nextCursor;
-    if (state.status != DiagnosticsStatus.ready ||
-        cursor == null ||
-        state.isAppending) {
-      return;
-    }
-    final generation = _generation;
-    state = state.copyWith(isAppending: true);
-    try {
-      final page = await ref
-          .read(settingsGatewayProvider)
-          .listMetadataJobs(cursor: cursor);
-      if (generation != _generation) return;
-      final byId = <String, MetadataJobDto>{
-        for (final item in state.jobs) item.id: item,
-      };
-      for (final item in page.items) {
-        byId[item.id] = item;
-      }
-      state = state.copyWith(
-        jobs: List.unmodifiable(byId.values),
-        nextCursor: page.nextCursor,
-        isAppending: false,
-      );
-    } on ApiException catch (error) {
-      if (generation == _generation) {
-        state = state.copyWith(isAppending: false, errorCode: error.code);
-      }
-    }
-  }
-
-  Future<void> retryFull(String jobId) {
-    MetadataJobDto? job;
-    for (final item in state.jobs) {
-      if (item.id == jobId) {
-        job = item;
-        break;
-      }
-    }
-    final coreSucceeded =
-        job?.stages.any(
-          (stage) => stage.stage == 'javdb_core' && stage.status == 'succeeded',
-        ) ??
-        false;
-    if (job == null || job.status != 'failed' || coreSucceeded) {
-      return Future<void>.value();
-    }
-    return _retry(
-      jobId,
-      () => ref.read(settingsGatewayProvider).retryMetadataJob(jobId),
-    );
-  }
-
-  Future<void> retryEnrichment(String jobId, List<String> stages) {
-    MetadataJobDto? job;
-    for (final item in state.jobs) {
-      if (item.id == jobId) {
-        job = item;
-        break;
-      }
-    }
-    if (job == null) return Future.value();
-    return _retry(
-      jobId,
-      () => ref
-          .read(settingsGatewayProvider)
-          .retryMetadataEnrichment(jobId, stages, job!.retryableStages),
-    );
-  }
-
-  Future<void> _retry(
-    String jobId,
-    Future<MetadataJobDto> Function() operation,
-  ) async {
-    if (state.inFlightIds.contains(jobId)) return;
-    final generation = _generation;
-    state = state.copyWith(
-      inFlightIds: {...state.inFlightIds, jobId},
-      errorCode: null,
-    );
-    try {
-      final created = await operation();
-      if (generation != _generation) return;
-      state = state.copyWith(
-        jobs: [created, ...state.jobs],
-        inFlightIds: {...state.inFlightIds}..remove(jobId),
-      );
-    } on ApiException catch (error) {
-      if (generation != _generation) return;
-      state = state.copyWith(
-        inFlightIds: {...state.inFlightIds}..remove(jobId),
-        errorCode: error.code,
-      );
     }
   }
 }

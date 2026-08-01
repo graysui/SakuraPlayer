@@ -112,6 +112,7 @@ class AiSettingsOutput(ProviderStateOutput):
 
 class SyncRunStateOutput(BaseModel):
     status: SyncStatus
+    imported_count: int = Field(ge=0)
     release_id: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -480,6 +481,7 @@ class SettingsService:
         if latest is None:
             return SyncRunStateOutput(
                 status="never",
+                imported_count=0,
                 last_successful_at=_as_utc_optional(last_success),
                 next_scheduled_at=_as_utc_optional(next_request),
             )
@@ -490,6 +492,7 @@ class SettingsService:
         }
         return SyncRunStateOutput(
             status=status_projection[latest.status],
+            imported_count=_imported_count(latest.stats),
             release_id=latest.release_id,
             started_at=_as_utc(latest.started_at),
             completed_at=_as_utc_optional(latest.completed_at),
@@ -552,6 +555,16 @@ def _as_utc(value: datetime) -> datetime:
 
 def _as_utc_optional(value: datetime | None) -> datetime | None:
     return _as_utc(value) if value is not None else None
+
+
+def _imported_count(stats: object) -> int:
+    if not isinstance(stats, dict):
+        return 0
+    values = []
+    for key in ("inserted", "updated"):
+        value = stats.get(key, 0)
+        values.append(value if isinstance(value, int) and value >= 0 else 0)
+    return sum(values)
 
 
 __all__ = [

@@ -2148,11 +2148,14 @@ components:
               minimum: 0
     SyncRunState:
       type: object
-      required: [status]
+      required: [status, imported_count]
       properties:
         status:
           type: string
           enum: [never, running, succeeded, failed]
+        imported_count:
+          type: integer
+          minimum: 0
         release_id:
           type: [string, 'null']
         started_at:
@@ -2358,9 +2361,39 @@ components:
         occurred_at:
           type: string
           format: date-time
+    MetadataProgress:
+      type: object
+      required: [total, queued, running, completed, failed, finished, current_numbers]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        queued:
+          type: integer
+          minimum: 0
+        running:
+          type: integer
+          minimum: 0
+          maximum: 3
+        completed:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        finished:
+          type: integer
+          minimum: 0
+        current_numbers:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
     Diagnostics:
       type: object
-      required: [generated_at, components, queues, recent_failures, connection_tests]
+      required: [generated_at, components, queues, metadata_progress, recent_failures, connection_tests]
       properties:
         generated_at:
           type: string
@@ -2372,6 +2405,8 @@ components:
             $ref: '#/components/schemas/ComponentDiagnostic'
         queues:
           $ref: '#/components/schemas/QueueDiagnostic'
+        metadata_progress:
+          $ref: '#/components/schemas/MetadataProgress'
         recent_failures:
           type: array
           maxItems: 100

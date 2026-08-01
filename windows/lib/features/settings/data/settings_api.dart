@@ -183,6 +183,7 @@ class AiSettingsDto extends ProviderStateDto {
 class SyncRunStateDto {
   const SyncRunStateDto({
     required this.status,
+    this.importedCount = 0,
     required this.lastSuccessfulAt,
     required this.nextScheduledAt,
     required this.lastErrorCode,
@@ -197,6 +198,7 @@ class SyncRunStateDto {
         'succeeded',
         'failed',
       }),
+      importedCount: reader.nonNegativeInteger('imported_count'),
       lastSuccessfulAt: reader.nullableDateTime('last_successful_at'),
       nextScheduledAt: reader.nullableDateTime('next_scheduled_at'),
       lastErrorCode: reader.nullableString('last_error_code'),
@@ -204,6 +206,7 @@ class SyncRunStateDto {
   }
 
   final String status;
+  final int importedCount;
   final DateTime? lastSuccessfulAt;
   final DateTime? nextScheduledAt;
   final String? lastErrorCode;
@@ -397,6 +400,7 @@ class DiagnosticsDto {
     required this.generatedAt,
     required this.components,
     required this.queues,
+    required this.metadataProgress,
     required this.recentFailures,
     required this.connectionTests,
   });
@@ -425,6 +429,9 @@ class DiagnosticsDto {
       throw const ProtocolException('Diagnostics collections are invalid');
     }
     final queues = QueueSnapshot.fromJson(reader.object('queues'));
+    final metadataProgress = MetadataProgressDto.fromJson(
+      reader.object('metadata_progress'),
+    );
     if (queues.metadataRunning > 3 ||
         queues.cacheQueued > 10 ||
         queues.cacheRunning > 2) {
@@ -434,6 +441,7 @@ class DiagnosticsDto {
       generatedAt: reader.dateTime('generated_at'),
       components: components,
       queues: queues,
+      metadataProgress: metadataProgress,
       recentFailures: failures,
       connectionTests: tests,
     );
@@ -442,8 +450,61 @@ class DiagnosticsDto {
   final DateTime generatedAt;
   final List<ComponentDiagnosticDto> components;
   final QueueSnapshot queues;
+  final MetadataProgressDto metadataProgress;
   final List<FailureDiagnosticDto> recentFailures;
   final List<ConnectionTestDto> connectionTests;
+}
+
+@immutable
+class MetadataProgressDto {
+  const MetadataProgressDto({
+    required this.total,
+    required this.queued,
+    required this.running,
+    required this.completed,
+    required this.failed,
+    required this.finished,
+    required this.currentNumbers,
+  });
+
+  factory MetadataProgressDto.fromJson(Map<String, Object?> json) {
+    final reader = JsonReader(json, 'MetadataProgress');
+    final total = reader.nonNegativeInteger('total');
+    final queued = reader.nonNegativeInteger('queued');
+    final running = reader.nonNegativeInteger('running');
+    final completed = reader.nonNegativeInteger('completed');
+    final failed = reader.nonNegativeInteger('failed');
+    final finished = reader.nonNegativeInteger('finished');
+    final currentNumbers = reader.stringList('current_numbers');
+    if (running > 3 ||
+        total != queued + running + completed + failed ||
+        finished != completed + failed ||
+        currentNumbers.length != running ||
+        currentNumbers.length > 3 ||
+        currentNumbers.any((number) => number.isEmpty) ||
+        currentNumbers.toSet().length != currentNumbers.length) {
+      throw const ProtocolException('MetadataProgress is invalid');
+    }
+    return MetadataProgressDto(
+      total: total,
+      queued: queued,
+      running: running,
+      completed: completed,
+      failed: failed,
+      finished: finished,
+      currentNumbers: List.unmodifiable(currentNumbers),
+    );
+  }
+
+  final int total;
+  final int queued;
+  final int running;
+  final int completed;
+  final int failed;
+  final int finished;
+  final List<String> currentNumbers;
+
+  double get fraction => total == 0 ? 0 : finished / total;
 }
 
 @immutable

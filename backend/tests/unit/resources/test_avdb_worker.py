@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-import time
 import uuid
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from threading import Event
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
@@ -182,13 +182,33 @@ def test_consumer_heartbeats_request_during_slow_release_fetch(tmp_path) -> None
     engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'queue.sqlite'}")
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
-    queue = AvdbSyncQueue(factory)
+    current = [datetime(2026, 8, 1, tzinfo=timezone.utc)]
+    first_meaningful_renewal = Event()
+
+    class ObservableQueue(AvdbSyncQueue):
+        def renew(self, claim, *, lease_duration):
+            super().renew(claim, lease_duration=lease_duration)
+            if current[0] >= datetime(
+                2026,
+                8,
+                1,
+                0,
+                0,
+                0,
+                100_000,
+                tzinfo=timezone.utc,
+            ):
+                first_meaningful_renewal.set()
+
+    queue = ObservableQueue(factory, now=lambda: current[0])
     queue.enqueue("incremental_30d")
     stolen = []
 
     class SlowReleaseClient(SuccessfulReleaseClient):
         def fetch_release(self, *, mode, destination, validator):
-            time.sleep(0.3)
+            current[0] += timedelta(milliseconds=100)
+            assert first_meaningful_renewal.wait(timeout=1)
+            current[0] += timedelta(milliseconds=150)
             stolen.append(
                 queue.claim_next(
                     "worker-2",
