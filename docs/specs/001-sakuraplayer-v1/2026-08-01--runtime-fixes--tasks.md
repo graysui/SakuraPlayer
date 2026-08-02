@@ -16,10 +16,11 @@
 | [TASK-221](tasks/TASK-221.md) | Windows 播放返回与详情布局恢复 | typed 返回目标、来源优先详情 | TASK-207,TASK-209,TASK-210,TASK-211,TASK-220 | 否 | 否 |
 | [TASK-222](tasks/TASK-222.md) | 实际体验内容恢复 | 导航栈、DMM 详情、榜单恢复、失败计数 | TASK-216,TASK-217,TASK-218,TASK-221 | 是 | 是 |
 | [TASK-223](tasks/TASK-223.md) | 真实目录响应兼容修复 | GFriends 安全投影、封面状态、翻译证据 | TASK-206,TASK-207,TASK-216,TASK-222 | 是 | 是 |
+| [TASK-224](tasks/TASK-224.md) | WebSocket 运行依赖修复 | API 镜像协议实现、启动依赖门禁 | TASK-013 | 否 | 否 |
 
 ## 数量检查
 
-- 实现任务：4，未超过 15。
+- 实现任务：5，未超过 15。
 - E2E：0。
 - 清理：0；Windows 文件统一由 TASK-214 清理。
 

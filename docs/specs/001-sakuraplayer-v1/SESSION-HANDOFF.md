@@ -2,13 +2,13 @@
 
 **更新时间**: 2026-08-02
 
-**当前阶段**: Phase 3 运行修复阶段，TASK-223 已完成；TASK-214 保持 pending，等待用户明确开始。
+**当前阶段**: Phase 3 运行修复阶段，TASK-224 已完成；TASK-214 保持 pending，等待用户明确开始。
 
 ## 1. 当前成果
 
 - 功能规格包含 135 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 66 个任务已拆为后端元数据、115 缓存播放、Windows、HarmonyOS 和运行修复五个工作流。
+- 67 个任务已拆为后端元数据、115 缓存播放、Windows、HarmonyOS 和运行修复五个工作流。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
@@ -211,9 +211,9 @@
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-223 已完成；TASK-214 保持 pending，未开始。
-- **最近绿色快速门禁**: TASK-223 后端 842 项、Windows 228 项、Ruff format/check、analyze、Markdown 链接、差异与只读审计通过。
-- **最终门禁状态**: TASK-223 Compose Final 首次与 Windows Final、正式 DTO/图片/翻译只读门禁通过；后端使用普通 Compose 运行，Windows Release PID 18344 直接启动，活动 images-only 重试为 0。
+- **当前任务门禁阶段**: TASK-224 已完成；TASK-214 保持 pending，未开始。
+- **最近绿色快速门禁**: TASK-224 后端 Ruff format/check、843 项自包含测试、事件 WebSocket 运行依赖门禁和差异审计通过。
+- **最终门禁状态**: TASK-224 Compose Final 自包含 843 项、PostgreSQL integration/E2E 127 项、迁移、五服务健康、认证 canary、重启、ready 降级恢复、秘密扫描和资源清理全部通过。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -230,7 +230,7 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224。
 - **下一任务**: TASK-214 Windows 代码清理；保持 pending，等待用户明确开始。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-312 HarmonyOS API 24 真机门禁仍未完成；TASK-213 Windows/真实 115 已通过。

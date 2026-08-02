@@ -33,7 +33,7 @@
 - AC-047/AC-048 的永久图片精确 HTTPS 主机、MIME、8 MiB、重定向、像素、完整解码和原子替换边界由 [TASK-008 永久图片安全边界](changes/2026-07-26--task-008-image-security-boundaries.md) 冻结，并由 TASK-008 实现。
 - AC-046、AC-069 至 AC-073 的排行榜持久请求、01:45 调度、2008..当前年 TOP250、快照唯一性、snapshot cursor、MovieSummary 端口、priority 20 提升和稳定不可用 reason 由 [TASK-012 排行榜快照确定性与执行边界](changes/2026-07-26--task-012-ranking-snapshot-boundaries.md) 冻结，并由 TASK-012 实现。
 - AC-046、AC-069 至 AC-073 的 Windows Ranking DTO 所有权、类型化不可用 details、board/year generation、刷新/追加保留、固定桌面几何和会话内选择由 [TASK-205 Windows 排行榜客户端边界](changes/2026-07-30--task-205-rankings-client-boundaries.md) 与 [Windows 排行榜客户端契约](contracts/windows-rankings-client.md) 冻结；TASK-205 已完成客户端实现，自动证据位于 `api_client_test.dart`、`rankings_controller_test.dart`、`rankings_page_test.dart` 和 `app_bootstrap_test.dart`。
-- AC-115、AC-116、AC-119、AC-121、AC-127 至 AC-129 的全局事件水位、有界一致快照、对象级配置 CAS、Phase 1 空 cache/credential 端口、unknown 诊断和分工作流测试责任由 [TASK-013 事件、设置与诊断确定性边界](changes/2026-07-26--task-013-events-settings-diagnostics-boundaries.md) 冻结，并由 TASK-013 建立基础端口、TASK-112/101/212 后续扩展。
+- AC-115、AC-116、AC-119、AC-121、AC-127 至 AC-129 的全局事件水位、有界一致快照、对象级配置 CAS、Phase 1 空 cache/credential 端口、unknown 诊断和分工作流测试责任由 [TASK-013 事件、设置与诊断确定性边界](changes/2026-07-26--task-013-events-settings-diagnostics-boundaries.md) 冻结，并由 TASK-013 建立基础端口、TASK-112/101/212 后续扩展；TASK-224 只补齐 API 运行镜像的 WebSocket 协议实现，不改变事件契约。
 - AC-115 至 AC-119、AC-121、AC-122、AC-127 的 cache/credential 事务事件、通知幂等与已读、
   字段浅合并、cleanup reason、普通失败、诊断和逐状态启动恢复由
   [TASK-112 缓存事件、通知与恢复确定性边界](changes/2026-07-28--task-112-cache-events-recovery-contract.md)
@@ -238,8 +238,8 @@
 | `AC-112` | `[I]` | `REQ-020` | `TASK-111`, `TASK-211`, `TASK-311` |
 | `AC-113` | `[I]` | `REQ-020` | `TASK-111`, `TASK-211`, `TASK-311` |
 | `AC-114` | `[I]` | `REQ-020` | `TASK-110`, `TASK-111`, `TASK-210`, `TASK-211`, `TASK-310`, `TASK-311` |
-| `AC-115` | `[I]` | `REQ-021` | `TASK-013`, `TASK-112`, `TASK-202`, `TASK-302` |
-| `AC-116` | `[I]` | `REQ-021` | `TASK-013`, `TASK-112`, `TASK-202`, `TASK-302` |
+| `AC-115` | `[I]` | `REQ-021` | `TASK-013`, `TASK-112`, `TASK-202`, `TASK-224`, `TASK-302` |
+| `AC-116` | `[I]` | `REQ-021` | `TASK-013`, `TASK-112`, `TASK-202`, `TASK-224`, `TASK-302` |
 | `AC-117` | `[I]` | `REQ-021` | `TASK-112`, `TASK-202`, `TASK-209`, `TASK-302`, `TASK-309` |
 | `AC-118` | `[I]` | `REQ-021` | `TASK-112`, `TASK-203`, `TASK-208`, `TASK-303`, `TASK-308` |
 | `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308` |
