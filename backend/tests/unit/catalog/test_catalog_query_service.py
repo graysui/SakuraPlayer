@@ -15,6 +15,8 @@ from sakuraplayer.catalog.models import (
     Actor,
     ActorAlias,
     CatalogImage,
+    GfriendsActorAsset,
+    GfriendsSnapshot,
     MovieActor,
 )
 from sakuraplayer.catalog.ports import (
@@ -27,6 +29,7 @@ from sakuraplayer.catalog.query_service import (
     CatalogProblem,
     CatalogQueryService,
     MovieFilters,
+    _gfriends_client_url,
 )
 from sakuraplayer.identity.models import Base
 from sakuraplayer.resources.models import Movie, ResourceSource, ResourceSourceLabel
@@ -498,6 +501,236 @@ def test_actor_alias_limit_is_applied_per_actor(catalog) -> None:
 
     assert len(by_id[actors[0].id].aliases) == 100
     assert by_id[actors[1].id].aliases == ["Visible Alias"]
+
+
+def test_gfriends_assets_are_normalized_for_strict_clients_and_fail_in_isolation(
+    catalog,
+) -> None:
+    service, factory, _ = catalog
+    movie = _movie("ABP-051")
+    source = _source(
+        movie,
+        51,
+        publish_date=date(2026, 7, 5),
+        section="亚洲有码",
+    )
+    actors = [
+        Actor(
+            id=uuid.uuid4(),
+            javdb_id=f"gfriends-actor-{index}",
+            name_ja=f"Actor {index}",
+            name_zh=None,
+            bio_original=None,
+            bio_zh=None,
+            bio_zh_source=None,
+            gender="female",
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        for index in range(2)
+    ]
+    snapshot = GfriendsSnapshot(
+        id=uuid.uuid4(),
+        sha256="c" * 64,
+        byte_size=100,
+        relative_path="gfriends/fixture.json",
+        status="current",
+        fetched_at=NOW,
+        activated_at=NOW,
+    )
+    base = "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content"
+    with factory.begin() as session:
+        session.add_all([movie, source, *actors, snapshot])
+        session.add_all(
+            MovieActor(movie_id=movie.id, actor_id=actor.id, position=position)
+            for position, actor in enumerate(actors)
+        )
+        session.add_all(
+            [
+                GfriendsActorAsset(
+                    id=uuid.uuid4(),
+                    actor_id=actors[0].id,
+                    snapshot_id=snapshot.id,
+                    asset_kind="profile",
+                    position=0,
+                    url=f"{base}/Maker/Actor.jpg?t=123",
+                    match_name="Actor 0",
+                    created_at=NOW,
+                ),
+                GfriendsActorAsset(
+                    id=uuid.uuid4(),
+                    actor_id=actors[0].id,
+                    snapshot_id=snapshot.id,
+                    asset_kind="gallery",
+                    position=1,
+                    url=f"{base}/Maker/Actor-2.png?t=456",
+                    match_name="Actor 0",
+                    created_at=NOW,
+                ),
+                GfriendsActorAsset(
+                    id=uuid.uuid4(),
+                    actor_id=actors[0].id,
+                    snapshot_id=snapshot.id,
+                    asset_kind="gallery",
+                    position=2,
+                    url=f"{base}/Maker/Actor-3.jpg?unexpected=1",
+                    match_name="Actor 0",
+                    created_at=NOW,
+                ),
+                GfriendsActorAsset(
+                    id=uuid.uuid4(),
+                    actor_id=actors[1].id,
+                    snapshot_id=snapshot.id,
+                    asset_kind="profile",
+                    position=0,
+                    url=f"{base}/Maker/Actor-4.jpg#fragment",
+                    match_name="Actor 1",
+                    created_at=NOW,
+                ),
+            ]
+        )
+
+    page = service.list_actors(q=None, cursor=None, limit=24, favorite=False)
+    detail = service.get_actor(actors[0].id)
+    movie_detail = service.get_movie(movie.id)
+
+    by_id = {item.id: item for item in page.items}
+    assert by_id[actors[0].id].profile_url == f"{base}/Maker/Actor.jpg"
+    assert by_id[actors[1].id].profile_url is None
+    assert detail.gallery_urls == [f"{base}/Maker/Actor-2.png"]
+    assert movie_detail.actors[0].profile_url == f"{base}/Maker/Actor.jpg"
+    assert movie_detail.actors[1].profile_url is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (
+            "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/"
+            "Maker/Actor.jpg",
+            "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/"
+            "Maker/Actor.jpg",
+        ),
+        (
+            "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/"
+            "Maker/%E6%98%9F.jpg?t=123",
+            "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/"
+            "Maker/%E6%98%9F.jpg",
+        ),
+    ],
+)
+def test_gfriends_client_url_accepts_only_fixed_content_assets(
+    value,
+    expected,
+) -> None:
+    assert _gfriends_client_url(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a.jpg",
+        "https://user@raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a.jpg",
+        "https://example.com/li-peifeng/gfriends/main/Content/a.jpg",
+        "https://raw.githubusercontent.com:444/li-peifeng/gfriends/main/Content/a.jpg",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a.jpg?x=1",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a.jpg?t=1&x=2",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a.jpg#x",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a//b.jpg",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/%2e%2e/a.jpg",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a%2Fb.jpg",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a%5Cb.jpg",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/a%ZZ.jpg",
+        "https://raw.githubusercontent.com/li-peifeng/gfriends/main/Content/%FF.jpg",
+    ],
+)
+def test_gfriends_client_url_rejects_unsafe_assets(value) -> None:
+    assert _gfriends_client_url(value) is None
+
+
+def test_unverified_cover_placeholder_is_not_projected_but_verified_fallback_is(
+    catalog,
+) -> None:
+    service, factory, _ = catalog
+    unverified = _movie("ABP-052")
+    verified = _movie("ABP-053")
+    placeholder = _movie("ABP-054")
+    unverified_image = uuid.uuid4()
+    verified_image = uuid.uuid4()
+    with factory.begin() as session:
+        session.add_all(
+            [
+                unverified,
+                verified,
+                placeholder,
+                _source(
+                    unverified,
+                    52,
+                    publish_date=date(2026, 7, 6),
+                    section="亚洲有码",
+                ),
+                _source(
+                    verified,
+                    53,
+                    publish_date=date(2026, 7, 5),
+                    section="亚洲有码",
+                ),
+                _source(
+                    placeholder,
+                    54,
+                    publish_date=date(2026, 7, 4),
+                    section="亚洲有码",
+                ),
+                CatalogImage(
+                    id=unverified_image,
+                    owner_type="movie",
+                    owner_id=unverified.id,
+                    kind="cover",
+                    position=0,
+                    source_url="https://c0.jdbstatic.com/unverified.jpg",
+                    relative_path="_placeholder/catalog.png",
+                    sha256=None,
+                    status="retry_pending",
+                    created_at=NOW,
+                ),
+                CatalogImage(
+                    id=verified_image,
+                    owner_type="movie",
+                    owner_id=verified.id,
+                    kind="cover",
+                    position=0,
+                    source_url="https://c0.jdbstatic.com/replacement.jpg",
+                    relative_path=f"movie/{verified.id}/cover-old.jpg",
+                    sha256="d" * 64,
+                    status="retry_pending",
+                    created_at=NOW,
+                ),
+                CatalogImage(
+                    id=uuid.uuid4(),
+                    owner_type="movie",
+                    owner_id=placeholder.id,
+                    kind="cover",
+                    position=0,
+                    source_url=None,
+                    relative_path="_placeholder/catalog.png",
+                    sha256="e" * 64,
+                    status="placeholder",
+                    created_at=NOW,
+                ),
+            ]
+        )
+
+    page = service.list_movies(filters=MovieFilters(), cursor=None, limit=24)
+    by_id = {item.id: item for item in page.items}
+
+    assert by_id[unverified.id].cover_url is None
+    assert service.get_movie(unverified.id).cover_url is None
+    assert by_id[placeholder.id].cover_url is None
+    assert service.get_movie(placeholder.id).cover_url is None
+    expected = f"/api/v1/catalog/images/{verified_image}"
+    assert by_id[verified.id].cover_url == expected
+    assert service.get_movie(verified.id).cover_url == expected
 
 
 @pytest.mark.parametrize(

@@ -95,7 +95,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-039 `[IMP]`**: 单个影片任务总执行时间超过 600 秒时必须被父进程强制终止并标记失败。
 - **AC-040 `[IMP]`**: 600 秒超时或其他任务失败后不得自动重试，只能由管理员手动重试；当前榜单瞬时失败的显式运行恢复遵循 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md)。
 - **AC-041 `[IMP]`**: 队列优先级依次为后台手动重试和用户搜索、排行榜缺失影片、每日新增、首批 90 天、历史补齐；同优先级按发布日期从新到旧。
-- **AC-042 `[IMP]`**: JavDB 核心影片资料和关系成功保存即视为可展示；DMM、图片、GFriends 和 AI 失败不得阻塞影片上线；真实 provider 运行链路遵循 [外部元数据服务运行可用性](changes/2026-08-01--provider-runtime-availability.md)。
+- **AC-042 `[IMP]`**: JavDB 核心影片资料和关系成功保存即视为可展示；DMM、图片、GFriends 和 AI 失败不得阻塞影片上线；真实 provider 运行链路遵循 [外部元数据服务运行可用性](changes/2026-08-01--provider-runtime-availability.md)，可选资产的客户端安全投影遵循 [真实目录响应兼容与可选元数据状态](changes/2026-08-02--catalog-response-compatibility.md)。
 - **AC-043 `[IMP]`**: 任务必须记录当前阶段、开始时间、耗时、尝试次数和失败原因。
 
 ### REQ-009 元数据来源
@@ -104,13 +104,13 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-045 `[IMP]`**: DMM 仅补充影片简介，失败时保留 JavDB 核心资料；搜索到详情的精确解析与既有 warning 显式恢复遵循 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md)。
 - **AC-046 `[IMP]`**: JavDB 用户名和密码是可选的加密配置；未配置时跳过需要登录的 TOP250，并以稳定的“榜单暂无快照”状态返回，不影响其他功能或既有榜单快照；配置后的连接测试必须执行只读登录并区分凭据无效与上游不可用。
 - **AC-047 `[IMP]`**: 影片封面、剧照和其他媒体库图片下载到后端持久化卷并永久保留，不随 115 缓存删除。
-- **AC-048 `[IMP]`**: 图片下载失败时使用占位图并进入可重试补齐状态。
+- **AC-048 `[IMP]`**: 图片下载失败时使用后端安全占位并进入可重试补齐状态；安全占位不得作为客户端真实封面投影，详见 [真实目录响应兼容与可选元数据状态](changes/2026-08-02--catalog-response-compatibility.md)。
 
 ### REQ-010 演员映射与 GFriends
 
 - **AC-049 `[IMP]`**: 后端每周刷新 `actor-mapping.xml` 和 GFriends `Filetree.json`，失败时继续使用最近一次成功缓存；首次部署没有任何持久快照事实时立即幂等排入一次初始刷新。
 - **AC-050 `[IMP]`**: 演员映射保存中文名、日文名、权威别名和可用简介，不把用户搜索词写入别名。
-- **AC-051 `[IMP]`**: GFriends 同时提供头像和写真图库，但只有唯一、明确的姓名或别名匹配才能关联；歧义匹配必须丢弃，Windows 客户端只消费后端关联结果和精确 URL 边界由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结。
+- **AC-051 `[IMP]`**: GFriends 同时提供头像和写真图库，但只有唯一、明确的姓名或别名匹配才能关联；歧义匹配必须丢弃，Windows 客户端只消费后端关联结果和精确 URL 边界由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结；持久证据 URL 到客户端安全 URL 的规范化由 [真实目录响应兼容与可选元数据状态](changes/2026-08-02--catalog-response-compatibility.md) 冻结。
 - **AC-052 `[IMP]`**: GFriends 只持久化索引和 URL，图片按需进入客户端缓存，不镜像全部图片；Windows 下载并发、取消、大小和文件缓存遵循 [Windows 女优客户端契约](contracts/windows-actors-client.md)。
 - **AC-053 `[IMP]`**: 媒体库永久图片与 GFriends 临时图片必须使用不同生命周期；Windows 目录、期限、LRU 和认证会话清理由 [Windows 女优客户端契约](contracts/windows-actors-client.md) 约束。
 

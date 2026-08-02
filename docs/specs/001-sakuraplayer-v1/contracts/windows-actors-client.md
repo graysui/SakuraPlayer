@@ -31,7 +31,7 @@
 
 ## 4. GFriends URL 与下载
 
-- 唯一允许的资产 URL 是：scheme 为 `https`、host 精确为 `raw.githubusercontent.com`、默认端口、无 userinfo/query/fragment，path 以 `/li-peifeng/gfriends/main/Content/` 开始且不含空、`.`、`..` 或反斜杠段。
+- 唯一允许的资产 URL 是：scheme 为 `https`、host 精确为 `raw.githubusercontent.com`、默认端口、无 userinfo/query/fragment，path 以 `/li-peifeng/gfriends/main/Content/` 开始且不含空、`.`、`..` 或反斜杠段。后端按 TASK-223 变更规格移除持久证据 URL 中已允许的数字 `t` query；客户端不得自行删除 query 或放宽本白名单。
 - GFriends 使用独立匿名 Dio 下载器，不复用认证 `ApiClient`，不发送 Authorization、Cookie、refresh token、server base URL凭据或任意业务 header。`ApiClient` 的安全相对路径限制保持不变。
 - 下载连接超时 `10s`、接收超时 `30s`，最多 3 次重定向；每一跳都必须重新满足同一 URL 规则。只接受 HTTP 200、最多 `8 MiB` 的完整响应、JPEG/PNG/WebP Content-Type 与对应文件签名。
 - 同一 URL 的并发请求 single-flight；全局最多 4 个实际下载。调用者取消后不得写缓存；所有等待者取消时取消底层请求。

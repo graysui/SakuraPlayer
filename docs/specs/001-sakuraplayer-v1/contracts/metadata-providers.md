@@ -96,7 +96,7 @@ store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
 - Filetree 只接受 `Content/<目录>/<别名文件名> -> <图片文件名>?t=<数字>`。受校验路径段与固定 Content 基址构造最终 URL，不接受绝对路径、scheme、斜杠、反斜杠或 `.`/`..` 段。
 - GFriends 名称对演员当前中日文名和全部权威别名建立 `normalized_alias -> actor_ids` 多值索引；只在恰好命中一个 Actor 且同一最终 URL 不跨 Actor 时关联。
 - 每个演员按 URL 排序后首张为 `profile`、其余为 `gallery`。成功重建原子替换全部 GFriends 派生资产，使删除、URL 改动和唯一变歧义不会留下陈旧行。
-- 服务端只保存快照索引证据与唯一匹配后的 GFriends URL，不下载 Content 图片；客户端按需进入独立临时缓存，永久 `catalog_image` 生命周期不受影响。
+- 服务端只保存快照索引证据与唯一匹配后的 GFriends URL，不下载 Content 图片；目录 API 只把固定 Content URL 投影给客户端，并移除 Filetree 允许的单个数字 `t` query，其他非法资产按单图缺失隔离。客户端按需进入独立临时缓存，永久 `catalog_image` 生命周期不受影响。
 - 影片 `actor_map/gfriends` stage 只检查相应 current 快照存在；从未成功时记录 `provider_snapshot_unavailable` warning，不在每个影片子进程重复解析全量文件。
 
 ## 5. OpenAI-compatible 翻译

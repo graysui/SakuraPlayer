@@ -1,14 +1,14 @@
 # SakuraPlayer v1 新会话交接
 
-**更新时间**: 2026-08-01
+**更新时间**: 2026-08-02
 
-**当前阶段**: Phase 3 运行修复阶段，TASK-217 已完成；TASK-214 保持 pending，等待用户明确开始。
+**当前阶段**: Phase 3 运行修复阶段，TASK-223 已完成；TASK-214 保持 pending，等待用户明确开始。
 
 ## 1. 当前成果
 
 - 功能规格包含 135 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 63 个任务已拆为后端元数据、115 缓存播放、Windows、HarmonyOS 和运行修复五个工作流。
+- 66 个任务已拆为后端元数据、115 缓存播放、Windows、HarmonyOS 和运行修复五个工作流。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
@@ -206,12 +206,14 @@
 - TASK-217 修复后 Fast 为 821 项；Compose Final 尝试 2 通过 821 项自包含和 127 项 PostgreSQL integration/E2E。正式 Actor Mapping/GFriends 各有 1 个 current，GFriends 关联 839 个头像与 5,320 张剧照，四个 ranking 请求均 completed。
 - TASK-222 已交付应用内播放导航栈返回、DMM 搜索到精确详情的两阶段简介解析和诊断失败计数，并显式恢复 230 个当前榜单 transient full retry 与 1,990 个 DMM-only 富化 retry；永久未找到、active、core-ready 和其他富化未重试。
 - TASK-222 Fast 为后端 824 项与 Windows 228 项，Compose Final 首次通过 824 项自包含和 127 项 PostgreSQL integration/E2E；Windows Fake 集成 5 项、Release 与 34 文件包扫描通过。正式 daily/weekly/monthly 可见数分别达到 19/5/2，DMM available 且 15 部本轮 retry 影片已有简介，GFriends 首屏 24 位中 10 位投影头像并完成真实图片读取。
+- TASK-223 已把 GFriends 持久证据 URL 规范化为 Windows 可消费的无 query URL，并隔离非法可选头像/写真；目录只投影带完整摘要且状态为 ready/retry_pending 的真实封面，安全占位返回 null。
+- TASK-223 Fast 为后端 842 项与 Windows 228 项，Compose Final 首次通过 842 项自包含和 127 项 PostgreSQL integration/E2E；Windows Fake 集成 1 项、用户旅程 4 项、Release 与 34 文件包扫描通过。正式严格 DTO、1958 张已验证封面、2115 条无摘要占位和永久图片零缺失核验通过；翻译成功数仍为 0，稳定失败为 guardrail/upstream，未调用付费 AI。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-222 已完成；TASK-214 保持 pending，未开始。
-- **最近绿色快速门禁**: TASK-222 后端 824 项、Windows 228 项、Ruff、analyze、宿主 Docker 配置和差异审计通过。
-- **最终门禁状态**: TASK-222 Compose Final 首次与 Windows Final、正式内容恢复门禁通过；后端使用普通 Compose 运行，Windows Release PID 11032 直接启动，元数据队列运行中。
+- **当前任务门禁阶段**: TASK-223 已完成；TASK-214 保持 pending，未开始。
+- **最近绿色快速门禁**: TASK-223 后端 842 项、Windows 228 项、Ruff format/check、analyze、Markdown 链接、差异与只读审计通过。
+- **最终门禁状态**: TASK-223 Compose Final 首次与 Windows Final、正式 DTO/图片/翻译只读门禁通过；后端使用普通 Compose 运行，Windows Release PID 18344 直接启动，活动 images-only 重试为 0。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -228,12 +230,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223。
 - **下一任务**: TASK-214 Windows 代码清理；保持 pending，等待用户明确开始。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-312 HarmonyOS API 24 真机门禁仍未完成；TASK-213 Windows/真实 115 已通过。
 
-TASK-214 尚未开始。后端当前使用普通 Compose，Windows 使用 Release 直接启动；元数据队列已恢复运行，230 个榜单 full retry 和 1,990 个 DMM-only retry 正在按既有三槽领取处理。提交事实以 Git 为准。
+TASK-214 尚未开始。后端当前使用普通 Compose，Windows 使用 Release 直接启动；不替用户批量创建影片刮削或富化任务，活动 images-only 重试为 0。提交事实以 Git 为准。
 
 ## 4. 必读契约
 

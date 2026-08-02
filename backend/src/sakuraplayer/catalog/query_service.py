@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.orm import sessionmaker
@@ -54,6 +56,10 @@ _IMAGE_MEDIA_TYPES = {
     ".png": "image/png",
     ".webp": "image/webp",
 }
+_GFRIENDS_HOST = "raw.githubusercontent.com"
+_GFRIENDS_PATH_PREFIX = "/li-peifeng/gfriends/main/Content/"
+_GFRIENDS_CACHE_QUERY = re.compile(r"t=\d+")
+_INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
 
 class CatalogProblem(RuntimeError):
@@ -578,7 +584,8 @@ class CatalogQueryService:
                 favorite_ids=self._favorites.target_ids("actor"),
             )[0]
             gallery_urls = list(
-                session.scalars(
+                normalized
+                for url in session.scalars(
                     select(GfriendsActorAsset.url)
                     .where(
                         GfriendsActorAsset.actor_id == actor.id,
@@ -587,6 +594,7 @@ class CatalogQueryService:
                     .order_by(GfriendsActorAsset.position, GfriendsActorAsset.id)
                     .limit(MAX_PAGE_SIZE)
                 )
+                if (normalized := _gfriends_client_url(url)) is not None
             )
             movie_rows = list(
                 session.execute(
@@ -767,7 +775,9 @@ class CatalogQueryService:
             .where(
                 CatalogImage.owner_type == "movie",
                 CatalogImage.owner_id.in_(movie_ids),
-                CatalogImage.kind.in_(("cover", "placeholder")),
+                CatalogImage.kind == "cover",
+                CatalogImage.sha256.is_not(None),
+                CatalogImage.status.in_(("ready", "retry_pending")),
             )
             .order_by(CatalogImage.owner_id, CatalogImage.kind, CatalogImage.position)
         ):
@@ -880,7 +890,7 @@ class CatalogQueryService:
         ):
             aliases[actor_id].append(alias)
         profiles = {
-            asset.actor_id: asset.url
+            asset.actor_id: normalized
             for asset in session.scalars(
                 select(GfriendsActorAsset)
                 .where(
@@ -889,6 +899,7 @@ class CatalogQueryService:
                 )
                 .order_by(GfriendsActorAsset.actor_id, GfriendsActorAsset.position)
             )
+            if (normalized := _gfriends_client_url(asset.url)) is not None
         }
         return [
             ActorSummaryView(
@@ -952,6 +963,40 @@ def _normalize_movie_filters(filters: MovieFilters) -> MovieFilters:
         sort=filters.sort,
         favorite=filters.favorite,
     )
+
+
+def _gfriends_client_url(value: str) -> str | None:
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != _GFRIENDS_HOST
+            or parsed.username is not None
+            or parsed.password is not None
+            or port not in {None, 443}
+            or parsed.fragment
+            or not parsed.path.startswith(_GFRIENDS_PATH_PREFIX)
+            or (parsed.query and _GFRIENDS_CACHE_QUERY.fullmatch(parsed.query) is None)
+        ):
+            return None
+        relative = parsed.path.removeprefix(_GFRIENDS_PATH_PREFIX)
+        if not relative:
+            return None
+        for segment in relative.split("/"):
+            if not segment or _INVALID_PERCENT_ESCAPE.search(segment):
+                return None
+            decoded = unquote(segment, errors="strict")
+            if (
+                decoded in {".", ".."}
+                or "/" in decoded
+                or "\\" in decoded
+                or "\x00" in decoded
+            ):
+                return None
+    except (TypeError, ValueError, UnicodeError):
+        return None
+    return urlunsplit(("https", _GFRIENDS_HOST, parsed.path, "", ""))
 
 
 def _source_conditions(filters: MovieFilters) -> list[Any]:
