@@ -1,6 +1,6 @@
 # SakuraPlayer v1 运行配置契约
 
-**版本**: 1.2.1
+**版本**: 1.4.0
 
 **适用范围**: Docker 后端、Windows 客户端、HarmonyOS 客户端、显式外部验收
 
@@ -48,6 +48,12 @@ JWT 与播放 key 轮换会使既有访问令牌或播放能力失效。v1 不�
 | `POSTGRES_PASSWORD_FILE` | 必须指向 Docker Secret；生产不接受仓库内明文密码 |
 
 Compose 可在容器内组装 `SAKURAPLAYER_DATABASE_URL`，但最终 DSN 不得打印到日志或诊断响应。PostgreSQL 宿主端口不发布。
+
+### 4.1 Compose 后端镜像
+
+`SAKURAPLAYER_BACKEND_IMAGE` 只用于 Compose 插值，不注入应用进程。默认值为 `sakuraplayer-backend:local`，配合 `docker compose up --build` 从当前源码构建。使用 GitHub Release 对应镜像时，可显式设为 `ghcr.io/graysui/sakuraplayer-backend:X.Y.Z` 或 `docker.io/graysui/sakuraplayer-backend:X.Y.Z`，先 `docker compose pull`，再以 `docker compose up --no-build` 启动；同一正式版本在两个 registry 指向同一 digest。
+
+API、migrate、worker、scheduler 必须引用相同的 `SAKURAPLAYER_BACKEND_IMAGE`，只通过 Compose `command` 区分进程；不得混用不同版本或仅更新其中一个进程。生产部署优先使用不可变 digest，其次使用完整 `X.Y.Z`，不得依赖可移动的 `latest` 做无人值守升级。
 
 ## 5. 管理员可修改配置
 

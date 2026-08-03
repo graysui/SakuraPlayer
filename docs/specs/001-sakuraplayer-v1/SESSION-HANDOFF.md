@@ -2,13 +2,13 @@
 
 **更新时间**: 2026-08-03
 
-**当前阶段**: Phase 3 Windows 与运行修复工作流已完成，TASK-214、TASK-315 已完成；下一任务 TASK-301 保持 pending，未开始。
+**当前阶段**: Phase 3 Windows、运行修复与 GitHub 发布自动化已完成，TASK-316 completed；下一任务 TASK-301 保持 pending，未开始。
 
 ## 1. 当前成果
 
-- 功能规格包含 135 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
+- 功能规格包含 142 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 70 个任务已拆为后端元数据、115 缓存播放、Windows、HarmonyOS 和运行修复五个工作流。
+- 71 个任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布自动化。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
@@ -219,9 +219,9 @@
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-214 completed；TASK-301 保持 pending，未开始。
-- **最近绿色快速门禁**: TASK-214 format 97 文件、Windows analyze、233 项 Flutter 测试、4 项 Fake 用户旅程、1 项原生 Fake smoke、差异和秘密扫描通过，审计无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-214 Windows Release 与 34 文件私有包内容/许可证/native/hash/debug-secret 门禁通过；本任务不启动后端、真实 115 或付费服务。
+- **当前任务门禁阶段**: TASK-316 completed；TASK-301 保持 pending，未开始。
+- **最近绿色快速门禁**: TASK-316 Focused 35 项、Fast 887 项/9 deselected、Ruff、actionlint、host Docker、Compose config、差异与 Secret 扫描通过；远程 Verify `30799465816` 的 Backend/Docker 和 Windows 两个 job 全绿。
+- **最终门禁状态**: TASK-316 Final 通过 887 项自包含和 129 项 PostgreSQL integration/E2E，迁移、五服务健康、认证 canary、秘密扫描、重启、ready 降级恢复及隔离资源清理全部通过；本地 Windows Release、34 文件包校验与 Linux amd64 runtime 镜像构建通过。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -238,12 +238,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316。
 - **下一任务**: TASK-301 API 24 Stage 工程与签名侧载基线；保持 pending，等待用户明确开始并核验外部 DoR。
-- **当前阻塞项**: 项目锁定的 Python 3.10.16 在当前机器不可用；TASK-315 相关验证已使用兼容依赖的 Python 3.12 隔离环境完成，未修改项目版本约束。
-- **未完成外部门禁**: TASK-312 HarmonyOS API 24 真机门禁仍未完成；TASK-213 Windows/真实 115 已通过。
+- **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
+- **未完成外部门禁**: 首个正式 `vX.Y.Z` tag 尚未创建，因此 GitHub Release、GHCR/Docker Hub 首次镜像与 attestation 尚未产生；首发后还需确认 GHCR 包为 Public，Docker Hub 目标仓库存在且 Token 可写。TASK-312 HarmonyOS API 24 真机门禁仍未完成。
 
-TASK-214、TASK-315 已完成，TASK-301 尚未开始。用户要求的 Windows 客户端与普通后端 Compose 均已停止，持久卷保留；TASK-214 私有 Release 只生成在 `.planning/TASK-214/release/`，不纳入 Git。提交事实以 Git 为准。
+TASK-316 已完成，TASK-301 尚未开始。GitHub Verify 与 Release 工作流已启用，但未创建正式版本 tag；Windows 客户端与普通后端 Compose 均已停止，持久卷保留。TASK-316 本地发布制品只生成在 `.planning/TASK-316/`，不纳入 Git；提交和远程 Actions 记录为最终事实。
 
 ## 4. 必读契约
 
@@ -271,5 +271,6 @@ TASK-214、TASK-315 已完成，TASK-301 尚未开始。用户要求的 Windows 
 ## 6. 外部门禁
 
 - TASK-213 真实 Windows、真实 115 和专属测试目录门禁已完成，专属验收 Compose 与远端任务目录已清理。
+- TASK-316 首个正式版本 tag 尚未创建；首发后确认 GHCR package visibility 为 Public，并确认 Docker Hub `graysui/sakuraplayer-backend` 仓库可见性与 `DOCKERHUB_TOKEN` 写权限。
 - TASK-312 需要 DevEco Studio 6.1.1.280、HarmonyOS SDK 6.1.1(24)、API 24 真机和 MKV/HLS/ASS 样本。
 - 外部凭据不进入仓库、普通日志、测试快照或聊天输出。

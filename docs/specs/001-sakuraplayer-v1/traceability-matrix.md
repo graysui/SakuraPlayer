@@ -260,6 +260,13 @@
 | `AC-133` | `[I]` | `REQ-025` | `TASK-001`, `TASK-002`, `TASK-202`, `TASK-302` |
 | `AC-134` | `[I]` | `REQ-025` | `TASK-001`, `TASK-219` |
 | `AC-135` | `[I]` | `REQ-025` | `TASK-202`, `TASK-219`, `TASK-220`, `TASK-302` |
+| `AC-136` | `[I]` | `REQ-026` | `TASK-316` |
+| `AC-137` | `[I]` | `REQ-026` | `TASK-316` |
+| `AC-138` | `[I]` | `REQ-026` | `TASK-316` |
+| `AC-139` | `[I]` | `REQ-026` | `TASK-316` |
+| `AC-140` | `[I]` | `REQ-026` | `TASK-316` |
+| `AC-141` | `[I]` | `REQ-026` | `TASK-316` |
+| `AC-142` | `[I]` | `REQ-026` | `TASK-316` |
 
 TASK-101 的 AC-013/016/017/128/129 映射还受
 [Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md) 中
@@ -292,3 +299,7 @@ REQ-CHG-271 至 REQ-CHG-275 约束；它不新增 AC，总任务数增至 69。
 TASK-227 的 AC-040/041/055/057/074/122 映射还受
 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 中
 REQ-CHG-289 至 REQ-CHG-295 约束；它不新增 AC，总任务数增至 70。
+
+TASK-316 的 AC-005/008/009/123/128/136 至 AC-142 映射受
+[GitHub 自动发布](changes/2026-08-03--task-316-github-release-automation.md) 和
+[GitHub 自动发布契约](contracts/github-release.md) 约束；它新增 7 条 `[IMP]` AC，任务总数增至 71。

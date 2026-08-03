@@ -5,6 +5,8 @@
 面向 Windows 的私有媒体目录、115 缓存与流媒体播放系统
 
 [![License](https://img.shields.io/badge/license-GPL--3.0--only-2f855a.svg)](LICENSE)
+[![Verify](https://github.com/graysui/SakuraPlayer/actions/workflows/verify.yml/badge.svg)](https://github.com/graysui/SakuraPlayer/actions/workflows/verify.yml)
+[![Release](https://img.shields.io/github/v/release/graysui/SakuraPlayer?display_name=tag&sort=semver)](https://github.com/graysui/SakuraPlayer/releases)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4.svg)
 ![Flutter](https://img.shields.io/badge/Flutter-3.29.2-02569b.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110.1-009688.svg)
@@ -13,7 +15,7 @@
 
 单管理员、单 115 账号、默认仅本机开放。目录与任务状态由后端持久化，视频数据经签名入口重定向至 115/CDN，不经过 SakuraPlayer 后端转发。
 
-[快速开始](#快速开始) · [当前状态](#当前状态) · [项目架构](#项目架构) · [参考与致谢](#参考与致谢)
+[快速开始](#快速开始) · [发布与校验](#发布与校验) · [项目架构](#项目架构) · [参考与致谢](#参考与致谢)
 
 </div>
 
@@ -28,9 +30,9 @@
 | Windows 客户端 | v1 已完成 | Windows 10/11、Flutter、media_kit/libmpv、私有 ZIP 安装包 |
 | 真实 115 链路 | 已验证 | 扫码、离线、原画、HLS、Range seek、进度、租约与安全清理 |
 | HarmonyOS 客户端 | 规划中 | API 24 工程与真机播放门禁尚未开始，不属于当前可用版本 |
-| GitHub Release | 尚未发布 | 功能基线时尚无版本 tag 或公开二进制 Release，当前提供源码构建流程 |
+| GitHub Release | 自动化已就绪 | 严格版本 tag 自动构建 Windows x64 ZIP、GHCR/Docker Hub 后端镜像、SHA-256 与供应链证明 |
 
-README 的功能核对基线为 `daef542`。近期 Git 提交中已经交付：
+README 当前覆盖至 TASK-316。近期功能提交中已经交付：
 
 | 提交 | 交付内容 |
 |---|---|
@@ -151,6 +153,18 @@ Write-SakuraSecret secrets/bootstrap_token.txt 48
 
 ### 2. 启动后端
 
+正式版本发布后，可使用与 Release tag 一致的 GHCR 或 Docker Hub 镜像。四个后端进程会复用同一个镜像，以下示例使用 Docker Hub：
+
+```powershell
+$env:SAKURAPLAYER_BACKEND_IMAGE = 'docker.io/graysui/sakuraplayer-backend:1.0.0'
+docker compose --env-file .env -p sakuraplayer pull postgres api migrate worker scheduler
+docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
+docker compose --env-file .env -p sakuraplayer ps
+Invoke-WebRequest http://127.0.0.1:8000/health/ready
+```
+
+从当前源码构建后端：
+
 ```powershell
 docker compose --env-file .env -p sakuraplayer up -d --build --wait
 docker compose --env-file .env -p sakuraplayer ps
@@ -165,17 +179,39 @@ docker compose --env-file .env -p sakuraplayer down
 
 部署到其他设备可访问的网络前，请先阅读 [运行配置契约](docs/specs/001-sakuraplayer-v1/contracts/runtime-configuration.md)。项目不提供明文公网部署方案。
 
-### 3. 构建 Windows 私有安装包
+### 3. 安装 Windows 客户端
 
-返回仓库根目录：
+正式版本发布后，可使用 GitHub CLI 下载 Windows ZIP 和同名 SHA-256 文件：
 
 ```powershell
-Set-Location ..\windows
+Set-Location ..
+New-Item -ItemType Directory -Force release | Out-Null
+gh release download v1.0.0 --repo graysui/SakuraPlayer --pattern 'SakuraPlayer-Windows-*.zip*' --dir release
+Get-FileHash .\release\SakuraPlayer-Windows-1.0.0-1.zip -Algorithm SHA256
+Get-Content .\release\SakuraPlayer-Windows-1.0.0-1.zip.sha256
+```
+
+确认两处 SHA-256 相同后解压 ZIP，以目标桌面用户运行 `Install-SakuraPlayer.ps1`，无需管理员权限。公共 CI 产物没有 Authenticode 证书签名；GitHub artifact attestation 用于证明构建来源，不能替代 Windows 代码签名。
+
+从源码构建 Windows 私有安装包：
+
+```powershell
+Set-Location windows
 flutter pub get
 .\tool\build_private_release.ps1
 ```
 
-构建工具会执行 Windows Release 构建，并验证 `sakuraplayer_windows.exe`、Flutter/libmpv 原生文件、GPL/第三方声明、安装脚本和完整 SHA-256 清单。输出位于 `windows/dist/`；解压后以目标桌面用户运行 `Install-SakuraPlayer.ps1`，无需管理员权限。
+构建工具会执行 Windows Release 构建，并验证 `sakuraplayer_windows.exe`、Flutter/libmpv 原生文件、GPL/第三方声明、安装脚本和完整 SHA-256 清单。输出位于 `windows/dist/`。
+
+## 发布与校验
+
+- pull request 与 `main` push 只执行离线验证，不发布制品，也不读取 115、JavDB、AI 或其他业务凭据。
+- `vX.Y.Z` tag 必须与 `windows/pubspec.yaml` 的主版本一致；Windows build number 进入 ZIP 文件名。
+- 同一次构建把后端镜像发布到 `ghcr.io/graysui/sakuraplayer-backend` 和 `docker.io/graysui/sakuraplayer-backend`，两处提供完整版本、major/minor、major、`latest` 和 Git SHA 标签并共享 digest。部署时推荐固定 digest 或完整版本。
+- Windows ZIP、校验文件以及两个 registry 的后端镜像 digest 都生成 GitHub artifact attestation；Release 只在 Windows 与 Docker 两条构建均成功后创建。
+- 所有工作流 Action 固定到完整 Git commit；GitHub 操作使用仓库 `GITHUB_TOKEN`，Docker Hub 使用专用 `DOCKERHUB_TOKEN` Actions Secret 和 job 级最小权限，不需要个人 GitHub PAT 或业务 secret。
+
+正式发布契约见 [github-release.md](docs/specs/001-sakuraplayer-v1/contracts/github-release.md)。首个 GHCR 包生成后，仓库维护者需要在 GitHub Packages 中确认其可见性为 Public；Docker Hub 目标仓库也必须事先存在并允许 `DOCKERHUB_TOKEN` 写入，推荐设为 Public。这些是账户级设置，不由应用配置写入工作流。
 
 ## MGDB 与外部服务
 

@@ -1,0 +1,65 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend and Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build locked backend test image
+        run: docker build -f backend/docker/api.Dockerfile --target test -t sakuraplayer-test .
+      - name: Check backend formatting
+        run: docker run --rm --mount "type=bind,source=${{ github.workspace }},target=/workspace,readonly" --workdir /workspace/backend --entrypoint ruff sakuraplayer-test format --no-cache --check src tests alembic/env.py
+      - name: Lint backend
+        run: docker run --rm --mount "type=bind,source=${{ github.workspace }},target=/workspace,readonly" --workdir /workspace/backend --entrypoint ruff sakuraplayer-test check --no-cache src tests alembic/env.py
+      - name: Run backend self-contained tests
+        run: docker run --rm --mount "type=bind,source=${{ github.workspace }},target=/workspace,readonly" --workdir /workspace/backend --entrypoint python sakuraplayer-test -m pytest tests/start tests/unit tests/integration/api tests/integration/events tests/integration/identity/test_auth_api.py -m "not integration and not host_docker" -q -p no:cacheprovider
+      - name: Check Docker entrypoint contract
+        run: python backend/tests/start/test_docker_entrypoint.py
+      - name: Build backend runtime image
+        run: docker build -f backend/docker/api.Dockerfile --target runtime -t sakuraplayer-backend:verify .
+
+  windows:
+    name: Windows client
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: 3.29.2
+          cache: true
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Analyze Windows client
+        run: flutter analyze
+      - name: Test Windows client
+        run: flutter test
+      - name: Build Windows release
+        run: flutter build windows --release

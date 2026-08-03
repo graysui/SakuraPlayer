@@ -4,6 +4,15 @@
 !docs/
 !docs/specs/
 !docs/specs/**
+!.github/
+!.github/workflows/
+!.github/workflows/verify.yml
+!.github/workflows/release.yml
+!tools/
+!tools/release/
+!tools/release/validate_version.py
+!windows/
+!windows/pubspec.yaml
 !LICENSE
 !THIRD_PARTY_NOTICES.md
 backend/secrets/

@@ -261,6 +261,16 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-134 `[IMP]`**: Docker Compose 默认只把 API 发布到 loopback；远程客户端必须通过 HTTPS 或可信加密 VPN 访问。显式启用的远程明文 HTTP 仅允许隔离私有地址并需要客户端风险确认，不提供公网明文或公网部署流程。
 - **AC-135 `[IMP]`**: Windows 和 HarmonyOS 在登录前可配置并测试后端基址；地址作为非敏感本机设置保存，不得包含 userinfo、query 或 fragment。更换地址必须尝试注销旧服务端会话，并且无论旧服务端是否可达都清除本机令牌、字幕缓存和内存状态。
 
+### REQ-026 GitHub 自动发布
+
+- **AC-136 `[IMP]`**: pull request 与 `main` push 执行后端自包含测试/静态检查、Docker runtime 构建和 Windows analyze/test/release build；验证失败不得发布，默认流程不得读取业务 secret 或访问真实外部服务。
+- **AC-137 `[IMP]`**: 正式发布只由严格 `vX.Y.Z` tag 触发，tag 必须与 Windows `pubspec.yaml` 的 SemVer 主版本一致；Flutter build number 只用于 Windows 资产版本。
+- **AC-138 `[IMP]`**: Windows 发布生成 x64 私有 ZIP 和同名 `.sha256`，复用既有包内容、GPL/NOTICE、包内哈希与外层哈希验证。
+- **AC-139 `[IMP]`**: 同一次构建把一个 Linux amd64 后端 runtime 镜像发布到 GHCR 与 Docker Hub，相同版本标签指向同一 digest；API、migrate、worker、scheduler 复用该 digest，两个仓库均提供完整 SemVer、major/minor、major、latest 和 Git SHA 标签。
+- **AC-140 `[IMP]`**: tag 工作流只有在 Windows 与 Docker 发布路径均成功后才创建 GitHub Release，并上传 Windows ZIP 与外层 SHA-256，避免半发布版本。
+- **AC-141 `[IMP]`**: GitHub Actions 使用默认只读和 job 级最小写权限，第三方 Action 固定完整 commit SHA；GitHub 操作只使用仓库 `GITHUB_TOKEN`，Docker Hub 只使用专用 `DOCKERHUB_TOKEN` Actions Secret，不得依赖个人 GitHub PAT 或业务 secret。
+- **AC-142 `[IMP]`**: Windows 资产及 GHCR、Docker Hub 镜像 digest 生成 GitHub artifact attestation；Windows 公共构建明确为未签名，attestation 不冒充 Authenticode。
+
 ## 12. 非功能要求
 
 ### NFR-001 性能
@@ -299,4 +309,4 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ## 14. 发布门禁
 
-Windows v1 只有在 AC-001 至 AC-130 以及 AC-133 至 AC-135 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 AC-131 的真实设备探针全部通过后才能开始；AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。
+Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-142 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 AC-131 的真实设备探针全部通过后才能开始；AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。

@@ -179,7 +179,13 @@ def github_source_url(repository: str) -> str:
 def _validate_repository(repository: str) -> str:
     parts = repository.split("/")
     if len(parts) != 2 or any(
-        not part or len(part) > 100 or any(char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-" for char in part)
+        not part
+        or len(part) > 100
+        or any(
+            char
+            not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+            for char in part
+        )
         for part in parts
     ):
         raise ValueError("MGDB repository is invalid")
