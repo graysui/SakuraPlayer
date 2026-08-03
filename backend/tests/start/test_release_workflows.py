@@ -40,6 +40,7 @@ def test_release_version_matches_flutter_semver_and_preserves_build_number() -> 
     assert version.build_number == "1"
     assert version.artifact_version == "1.0.0-1"
     assert version.archive_name == "SakuraPlayer-Windows-1.0.0-1.zip"
+    assert version.docker_archive_name == "SakuraPlayer-Docker-1.0.0.tar.gz"
 
 
 @pytest.mark.parametrize("tag", ["1.0.0", "v1.0", "v1.0.0-rc.1", "v01.0.0"])
@@ -87,6 +88,10 @@ def test_release_workflow_has_atomic_tag_release_and_attestations() -> None:
     assert "validate_version.py" in workflow
     assert "uses: ./.github/workflows/verify.yml" in workflow
     assert "archive_name: ${{ steps.version.outputs.archive_name }}" in workflow
+    assert (
+        "docker_archive_name: ${{ steps.version.outputs.docker_archive_name }}"
+        in workflow
+    )
     assert "windows/dist/${{ needs.validate.outputs.archive_name }}" in workflow
     assert "ghcr.io/graysui/sakuraplayer-backend" in workflow
     assert "docker.io/graysui/sakuraplayer-backend" in workflow
@@ -102,10 +107,21 @@ def test_release_workflow_has_atomic_tag_release_and_attestations() -> None:
         assert tag_rule in workflow
     assert "actions/attest-build-provenance" in workflow
     assert workflow.count("push-to-registry: true") == 2
-    assert "needs: [validate, quality, windows, docker]" in workflow
+    assert "build_docker_bundle.py" in workflow
+    assert "bash -n backend/install.sh" in workflow
+    assert "name: docker-deployment" in workflow
+    assert "SakuraPlayer-Docker-" in workflow
+    assert 'diff -u "$expected" "$actual"' in workflow
+    assert (
+        'test "$(tar -xOzf "$archive" "$root/.release-version")" = "$RELEASE_VERSION"'
+        in workflow
+    )
+    assert "needs: [validate, quality, windows, deployment, docker]" in workflow
+    assert "Download Linux Docker deployment assets" in workflow
     assert "gh release create" in workflow
     assert "--generate-notes" in workflow
     assert set(re.findall(r"secrets\.([A-Z0-9_]+)", workflow)) == {"DOCKERHUB_TOKEN"}
+    assert workflow.count("actions/attest-build-provenance") == 4
 
 
 def test_all_actions_are_pinned_to_immutable_commits() -> None:

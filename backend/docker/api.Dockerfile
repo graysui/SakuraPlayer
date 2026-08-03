@@ -22,6 +22,8 @@ ENTRYPOINT ["/workspace/backend/docker/entrypoint.sh"]
 
 FROM base AS test
 COPY backend/tests ./tests
+COPY backend/install.sh ./install.sh
+COPY backend/.env.example ./.env.example
 COPY backend/docker/api.Dockerfile ./docker/api.Dockerfile
 COPY backend/docker-compose.yml ./docker-compose.yml
 COPY docs /workspace/docs

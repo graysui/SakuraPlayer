@@ -18,6 +18,7 @@ class ReleaseVersion(NamedTuple):
     build_number: str
     artifact_version: str
     archive_name: str
+    docker_archive_name: str
 
 
 def validate_release_version(*, tag: str, pubspec_path: Path) -> ReleaseVersion:
@@ -44,6 +45,7 @@ def validate_release_version(*, tag: str, pubspec_path: Path) -> ReleaseVersion:
         build_number=build_number,
         artifact_version=artifact_version,
         archive_name=f"SakuraPlayer-Windows-{artifact_version}.zip",
+        docker_archive_name=f"SakuraPlayer-Docker-{pubspec_version}.tar.gz",
     )
 
 
@@ -53,6 +55,7 @@ def _write_github_output(path: Path, version: ReleaseVersion) -> None:
         "build_number": version.build_number,
         "artifact_version": version.artifact_version,
         "archive_name": version.archive_name,
+        "docker_archive_name": version.docker_archive_name,
     }
     with path.open("a", encoding="utf-8", newline="\n") as output:
         for name, value in values.items():

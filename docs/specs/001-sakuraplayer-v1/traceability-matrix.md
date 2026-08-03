@@ -244,29 +244,31 @@
 | `AC-117` | `[I]` | `REQ-021` | `TASK-112`, `TASK-202`, `TASK-209`, `TASK-302`, `TASK-309` |
 | `AC-118` | `[I]` | `REQ-021` | `TASK-112`, `TASK-203`, `TASK-208`, `TASK-303`, `TASK-308` |
 | `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308`, `TASK-315` |
-| `AC-120` | `[I]` | `REQ-022` | `TASK-003`, `TASK-013`, `TASK-208`, `TASK-308` |
+| `AC-120` | `[I]` | `REQ-022` | `TASK-003`, `TASK-013`, `TASK-208`, `TASK-308`, `TASK-318` |
 | `AC-121` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-218`, `TASK-222`, `TASK-308` |
 | `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-227`, `TASK-308` |
-| `AC-123` | `[I]` | `REQ-023` | `TASK-001`, `TASK-317` |
+| `AC-123` | `[I]` | `REQ-023` | `TASK-001`, `TASK-317`, `TASK-318` |
 | `AC-124` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-125` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-126` | `[I]` | `REQ-023` | `TASK-001` |
-| `AC-127` | `[I]` | `REQ-023` | `TASK-001`, `TASK-013`, `TASK-112` |
+| `AC-127` | `[I]` | `REQ-023` | `TASK-001`, `TASK-013`, `TASK-112`, `TASK-318` |
 | `AC-128` | `[I]` | `REQ-024` | `TASK-003`, `TASK-013`, `TASK-101`, `TASK-212`, `TASK-216` |
 | `AC-129` | `[I]` | `REQ-024` | `TASK-013`, `TASK-101`, `TASK-212` |
 | `AC-130` | `[E]` | `REQ-024` | `TASK-213` |
 | `AC-131` | `[E]` | `REQ-024` | `TASK-312` |
 | `AC-132` | `[S]` | `REQ-024` | `TASK-014`, `TASK-113`, `TASK-213`, `TASK-313` |
-| `AC-133` | `[I]` | `REQ-025` | `TASK-001`, `TASK-002`, `TASK-202`, `TASK-302` |
-| `AC-134` | `[I]` | `REQ-025` | `TASK-001`, `TASK-219`, `TASK-317` |
+| `AC-133` | `[I]` | `REQ-025` | `TASK-001`, `TASK-002`, `TASK-202`, `TASK-302`, `TASK-318` |
+| `AC-134` | `[I]` | `REQ-025` | `TASK-001`, `TASK-219`, `TASK-317`, `TASK-318` |
 | `AC-135` | `[I]` | `REQ-025` | `TASK-202`, `TASK-219`, `TASK-220`, `TASK-302`, `TASK-317` |
 | `AC-136` | `[I]` | `REQ-026` | `TASK-316` |
 | `AC-137` | `[I]` | `REQ-026` | `TASK-316` |
 | `AC-138` | `[I]` | `REQ-026` | `TASK-316`, `TASK-317` |
 | `AC-139` | `[I]` | `REQ-026` | `TASK-316`, `TASK-317` |
-| `AC-140` | `[I]` | `REQ-026` | `TASK-316`, `TASK-317` |
+| `AC-140` | `[I]` | `REQ-026` | `TASK-316`, `TASK-317`, `TASK-318` |
 | `AC-141` | `[I]` | `REQ-026` | `TASK-316` |
-| `AC-142` | `[I]` | `REQ-026` | `TASK-316` |
+| `AC-142` | `[I]` | `REQ-026` | `TASK-316`, `TASK-318` |
+| `AC-143` | `[I]` | `REQ-027` | `TASK-318` |
+| `AC-144` | `[I]` | `REQ-027` | `TASK-318` |
 
 TASK-101 的 AC-013/016/017/128/129 映射还受
 [Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md) 中
@@ -305,3 +307,8 @@ TASK-316 的 AC-005/008/009/123/128/136 至 AC-142 映射受
 [GitHub 自动发布契约](contracts/github-release.md) 约束；它新增 7 条 `[IMP]` AC，任务总数增至 71。
 
 TASK-317 复用 AC-005/009/123/134/135/138/139/140，补充新手发布文档与首次 tag 就绪证据；它不新增 AC，任务总数增至 72。
+
+TASK-318 的 AC-120/123/127/133/134/140/142/143/144 映射受
+[Linux 一键安全部署](changes/2026-08-03--task-318-one-command-docker-install.md)、
+[运行配置契约](contracts/runtime-configuration.md) 和 [GitHub 自动发布契约](contracts/github-release.md)
+约束；它新增 AC-143/144，任务总数增至 73。

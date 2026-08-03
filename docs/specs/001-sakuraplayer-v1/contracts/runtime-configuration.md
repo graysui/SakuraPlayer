@@ -1,6 +1,6 @@
 # SakuraPlayer v1 运行配置契约
 
-**版本**: 1.4.0
+**版本**: 1.5.0
 
 **适用范围**: Docker 后端、Windows 客户端、HarmonyOS 客户端、显式外部验收
 
@@ -54,6 +54,20 @@ Compose 可在容器内组装 `SAKURAPLAYER_DATABASE_URL`，但最终 DSN 不得
 `SAKURAPLAYER_BACKEND_IMAGE` 只用于 Compose 插值，不注入应用进程。默认值为 `sakuraplayer-backend:local`，配合 `docker compose up --build` 从当前源码构建。使用 GitHub Release 对应镜像时，可显式设为 `ghcr.io/graysui/sakuraplayer-backend:X.Y.Z` 或 `docker.io/graysui/sakuraplayer-backend:X.Y.Z`，先 `docker compose pull`，再以 `docker compose up --no-build` 启动；同一正式版本在两个 registry 指向同一 digest。
 
 API、migrate、worker、scheduler 必须引用相同的 `SAKURAPLAYER_BACKEND_IMAGE`，只通过 Compose `command` 区分进程；不得混用不同版本或仅更新其中一个进程。生产部署优先使用不可变 digest，其次使用完整 `X.Y.Z`，不得依赖可移动的 `latest` 做无人值守升级。
+
+### 4.2 Linux 一键安装
+
+正式 Release 的 Linux Docker 部署包提供 `install.sh`，由宿主机负责准备配置，业务容器仍只消费本节冻结的文件变量。脚本必须满足：
+
+- 从脚本自身目录定位 `docker-compose.yml`、`.env.example` 和 `.release-version`，不依赖调用者当前目录。
+- 只在 `.env` 缺失时由模板原子创建，并把后端镜像固定为 `docker.io/graysui/sakuraplayer-backend:X.Y.Z`；已存在 `.env` 视为操作者配置，不自动覆盖。
+- 以 `umask 077` 创建 `secrets/`，五个文件分别使用 32、32、48、48、48 个 CSPRNG 字节编码为无 padding Base64URL；文件名和 Compose 引用保持现有契约。
+- 生成前获取单实例文件锁；拒绝 secret 目录/文件符号链接、非普通文件、错误长度、非规范字符或用途复用。有效既有文件保持内容不变，只允许把目录/文件权限收紧到 `0700/0600`。
+- 新文件先写同目录临时文件、验证后原子安装；中断或 Compose 失败不得删除或重新生成已完成的 secret，重复执行可安全恢复。
+- 标准输出和错误只包含稳定阶段、非敏感错误、默认访问地址和 `bootstrap_token.txt` 路径，不得输出任何 secret 值、摘要、长度以外的派生材料或完整数据库 DSN。
+- 启动顺序固定为 `docker compose config`、`pull`、`up -d --no-build --wait`；成功以 Compose 健康条件为准，默认发布地址仍为 `127.0.0.1`。
+
+源码仓库中的 `backend/install.sh` 可从 `windows/pubspec.yaml` 推导当前完整 SemVer；正式部署包必须带严格 `X.Y.Z` 的 `.release-version`，不依赖 Git、Flutter 源码或 `latest` 标签。安装脚本不负责备份、升级、在线密钥轮换、证书签发或公网暴露。
 
 ## 5. 管理员可修改配置
 

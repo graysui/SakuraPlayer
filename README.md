@@ -104,36 +104,36 @@ flowchart LR
 
 ### 1. Linux Docker Compose 部署（推荐）
 
-准备一台安装了 Git、Docker Engine 和 Docker Compose v2 的 Linux 服务器或 NAS。以下命令以 Ubuntu/Debian 的 Bash 为例，不需要在服务器上安装 Python、Flutter 或数据库。
+准备一台安装了 Docker Engine、Docker Compose v2、OpenSSL 和 `flock`（Ubuntu/Debian 的 `util-linux` 包）的 Linux 服务器或 NAS。不需要安装 Python、Flutter 或数据库。
 
-#### 下载部署文件
+#### 下载并一键安装
+
+从包含 Linux 部署资产的正式版本开始，打开 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest)，下载同一版本的：
+
+- `SakuraPlayer-Docker-X.Y.Z.tar.gz`
+- `SakuraPlayer-Docker-X.Y.Z.tar.gz.sha256`
+
+在下载目录执行：
 
 ```bash
-git clone --branch v1.0.0 --depth 1 https://github.com/graysui/SakuraPlayer.git
+sha256sum --check SakuraPlayer-Docker-*.tar.gz.sha256
+tar -xzf SakuraPlayer-Docker-*.tar.gz
+cd SakuraPlayer-Docker-*
+./install.sh
+```
+
+安装脚本会自动生成五个独立的强随机 secret、创建发布版 `.env`、拉取固定版本镜像，并等待 PostgreSQL、迁移、API、Worker 和 Scheduler 健康。它不会在终端显示 secret，只会告诉你初始化口令文件的位置。重复执行 `./install.sh` 会复用原文件，不会重置数据库密码或加密密钥。
+
+> [!NOTE]
+> 已发布的 `v1.0.0` 早于一键部署包功能，因此该 Release 只有 Windows 资产。新版本发布前，可以从当前源码使用同一个安装器：
+
+```bash
+git clone --depth 1 https://github.com/graysui/SakuraPlayer.git
 cd SakuraPlayer/backend
-cp .env.example .env
-sed -i 's|^SAKURAPLAYER_BACKEND_IMAGE=.*|SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:1.0.0|' .env
+bash install.sh
 ```
 
-#### 生成五个本机 secret
-
-```bash
-umask 077
-mkdir -p secrets
-
-make_secret() {
-  openssl rand -base64 "$1" | tr '+/' '-_' | tr -d '=\n'
-}
-
-printf '%s' "$(make_secret 32)" > secrets/postgres_password.txt
-printf '%s' "$(make_secret 32)" > secrets/settings_key.txt
-printf '%s' "$(make_secret 48)" > secrets/token_key.txt
-printf '%s' "$(make_secret 48)" > secrets/playback_key.txt
-printf '%s' "$(make_secret 48)" > secrets/bootstrap_token.txt
-chmod 600 secrets/*.txt
-```
-
-`bootstrap_token.txt` 只在第一次创建管理员时使用。请把它安全保存到密码管理器，不要发到聊天、日志或截图中。其余文件也不能提交到 Git。
+`bootstrap_token.txt` 只在第一次创建管理员时使用。读取后请保存到密码管理器，不要发到聊天、日志或截图中；其余 secret 也不能提交到 Git。
 
 #### 选择访问方式
 
@@ -144,24 +144,36 @@ SAKURAPLAYER_PUBLISH_HOST=192.168.1.50
 SAKURAPLAYER_API_PORT=8000
 ```
 
-请把 `192.168.1.50` 换成 Linux 服务器自己的地址。不要填写 `0.0.0.0`，也不要在路由器上把 8000 端口映射到公网；公网访问必须使用 HTTPS 反向代理或可信加密 VPN。
+请把 `192.168.1.50` 换成 Linux 服务器自己的地址，然后再次运行 `./install.sh` 应用配置。不要填写 `0.0.0.0`，也不要在路由器上把 8000 端口映射到公网；公网访问必须使用 HTTPS 反向代理或可信加密 VPN。
 
-#### 启动服务
-
-```bash
-docker compose --env-file .env -p sakuraplayer pull postgres api migrate worker scheduler
-docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
-docker compose --env-file .env -p sakuraplayer ps
-API_HOST=$(sed -n 's/^SAKURAPLAYER_PUBLISH_HOST=//p' .env)
-API_PORT=$(sed -n 's/^SAKURAPLAYER_API_PORT=//p' .env)
-curl -fsS "http://${API_HOST}:${API_PORT}/health/ready"
-```
-
-最后一条命令返回 JSON 且服务均为 `healthy` 即表示后端启动成功。查看首次管理员口令：
+#### 查看初始化口令
 
 ```bash
 cat secrets/bootstrap_token.txt
 ```
+
+<details>
+<summary><strong>高级：不使用安装脚本，手动准备 Compose</strong></summary>
+
+手动路径保留给需要自定义部署的用户。先从 `.env.example` 创建 `.env` 并设置完整版本镜像，再以 `umask 077` 创建 `secrets/`，使用 OpenSSL 分别生成 32、32、48、48、48 字节的无填充 Base64URL 内容，对应以下文件：
+
+```bash
+secrets/postgres_password.txt
+secrets/settings_key.txt
+secrets/token_key.txt
+secrets/playback_key.txt
+secrets/bootstrap_token.txt
+```
+
+五个值必须彼此不同，文件权限为 `600`。准备完成后执行：
+
+```bash
+docker compose --env-file .env -p sakuraplayer config --quiet
+docker compose --env-file .env -p sakuraplayer pull
+docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
+```
+
+</details>
 
 ### 2. 安装 Windows 客户端
 
@@ -207,7 +219,7 @@ Unblock-File .\Install-SakuraPlayer.ps1
 
 ### 常用维护命令
 
-在 Linux 的 `SakuraPlayer/backend` 目录执行：
+在解压后的 Docker 部署目录或源码的 `SakuraPlayer/backend` 目录执行：
 
 ```bash
 # 查看状态

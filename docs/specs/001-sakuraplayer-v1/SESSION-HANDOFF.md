@@ -2,13 +2,13 @@
 
 **更新时间**: 2026-08-03
 
-**当前阶段**: Windows v1、发布自动化与新手发布文档已完成，TASK-317 completed；下一任务 TASK-301 保持 pending，未开始。
+**当前阶段**: Windows v1、发布自动化、新手文档与 Linux 一键安全部署已完成，TASK-318 completed；下一任务 TASK-301 保持 pending，未开始。
 
 ## 1. 当前成果
 
-- 功能规格包含 142 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
+- 功能规格包含 144 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 72 个任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作。
+- 73 个任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
@@ -219,12 +219,14 @@
 - TASK-317 已重构 README 首屏与新手路径，提供固定 `v1.0.0` 的 Linux Docker Compose、五 secret、网络边界、维护命令和 Windows ZIP 安装闭环，并明确当前不生成单文件 EXE/MSI 安装器。
 - TASK-317 经用户明确批准不执行本地 Focused/Fast/Final 或完整 Compose；定向链接、Markdown、Bash/PowerShell、版本、Compose config、Secret 模式与差异检查通过，完成态提交 `991f541` 的远程 Verify `30802911998` 全绿。
 - `v1.0.0` 已发布 GitHub Windows ZIP 与 SHA-256，并向公开 GHCR 和 Docker Hub 推送五个后端镜像标签；双仓库 `1.0.0` digest 一致，Windows 与双镜像 provenance 均验证通过。
+- TASK-318 已交付 Linux/NAS 一键安装脚本、五个本机 secret 自动安全生成、固定 SemVer Docker 部署包和 Release attestation 汇总；新手部署不再需要手工生成 secret。
+- TASK-318 经用户明确批准不执行 Focused/Fast/Final 或完整 Compose；定向 Ruff、Shell 语法和 30 项测试通过，实际发布包白名单/SHA-256/0755 与隔离真实 Compose config 通过，临时 secret 已清理。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-317 completed；TASK-301 保持 pending，未开始。
-- **最近绿色快速门禁**: TASK-317 定向文档与命令检查通过；完成态远程 Verify `30802911998` 的 Backend/Docker 1m28s、Windows 4m34s 全绿。
-- **最终门禁状态**: 用户明确批准 TASK-317 不运行本地三层验证或完整 Compose；Release `30803267055` attempt 2 全绿，Windows ZIP、GHCR、Docker Hub 与 provenance 已实际验收。
+- **当前任务门禁阶段**: TASK-318 completed；TASK-301 保持 pending，未开始。
+- **最近绿色快速门禁**: TASK-318 按批准例外执行的 30 项定向测试、Ruff、Shell 语法、发布包 dry-run、真实 Compose config、差异和 secret 扫描通过。
+- **最终门禁状态**: 用户明确批准 TASK-318 不运行 Focused/Fast/Final 三层验证或完整 Compose；替代定向证据全部通过，`v1.0.0` 既有 Release 不追溯新增 Linux 资产。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -241,12 +243,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318。
 - **下一任务**: TASK-301 API 24 Stage 工程与签名侧载基线；保持 pending，等待用户明确开始并核验外部 DoR。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁已完成；仅 TASK-312 HarmonyOS API 24 真机门禁仍未完成。
 
-TASK-317 与 `v1.0.0` 首发均已完成，TASK-301 尚未开始。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据和下载验收副本，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
+TASK-318 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署资产；未来正式 tag 才生成一键部署包。TASK-301 尚未开始。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
 
 ## 4. 必读契约
 

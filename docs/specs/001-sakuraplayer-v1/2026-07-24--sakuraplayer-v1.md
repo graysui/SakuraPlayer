@@ -270,6 +270,10 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-140 `[IMP]`**: tag 工作流只有在 Windows 与 Docker 发布路径均成功后才创建 GitHub Release，并上传 Windows ZIP 与外层 SHA-256，避免半发布版本。
 - **AC-141 `[IMP]`**: GitHub Actions 使用默认只读和 job 级最小写权限，第三方 Action 固定完整 commit SHA；GitHub 操作只使用仓库 `GITHUB_TOKEN`，Docker Hub 只使用专用 `DOCKERHUB_TOKEN` Actions Secret，不得依赖个人 GitHub PAT 或业务 secret。
 - **AC-142 `[IMP]`**: Windows 资产及 GHCR、Docker Hub 镜像 digest 生成 GitHub artifact attestation；Windows 公共构建明确为未签名，attestation 不冒充 Authenticode。
+### REQ-027 Linux 一键私有部署
+
+- **AC-143 `[IMP]`**: 正式 GitHub Release 同时提供固定版本的 Linux Docker 部署包和 SHA-256；部署包包含 Compose、无 secret 环境模板、一键安装脚本、部署说明和许可证/第三方声明，不包含 `.env`、secret、业务数据或移动版本引用。
+- **AC-144 `[IMP]`**: Linux 一键安装自动生成五个用途独立的规范 Base64URL secret、收紧权限、创建完整 SemVer 发布配置并健康启动 Compose；重复运行不得覆盖有效配置或 secret，非法文件、用途复用和并发执行必须安全拒绝，默认保持 loopback 且任何输出不得包含 secret 值。
 
 ## 12. 非功能要求
 
@@ -309,4 +313,4 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ## 14. 发布门禁
 
-Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-142 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 AC-131 的真实设备探针全部通过后才能开始；AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。
+Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-144 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 AC-131 的真实设备探针全部通过后才能开始；AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。
