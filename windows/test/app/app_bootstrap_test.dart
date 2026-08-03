@@ -645,6 +645,7 @@ class _RouteSettingsGateway implements SettingsGateway {
       apiKeyConfigured: false,
       version: 0,
     ),
+    mgdb: MgdbSettingsDto(configured: false, sourceUrl: null, version: 0),
     providers: <String, ProviderStateDto>{},
     incrementalSync: SyncRunStateDto(
       status: 'never',

@@ -25,7 +25,7 @@ void main() {
         });
 
         final query = MovieFilters(
-          categories: avdbCategories.toSet(),
+          categories: mgdbCategories.toSet(),
           labels: movieSourceLabels.toSet(),
           sourceWebsite: MovieSourceWebsite.x1080x,
           playable: false,

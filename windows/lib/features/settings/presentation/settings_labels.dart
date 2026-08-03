@@ -9,7 +9,7 @@ String settingsTargetLabel(String value) => switch (value) {
   'scheduler' => '调度服务',
   'worker' => '任务服务',
   'postgres' => '数据库',
-  'avdb' => 'AVdb',
+  'avdb' => 'MGDB',
   _ => value,
 };
 

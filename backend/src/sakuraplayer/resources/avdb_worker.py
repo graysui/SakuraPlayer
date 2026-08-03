@@ -5,6 +5,7 @@ import re
 import shutil
 import threading
 import uuid
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
 from typing import Protocol
@@ -36,6 +37,10 @@ class ReleaseClient(Protocol):
         destination: Path,
         validator,
     ) -> FetchedRelease: ...
+
+
+class ReleaseClientFactory(Protocol):
+    def __call__(self, repository: str) -> ReleaseClient: ...
 
 
 class _RequestLeaseKeeper:
@@ -95,7 +100,9 @@ class AvdbWorkerConsumer:
         self,
         *,
         queue: AvdbSyncQueue,
-        release_client: ReleaseClient,
+        release_client: ReleaseClient | None = None,
+        release_client_factory: ReleaseClientFactory | None = None,
+        source_loader: Callable[[], str | None] | None = None,
         sync_service: AvdbSyncService,
         asset_directory: Path,
         plaintext_directory: Path,
@@ -110,6 +117,14 @@ class AvdbWorkerConsumer:
             raise ValueError("invalid AVdb request heartbeat")
         self._queue = queue
         self._release_client = release_client
+        self._release_client_factory = release_client_factory
+        self._source_loader = source_loader
+        if (release_client is None) == (release_client_factory is None):
+            raise ValueError(
+                "provide exactly one release client or release client factory"
+            )
+        if release_client_factory is not None and source_loader is None:
+            raise ValueError("source loader is required for release client factory")
         self._sync_service = sync_service
         self._asset_directory = Path(asset_directory)
         self._plaintext_directory = Path(plaintext_directory)
@@ -137,7 +152,15 @@ class AvdbWorkerConsumer:
         lease_keeper.start()
         try:
             self._create_plaintext_directory(plaintext_directory)
-            release = self._release_client.fetch_release(
+            release_client = self._release_client
+            if self._release_client_factory is not None:
+                assert self._source_loader is not None
+                repository = self._source_loader()
+                if repository is None:
+                    raise AvdbAssetError("mgdb_source_not_configured")
+                release_client = self._release_client_factory(repository)
+            assert release_client is not None
+            release = release_client.fetch_release(
                 mode=claim.mode,
                 destination=self._asset_directory,
                 validator=lambda path: decrypt_asset_file(

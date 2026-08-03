@@ -63,6 +63,12 @@ TASK-001..013
 
 Windows 页面任务可在 Cloud115 后端开发期间使用 OpenAPI fixture 并行，但 Windows 工作流的正式完成路径从已完成的 TASK-114 进入 TASK-201。HarmonyOS 功能实现不能与 Windows 主链路并行提前开始。
 
+## 3.1 用户追加变更任务
+
+| ID | 标题 | 依赖 | 说明 |
+|---|---|---|---|
+| [TASK-315](tasks/TASK-315.md) | MGDB 用户数据源与 Windows 命名 | TASK-208,TASK-214 | 独立 Delta；不改变 TASK-301..314 鸿蒙工作流顺序 |
+
 ## 4. 质量门禁
 
 | 门禁 | 结果/要求 |

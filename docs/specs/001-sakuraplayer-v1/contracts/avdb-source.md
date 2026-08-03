@@ -1,17 +1,21 @@
 # AVdb 数据源与解密契约
 
-**版本**: 1.2.0
+**版本**: 1.3.0
 
 **性质**: v1 资源接入防腐层的权威输入契约
 
 ## 1. Release 来源
 
-| 角色 | GitHub 仓库 | API 基址 |
-|---|---|---|
-| 主源 | `li-peifeng/AVdb-Only` | `https://api.github.com/repos/li-peifeng/AVdb-Only` |
-| 备用源 | `jzdxjk/AVdb-Only` | `https://api.github.com/repos/jzdxjk/AVdb-Only` |
+MGDB 数据源由管理员通过 Windows 设置页输入并保存为 `mgdb.source`。输入只允许以下两种等价地址，服务端保存后统一回显第一种格式：
 
-只允许 GitHub API 返回的 HTTPS `browser_download_url`，且最终重定向主机必须在 GitHub Release 资产白名单中。主源失败时按相同 Release tag 和资产类型查询备用源；两个来源都可用时，下载后 SHA-256 必须一致，否则停止导入并记录 `avdb_asset_digest_mismatch`。
+```text
+https://github.com/{owner}/{repo}
+https://api.github.com/repos/{owner}/{repo}
+```
+
+`owner` 和 `repo` 只能包含 GitHub 仓库标识允许的 ASCII 字符；scheme 必须为 HTTPS，端口只能为空或 443，禁止 userinfo、query 和 fragment。未配置来源时，worker 不得发起 HTTP 请求并记录 `mgdb_source_not_configured`。
+
+同步只访问当前保存的单一仓库。只允许 GitHub API 返回的 HTTPS `browser_download_url`，且最终重定向主机必须在 GitHub Release 资产白名单中。切换仓库后按该仓库的 Release、资产集合、大小和 SHA-256 校验；不再内置或自动查询第三方主源/备用源。
 
 ## 2. 资产选择
 

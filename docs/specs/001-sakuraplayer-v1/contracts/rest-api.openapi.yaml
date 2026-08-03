@@ -2259,7 +2259,7 @@ components:
     Settings:
       type: object
       required:
-        [cache_ttl_hours, ready_cache_limit, metadata_concurrency, metadata_timeout_seconds, javdb, ai, providers, avdb_sync]
+        [cache_ttl_hours, ready_cache_limit, metadata_concurrency, metadata_timeout_seconds, javdb, ai, mgdb, providers, avdb_sync]
       properties:
         cache_ttl_hours:
           type: integer
@@ -2279,6 +2279,8 @@ components:
           $ref: '#/components/schemas/JavdbSettings'
         ai:
           $ref: '#/components/schemas/AiSettings'
+        mgdb:
+          $ref: '#/components/schemas/MgdbSettings'
         providers:
           type: object
           additionalProperties:
@@ -2297,6 +2299,8 @@ components:
           $ref: '#/components/schemas/JavdbSettingsCommand'
         ai:
           $ref: '#/components/schemas/AiSettingsCommand'
+        mgdb:
+          $ref: '#/components/schemas/MgdbSettingsCommand'
       additionalProperties: false
     SettingClearCommand:
       type: object
@@ -2359,6 +2363,38 @@ components:
     AiSettingsCommand:
       oneOf:
         - $ref: '#/components/schemas/AiSettingsReplace'
+        - $ref: '#/components/schemas/SettingClearCommand'
+    MgdbSettings:
+      type: object
+      required: [configured, source_url, version]
+      properties:
+        configured:
+          type: boolean
+        source_url:
+          type: [string, 'null']
+          format: uri
+          maxLength: 512
+        version:
+          type: integer
+          minimum: 0
+    MgdbSettingsReplace:
+      type: object
+      required: [action, expected_version, source_url]
+      properties:
+        action:
+          const: replace
+        expected_version:
+          type: integer
+          minimum: 0
+        source_url:
+          type: string
+          format: uri
+          minLength: 1
+          maxLength: 512
+      additionalProperties: false
+    MgdbSettingsCommand:
+      oneOf:
+        - $ref: '#/components/schemas/MgdbSettingsReplace'
         - $ref: '#/components/schemas/SettingClearCommand'
     ConnectionTest:
       type: object

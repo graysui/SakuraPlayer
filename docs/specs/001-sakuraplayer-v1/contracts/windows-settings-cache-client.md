@@ -34,9 +34,11 @@
 - TTL 使用整数输入/步进控件，范围 `1..168` 小时，服务端默认 24。保存时只 PATCH `cache_ttl_hours`；成功使用响应真相，失败保留服务端确认前值和用户输入以便重试。
 - `ready_cache_limit=20`、`metadata_concurrency=3`、`metadata_timeout_seconds=600` 只读显示，不提供修改控件。启动级主密钥、JWT、播放 HMAC 和 bootstrap secret 不出现在可编辑表单。
 - JavDB/AI 使用对象级 replace/clear CAS。replace 必须提交响应中的 `version` 作为 `expected_version` 和完整非秘密字段加新输入的 password/API key；clear 使用当前正版本。`state_conflict` 后重新加载，不自动用旧输入覆盖新版本。
+- MGDB 数据源使用对象级 replace/clear CAS。replace 提交响应中的 `mgdb.version` 和 `source_url`；source URL 只接受契约规定的 GitHub HTTPS 仓库地址。成功后回显规范化 URL，`state_conflict` 后重新加载。
 - password/API key 控件初始为空，不用占位值伪装已保存秘密；响应、页面树、错误和测试快照只显示 `password_configured/api_key_configured`。提交完成或离开页面时清空输入 controller。
+- MGDB 不是磁力输入框；页面不读取、显示或保存磁力内容。
 - 连接测试目标固定为 `cloud115/javdb/dmm/gfriends/ai`，同一目标在途时禁用。响应只显示 status、稳定 error code、耗时和检查时间，不展示上游正文。DMM/GFriends/AI 专属错误码必须映射为中文；未知码统一显示“未知错误”，不得直接展示英文稳定码。
-- 设置页显示 30D 增量与全量同步的中文状态、已导入总数、最近成功与下次计划；不增加手动同步入口。协议枚举保持 `never/running/succeeded/failed`，显示映射由 TASK-215 统一处理。
+- 设置页显示 MGDB 30D 增量与全量同步的中文状态、已导入总数、最近成功与下次计划；不增加手动同步入口。协议枚举保持 `never/running/succeeded/failed`，显示映射由 TASK-215 统一处理。
 
 ## 5. 诊断与元数据操作
 

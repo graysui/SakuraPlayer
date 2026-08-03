@@ -23,6 +23,7 @@ from sakuraplayer.identity.crypto import (
 from sakuraplayer.identity.models import Base, EncryptedSetting
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
+from sakuraplayer.resources.avdb_release import EncryptedAvdbSourceStore
 from sakuraplayer.resources.models import AvdbSyncRun, Movie
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=timezone.utc)
@@ -47,6 +48,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
         repository,
         EncryptedJavdbCredentialStore(repository),
         EncryptedAiConfigurationStore(repository),
+        EncryptedAvdbSourceStore(repository),
         probes={
             "javdb": lambda: ProbeResult("available"),
             "ai": _translation_credentials_probe,
@@ -82,6 +84,11 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             assert defaults["cache_ttl_hours"] == 24
             assert defaults["javdb"]["version"] == 0
             assert defaults["ai"]["version"] == 0
+            assert defaults["mgdb"] == {
+                "configured": False,
+                "source_url": None,
+                "version": 0,
+            }
             assert defaults["providers"]["cloud115"]["configured"] is False
             assert defaults["avdb_sync"]["full_reconcile"]["imported_count"] == 0
 
@@ -104,6 +111,11 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
                         "model": "fixture-model",
                         "timeout_seconds": 45,
                     },
+                    "mgdb": {
+                        "action": "replace",
+                        "expected_version": 0,
+                        "source_url": "https://github.com/example/mgdb",
+                    },
                 },
             )
             assert response.status_code == 200
@@ -119,8 +131,26 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
                 "version": 1,
             }
             assert body["ai"]["api_key_configured"] is True
+            assert body["mgdb"] == {
+                "configured": True,
+                "source_url": "https://github.com/example/mgdb",
+                "version": 1,
+            }
             assert javdb_password not in response.text
             assert ai_key not in response.text
+
+            invalid_source = client.patch(
+                "/api/v1/settings",
+                headers=headers,
+                json={
+                    "mgdb": {
+                        "action": "replace",
+                        "expected_version": 1,
+                        "source_url": "https://example.invalid/mgdb",
+                    }
+                },
+            )
+            assert invalid_source.status_code == 422
 
             stale = client.patch(
                 "/api/v1/settings",

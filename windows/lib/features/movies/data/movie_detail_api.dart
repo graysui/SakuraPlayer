@@ -111,7 +111,7 @@ class MovieSourceDto {
       externalPostId: reader.positiveInteger('external_post_id'),
       title: reader.nonEmptyString('title'),
       publishDate: publishDate,
-      category: reader.enumeration('category', avdbCategories.toSet()),
+      category: reader.enumeration('category', mgdbCategories.toSet()),
       labels: labels,
       resourceSizeMb: resourceSizeMb,
       videoFileSizeBytes: videoFileSizeBytes,

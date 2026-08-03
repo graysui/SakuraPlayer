@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 import logging
 import os
 import re
@@ -15,14 +16,15 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
+from sakuraplayer.identity.crypto import SecretDecryptionError
+from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.resources.avdb_crypto import (
     MAX_OUTER_BYTES,
     AvdbAssetError,
     validate_asset_name,
 )
 
-PRIMARY_REPOSITORY = "li-peifeng/AVdb-Only"
-BACKUP_REPOSITORY = "jzdxjk/AVdb-Only"
+MGDB_SOURCE_KEY = "mgdb.source"
 _API_ROOT = "https://api.github.com/repos"
 MAX_RELEASE_METADATA_BYTES = 1024 * 1024
 _MAX_REDIRECTS = 5
@@ -80,6 +82,111 @@ class FetchedRelease:
 
 
 @dataclass(frozen=True)
+class AvdbSourceSnapshot:
+    repository: str
+    source_url: str
+    version: int
+
+
+class EncryptedAvdbSourceStore:
+    def __init__(self, repository: EncryptedSettingRepository) -> None:
+        self._repository = repository
+
+    def save(self, source_url: str, *, expected_version: int):
+        normalized = normalize_github_source(source_url)
+        payload = json.dumps(
+            {"repository": normalized},
+            separators=(",", ":"),
+        ).encode("utf-8")
+        setting = self._repository.create_or_compare_and_set_secret(
+            MGDB_SOURCE_KEY,
+            expected_version=expected_version,
+            value=payload,
+        )
+        return AvdbSourceSnapshot(
+            repository=normalized,
+            source_url=github_source_url(normalized),
+            version=setting.version,
+        )
+
+    def load(self) -> AvdbSourceSnapshot | None:
+        try:
+            setting = self._repository.get_secret(MGDB_SOURCE_KEY)
+        except SecretDecryptionError:
+            raise ValueError("MGDB source setting is invalid") from None
+        if setting is None:
+            return None
+        if len(setting.value) > 512:
+            raise ValueError("MGDB source setting is too large")
+        try:
+            payload = json.loads(setting.value.decode("utf-8"))
+            if not isinstance(payload, dict) or set(payload) != {"repository"}:
+                raise ValueError
+            repository = payload["repository"]
+            if not isinstance(repository, str):
+                raise ValueError
+            repository = _validate_repository(repository)
+        except (UnicodeDecodeError, ValueError, json.JSONDecodeError):
+            raise ValueError("MGDB source setting is invalid") from None
+        return AvdbSourceSnapshot(
+            repository=repository,
+            source_url=github_source_url(repository),
+            version=setting.version,
+        )
+
+    def clear(self, *, expected_version: int) -> None:
+        self._repository.delete_secret(
+            MGDB_SOURCE_KEY,
+            expected_version=expected_version,
+        )
+
+
+def normalize_github_source(source_url: str) -> str:
+    if not isinstance(source_url, str):
+        raise ValueError("MGDB source must be a URL")
+    try:
+        parsed = urlparse(source_url.strip())
+        port = parsed.port
+    except ValueError:
+        raise ValueError("MGDB source URL is invalid") from None
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname is None
+        or parsed.hostname.lower() not in {"github.com", "api.github.com"}
+        or port not in {None, 443}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("MGDB source URL is invalid")
+    parts = [part for part in parsed.path.split("/") if part]
+    if parsed.hostname.lower() == "api.github.com":
+        if len(parts) != 3 or parts[0].lower() != "repos":
+            raise ValueError("MGDB source URL is invalid")
+        owner, repository = parts[1:]
+    else:
+        if len(parts) != 2:
+            raise ValueError("MGDB source URL is invalid")
+        owner, repository = parts
+    return _validate_repository(f"{owner}/{repository}")
+
+
+def github_source_url(repository: str) -> str:
+    return f"https://github.com/{_validate_repository(repository)}"
+
+
+def _validate_repository(repository: str) -> str:
+    parts = repository.split("/")
+    if len(parts) != 2 or any(
+        not part or len(part) > 100 or any(char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-" for char in part)
+        for part in parts
+    ):
+        raise ValueError("MGDB repository is invalid")
+    return "/".join(parts)
+
+
+@dataclass(frozen=True)
 class _TemporaryAsset:
     descriptor: ReleaseAsset
     path: Path
@@ -89,8 +196,20 @@ class _TemporaryAsset:
 
 
 class GitHubAvdbReleaseClient:
-    def __init__(self, *, http_client: httpx.Client) -> None:
+    def __init__(
+        self,
+        *,
+        http_client: httpx.Client,
+        repository: str,
+        backup_repository: str | None = None,
+    ) -> None:
         self._http = http_client
+        self._repository = _validate_repository(repository)
+        self._backup_repository = (
+            _validate_repository(backup_repository)
+            if backup_repository is not None
+            else None
+        )
 
     def fetch_release(
         self,
@@ -103,13 +222,17 @@ class GitHubAvdbReleaseClient:
         destination.mkdir(parents=True, exist_ok=True)
         primary_error: AvdbAssetError | None = None
         try:
-            primary = self._discover(PRIMARY_REPOSITORY, mode=mode, tag=None)
+            primary = self._discover(self._repository, mode=mode, tag=None)
         except AvdbAssetError as error:
             primary_error = error
             primary = None
         if primary is None:
             try:
-                backup = self._discover(BACKUP_REPOSITORY, mode=mode, tag=None)
+                backup = (
+                    self._discover(self._backup_repository, mode=mode, tag=None)
+                    if self._backup_repository is not None
+                    else None
+                )
             except AvdbAssetError:
                 raise
             if backup is None:
@@ -121,7 +244,15 @@ class GitHubAvdbReleaseClient:
             return self._commit(backup, mode, destination, selected)
 
         try:
-            backup = self._discover(BACKUP_REPOSITORY, mode=mode, tag=primary.tag)
+            backup = (
+                self._discover(
+                    self._backup_repository,
+                    mode=mode,
+                    tag=primary.tag,
+                )
+                if self._backup_repository is not None
+                else None
+            )
         except AvdbAssetError:
             backup = None
         primary_files: tuple[_TemporaryAsset, ...] | None = None

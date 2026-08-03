@@ -47,7 +47,10 @@ from sakuraplayer.discovery.ranking_sync import (
 from sakuraplayer.events.outbox import DomainEventWriter
 from sakuraplayer.identity.crypto import SecretCipher, SettingsSecretKeyProvider
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
-from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
+from sakuraplayer.resources.avdb_release import (
+    EncryptedAvdbSourceStore,
+    GitHubAvdbReleaseClient,
+)
 from sakuraplayer.resources.avdb_worker import AvdbWorkerConsumer
 from sakuraplayer.resources.initial_scope import InitialScopeSelector
 from sakuraplayer.resources.rejection import SourceRejectionService
@@ -188,10 +191,21 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
                 key=settings.settings_key,
             )
         )
+        secret_repository = EncryptedSettingRepository(factory, cipher)
+        mgdb_store = EncryptedAvdbSourceStore(secret_repository)
+
+        def mgdb_repository() -> str | None:
+            snapshot = mgdb_store.load()
+            return snapshot.repository if snapshot is not None else None
+
         cache_root = PROVIDER_CACHE_DIRECTORY / "avdb"
         consumer = AvdbWorkerConsumer(
             queue=AvdbSyncQueue(factory),
-            release_client=GitHubAvdbReleaseClient(http_client=http_client),
+            release_client_factory=lambda repository: GitHubAvdbReleaseClient(
+                http_client=http_client,
+                repository=repository,
+            ),
+            source_loader=mgdb_repository,
             sync_service=AvdbSyncService(factory),
             asset_directory=cache_root / "assets",
             plaintext_directory=cache_root / "plaintext",
@@ -231,7 +245,6 @@ def build_worker_runtime(settings: Settings) -> WorkerRuntime:
             ),
         )
         ranking_queue = RankingSyncQueue(factory)
-        secret_repository = EncryptedSettingRepository(factory, cipher)
         credential_store = EncryptedJavdbCredentialStore(secret_repository)
         ranking_consumer = RankingConsumer(
             queue=ranking_queue,

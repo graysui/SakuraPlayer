@@ -180,6 +180,47 @@ class AiSettingsDto extends ProviderStateDto {
 }
 
 @immutable
+class MgdbSettingsDto {
+  const MgdbSettingsDto({
+    required this.configured,
+    required this.sourceUrl,
+    required this.version,
+  });
+
+  factory MgdbSettingsDto.fromJson(Map<String, Object?> json) {
+    final reader = JsonReader(json, 'MgdbSettings');
+    final sourceUrl = reader.nullableString('source_url');
+    if (sourceUrl != null && !_isGithubSourceUrl(sourceUrl)) {
+      throw const ProtocolException('MgdbSettings.source_url is invalid');
+    }
+    return MgdbSettingsDto(
+      configured: reader.boolean('configured'),
+      sourceUrl: sourceUrl,
+      version: reader.nonNegativeInteger('version'),
+    );
+  }
+
+  final bool configured;
+  final String? sourceUrl;
+  final int version;
+}
+
+bool _isGithubSourceUrl(String value) {
+  final uri = Uri.tryParse(value);
+  if (uri == null || uri.scheme != 'https' || uri.userInfo.isNotEmpty) {
+    return false;
+  }
+  if (uri.port != 443 && uri.port != 0) return false;
+  if (uri.query.isNotEmpty || uri.fragment.isNotEmpty) return false;
+  final segments =
+      uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+  if (uri.host == 'github.com') return segments.length == 2;
+  return uri.host == 'api.github.com' &&
+      segments.length == 3 &&
+      segments.first == 'repos';
+}
+
+@immutable
 class SyncRunStateDto {
   const SyncRunStateDto({
     required this.status,
@@ -221,6 +262,7 @@ class SettingsDto {
     required this.metadataTimeoutSeconds,
     required this.javdb,
     required this.ai,
+    required this.mgdb,
     required this.providers,
     required this.incrementalSync,
     required this.fullSync,
@@ -263,6 +305,7 @@ class SettingsDto {
       metadataTimeoutSeconds: timeout,
       javdb: JavdbSettingsDto.fromJson(reader.object('javdb')),
       ai: AiSettingsDto.fromJson(reader.object('ai')),
+      mgdb: MgdbSettingsDto.fromJson(reader.object('mgdb')),
       providers: Map<String, ProviderStateDto>.unmodifiable(providers),
       incrementalSync: SyncRunStateDto.fromJson(sync.object('incremental_30d')),
       fullSync: SyncRunStateDto.fromJson(sync.object('full_reconcile')),
@@ -275,6 +318,7 @@ class SettingsDto {
   final int metadataTimeoutSeconds;
   final JavdbSettingsDto javdb;
   final AiSettingsDto ai;
+  final MgdbSettingsDto mgdb;
   final Map<String, ProviderStateDto> providers;
   final SyncRunStateDto incrementalSync;
   final SyncRunStateDto fullSync;
@@ -622,6 +666,11 @@ abstract interface class SettingsGateway {
     required int timeoutSeconds,
   });
   Future<SettingsDto> clearAi(int expectedVersion);
+  Future<SettingsDto> replaceMgdb({
+    required int expectedVersion,
+    required String sourceUrl,
+  });
+  Future<SettingsDto> clearMgdb(int expectedVersion);
   Future<ConnectionTestDto> testConnection(String target);
   Future<DiagnosticsDto> getDiagnostics();
   Future<MetadataQueueControlDto> setMetadataPaused(bool paused);
@@ -745,6 +794,36 @@ class SettingsApi implements SettingsGateway {
     }
     return _patch(<String, Object?>{
       'ai': <String, Object?>{
+        'action': 'clear',
+        'expected_version': expectedVersion,
+      },
+    });
+  }
+
+  @override
+  Future<SettingsDto> replaceMgdb({
+    required int expectedVersion,
+    required String sourceUrl,
+  }) {
+    if (expectedVersion < 0 || !_isGithubSourceUrl(sourceUrl)) {
+      throw ArgumentError('invalid MGDB source');
+    }
+    return _patch(<String, Object?>{
+      'mgdb': <String, Object?>{
+        'action': 'replace',
+        'expected_version': expectedVersion,
+        'source_url': sourceUrl,
+      },
+    });
+  }
+
+  @override
+  Future<SettingsDto> clearMgdb(int expectedVersion) {
+    if (expectedVersion < 1) {
+      throw ArgumentError.value(expectedVersion, 'expectedVersion');
+    }
+    return _patch(<String, Object?>{
+      'mgdb': <String, Object?>{
         'action': 'clear',
         'expected_version': expectedVersion,
       },

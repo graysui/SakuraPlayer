@@ -140,6 +140,29 @@ class SettingsController extends Notifier<SettingsState> {
     );
   }
 
+  Future<void> replaceMgdb({required String sourceUrl}) {
+    final current = state.settings;
+    if (current == null) return Future.value();
+    return _mutate(
+      'mgdb',
+      () => ref
+          .read(settingsGatewayProvider)
+          .replaceMgdb(
+            expectedVersion: current.mgdb.version,
+            sourceUrl: sourceUrl,
+          ),
+    );
+  }
+
+  Future<void> clearMgdb() {
+    final current = state.settings;
+    if (current == null) return Future.value();
+    return _mutate(
+      'mgdb',
+      () => ref.read(settingsGatewayProvider).clearMgdb(current.mgdb.version),
+    );
+  }
+
   Future<void> testConnection(String target) async {
     if (!connectionTargets.contains(target) ||
         state.inFlight.contains('test:$target')) {

@@ -36,6 +36,8 @@
 | [TASK-219](tasks/TASK-219.md) | 前后端开发期热更新 | Compose Watch、Flutter Hot Reload、默认 API 地址 | TASK-001,TASK-202 | 否 |
 | [TASK-214](tasks/TASK-214.md) | Windows 客户端清理 | specs-code-cleanup | TASK-213,TASK-215,TASK-216,TASK-217,TASK-218,TASK-219,TASK-220,TASK-221,TASK-222,TASK-223,TASK-226,TASK-227 | 否 |
 
+> TASK-315 是跨边界用户追加变更任务，单独维护，不计入本工作流原定 15 个实现任务。
+
 ## 数量检查
 
 - 实现任务：15，未超过 15。

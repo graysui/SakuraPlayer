@@ -8,7 +8,11 @@ import pytest
 
 import sakuraplayer.resources.avdb_release as release_module
 from sakuraplayer.resources.avdb_crypto import AvdbAssetError
-from sakuraplayer.resources.avdb_release import GitHubAvdbReleaseClient
+from sakuraplayer.resources.avdb_release import (
+    GitHubAvdbReleaseClient,
+    github_source_url,
+    normalize_github_source,
+)
 
 PRIMARY = "li-peifeng/AVdb-Only"
 BACKUP = "jzdxjk/AVdb-Only"
@@ -65,11 +69,74 @@ def full_release(repository: str, contents: tuple[bytes, bytes]) -> dict:
     }
 
 
-def client(handler) -> GitHubAvdbReleaseClient:
+def client(
+    handler,
+    *,
+    repository: str = PRIMARY,
+    backup_repository: str | None = BACKUP,
+) -> GitHubAvdbReleaseClient:
     transport = httpx.MockTransport(handler)
     return GitHubAvdbReleaseClient(
-        http_client=httpx.Client(transport=transport, follow_redirects=True)
+        http_client=httpx.Client(transport=transport, follow_redirects=True),
+        repository=repository,
+        backup_repository=backup_repository,
     )
+
+
+@pytest.mark.parametrize(
+    ("source_url", "repository"),
+    [
+        ("https://github.com/example/mgdb", "example/mgdb"),
+        ("https://api.github.com/repos/example/mgdb", "example/mgdb"),
+        ("https://github.com:443/example/mgdb", "example/mgdb"),
+    ],
+)
+def test_normalizes_user_mgdb_source(source_url: str, repository: str) -> None:
+    assert normalize_github_source(source_url) == repository
+    assert github_source_url(repository) == "https://github.com/example/mgdb"
+
+
+@pytest.mark.parametrize(
+    "source_url",
+    [
+        "http://github.com/example/mgdb",
+        "https://example.invalid/example/mgdb",
+        "https://user:password@github.com/example/mgdb",
+        "https://github.com/example/mgdb?token=secret",
+        "https://github.com/example/mgdb#fragment",
+        "https://github.com/example",
+    ],
+)
+def test_rejects_unsafe_mgdb_source(source_url: str) -> None:
+    with pytest.raises(ValueError):
+        normalize_github_source(source_url)
+
+
+def test_release_client_uses_only_the_configured_repository(tmp_path) -> None:
+    content = b"configured-source"
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(request.url.path)
+        if request.url.path == "/repos/example/mgdb/releases/latest":
+            return httpx.Response(200, json=release("example/mgdb", content))
+        return httpx.Response(200, content=content)
+
+    fetched = client(
+        handler,
+        repository="example/mgdb",
+        backup_repository=None,
+    ).fetch_release(
+        mode="incremental_30d",
+        destination=tmp_path,
+        validator=lambda path: Path(path).read_bytes(),
+    )
+
+    assert fetched.repository == "example/mgdb"
+    assert requested == [
+        "/repos/example/mgdb/releases/latest",
+        f"/example/mgdb/releases/download/{TAG}/{ASSET_NAME}",
+    ]
 
 
 def test_uses_verified_backup_when_primary_discovery_fails(tmp_path) -> None:

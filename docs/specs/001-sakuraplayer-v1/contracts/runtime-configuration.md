@@ -55,9 +55,10 @@ Compose 可在容器内组装 `SAKURAPLAYER_DATABASE_URL`，但最终 DSN 不得
 
 - JavDB 用户名和密码；两者作为单个 `javdb.credentials` 加密 JSON envelope 原子 CAS，不保存分键明文。
 - AI `base_url`、`api_key`、`model`、超时。
+- MGDB GitHub 数据源仓库地址，使用 `mgdb.source` AES-GCM envelope 和对象级 CAS；不配置时不执行同步网络请求。
 - 缓存 TTL 1..168 小时。
 
-115 Cookie 只通过扫码流程写入。DMM、演员映射和 GFriends 使用冻结的公共地址，不接受客户端任意 URL。JavDB host 只允许由受控部署环境设置，客户端设置 API 不提供修改入口。
+115 Cookie 只通过扫码流程写入。DMM、演员映射和 GFriends 使用冻结的公共地址，不接受客户端任意 URL。MGDB 只接受契约规定的 GitHub 仓库 URL；JavDB host 只允许由受控部署环境设置，客户端设置 API 不提供修改入口。
 
 TASK-010 将 AI 四字段以单个 key `ai.configuration` 的 AES-GCM JSON 载荷保存并使用版本 CAS 原子更新，避免 provider 地址、模型和 key 来自不同配置版本。`base_url` 是不含 `/v1` 尾段的绝对 `http/https` provider root，最长 2048 字符，不得包含 userinfo、query 或 fragment；尾部 `/` 在保存前移除。`model` 为 1..255 字符，`api_key` 为 1..8192 UTF-8 字节，`timeout_seconds` 为 1..600。TASK-013 的设置 API 解密后只回显 base_url/model/timeout 和 `api_key_configured`，不回显 key。
 

@@ -29,6 +29,7 @@ from sakuraplayer.identity.secrets import (
     ConcurrentSettingUpdate,
     EncryptedSettingRepository,
 )
+from sakuraplayer.resources.avdb_release import EncryptedAvdbSourceStore
 from sakuraplayer.resources.models import AvdbSyncRequest, AvdbSyncRun
 from sakuraplayer.shared.redaction import stable_error_code
 
@@ -73,12 +74,21 @@ class AiReplaceInput(BaseModel):
     timeout_seconds: int = Field(ge=1, le=600)
 
 
+class MgdbReplaceInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    action: Literal["replace"]
+    expected_version: int = Field(ge=0)
+    source_url: str = Field(min_length=1, max_length=512)
+
+
 class SettingsPatchInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     cache_ttl_hours: int | None = Field(default=None, ge=1, le=168)
     javdb: JavdbReplaceInput | SettingClearInput | None = None
     ai: AiReplaceInput | SettingClearInput | None = None
+    mgdb: MgdbReplaceInput | SettingClearInput | None = None
 
     @model_validator(mode="after")
     def require_non_null_command(self) -> "SettingsPatchInput":
@@ -110,6 +120,12 @@ class AiSettingsOutput(ProviderStateOutput):
     version: int
 
 
+class MgdbSettingsOutput(BaseModel):
+    configured: bool
+    source_url: str | None
+    version: int = Field(ge=0)
+
+
 class SyncRunStateOutput(BaseModel):
     status: SyncStatus
     imported_count: int = Field(ge=0)
@@ -133,6 +149,7 @@ class SettingsOutput(BaseModel):
     metadata_timeout_seconds: Literal[600] = 600
     javdb: JavdbSettingsOutput
     ai: AiSettingsOutput
+    mgdb: MgdbSettingsOutput
     providers: dict[str, ProviderStateOutput]
     avdb_sync: AvdbSyncStatusOutput
 
@@ -170,6 +187,7 @@ class SettingsService:
         repository: EncryptedSettingRepository,
         javdb_store: EncryptedJavdbCredentialStore,
         ai_store: EncryptedAiConfigurationStore,
+        mgdb_store: EncryptedAvdbSourceStore | None = None,
         *,
         probes: Mapping[str, ConnectionProbe] | None = None,
         now: Callable[[], datetime] | None = None,
@@ -179,6 +197,7 @@ class SettingsService:
         self._repository = repository
         self._javdb_store = javdb_store
         self._ai_store = ai_store
+        self._mgdb_store = mgdb_store
         self._probes = dict(probes or {})
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._monotonic = monotonic_clock or monotonic
@@ -187,6 +206,7 @@ class SettingsService:
         connection_results = self.connection_results()
         javdb = self._javdb_settings(connection_results.get("javdb"))
         ai = self._ai_settings(connection_results.get("ai"))
+        mgdb = self._mgdb_settings()
         with self._session_factory() as session:
             gfriends_ready = (
                 session.scalar(
@@ -219,6 +239,7 @@ class SettingsService:
             cache_ttl_hours=ttl_hours,
             javdb=javdb,
             ai=ai,
+            mgdb=mgdb,
             providers={
                 "cloud115": self._cloud115_provider_state(
                     cloud115_binding,
@@ -269,6 +290,17 @@ class SettingsService:
                     expected_version=command.ai.expected_version,
                 )
             self._invalidate_connection_result("ai")
+        if "mgdb" in command.model_fields_set:
+            assert command.mgdb is not None
+            if self._mgdb_store is None:
+                raise ValueError("MGDB source store is unavailable")
+            if isinstance(command.mgdb, SettingClearInput):
+                self._mgdb_store.clear(expected_version=command.mgdb.expected_version)
+            else:
+                self._mgdb_store.save(
+                    command.mgdb.source_url,
+                    expected_version=command.mgdb.expected_version,
+                )
         return self.get()
 
     def test_connection(self, target: ConnectionTarget) -> ConnectionTestOutput:
@@ -395,6 +427,30 @@ class SettingsService:
             model=snapshot.model if snapshot is not None else None,
             timeout_seconds=snapshot.timeout_seconds if snapshot is not None else None,
             api_key_configured=snapshot is not None,
+            version=(
+                snapshot.version
+                if snapshot is not None
+                else status.version
+                if status is not None
+                else 0
+            ),
+        )
+
+    def _mgdb_settings(self) -> MgdbSettingsOutput:
+        if self._mgdb_store is None:
+            return MgdbSettingsOutput(configured=False, source_url=None, version=0)
+        status = self._repository.get_status("mgdb.source")
+        try:
+            snapshot = self._mgdb_store.load()
+        except ValueError:
+            return MgdbSettingsOutput(
+                configured=status is not None and status.configured,
+                source_url=None,
+                version=status.version if status is not None else 0,
+            )
+        return MgdbSettingsOutput(
+            configured=snapshot is not None,
+            source_url=snapshot.source_url if snapshot is not None else None,
             version=(
                 snapshot.version
                 if snapshot is not None
@@ -577,5 +633,6 @@ __all__ = [
     "SettingsOutput",
     "SettingsPatchInput",
     "SettingsService",
+    "MgdbReplaceInput",
     "create_settings_api",
 ]

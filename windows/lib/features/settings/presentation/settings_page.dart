@@ -17,6 +17,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _ttl = TextEditingController();
+  final _mgdbSource = TextEditingController();
   final _javdbUsername = TextEditingController();
   final _javdbPassword = TextEditingController();
   final _aiBaseUrl = TextEditingController();
@@ -42,6 +43,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
     _tabs.dispose();
     for (final controller in [
       _ttl,
+      _mgdbSource,
       _javdbUsername,
       _javdbPassword,
       _aiBaseUrl,
@@ -57,10 +59,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
 
   void _syncFields(SettingsDto value) {
     final signature =
-        '${value.javdb.version}:${value.ai.version}:${value.cacheTtlHours}';
+        '${value.mgdb.version}:${value.javdb.version}:${value.ai.version}:${value.cacheTtlHours}';
     if (_loadedSignature == signature) return;
     _loadedSignature = signature;
     _ttl.text = '${value.cacheTtlHours}';
+    _mgdbSource.text = value.mgdb.sourceUrl ?? '';
     _javdbUsername.text = value.javdb.username ?? '';
     _javdbPassword.clear();
     _aiBaseUrl.text = value.ai.baseUrl ?? '';
@@ -179,6 +182,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
         1 => _CacheSettings(ttl: _ttl, state: state),
         2 => _ProviderSettings(
           state: state,
+          mgdbSource: _mgdbSource,
           javdbUsername: _javdbUsername,
           javdbPassword: _javdbPassword,
           aiBaseUrl: _aiBaseUrl,
@@ -354,6 +358,7 @@ class _CacheSettings extends ConsumerWidget {
 class _ProviderSettings extends ConsumerWidget {
   const _ProviderSettings({
     required this.state,
+    required this.mgdbSource,
     required this.javdbUsername,
     required this.javdbPassword,
     required this.aiBaseUrl,
@@ -362,6 +367,7 @@ class _ProviderSettings extends ConsumerWidget {
     required this.aiApiKey,
   });
   final SettingsState state;
+  final TextEditingController mgdbSource;
   final TextEditingController javdbUsername,
       javdbPassword,
       aiBaseUrl,
@@ -374,6 +380,40 @@ class _ProviderSettings extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text('MGDB 数据源', style: Theme.of(context).textTheme.titleLarge),
+        Text('已配置：${settings?.mgdb.configured == true ? '是' : '否'}'),
+        const SizedBox(height: 8),
+        _Field(controller: mgdbSource, label: 'GitHub 仓库地址'),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            FilledButton.icon(
+              onPressed:
+                  state.inFlight.contains('mgdb')
+                      ? null
+                      : () => ref
+                          .read(settingsControllerProvider.notifier)
+                          .replaceMgdb(sourceUrl: mgdbSource.text),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('保存数据源'),
+            ),
+            OutlinedButton(
+              onPressed:
+                  (settings?.mgdb.version ?? 0) < 1
+                      ? null
+                      : () => _confirmClear(
+                        context,
+                        () =>
+                            ref
+                                .read(settingsControllerProvider.notifier)
+                                .clearMgdb(),
+                      ),
+              child: const Text('清除'),
+            ),
+          ],
+        ),
+        const Divider(height: 40),
         Text('JavDB', style: Theme.of(context).textTheme.titleLarge),
         Text(
           '状态：${settingsStatusLabel(settings?.javdb.status ?? 'unknown')} · ${settingsErrorLabel(settings?.javdb.lastErrorCode)}',
@@ -566,7 +606,7 @@ class _SyncSettings extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('AVdb 同步', style: Theme.of(context).textTheme.titleLarge),
+      Text('MGDB 同步', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 12),
       _SyncRow(label: '30D 增量', value: settings?.incrementalSync),
       _SyncRow(label: '全量校对', value: settings?.fullSync),

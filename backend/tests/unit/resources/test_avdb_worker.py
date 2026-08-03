@@ -147,6 +147,74 @@ def test_consumer_persists_discovery_or_decryption_failure(tmp_path) -> None:
     engine.dispose()
 
 
+def test_consumer_builds_release_client_from_current_mgdb_source(tmp_path) -> None:
+    engine, factory = store()
+    queue = AvdbSyncQueue(factory)
+    request = queue.enqueue("incremental_30d")
+    repositories: list[str] = []
+
+    def build(repository: str) -> SuccessfulReleaseClient:
+        repositories.append(repository)
+        return SuccessfulReleaseClient()
+
+    consumer = AvdbWorkerConsumer(
+        queue=queue,
+        release_client_factory=build,
+        source_loader=lambda: "example/mgdb",
+        sync_service=AvdbSyncService(factory),
+        asset_directory=tmp_path,
+        plaintext_directory=tmp_path,
+    )
+
+    assert (
+        consumer.run_once(
+            worker_id="worker-1",
+            importer=lambda asset_name, rows: BatchStats(inserted=len(rows)),
+        )
+        == "completed"
+    )
+    assert repositories == ["example/mgdb"]
+    with factory() as session:
+        saved = session.get(AvdbSyncRequest, request.request_id)
+        assert saved is not None and saved.status == "completed"
+    engine.dispose()
+
+
+def test_consumer_does_not_fetch_without_mgdb_source(tmp_path) -> None:
+    engine, factory = store()
+    queue = AvdbSyncQueue(factory)
+    request = queue.enqueue("incremental_30d")
+    built = False
+
+    def build(repository: str) -> SuccessfulReleaseClient:
+        nonlocal built
+        built = True
+        raise AssertionError(repository)
+
+    consumer = AvdbWorkerConsumer(
+        queue=queue,
+        release_client_factory=build,
+        source_loader=lambda: None,
+        sync_service=AvdbSyncService(factory),
+        asset_directory=tmp_path,
+        plaintext_directory=tmp_path,
+    )
+
+    assert (
+        consumer.run_once(
+            worker_id="worker-1",
+            importer=lambda asset_name, rows: BatchStats(),
+        )
+        == "failed"
+    )
+    assert built is False
+    with factory() as session:
+        saved = session.get(AvdbSyncRequest, request.request_id)
+        assert saved is not None
+        assert saved.failure_code == "mgdb_source_not_configured"
+    engine.dispose()
+
+
 def test_cleanup_failure_does_not_override_persisted_success(tmp_path, caplog) -> None:
     engine, factory = store()
     queue = AvdbSyncQueue(factory)

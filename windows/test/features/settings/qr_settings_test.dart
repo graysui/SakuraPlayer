@@ -104,6 +104,10 @@ void main() {
         username: 'admin',
         password: 'secret-value',
       );
+      await api.replaceMgdb(
+        expectedVersion: 4,
+        sourceUrl: 'https://github.com/example/mgdb',
+      );
       await api.retryMetadataEnrichment(
         _metadataJobId,
         const <String>['translation', 'images'],
@@ -114,6 +118,7 @@ void main() {
         adapter.requests.map((item) => '${item.method} ${item.path}'),
         <String>[
           'PATCH settings',
+          'PATCH settings',
           'POST admin/metadata-jobs/$_metadataJobId/retry-enrichment',
         ],
       );
@@ -123,6 +128,13 @@ void main() {
           'expected_version': 3,
           'username': 'admin',
           'password': 'secret-value',
+        },
+      });
+      expect(adapter.requests[1].data, <String, Object?>{
+        'mgdb': <String, Object?>{
+          'action': 'replace',
+          'expected_version': 4,
+          'source_url': 'https://github.com/example/mgdb',
         },
       });
       expect(adapter.requests.last.data, <String, Object?>{
@@ -270,6 +282,7 @@ void main() {
     expect(find.text('secret-value'), findsNothing);
     expect(find.text('密码已配置：是'), findsOneWidget);
     expect(find.text('API key 已配置：是'), findsOneWidget);
+    expect(find.text('MGDB 数据源'), findsOneWidget);
     expect(find.text('状态：未配置 · 无错误'), findsNWidgets(2));
     final cloud115Button = find.byKey(
       const ValueKey('connection-test-cloud115'),
@@ -371,6 +384,11 @@ Map<String, Object?> _settingsJson() => <String, Object?>{
     'model': null,
     'timeout_seconds': null,
     'api_key_configured': false,
+    'version': 0,
+  },
+  'mgdb': <String, Object?>{
+    'configured': false,
+    'source_url': null,
     'version': 0,
   },
   'providers': <String, Object?>{

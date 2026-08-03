@@ -4,7 +4,7 @@ import 'package:sakuraplayer_windows/core/api/api_client.dart';
 import 'package:sakuraplayer_windows/core/api/api_models.dart';
 import 'package:sakuraplayer_windows/features/auth/presentation/auth_controller.dart';
 
-const avdbCategories = <String>['亚洲有码', '亚洲无码', '中文字幕', '4K原版', '素人有码', 'FC2'];
+const mgdbCategories = <String>['亚洲有码', '亚洲无码', '中文字幕', '4K原版', '素人有码', 'FC2'];
 
 const movieSourceLabels = <String>['subtitle', 'cracked', '4k', 'censored'];
 
@@ -43,7 +43,7 @@ class MovieFilters {
   final MovieSort sort;
 
   String? get validationMessage {
-    if (categories.any((value) => !avdbCategories.contains(value)) ||
+    if (categories.any((value) => !mgdbCategories.contains(value)) ||
         labels.any((value) => !movieSourceLabels.contains(value))) {
       return '筛选条件无效';
     }
@@ -64,7 +64,7 @@ class MovieFilters {
     if (validation != null) {
       throw ArgumentError.value(this, 'filters', validation);
     }
-    final orderedCategories = avdbCategories
+    final orderedCategories = mgdbCategories
         .where(categories.contains)
         .toList(growable: false);
     final orderedLabels = movieSourceLabels
@@ -128,7 +128,7 @@ class MovieFilters {
 
   @override
   int get hashCode => Object.hash(
-    Object.hashAll(avdbCategories.where(categories.contains)),
+    Object.hashAll(mgdbCategories.where(categories.contains)),
     Object.hashAll(movieSourceLabels.where(labels.contains)),
     sourceWebsite,
     playable,

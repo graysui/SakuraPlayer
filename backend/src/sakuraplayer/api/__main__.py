@@ -58,6 +58,7 @@ from sakuraplayer.playback.progress import MoviePlaybackStateService
 from sakuraplayer.playback.resolver import PlaybackStreamResolver
 from sakuraplayer.playback.session import PlaybackSessionService
 from sakuraplayer.playback.subtitles import SubtitleDownloadService
+from sakuraplayer.resources.avdb_release import EncryptedAvdbSourceStore
 from sakuraplayer.resources.identification_api import IdentificationService
 from sakuraplayer.resources.movie_source_service import MovieSourceService
 from sakuraplayer.resources.source_submission import SourceSubmissionService
@@ -116,6 +117,7 @@ def main() -> None:
     metadata_queue = MetadataQueue(factory, event_writer=event_writer)
     credential_store = EncryptedJavdbCredentialStore(secret_repository)
     ai_store = EncryptedAiConfigurationStore(secret_repository)
+    mgdb_store = EncryptedAvdbSourceStore(secret_repository)
     provider_http_client = httpx.Client(headers={"User-Agent": "SakuraPlayer/0.1"})
     javdb_provider = JavdbProvider(
         http_client=provider_http_client,
@@ -211,6 +213,7 @@ def main() -> None:
         secret_repository,
         credential_store,
         ai_store,
+        mgdb_store,
         probes={
             "cloud115": probe_cloud115,
             "javdb": probe_javdb,

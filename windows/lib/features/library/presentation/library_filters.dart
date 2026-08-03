@@ -61,7 +61,7 @@ class _LibraryFiltersState extends State<LibraryFilters> {
           _FilterRow(
             label: '分类',
             children: [
-              for (final category in avdbCategories)
+              for (final category in mgdbCategories)
                 FilterChip(
                   label: Text(category),
                   selected: widget.filters.categories.contains(category),
