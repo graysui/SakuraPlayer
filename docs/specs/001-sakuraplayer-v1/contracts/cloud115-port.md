@@ -9,7 +9,8 @@
 **就绪变更**: [TASK-101 Cloud115 协议就绪边界](../changes/2026-07-27--task-101-cloud115-readiness.md)、
 [TASK-106 来源拒绝确定性边界](../changes/2026-07-28--task-106-source-rejection-determinism.md)、
 [TASK-109 HLS 回退确定性边界](../changes/2026-07-28--task-109-hls-fallback-boundaries.md)、
-[TASK-213 Cloud115 能力域兼容边界](../changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md)
+[TASK-213 Cloud115 能力域兼容边界](../changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md)、
+[TASK-226 115 离线确认及时性与协议兼容](../changes/2026-08-03--task-226-cloud115-offline-confirmation.md)
 
 ## 1. 目标与分层
 
@@ -94,7 +95,8 @@ HlsInfo { pickcode, variants }
 ```
 
 `QrToken` 不包含上游二维码正文；二维码只以 PNG bytes 返回。`OfflineTaskSnapshot` 不得
-包含磁力、原始 source URL、Cookie、errno 或 raw response。`failure_reason` 只允许稳定的
+包含磁力、原始 source URL、Cookie、errno 或 raw response。离线状态允许协议上等价的数字或
+稳定字符串表示，以及 TASK-226 明确的非敏感字段别名；未知表示仍必须拒绝。`failure_reason` 只允许稳定的
 非敏感小写蛇形值。短期 URL 只能存在于调用栈、播放会话内存对象和 `302` 构造中，禁止
 进入 repository、事件、普通日志、异常或测试快照。
 
@@ -184,6 +186,10 @@ hostname、无 userinfo，并限制最多 3 跳。普通日志只记录稳定操
 `cloud115_offline_task_not_found`；调用方结合本地状态决定是否视为幂等完成。
 没有 `info_hash` 的不确定提交在显式取消时只做一次分页对账；仍找不到不能伪装成已取消，
 必须回到 `submit_uncertain`。
+
+离线任务处于 `queued/running` 时，worker 的下一次状态观察目标间隔不超过 2 秒；该目标不
+改变 Cloud115Port 的 HTTP 超时、限流退避或提交不确定语义。状态确认完成后仍由 resolving
+阶段负责文件扫描和媒体选择。
 
 ## 8. 安全删除前置条件
 

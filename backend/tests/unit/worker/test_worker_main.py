@@ -8,6 +8,7 @@ import pytest
 
 from sakuraplayer.resources.sync_service import BatchStats
 from sakuraplayer.worker.__main__ import (
+    CACHE_IDLE_WAIT_SECONDS,
     consume_avdb_requests,
     consume_cache_requests,
     consume_provider_snapshot_requests,
@@ -105,11 +106,10 @@ def test_cache_consumer_loop_waits_only_when_idle() -> None:
         consumer=consumer,
         stop_event=stop_event,
         worker_id="cache-worker",
-        idle_wait_seconds=0.25,
     )
 
     assert consumer.worker_ids == ["cache-worker", "cache-worker"]
-    assert stop_event.waits == [0.25]
+    assert stop_event.waits == [CACHE_IDLE_WAIT_SECONDS]
 
 
 class RuntimeSeeder:

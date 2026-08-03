@@ -62,6 +62,24 @@ def test_historical_offline_status_mapping(raw: int, expected: OfflineStatus) ->
     assert "magnet:" not in repr(task)
 
 
+def test_offline_status_text_and_compatible_task_fields_are_normalized() -> None:
+    task = Cloud115Adapter.parse_offline_task(
+        {
+            "info_hash": "b" * 40,
+            "title": "task",
+            "size": "42",
+            "status": "completed",
+            "display_percent": "100",
+            "task_cid": 20,
+        }
+    )
+
+    assert task.status is OfflineStatus.COMPLETED
+    assert task.name == "task"
+    assert task.task_cid == "20"
+    assert task.percent_done == 100
+
+
 def test_unknown_offline_status_is_protocol_error() -> None:
     with pytest.raises(Cloud115Problem) as raised:
         Cloud115Adapter.parse_offline_task(

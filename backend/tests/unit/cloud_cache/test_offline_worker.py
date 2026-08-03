@@ -373,23 +373,30 @@ def test_crash_after_rejection_reclaims_and_converges_without_cloud_replay(
     assert replay_cloud.calls == []
 
 
-def test_running_remote_task_uses_claim_lease_as_poll_backoff(context) -> None:
+def test_running_remote_task_uses_updated_at_as_poll_backoff(context) -> None:
     factory, source_port, play = context
     job_id = _create_started(factory, play)
     remote_hash = "9" * 40
     _mark_offlining(factory, job_id, remote_hash)
     fake = FakeCloud115(
-        offline_pages=[_page(_snapshot(remote_hash, OfflineStatus.RUNNING, 45.0))]
+        offline_pages=[
+            _page(_snapshot(remote_hash, OfflineStatus.RUNNING, 45.0)),
+            _page(_snapshot(remote_hash, OfflineStatus.RUNNING, 50.0)),
+        ]
     )
-    worker = _worker(factory, source_port, fake)
+    clock = {"now": NOW}
+    worker = _worker(factory, source_port, fake, now=lambda: clock["now"])
 
     assert worker.run_once(worker_id="worker-a") == "worked"
     job = _job(factory, job_id)
     assert (job.status, float(job.remote_percent)) == ("offlining", 45.0)
     assert job.claim_expires_at.replace(tzinfo=timezone.utc) == NOW + timedelta(
-        seconds=5
+        seconds=90
     )
+    clock["now"] += timedelta(seconds=1)
     assert worker.run_once(worker_id="worker-b") == "idle"
+    clock["now"] += timedelta(seconds=1)
+    assert worker.run_once(worker_id="worker-b") == "worked"
 
 
 @pytest.mark.parametrize(
@@ -521,20 +528,20 @@ def test_cancel_requires_confirmation_and_hands_remote_cleanup_to_task_107(
     assert fake.calls[-1].operation == "cancel_offline"
 
 
-def _worker(factory, source_port, fake):
+def _worker(factory, source_port, fake, *, now=lambda: NOW):
     @asynccontextmanager
     async def cloud_scope(_claim):
         yield fake
 
     return CacheOfflineWorker(
-        CacheJobClaimQueue(factory, now=lambda: NOW),
+        CacheJobClaimQueue(factory, now=now),
         source_port,
         SourceRejectionClient(
             source_port,
             SourceRejectionService(factory, now=lambda: NOW),
         ),
         cloud_scope,
-        now=lambda: NOW,
+        now=now,
     )
 
 

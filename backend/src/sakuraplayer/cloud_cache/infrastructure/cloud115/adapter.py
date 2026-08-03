@@ -66,6 +66,19 @@ _OFFLINE_STATUS = {
     1: OfflineStatus.RUNNING,
     2: OfflineStatus.COMPLETED,
 }
+_OFFLINE_STATUS_NAMES = {
+    "queued": OfflineStatus.QUEUED,
+    "waiting": OfflineStatus.QUEUED,
+    "pending": OfflineStatus.QUEUED,
+    "running": OfflineStatus.RUNNING,
+    "downloading": OfflineStatus.RUNNING,
+    "completed": OfflineStatus.COMPLETED,
+    "complete": OfflineStatus.COMPLETED,
+    "success": OfflineStatus.COMPLETED,
+    "failed": OfflineStatus.FAILED,
+    "failure": OfflineStatus.FAILED,
+    "error": OfflineStatus.FAILED,
+}
 _UID_PATTERN = re.compile(r"^(\d+)_")
 _M3U8_ATTRIBUTE = re.compile(r'([A-Z0-9-]+)=(?:"([^"]*)"|([^,]*))')
 _DEFAULT_USER_AGENT = "SakuraPlayer-Cloud115/1.0"
@@ -608,9 +621,9 @@ class Cloud115Adapter:
         if not isinstance(raw, dict):
             raise Cloud115Problem("cloud115_protocol_error")
         try:
-            status = _OFFLINE_STATUS[int(raw.get("status", 0))]
+            status = cls._offline_status(raw.get("status"))
             info_hash = cls._required_text(raw, "info_hash")
-            name = cls._required_text(raw, "name")
+            name = cls._required_alias_text(raw, ("name", "title"))
             failure_reason = (
                 "offline_failed" if status is OfflineStatus.FAILED else None
             )
@@ -624,11 +637,33 @@ class Cloud115Adapter:
                 ),
                 file_id=str(raw.get("file_id") or "") or None,
                 pickcode=str(raw.get("pick_code") or "") or None,
-                task_cid=str(raw.get("wp_path_id") or "") or None,
+                task_cid=cls._optional_alias_text(
+                    raw, ("wp_path_id", "task_cid", "path_id")
+                ),
                 failure_reason=failure_reason,
             )
         except (KeyError, TypeError, ValueError):
             raise Cloud115Problem("cloud115_protocol_error") from None
+
+    @staticmethod
+    def _offline_status(value: Any) -> OfflineStatus:
+        if isinstance(value, bool):
+            raise Cloud115Problem("cloud115_protocol_error")
+        if isinstance(value, int):
+            status = _OFFLINE_STATUS.get(value)
+        elif isinstance(value, str):
+            normalized = value.strip().lower()
+            status = _OFFLINE_STATUS_NAMES.get(normalized)
+            if status is None:
+                try:
+                    status = _OFFLINE_STATUS.get(int(normalized))
+                except ValueError:
+                    status = None
+        else:
+            status = None
+        if status is None:
+            raise Cloud115Problem("cloud115_protocol_error")
+        return status
 
     @classmethod
     def parse_original_payload(
@@ -1023,9 +1058,36 @@ class Cloud115Adapter:
     @staticmethod
     def _required_text(payload: dict[str, Any], key: str) -> str:
         value = payload.get(key)
-        if not isinstance(value, (str, int)) or not str(value):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (str, int))
+            or not str(value)
+        ):
             raise Cloud115Problem("cloud115_protocol_error")
         return str(value)
+
+    @classmethod
+    def _required_alias_text(
+        cls, payload: dict[str, Any], keys: tuple[str, ...]
+    ) -> str:
+        value = cls._optional_alias_text(payload, keys)
+        if value is None:
+            raise Cloud115Problem("cloud115_protocol_error")
+        return value
+
+    @staticmethod
+    def _optional_alias_text(
+        payload: dict[str, Any], keys: tuple[str, ...]
+    ) -> str | None:
+        for key in keys:
+            value = payload.get(key)
+            if (
+                not isinstance(value, bool)
+                and isinstance(value, (str, int))
+                and str(value)
+            ):
+                return str(value)
+        return None
 
     @staticmethod
     def _integer(value: Any) -> int:

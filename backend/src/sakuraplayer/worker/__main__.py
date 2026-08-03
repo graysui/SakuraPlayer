@@ -78,6 +78,7 @@ from sakuraplayer.worker.rankings import RankingConsumer
 
 PROVIDER_CACHE_DIRECTORY = Path("/var/lib/sakuraplayer/provider-cache")
 IDLE_WAIT_SECONDS = 5.0
+CACHE_IDLE_WAIT_SECONDS = 1.0
 SUPERVISOR_TICK_SECONDS = 1.0
 WORKER_THREAD_JOIN_SECONDS = 5.0
 
@@ -157,7 +158,7 @@ def consume_cache_requests(
     consumer: OfflineWorker,
     stop_event: StopEvent,
     worker_id: str,
-    idle_wait_seconds: float = IDLE_WAIT_SECONDS,
+    idle_wait_seconds: float = CACHE_IDLE_WAIT_SECONDS,
 ) -> None:
     if not worker_id or len(worker_id) > 64 or idle_wait_seconds < 0:
         raise ValueError("invalid cache worker loop configuration")

@@ -283,3 +283,7 @@ REQ-CHG-261 至 REQ-CHG-263 约束；它不新增 AC 或任务，总任务数仍
 TASK-222 的 AC-040/045/051/052/069/071/072/104/121/122 映射还受
 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md) 中
 REQ-CHG-264 至 REQ-CHG-270 约束；它不新增 AC，总任务数增至 65。
+
+TASK-226 的 AC-084/086/087/088/089/090/091 映射还受
+[115 离线确认及时性与协议兼容](changes/2026-08-03--task-226-cloud115-offline-confirmation.md) 中
+REQ-CHG-271 至 REQ-CHG-275 约束；它不新增 AC，总任务数增至 69。

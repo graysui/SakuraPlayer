@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from sqlalchemy import case, delete, or_, select
+from sqlalchemy import and_, case, delete, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from sakuraplayer.cloud_cache.capacity import (
@@ -36,6 +36,7 @@ from sakuraplayer.resources.models import Movie
 
 DEFAULT_CLAIM_LEASE = timedelta(seconds=90)
 DEFAULT_RETRY_DELAY = timedelta(seconds=5)
+OFFLINE_POLL_DELAY = timedelta(seconds=2)
 _CLAIMABLE = ("submitting", "offlining", "cancelling")
 
 
@@ -98,6 +99,10 @@ class CacheJobClaimQueue:
                     or_(
                         CacheJob.claim_owner.is_(None),
                         CacheJob.claim_expires_at <= current,
+                        and_(
+                            CacheJob.status == CacheJobStatus.OFFLINING.value,
+                            CacheJob.updated_at <= current - OFFLINE_POLL_DELAY,
+                        ),
                     ),
                 )
                 .order_by(
@@ -437,7 +442,7 @@ class CacheJobClaimQueue:
             if snapshot.status in {OfflineStatus.COMPLETED, OfflineStatus.FAILED}:
                 self._clear_claim(job)
             else:
-                job.claim_expires_at = current + DEFAULT_RETRY_DELAY
+                job.claim_expires_at = current + self._lease
                 job.failure_code = None
                 job.failure_detail = None
             job.updated_at = current

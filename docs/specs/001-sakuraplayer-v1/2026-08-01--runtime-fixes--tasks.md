@@ -18,10 +18,11 @@
 | [TASK-223](tasks/TASK-223.md) | 真实目录响应兼容修复 | GFriends 安全投影、封面状态、翻译证据 | TASK-206,TASK-207,TASK-216,TASK-222 | 是 | 是 |
 | [TASK-224](tasks/TASK-224.md) | WebSocket 运行依赖修复 | API 镜像协议实现、启动依赖门禁 | TASK-013 | 否 | 否 |
 | [TASK-225](tasks/TASK-225.md) | 硅基流动 Qwen 翻译兼容修复 | prompt v2、非思考 profile、安全诊断 | TASK-010,TASK-223,TASK-224 | 否 | 是 |
+| [TASK-226](tasks/TASK-226.md) | 115 离线确认及时性与协议兼容修复 | 2 秒确认、状态归一化、不重复提交 | TASK-101,TASK-104,TASK-105,TASK-112 | 否 | 是 |
 
 ## 数量检查
 
-- 实现任务：6，未超过 15。
+- 实现任务：7，未超过 15。
 - E2E：0。
 - 清理：0；Windows 文件统一由 TASK-214 清理。
 
