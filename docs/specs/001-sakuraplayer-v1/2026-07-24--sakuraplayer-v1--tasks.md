@@ -25,9 +25,9 @@
 | 115 缓存与播放后端 | 12 | 1 | 1 | TASK-015 完成 | [任务列表](2026-07-24--cloud115-cache-playback--tasks.md) |
 | Windows 客户端 | 15 | 1 | 1 | 后端契约冻结；可用 Fake 115 | [任务列表](2026-07-24--windows-client--tasks.md) |
 | HarmonyOS 客户端 | 11 | 2 | 1 | TASK-213 和 AC-130 完成；TASK-312/AC-131 前置探针通过 | [任务列表](2026-07-24--harmonyos-client--tasks.md) |
-| 运行修复 | 5 | 0 | 0 | 对应缺陷已在真实运行中复现 | [任务列表](2026-08-01--runtime-fixes--tasks.md) |
+| 运行修复 | 6 | 0 | 0 | 对应缺陷已在真实运行中复现 | [任务列表](2026-08-01--runtime-fixes--tasks.md) |
 
-**合计**: 58 个实现任务、5 个 E2E 任务、4 个清理任务，共 67 个任务。每个工作流的实现任务数不超过 15。
+**合计**: 59 个实现任务、5 个 E2E 任务、4 个清理任务，共 68 个任务。每个工作流的实现任务数不超过 15。
 
 ## 3. 关键路径
 
@@ -50,6 +50,7 @@ TASK-001..013
   -> TASK-222 runtime content recovery
   -> TASK-223 catalog response compatibility
   -> TASK-224 WebSocket runtime dependency
+  -> TASK-225 SiliconFlow Qwen translation compatibility
   -> TASK-214 cleanup
   -> TASK-301 API 24 minimal probe scaffold
   -> TASK-312 AC-131 API 24 device preflight

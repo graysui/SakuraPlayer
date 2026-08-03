@@ -4,6 +4,7 @@ import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
+from hashlib import sha256
 from pathlib import Path
 from threading import Event, Lock
 
@@ -14,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.metadata_queue import MetadataQueue
 from sakuraplayer.catalog.models import Actor, MovieActor, TranslationRecord
-from sakuraplayer.catalog.translation.adapter import TranslationResult
+from sakuraplayer.catalog.translation.adapter import PROMPT_VERSION, TranslationResult
 from sakuraplayer.catalog.translation.config import (
     AiConfiguration,
     EncryptedAiConfigurationStore,
@@ -80,6 +81,15 @@ class BlockingAdapter:
         if not self.release.wait(5):
             raise AssertionError("translation test release timed out")
         return TranslationResult(translated_text="共享演员简介")
+
+
+class ImmediateAdapter:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def translate(self, request, configuration):
+        self.calls += 1
+        return TranslationResult(translated_text="合成中文标题")
 
 
 def test_shared_actor_is_dispatched_at_most_once_across_movie_workers(
@@ -184,4 +194,118 @@ def test_shared_actor_is_dispatched_at_most_once_across_movie_workers(
         assert persisted_actor.bio_zh == "共享演员简介"
     finally:
         adapter.release.set()
+        engine.dispose()
+
+
+def test_v2_dispatch_preserves_all_legacy_v1_failure_facts(
+    database_url: str,
+) -> None:
+    upgrade_database(database_url, ALEMBIC_INI)
+    engine = create_engine(database_url, hide_parameters=True)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    movie = Movie(
+        id=uuid.uuid4(),
+        normalized_number="ABP-225",
+        raw_numbers=["ABP-225"],
+        title_original="Synthetic title",
+        description_original=None,
+        catalog_state="core_ready",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    legacy_rows = [
+        TranslationRecord(
+            id=uuid.uuid4(),
+            owner_type=owner_type,
+            owner_id=movie.id if index == 0 else uuid.uuid4(),
+            source_text=source_text,
+            source_hash=sha256(source_text.encode("utf-8")).hexdigest(),
+            translated_text=None,
+            model="fixture-model",
+            prompt_version="sakuraplayer-zh-v1",
+            status=status,
+            claim_token=uuid.uuid4() if status == "dispatched" else None,
+            claim_expires_at=None,
+            dispatch_started_at=NOW - timedelta(minutes=1),
+            failure_code=(
+                None
+                if status == "dispatched"
+                else (
+                    "translation_guardrail_failed"
+                    if status == "rejected"
+                    else "translation_upstream_error"
+                )
+            ),
+            created_at=NOW - timedelta(minutes=1),
+            updated_at=NOW - timedelta(minutes=1),
+        )
+        for index, (owner_type, source_text, status) in enumerate(
+            (
+                ("movie_title", "Synthetic title", "unknown"),
+                ("movie_description", "Legacy description", "rejected"),
+                ("actor_bio", "Legacy biography", "dispatched"),
+            )
+        )
+    ]
+    with factory.begin() as session:
+        session.add(movie)
+        session.add_all(legacy_rows)
+    queue = MetadataQueue(factory, now=lambda: NOW)
+    queue.enqueue(
+        movie_id=movie.id,
+        normalized_number=movie.normalized_number,
+        sort_date=date(2026, 7, 1),
+        reason="daily",
+    )
+    claim = queue.claim_next("translation-worker", lease_duration=timedelta(minutes=5))
+    assert claim is not None
+    queue.start_stage(claim, "translation")
+    cipher = SecretCipher(
+        InMemorySecretKeyProvider(active_key_id="v1", keys={"v1": b"k" * 32})
+    )
+    configuration_store = EncryptedAiConfigurationStore(
+        EncryptedSettingRepository(factory, cipher)
+    )
+    configuration_store.save(
+        AiConfiguration(
+            base_url="https://ai.example.test",
+            api_key="fixture-key",
+            model="fixture-model",
+            timeout_seconds=60,
+        ),
+        expected_version=0,
+    )
+    adapter = ImmediateAdapter()
+    try:
+        TranslationService(
+            session_factory=factory,
+            configuration_store=configuration_store,
+            adapter=adapter,
+            now=lambda: NOW,
+        ).execute(claim)
+
+        with factory() as session:
+            persisted_legacy = [
+                session.get(TranslationRecord, row.id) for row in legacy_rows
+            ]
+            current = session.scalar(
+                select(TranslationRecord).where(
+                    TranslationRecord.owner_type == "movie_title",
+                    TranslationRecord.owner_id == movie.id,
+                    TranslationRecord.prompt_version == PROMPT_VERSION,
+                )
+            )
+        assert adapter.calls == 1
+        assert [row.status for row in persisted_legacy if row is not None] == [
+            "unknown",
+            "rejected",
+            "dispatched",
+        ]
+        assert [row.failure_code for row in persisted_legacy if row is not None] == [
+            "translation_upstream_error",
+            "translation_guardrail_failed",
+            None,
+        ]
+        assert current is not None and current.status == "completed"
+    finally:
         engine.dispose()

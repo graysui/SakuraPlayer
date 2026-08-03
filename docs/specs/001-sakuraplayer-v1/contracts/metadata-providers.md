@@ -103,14 +103,14 @@ store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
 
 连接测试只对配置 root 请求 `/v1/models`，携带 Bearer key 但不发送 prompt、不创建 reservation/dispatch。200 为 available，401/403 为 `translation_credentials_invalid`，其余网络/HTTP/超限错误为 `translation_upstream_error`。
 
-完整安全与付费幂等边界由 [TASK-010 翻译协议与付费幂等边界](../changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结。
+完整安全与付费幂等边界由 [TASK-010 翻译协议与付费幂等边界](../changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结；硅基流动 Qwen3.5 的前向兼容由 [TASK-225 硅基流动 Qwen 翻译协议兼容](../changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结。
 
 配置从身份与配置上下文以短生命周期 typed snapshot 提供。`ai.configuration` 是一个 AES-GCM JSON 载荷，原子包含 `base_url/api_key/model/timeout_seconds`；缺失或非法配置记录 `translation_not_configured` warning，不访问网络。
 
-HTTP 边界固定为 `POST {base_url}/v1/chat/completions`。每次只翻译一个字段；prompt version 固定为 `sakuraplayer-zh-v1`，system prompt 为：
+HTTP 边界固定为 `POST {base_url}/v1/chat/completions`。每次只翻译一个字段；新请求的 prompt version 固定为 `sakuraplayer-zh-v2`，system prompt 为：
 
 ```text
-Translate only source_text into Simplified Chinese. Return exactly one JSON object matching schema_version 1. Copy protected without changing, omitting, or adding values. Never translate identifiers, actor names, maker, series, or tags.
+Translate only the source_text value into Simplified Chinese. Return exactly one JSON object with this only allowed shape: {"schema_version":1,"translated_text":"...","protected":{"number":"...","actors":[],"maker":null,"series":null,"tags":[]}}. Replace translated_text with the translation and copy every protected value from the input without changing, omitting, or adding values. Do not return kind/source_text, Markdown, code fences, explanations, or any extra fields. Never translate identifiers, actor names, maker, series, or tags.
 ```
 
 user message 是以下 JSON；`kind` 只允许 `movie_title/movie_description/actor_bio`：
@@ -130,7 +130,7 @@ user message 是以下 JSON；`kind` 只允许 `movie_title/movie_description/ac
 }
 ```
 
-请求 body 还固定包含 `model`、system/user messages、`temperature=0` 和 `response_format={"type":"json_object"}`。只接受 `choices[0].message.content` 中严格符合下列 schema 且无额外字段的 JSON：
+请求 body 还固定包含 `model`、system/user messages、`temperature=0`、`response_format={"type":"json_object"}` 和有界 `max_tokens`。当且仅当规范化 base URL 主机精确为 `api.siliconflow.cn` 且模型名以 `Qwen/Qwen3.5-`（大小写不敏感）开头时，额外发送 `enable_thinking=false`；普通 OpenAI-compatible provider 不接收此扩展字段。只接受 `finish_reason=stop` 且 `choices[0].message.content` 中严格符合下列 schema、无额外字段的 JSON：
 
 ```json
 {
@@ -147,8 +147,10 @@ user message 是以下 JSON；`kind` 只允许 `movie_title/movie_description/ac
 ```
 
 - source_text/translated_text 各最多 32,000 个 Unicode 字符，序列化完整请求最多 512 KiB，完整响应最多 256 KiB；空 source 直接跳过。
+- `max_tokens` 以 `movie_title=1024`、`movie_description/actor_bio=2048` 为下限，按 source 与 protected 的 UTF-8 大小加 512 安全余量增长，上限 65,536；不得使用短合成试验的固定 512。非 `stop`、截断或空译文全部拒绝。
 - protected 字符串按 NFKC、trim、连续空白折叠、casefold 比较；actors/tags 逐项规范化后排序并保留重复项。比较不改变展示原文。
 - `source_hash` 是原始 source_text UTF-8 的 SHA-256。唯一业务键为 `owner_type + owner_id + source_hash + model + prompt_version`。
+- 历史 `sakuraplayer-zh-v1` 的 reserved/dispatched/completed/rejected/unknown 事实保持不可变；v2 形成新业务键，部署不自动批量重试 v1，只有后续显式刮削或富化动作可按既有队列规则产生 v2 尝试。
 - completed 命中直接复用。HTTP 前必须先提交 dispatched；dispatched/completed/rejected/unknown 不自动再次派发，只有尚未 dispatched 的过期 reserved 可回收。
 - 合法结果只在 owner 当前原文仍完全一致时更新译文字段；新的 source/model/prompt 可替换同字段旧 AI 译文。Actor Mapping 写 `bio_zh_source=actor_mapping` 并优先于 AI，AI 只写非 mapping 演员简介并标记 `bio_zh_source=ai`。guard 失败写 rejected，上游/超时/崩溃等不确定结果写 unknown 或保留 dispatched。
 - 一部影片内各字段独立处理，单项失败继续其他项，stage 最后保存首个稳定 warning；任何 AI 失败都不回滚 `core_ready`。
@@ -174,4 +176,4 @@ user message 是以下 JSON；`kind` 只允许 `movie_title/movie_description/ac
 
 ## 7. 可观察性
 
-每次调用记录 provider、stage、movie ID/番号、HTTP 状态类别、elapsed_ms、attempt 和 error code。URL 只记录主机和路径模板；JavDB 密码、AI key、Cookie、响应 HTML 与完整 prompt 不进普通日志。
+每次调用记录 provider、stage、movie ID/番号、HTTP 状态类别、elapsed_ms、attempt 和 error code。翻译 adapter 额外用安全子分类区分 `timeout/network/http_status/response_too_large/response_envelope/content_json/output_schema/finish_reason/protected_mismatch`；非 200 可记录 HTTP 状态，合法的 `x-siliconcloud-trace-id` 只允许 1..128 位 ASCII 字母、数字、点、下划线、冒号和连字符。URL 只记录主机和路径模板；JavDB 密码、AI key、Cookie、source/protected/译文、完整响应、`reasoning_content`、响应 HTML 与完整 prompt 不进普通日志。

@@ -136,6 +136,7 @@ def fake_client(
                 json={
                     "choices": [
                         {
+                            "finish_reason": "stop",
                             "message": {
                                 "content": json.dumps(
                                     {
@@ -144,7 +145,7 @@ def fake_client(
                                         "protected": user["protected"],
                                     }
                                 )
-                            }
+                            },
                         }
                     ]
                 },

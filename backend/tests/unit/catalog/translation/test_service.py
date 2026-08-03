@@ -295,6 +295,55 @@ def test_unknown_business_key_is_not_dispatched_again() -> None:
         engine.dispose()
 
 
+def test_v2_business_key_does_not_mutate_or_retry_legacy_v1_failure() -> None:
+    engine, factory, movie, _, _, claim, config_store = context()
+    source_text = "Fixture title"
+    legacy_id = uuid.uuid4()
+    with factory.begin() as session:
+        session.add(
+            TranslationRecord(
+                id=legacy_id,
+                owner_type="movie_title",
+                owner_id=movie.id,
+                source_text=source_text,
+                source_hash=sha256(source_text.encode("utf-8")).hexdigest(),
+                translated_text=None,
+                model="fixture-model",
+                prompt_version="sakuraplayer-zh-v1",
+                status="unknown",
+                claim_token=None,
+                claim_expires_at=None,
+                dispatch_started_at=NOW - timedelta(minutes=1),
+                failure_code="translation_upstream_error",
+                created_at=NOW - timedelta(minutes=1),
+                updated_at=NOW - timedelta(minutes=1),
+            )
+        )
+    adapter = FakeAdapter()
+    try:
+        service(factory, config_store, adapter).execute(claim)
+
+        with factory() as session:
+            records = list(
+                session.scalars(
+                    select(TranslationRecord)
+                    .where(TranslationRecord.owner_type == "movie_title")
+                    .order_by(TranslationRecord.prompt_version)
+                )
+            )
+        assert [(item.prompt_version, item.status) for item in records] == [
+            ("sakuraplayer-zh-v1", "unknown"),
+            (PROMPT_VERSION, "completed"),
+        ]
+        assert records[0].id == legacy_id
+        assert records[0].failure_code == "translation_upstream_error"
+        assert (
+            len([item for item in adapter.requests if item.kind == "movie_title"]) == 1
+        )
+    finally:
+        engine.dispose()
+
+
 def test_expired_undispatched_reservation_can_be_safely_reclaimed() -> None:
     engine, factory, movie, _, _, claim, config_store = context()
     source_text = "Fixture title"

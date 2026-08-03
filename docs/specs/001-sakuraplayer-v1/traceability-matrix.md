@@ -41,7 +41,7 @@
   `test_event_integration.py`、`test_events_snapshot.py`、`test_notifications.py`、`test_recovery.py` 和
   `test_cache_events_snapshot_api.py`；不发布 playback 心跳事件，worker/scheduler 无心跳证据时继续为 unknown。
 - AC-049 至 AC-053 的固定 provider 地址、16/32 MiB 上限、XML/路径安全、周日 05:00 持久入队、独立 current 快照、唯一身份匹配和陈旧 GFriends 资产清理由 [TASK-009 提供方快照安全与重建边界](changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结，并由 TASK-009 实现。
-- AC-054 至 AC-057 的加密配置快照、单字段 JSON、固定 prompt、protected 规范化、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结，并由 TASK-010 实现。
+- AC-054 至 AC-058 的加密配置快照、单字段 JSON、protected 规范化、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结并由 TASK-010 实现；prompt v2、硅基流动 Qwen3.5 非思考 profile、动态输出上限、安全诊断和旧 v1 事实隔离由 [TASK-225 硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结并由 TASK-225 实现。
 - AC-063 至 AC-068、AC-074 至 AC-078 的同来源筛选、稳定键集游标、Phase 1 空状态端口、搜索队列提升、收藏 Schema、安全 DTO 与集合上限由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，并由 TASK-011 实现。
 - AC-063、AC-064、AC-067、AC-068、AC-077 的 Windows DTO 所有权、认证封面、固定桌面几何、筛选 generation、游标恢复和追加失败语义由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 与 [Windows 媒体库客户端契约](contracts/windows-library-client.md) 冻结；TASK-204 已完成客户端实现，自动证据位于 `library_controller_test.dart`、`library_page_test.dart`、`search_controller_test.dart` 和 `app_bootstrap_test.dart`。
 - AC-051 至 AC-053、AC-075 至 AC-077 的 Windows Actor DTO 所有权、查询/收藏 generation、typed route、GFriends 精确 URL、匿名下载、取消、四并发、7 天期限、512 文件/256 MiB LRU、会话清理隔离和固定桌面几何由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 与 [Windows 女优客户端契约](contracts/windows-actors-client.md) 冻结；TASK-206 已完成客户端实现，自动证据位于 `actors_controller_test.dart`、`actor_pages_test.dart`、`gfriends_cache_test.dart`、`desktop_shell_test.dart`、`auth_controller_test.dart` 和 `app_bootstrap_test.dart`。
@@ -177,11 +177,11 @@
 | `AC-051` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306` |
 | `AC-052` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306` |
 | `AC-053` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306` |
-| `AC-054` | `[I]` | `REQ-011` | `TASK-010` |
-| `AC-055` | `[I]` | `REQ-011` | `TASK-010` |
-| `AC-056` | `[I]` | `REQ-011` | `TASK-010` |
-| `AC-057` | `[I]` | `REQ-011` | `TASK-010` |
-| `AC-058` | `[S]` | `REQ-011` | `TASK-014` |
+| `AC-054` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
+| `AC-055` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
+| `AC-056` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
+| `AC-057` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
+| `AC-058` | `[S]` | `REQ-011` | `TASK-014`, `TASK-225` |
 | `AC-059` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
 | `AC-060` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
 | `AC-061` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |

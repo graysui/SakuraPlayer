@@ -116,10 +116,10 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-011 AI 翻译
 
-- **AC-054 `[IMP]`**: 后端支持 OpenAI 兼容接口，可原子配置 `base_url`、加密 `api_key`、`model` 和超时；缺失或非法配置不得访问 provider。
+- **AC-054 `[IMP]`**: 后端支持 OpenAI 兼容接口，可原子配置 `base_url`、加密 `api_key`、`model` 和超时；缺失或非法配置不得访问 provider。硅基流动 Qwen3.5 的非思考 profile 与通用 provider 兼容边界由 [硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结。
 - **AC-055 `[IMP]`**: AI 在元数据可选阶段异步翻译影片标题和简介；演员简介必须区分 Actor Mapping 与 AI 来源，仅在 Actor Mapping 已运行且缺少中文内容时翻译。
 - **AC-056 `[IMP]`**: 番号、演员姓名、厂商、系列和标签必须进入结构化 protected 区，AI 返回缺失、增加或改写这些字段时拒绝译文。
-- **AC-057 `[IMP]`**: 原文、译文、来源内容摘要、模型、提示版本和付费派发事实必须持久化；同一 owner/source/model/prompt 业务键最多自动派发一次，来源未变化时不得自动重复付费翻译。完整协议和未知结果语义由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结。
+- **AC-057 `[IMP]`**: 原文、译文、来源内容摘要、模型、提示版本和付费派发事实必须持久化；同一 owner/source/model/prompt 业务键最多自动派发一次，来源未变化时不得自动重复付费翻译。完整协议和未知结果语义由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结；prompt v2 与旧 v1 事实隔离由 [硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结。
 - **AC-058 `[SEF]`**: AI 不可用时，已完成核心元数据的影片仍可浏览和播放。
 
 ## 7. 发现、浏览与资料页

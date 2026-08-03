@@ -96,6 +96,8 @@
 | 任务 | `translation_result_unavailable` | 同一业务键已有 dispatched/rejected/unknown 事实且无可复用译文；不得自动再次派发 |
 | 503 | `ranking_snapshot_unavailable` | 所选榜单/年份从未有成功快照；`details.reason` 只允许 `credentials_not_configured/credentials_invalid/never_synced/sync_failed`，可选 `last_error_code` 只含稳定错误码 |
 
+翻译稳定错误码不因 TASK-225 增加新的客户端分支。普通日志可附加安全诊断分类 `timeout/network/http_status/response_too_large/response_envelope/content_json/output_schema/finish_reason/protected_mismatch`、耗时、非 200 状态和经白名单校验的 provider trace id；这些分类不是 API error code。日志不得包含 API key、Authorization、source、protected、译文、完整响应或思考内容。
+
 ## 5. 115 与缓存
 
 | HTTP/位置 | code | 语义/客户端行为 |
