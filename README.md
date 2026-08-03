@@ -2,45 +2,50 @@
 
 # SakuraPlayer
 
-面向 Windows 的私有媒体目录、115 缓存与流媒体播放系统
+Windows 私有媒体目录、115 缓存与流媒体播放客户端
 
 [![License](https://img.shields.io/badge/license-GPL--3.0--only-2f855a.svg)](LICENSE)
 [![Verify](https://github.com/graysui/SakuraPlayer/actions/workflows/verify.yml/badge.svg)](https://github.com/graysui/SakuraPlayer/actions/workflows/verify.yml)
 [![Release](https://img.shields.io/github/v/release/graysui/SakuraPlayer?display_name=tag&sort=semver)](https://github.com/graysui/SakuraPlayer/releases)
+[![Docker Hub](https://img.shields.io/docker/v/graysui/sakuraplayer-backend?label=Docker%20Hub&sort=semver)](https://hub.docker.com/r/graysui/sakuraplayer-backend)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4.svg)
 ![Flutter](https://img.shields.io/badge/Flutter-3.29.2-02569b.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110.1-009688.svg)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17.5-4169e1.svg)
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-private%20deployment-2496ed.svg)
 
-单管理员、单 115 账号、默认仅本机开放。目录与任务状态由后端持久化，视频数据经签名入口重定向至 115/CDN，不经过 SakuraPlayer 后端转发。
+Windows 客户端负责浏览和播放，私有 Docker 后端负责目录、元数据、任务和账号安全。视频数据经签名入口直连 115/CDN，不经过 SakuraPlayer 后端转发。
 
-[快速开始](#快速开始) · [发布与校验](#发布与校验) · [项目架构](#项目架构) · [参考与致谢](#参考与致谢)
+[下载 Windows 客户端](https://github.com/graysui/SakuraPlayer/releases/latest) · [Linux 部署](#1-linux-docker-compose-部署推荐) · [首次使用](#3-连接并初始化) · [功能](#核心能力) · [架构](#项目架构)
 
 </div>
 
 > [!IMPORTANT]
 > SakuraPlayer 不附带媒体资源、磁力内容或默认 MGDB 数据源。首次运行需要管理员自行配置合法的 MGDB GitHub Release 仓库，并自行承担第三方服务账号、内容来源和当地法律合规责任。
 
-## 当前状态
+## 从这里开始
+
+SakuraPlayer 由两个部分组成，普通用户需要同时准备后端和 Windows 客户端：
+
+| 部分 | 安装位置 | 用途 |
+|---|---|---|
+| SakuraPlayer 后端 | Linux 服务器、NAS 或 Windows Docker Desktop | 保存目录、图片、任务、设置和加密凭据 |
+| SakuraPlayer Windows 客户端 | Windows 10/11 x64 电脑 | 浏览媒体库、管理缓存和播放视频 |
+
+推荐顺序：先在 Linux/NAS 上部署后端，再从 [GitHub Releases](https://github.com/graysui/SakuraPlayer/releases/latest) 下载 Windows 客户端，最后在客户端中填写后端地址并创建管理员。
+
+> [!NOTE]
+> Windows 发布物是一个 ZIP，里面包含 `sakuraplayer_windows.exe`、运行库和当前用户安装脚本。当前版本不是单文件 EXE 或 MSI 安装器，不需要管理员权限。
+
+## 当前版本
 
 | 组成 | 状态 | 说明 |
 |---|---|---|
 | Docker 后端 | 已完成 | FastAPI、PostgreSQL、Scheduler、Worker 与显式 Alembic 迁移 |
-| Windows 客户端 | v1 已完成 | Windows 10/11、Flutter、media_kit/libmpv、私有 ZIP 安装包 |
+| Windows 客户端 | v1.0.0 | Windows 10/11、Flutter、media_kit/libmpv、ZIP + 当前用户安装脚本 |
 | 真实 115 链路 | 已验证 | 扫码、离线、原画、HLS、Range seek、进度、租约与安全清理 |
 | HarmonyOS 客户端 | 规划中 | API 24 工程与真机播放门禁尚未开始，不属于当前可用版本 |
-| GitHub Release | 自动化已就绪 | 严格版本 tag 自动构建 Windows x64 ZIP、GHCR/Docker Hub 后端镜像、SHA-256 与供应链证明 |
-
-README 当前覆盖至 TASK-316。近期功能提交中已经交付：
-
-| 提交 | 交付内容 |
-|---|---|
-| `daef542` | TASK-315：MGDB 改为用户配置的 GitHub 数据源；未配置时不联网，不再内置第三方仓库 |
-| `c6cde11` | 完成 Windows 客户端代码清理和 Release 内容审计 |
-| `7d377d1` | 详情页只显示中文简介，并支持当前番号最高优先级重新刮削 |
-| `f2ed89d` | 改进 115 离线任务确认速度与协议状态兼容 |
-| `d793139` | 完善硅基流动 Qwen3.5 翻译请求、输出约束和脱敏诊断 |
+| GitHub Release | v1.0.0 首发 | 自动构建 Windows x64 ZIP、GHCR/Docker Hub 后端镜像、SHA-256 与供应链证明 |
 
 完整需求、任务状态和验证证据位于 [项目规格](docs/specs/001-sakuraplayer-v1/)；提交历史是最终实现事实。
 
@@ -95,50 +100,165 @@ flowchart LR
 
 后端采用模块化单体，API、Scheduler 和 Worker 分进程运行；PostgreSQL 同时承担业务真相、任务队列和持久事件。详细设计见 [架构文档](docs/specs/architecture.md)。
 
-## 首次使用流程
+## 安装与首次使用
 
-1. 准备 Docker 后端所需的五个互不复用的 secret，并启动 Compose。
-2. 构建或安装 Windows 客户端，填写 `http://127.0.0.1:8000/api/v1`。
-3. 使用 bootstrap token 创建唯一管理员；初始化完成后该 token 永久失去创建管理员的权限。
-4. 在设置页填写 MGDB GitHub 仓库地址。没有 MGDB 配置时，同步不会发起网络请求。
-5. 按需配置 JavDB 和 OpenAI-compatible AI 服务，并查看连接诊断。
-6. 扫码绑定 115，等待目录与元数据同步后开始浏览和播放。
+### 1. Linux Docker Compose 部署（推荐）
 
-## 快速开始
+准备一台安装了 Git、Docker Engine 和 Docker Compose v2 的 Linux 服务器或 NAS。以下命令以 Ubuntu/Debian 的 Bash 为例，不需要在服务器上安装 Python、Flutter 或数据库。
 
-### 环境要求
+#### 下载部署文件
 
-- Windows 10 或 Windows 11 x64。
-- Docker Engine 与 Docker Compose；项目验证基线分别为 28.2.2 和 2.37.1。
-- 从源码构建客户端时需要 Flutter 3.29.2、Dart 3.7.2，以及含桌面 C++ 工具链的 Visual Studio Build Tools 2022。
+```bash
+git clone --branch v1.0.0 --depth 1 https://github.com/graysui/SakuraPlayer.git
+cd SakuraPlayer/backend
+cp .env.example .env
+sed -i 's|^SAKURAPLAYER_BACKEND_IMAGE=.*|SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:1.0.0|' .env
+```
 
-### 1. 准备后端配置
+#### 生成五个本机 secret
+
+```bash
+umask 077
+mkdir -p secrets
+
+make_secret() {
+  openssl rand -base64 "$1" | tr '+/' '-_' | tr -d '=\n'
+}
+
+printf '%s' "$(make_secret 32)" > secrets/postgres_password.txt
+printf '%s' "$(make_secret 32)" > secrets/settings_key.txt
+printf '%s' "$(make_secret 48)" > secrets/token_key.txt
+printf '%s' "$(make_secret 48)" > secrets/playback_key.txt
+printf '%s' "$(make_secret 48)" > secrets/bootstrap_token.txt
+chmod 600 secrets/*.txt
+```
+
+`bootstrap_token.txt` 只在第一次创建管理员时使用。请把它安全保存到密码管理器，不要发到聊天、日志或截图中。其余文件也不能提交到 Git。
+
+#### 选择访问方式
+
+默认 `.env` 只把 API 绑定到 Linux 本机的 `127.0.0.1:8000`，适合 HTTPS 反向代理。Windows 客户端与 Linux 服务器位于同一可信局域网时，可把 `.env` 中的地址改成服务器的实际私网 IP，例如：
+
+```dotenv
+SAKURAPLAYER_PUBLISH_HOST=192.168.1.50
+SAKURAPLAYER_API_PORT=8000
+```
+
+请把 `192.168.1.50` 换成 Linux 服务器自己的地址。不要填写 `0.0.0.0`，也不要在路由器上把 8000 端口映射到公网；公网访问必须使用 HTTPS 反向代理或可信加密 VPN。
+
+#### 启动服务
+
+```bash
+docker compose --env-file .env -p sakuraplayer pull postgres api migrate worker scheduler
+docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
+docker compose --env-file .env -p sakuraplayer ps
+API_HOST=$(sed -n 's/^SAKURAPLAYER_PUBLISH_HOST=//p' .env)
+API_PORT=$(sed -n 's/^SAKURAPLAYER_API_PORT=//p' .env)
+curl -fsS "http://${API_HOST}:${API_PORT}/health/ready"
+```
+
+最后一条命令返回 JSON 且服务均为 `healthy` 即表示后端启动成功。查看首次管理员口令：
+
+```bash
+cat secrets/bootstrap_token.txt
+```
+
+### 2. 安装 Windows 客户端
+
+1. 打开 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest)。
+2. 下载 `SakuraPlayer-Windows-1.0.0-1.zip` 和同名 `.sha256` 文件。
+3. 在下载目录打开 PowerShell，校验文件未被篡改：
+
+```powershell
+$archive = '.\SakuraPlayer-Windows-1.0.0-1.zip'
+$expected = (Get-Content "$archive.sha256").Split()[0].ToLowerInvariant()
+$actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+$actual -eq $expected
+```
+
+结果必须为 `True`。解压 ZIP，进入其中的 `SakuraPlayer` 文件夹，然后运行：
+
+```powershell
+Unblock-File .\Install-SakuraPlayer.ps1
+.\Install-SakuraPlayer.ps1 -DesktopShortcut
+```
+
+应用会安装到当前用户的 `%LOCALAPPDATA%\Programs\SakuraPlayer`，并创建开始菜单快捷方式；使用 `-DesktopShortcut` 时也会创建桌面快捷方式，不需要管理员权限。
+
+> [!IMPORTANT]
+> ZIP 内有真正的 `sakuraplayer_windows.exe`，但它依赖同目录运行库，不能单独复制。当前没有单文件 EXE/MSI 安装器。公共构建也没有 Authenticode 证书签名，请先完成 SHA-256 校验再运行安装脚本。
+
+### 3. 连接并初始化
+
+启动 SakuraPlayer，在服务端地址页填写：
+
+| 部署方式 | 客户端地址示例 |
+|---|---|
+| Windows Docker Desktop 与客户端同机 | `http://127.0.0.1:8000/api/v1` |
+| 家庭局域网 Linux 服务器 | `http://192.168.1.50:8000/api/v1` |
+| HTTPS 反向代理 | `https://player.example.com/api/v1` |
+
+局域网示例中的 IP 必须与 `.env` 的 `SAKURAPLAYER_PUBLISH_HOST` 一致。客户端测试连接成功后：
+
+1. 使用 `bootstrap_token.txt` 的内容创建唯一管理员。
+2. 在设置页填写你自己的 MGDB GitHub Release 仓库；未配置时不会同步媒体目录。
+3. 按需配置 JavDB、AI 翻译和其他可选服务，并查看中文连接诊断。
+4. 扫码绑定 115，等待目录与元数据同步后开始浏览和播放。
+
+### 常用维护命令
+
+在 Linux 的 `SakuraPlayer/backend` 目录执行：
+
+```bash
+# 查看状态
+docker compose --env-file .env -p sakuraplayer ps
+
+# 查看后端日志
+docker compose --env-file .env -p sakuraplayer logs -f api worker scheduler
+
+# 拉取同版本镜像并重建容器，不删除数据库和图片
+docker compose --env-file .env -p sakuraplayer pull
+docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
+
+# 停止服务但保留数据卷
+docker compose --env-file .env -p sakuraplayer down
+```
+
+不要执行 `docker compose down -v`，该参数会删除数据库、图片和缓存卷。v1 暂不提供自动备份，升级或迁移前请先备份 Docker volumes 和 `backend/secrets/`。
+
+<details>
+<summary><strong>在 Windows Docker Desktop 部署后端</strong></summary>
 
 在仓库根目录打开 PowerShell：
 
 ```powershell
 Set-Location backend
 Copy-Item .env.example .env
+$envText = (Get-Content -Raw .env).Replace(
+    'SAKURAPLAYER_BACKEND_IMAGE=sakuraplayer-backend:local',
+    'SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:1.0.0'
+)
+[IO.File]::WriteAllText(
+    [IO.Path]::GetFullPath('.env'),
+    $envText,
+    (New-Object Text.UTF8Encoding($false))
+)
 New-Item -ItemType Directory -Force secrets | Out-Null
 
-function New-SakuraSecret([int]$byteCount) {
-    $buffer = New-Object byte[] $byteCount
-    $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+function Write-SakuraSecret([string]$path, [int]$byteCount) {
+    $bytes = New-Object byte[] $byteCount
+    $generator = [Security.Cryptography.RandomNumberGenerator]::Create()
     try {
-        $generator.GetBytes($buffer)
+        $generator.GetBytes($bytes)
     }
     finally {
         $generator.Dispose()
     }
-    [Convert]::ToBase64String($buffer).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-}
-
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-function Write-SakuraSecret([string]$path, [int]$byteCount) {
+    $value = [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
     [IO.File]::WriteAllText(
         [IO.Path]::GetFullPath($path),
-        (New-SakuraSecret $byteCount),
-        $utf8NoBom
+        $value,
+        (New-Object Text.UTF8Encoding($false))
     )
 }
 
@@ -147,53 +267,25 @@ Write-SakuraSecret secrets/settings_key.txt 32
 Write-SakuraSecret secrets/token_key.txt 48
 Write-SakuraSecret secrets/playback_key.txt 48
 Write-SakuraSecret secrets/bootstrap_token.txt 48
-```
 
-`backend/secrets/` 已被 Git 忽略。请另行安全保存 `bootstrap_token.txt` 的内容，首次创建管理员时需要输入；不要把任何 secret 提交到仓库或发送到日志。
-
-### 2. 启动后端
-
-正式版本发布后，可使用与 Release tag 一致的 GHCR 或 Docker Hub 镜像。四个后端进程会复用同一个镜像，以下示例使用 Docker Hub：
-
-```powershell
-$env:SAKURAPLAYER_BACKEND_IMAGE = 'docker.io/graysui/sakuraplayer-backend:1.0.0'
-docker compose --env-file .env -p sakuraplayer pull postgres api migrate worker scheduler
+docker compose --env-file .env -p sakuraplayer pull
 docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
-docker compose --env-file .env -p sakuraplayer ps
 Invoke-WebRequest http://127.0.0.1:8000/health/ready
 ```
+
+</details>
+
+<details>
+<summary><strong>从源码构建</strong></summary>
 
 从当前源码构建后端：
 
-```powershell
+```bash
+cd SakuraPlayer/backend
 docker compose --env-file .env -p sakuraplayer up -d --build --wait
-docker compose --env-file .env -p sakuraplayer ps
-Invoke-WebRequest http://127.0.0.1:8000/health/ready
 ```
 
-停止服务但保留数据库和图片卷：
-
-```powershell
-docker compose --env-file .env -p sakuraplayer down
-```
-
-部署到其他设备可访问的网络前，请先阅读 [运行配置契约](docs/specs/001-sakuraplayer-v1/contracts/runtime-configuration.md)。项目不提供明文公网部署方案。
-
-### 3. 安装 Windows 客户端
-
-正式版本发布后，可使用 GitHub CLI 下载 Windows ZIP 和同名 SHA-256 文件：
-
-```powershell
-Set-Location ..
-New-Item -ItemType Directory -Force release | Out-Null
-gh release download v1.0.0 --repo graysui/SakuraPlayer --pattern 'SakuraPlayer-Windows-*.zip*' --dir release
-Get-FileHash .\release\SakuraPlayer-Windows-1.0.0-1.zip -Algorithm SHA256
-Get-Content .\release\SakuraPlayer-Windows-1.0.0-1.zip.sha256
-```
-
-确认两处 SHA-256 相同后解压 ZIP，以目标桌面用户运行 `Install-SakuraPlayer.ps1`，无需管理员权限。公共 CI 产物没有 Authenticode 证书签名；GitHub artifact attestation 用于证明构建来源，不能替代 Windows 代码签名。
-
-从源码构建 Windows 私有安装包：
+构建 Windows 私有发布包需要 Windows 10/11 x64、Flutter 3.29.2、Dart 3.7.2 和 Visual Studio Build Tools 2022：
 
 ```powershell
 Set-Location windows
@@ -201,7 +293,9 @@ flutter pub get
 .\tool\build_private_release.ps1
 ```
 
-构建工具会执行 Windows Release 构建，并验证 `sakuraplayer_windows.exe`、Flutter/libmpv 原生文件、GPL/第三方声明、安装脚本和完整 SHA-256 清单。输出位于 `windows/dist/`。
+输出位于 `windows/dist/`，仍是 ZIP，而不是单文件 EXE/MSI 安装器。
+
+</details>
 
 ## 发布与校验
 
