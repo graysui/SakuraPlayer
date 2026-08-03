@@ -17,6 +17,7 @@ from sakuraplayer.catalog.metadata_queue import (
     MetadataQueue,
     MetadataQueueControlSnapshot,
     MetadataQueueProblem,
+    MetadataRescrapeOutcome,
     retryable_enrichment_stages,
 )
 from sakuraplayer.catalog.metadata_state import ALL_STAGES
@@ -116,6 +117,9 @@ class MetadataAdminService:
     def retry(self, job_id: uuid.UUID) -> MetadataJobView:
         outcome = self._queue.manual_retry(job_id)
         return self.get(outcome.job_id)
+
+    def rescrape_movie(self, movie_id: uuid.UUID) -> MetadataRescrapeOutcome:
+        return self._queue.rescrape_movie(movie_id)
 
     def set_paused(self, paused: bool) -> MetadataQueueControlSnapshot:
         return self._queue.set_paused(paused)
@@ -286,6 +290,14 @@ class MetadataQueueControlOutput(BaseModel):
     running: int = Field(ge=0, le=3)
 
 
+class MetadataRescrapeOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    job_id: uuid.UUID
+    state: Literal["queued", "running"]
+    created: bool
+
+
 class EnrichmentRetryInput(BaseModel):
     stages: list[EnrichmentStage] = Field(min_length=1)
 
@@ -331,6 +343,20 @@ def create_metadata_api(
         return MetadataJobPageOutput(
             items=[MetadataJobOutput(**item.__dict__) for item in page.items],
             next_cursor=page.next_cursor,
+        )
+
+    @router.post(
+        "/movies/{movie_id}/metadata-rescrape",
+        response_model=MetadataRescrapeOutput,
+    )
+    def rescrape_movie_metadata(movie_id: uuid.UUID) -> MetadataRescrapeOutput:
+        try:
+            outcome = service.rescrape_movie(movie_id)
+        except MetadataQueueProblem as error:
+            raise _api_problem(error) from None
+        return MetadataRescrapeOutput.model_validate(
+            outcome,
+            from_attributes=True,
         )
 
     @router.post(

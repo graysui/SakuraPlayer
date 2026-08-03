@@ -116,6 +116,24 @@ void main() {
     }
   });
 
+  testWidgets('detail shows only Chinese description and rescrape feedback', (
+    tester,
+  ) async {
+    final gateway = _MovieGateway(_detail());
+    await _pumpPage(tester, gateway: gateway);
+
+    expect(find.text('中文简介'), findsOneWidget);
+    expect(find.text('日本語紹介'), findsNothing);
+    final button = find.byKey(const ValueKey('movie-detail-rescrape'));
+    expect(button, findsOneWidget);
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+
+    expect(gateway.rescrapeCount, 1);
+    expect(find.text('已加入最高优先级刮削队列'), findsOneWidget);
+  });
+
   testWidgets('ready source never falls back to AVdb size', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -338,6 +356,7 @@ class _MovieGateway implements MovieDetailGateway {
   _MovieGateway(this.detail);
 
   MovieDetailDto detail;
+  int rescrapeCount = 0;
 
   @override
   Future<MovieDetailDto> getMovie(String movieId) async => detail;
@@ -350,5 +369,15 @@ class _MovieGateway implements MovieDetailGateway {
   @override
   Future<void> setFavorite(String movieId, {required bool enabled}) async {
     detail = detail.copyWith(favorite: enabled);
+  }
+
+  @override
+  Future<MetadataRescrapeResult> rescrapeMovie(String movieId) async {
+    rescrapeCount++;
+    return const MetadataRescrapeResult(
+      jobId: '00000000-0000-4000-8000-000000000501',
+      state: MetadataRescrapeState.queued,
+      created: true,
+    );
   }
 }

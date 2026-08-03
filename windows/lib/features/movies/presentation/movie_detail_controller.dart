@@ -15,6 +15,9 @@ class MovieDetailState {
     required this.errorCode,
     required this.isFavoriteInFlight,
     required this.favoriteErrorCode,
+    required this.isRescrapeInFlight,
+    required this.rescrapeState,
+    required this.rescrapeErrorCode,
     required this.selectedSourceId,
   });
 
@@ -25,6 +28,9 @@ class MovieDetailState {
       errorCode = null,
       isFavoriteInFlight = false,
       favoriteErrorCode = null,
+      isRescrapeInFlight = false,
+      rescrapeState = null,
+      rescrapeErrorCode = null,
       selectedSourceId = null;
 
   final String? movieId;
@@ -33,6 +39,9 @@ class MovieDetailState {
   final String? errorCode;
   final bool isFavoriteInFlight;
   final String? favoriteErrorCode;
+  final bool isRescrapeInFlight;
+  final MetadataRescrapeState? rescrapeState;
+  final String? rescrapeErrorCode;
   final String? selectedSourceId;
 
   bool get isNotFound => errorCode == 'resource_not_found';
@@ -65,6 +74,9 @@ class MovieDetailController extends Notifier<MovieDetailState> {
       errorCode: null,
       isFavoriteInFlight: false,
       favoriteErrorCode: null,
+      isRescrapeInFlight: false,
+      rescrapeState: null,
+      rescrapeErrorCode: null,
       selectedSourceId: previousSelection,
     );
     try {
@@ -86,6 +98,9 @@ class MovieDetailController extends Notifier<MovieDetailState> {
         errorCode: null,
         isFavoriteInFlight: false,
         favoriteErrorCode: null,
+        isRescrapeInFlight: false,
+        rescrapeState: null,
+        rescrapeErrorCode: null,
         selectedSourceId: selected,
       );
     } on ApiException catch (error) {
@@ -97,6 +112,9 @@ class MovieDetailController extends Notifier<MovieDetailState> {
         errorCode: error.code,
         isFavoriteInFlight: false,
         favoriteErrorCode: null,
+        isRescrapeInFlight: false,
+        rescrapeState: null,
+        rescrapeErrorCode: null,
         selectedSourceId: null,
       );
     }
@@ -143,6 +161,44 @@ class MovieDetailController extends Notifier<MovieDetailState> {
     }
   }
 
+  Future<void> rescrape() async {
+    final detail = state.detail;
+    final movieId = state.movieId;
+    if (state.status != MovieDetailStatus.ready ||
+        detail == null ||
+        movieId == null ||
+        state.isRescrapeInFlight) {
+      return;
+    }
+    final generation = _generation;
+    state = _copyState(
+      detail: detail,
+      isRescrapeInFlight: true,
+      clearRescrapeState: true,
+      clearRescrapeError: true,
+    );
+    try {
+      final outcome = await ref
+          .read(movieDetailGatewayProvider)
+          .rescrapeMovie(movieId);
+      if (generation != _generation) return;
+      state = _copyState(
+        detail: state.detail ?? detail,
+        isRescrapeInFlight: false,
+        rescrapeState: outcome.state,
+        clearRescrapeError: true,
+      );
+    } on ApiException catch (error) {
+      if (generation != _generation) return;
+      state = _copyState(
+        detail: state.detail ?? detail,
+        isRescrapeInFlight: false,
+        rescrapeErrorCode: error.code,
+        clearRescrapeState: true,
+      );
+    }
+  }
+
   void selectSource(String sourceId) {
     final detail = state.detail;
     if (state.status != MovieDetailStatus.ready || detail == null) return;
@@ -168,6 +224,11 @@ class MovieDetailController extends Notifier<MovieDetailState> {
     bool? isFavoriteInFlight,
     String? favoriteErrorCode,
     bool clearFavoriteError = false,
+    bool? isRescrapeInFlight,
+    MetadataRescrapeState? rescrapeState,
+    bool clearRescrapeState = false,
+    String? rescrapeErrorCode,
+    bool clearRescrapeError = false,
     String? selectedSourceId,
   }) => MovieDetailState(
     movieId: state.movieId,
@@ -179,6 +240,13 @@ class MovieDetailController extends Notifier<MovieDetailState> {
         clearFavoriteError
             ? null
             : favoriteErrorCode ?? state.favoriteErrorCode,
+    isRescrapeInFlight: isRescrapeInFlight ?? state.isRescrapeInFlight,
+    rescrapeState:
+        clearRescrapeState ? null : rescrapeState ?? state.rescrapeState,
+    rescrapeErrorCode:
+        clearRescrapeError
+            ? null
+            : rescrapeErrorCode ?? state.rescrapeErrorCode,
     selectedSourceId: selectedSourceId ?? state.selectedSourceId,
   );
 }

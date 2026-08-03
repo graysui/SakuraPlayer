@@ -269,6 +269,33 @@ def test_phase_one_ports_and_safe_aggregated_detail(catalog) -> None:
     assert "sehuatang.net" not in serialized
 
 
+def test_movie_detail_description_never_falls_back_to_original(catalog) -> None:
+    service, factory, _ = catalog
+    movie = _movie("ABP-227")
+    movie.description_original = "日本語の紹介"
+    movie.description_zh = None
+    source = _source(
+        movie,
+        227,
+        publish_date=date(2026, 8, 3),
+        section="中文字幕",
+    )
+    with factory.begin() as session:
+        session.add_all([movie, source])
+
+    untranslated = service.get_movie(movie.id)
+    with factory.begin() as session:
+        persisted = session.get(Movie, movie.id, with_for_update=True)
+        assert persisted is not None
+        persisted.description_zh = "中文简介"
+    translated = service.get_movie(movie.id)
+
+    assert untranslated.description is None
+    assert untranslated.description_original == "日本語の紹介"
+    assert translated.description == "中文简介"
+    assert translated.description_original == "日本語の紹介"
+
+
 def test_failed_metadata_movie_has_limited_detail_but_stays_out_of_lists(
     catalog,
 ) -> None:

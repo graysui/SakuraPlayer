@@ -1058,6 +1058,31 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /admin/movies/{movie_id}/metadata-rescrape:
+    post:
+      tags: [Admin]
+      operationId: rescrapeMovieMetadata
+      description: >-
+        Explicitly creates, promotes, or reuses the full metadata attempt for
+        the server-owned movie number at manual priority. It never accepts a
+        client-supplied number, provider, stage, or priority.
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '200':
+          description: Full metadata attempt queued or already running.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataRescrape'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /admin/metadata-jobs/{metadata_job_id}/retry:
     post:
       tags: [Admin]
@@ -1663,8 +1688,10 @@ components:
               type: [number, 'null']
             description:
               type: [string, 'null']
+              description: Completed Chinese translation only; null without one.
             description_original:
               type: [string, 'null']
+              description: Compatibility source text; clients must not render it as the main description.
             actors:
               type: array
               maxItems: 100
@@ -2135,6 +2162,19 @@ components:
         created_at:
           type: string
           format: date-time
+    MetadataRescrape:
+      type: object
+      additionalProperties: false
+      required: [job_id, state, created]
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [queued, running]
+        created:
+          type: boolean
     ProviderState:
       type: object
       required: [configured, status]

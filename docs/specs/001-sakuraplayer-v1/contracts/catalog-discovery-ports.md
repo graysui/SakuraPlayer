@@ -56,7 +56,26 @@ MetadataCompletionPort.ensure_search_priority(movie_id, normalized_number, sort_
 - 受限详情只从 Movie/ResourceSource 与 availability 端口投影番号、来源标题/日期/分类/标签/大小/状态；`cover/actors/tags/plot/description/maker/series/director/score/progress` 为空，`favorite=false`。
 - failed 使用最近 attempt 的脱敏稳定 `failure_code`；queued/running 的 error 必须为 null。受限详情不改变 `list_movies`、`movie_summaries_by_ids`、排行榜或演员关联影片的 core-ready 过滤。
 
-## 6. 收藏状态
+### 5.2 中文简介投影
+
+- 正式详情 `description` 只读取 `Movie.description_zh`；为空时返回 null，不得回退 `description_original`。
+- `description_original` 继续作为兼容字段返回并供内部翻译来源事实使用，但客户端简介主展示不得渲染它。
+- 受限详情的两项简介字段继续均为 null。
+
+## 6. 影片级重新刮削
+
+```text
+MetadataRescrapePort.rescrape_movie(movie_id)
+  -> MetadataRescrape(job_id, state=queued|running, created)
+```
+
+- 入口只接受 MovieId，并在 Movie 行锁内读取规范化番号；客户端不得提交番号、阶段、provider 或优先级。
+- 无活动 attempt 时创建 `priority=10, reason=manual_or_search, retry_mode=full` 的下一 attempt，最新终态只作为不可变 parent。
+- queued full attempt 原子提升为 priority 10 并复用；running full attempt 原样复用。
+- 活动 `missing_enrichment` attempt 返回 `metadata_job_already_active`；不得改写运行中 stage plan 或创建第二条活动 attempt。
+- 这是管理员显式动作，不改变搜索、排行榜和 scheduler 的 failed 不自动重试语义。
+
+## 7. 收藏状态
 
 ```text
 FavoriteStatePort.target_ids(target_type) -> set[target_id]
@@ -64,7 +83,7 @@ FavoriteStatePort.target_ids(target_type) -> set[target_id]
 
 发现实现 PostgreSQL 适配器和幂等写服务。目录只消费目标 ID 集合生成 favorite 字段和 `favorite=true` 过滤，不 import discovery ORM 模型。
 
-## 7. 排行榜目录投影与元数据协调
+## 8. 排行榜目录投影与元数据协调
 
 ```text
 CatalogQueryService.movie_summaries_by_ids(movie_ids) -> MovieSummary list

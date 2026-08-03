@@ -93,8 +93,8 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-037 `[IMP]`**: 元数据任务和结果必须持久化，后端重启后可继续调度。
 - **AC-038 `[IMP]`**: 固定同时执行 3 个影片元数据任务，不提供并发数配置。
 - **AC-039 `[IMP]`**: 单个影片任务总执行时间超过 600 秒时必须被父进程强制终止并标记失败。
-- **AC-040 `[IMP]`**: 600 秒超时或其他任务失败后不得自动重试，只能由管理员手动重试；当前榜单瞬时失败的显式运行恢复遵循 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md)。
-- **AC-041 `[IMP]`**: 队列优先级依次为后台手动重试和用户搜索、排行榜缺失影片、每日新增、首批 90 天、历史补齐；同优先级按发布日期从新到旧。
+- **AC-040 `[IMP]`**: 600 秒超时或其他任务失败后不得自动重试，只能由管理员手动重试；当前榜单瞬时失败的显式运行恢复遵循 [实际体验内容恢复](changes/2026-08-01--runtime-content-recovery.md)，详情页影片级显式完整重刮遵循 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md)。
+- **AC-041 `[IMP]`**: 队列优先级依次为后台手动重试和用户搜索、排行榜缺失影片、每日新增、首批 90 天、历史补齐；同优先级按发布日期从新到旧。详情页重新刮削的活动任务复用和 priority 10 事务语义由 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结。
 - **AC-042 `[IMP]`**: JavDB 核心影片资料和关系成功保存即视为可展示；DMM、图片、GFriends 和 AI 失败不得阻塞影片上线；真实 provider 运行链路遵循 [外部元数据服务运行可用性](changes/2026-08-01--provider-runtime-availability.md)，可选资产的客户端安全投影遵循 [真实目录响应兼容与可选元数据状态](changes/2026-08-02--catalog-response-compatibility.md)。
 - **AC-043 `[IMP]`**: 任务必须记录当前阶段、开始时间、耗时、尝试次数和失败原因。
 
@@ -117,7 +117,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 ### REQ-011 AI 翻译
 
 - **AC-054 `[IMP]`**: 后端支持 OpenAI 兼容接口，可原子配置 `base_url`、加密 `api_key`、`model` 和超时；缺失或非法配置不得访问 provider。硅基流动 Qwen3.5 的非思考 profile 与通用 provider 兼容边界由 [硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结。
-- **AC-055 `[IMP]`**: AI 在元数据可选阶段异步翻译影片标题和简介；演员简介必须区分 Actor Mapping 与 AI 来源，仅在 Actor Mapping 已运行且缺少中文内容时翻译。
+- **AC-055 `[IMP]`**: AI 在元数据可选阶段异步翻译影片标题和简介；演员简介必须区分 Actor Mapping 与 AI 来源，仅在 Actor Mapping 已运行且缺少中文内容时翻译。影片详情简介只展示完成的中文译文，不回退或并列显示原文，详见 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md)。
 - **AC-056 `[IMP]`**: 番号、演员姓名、厂商、系列和标签必须进入结构化 protected 区，AI 返回缺失、增加或改写这些字段时拒绝译文。
 - **AC-057 `[IMP]`**: 原文、译文、来源内容摘要、模型、提示版本和付费派发事实必须持久化；同一 owner/source/model/prompt 业务键最多自动派发一次，来源未变化时不得自动重复付费翻译。完整协议和未知结果语义由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结；prompt v2 与旧 v1 事实隔离由 [硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结。
 - **AC-058 `[SEF]`**: AI 不可用时，已完成核心元数据的影片仍可浏览和播放。
@@ -150,7 +150,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-015 影片详情与女优详情
 
-- **AC-074 `[IMP]`**: 影片详情展示封面、中日文标题、番号、日期、厂商、系列、导演、演员、标签、评分、简介、剧照、观看进度、收藏和多来源资源；Windows DTO、route、失败恢复、认证图片与布局由 [TASK-207 Windows 影片详情客户端边界](changes/2026-07-30--task-207-movie-detail-client-boundaries.md) 冻结。
+- **AC-074 `[IMP]`**: 影片详情展示封面、中日文标题、番号、日期、厂商、系列、导演、演员、标签、评分、简介、剧照、观看进度、收藏和多来源资源；Windows DTO、route、失败恢复、认证图片与布局由 [TASK-207 Windows 影片详情客户端边界](changes/2026-07-30--task-207-movie-detail-client-boundaries.md) 冻结，中文简介与重新刮削动作由 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结。
 - **AC-075 `[IMP]`**: 女优列表支持姓名和别名搜索；Windows 查询 generation、分页恢复与路由遵循 [Windows 女优客户端契约](contracts/windows-actors-client.md)。
 - **AC-076 `[IMP]`**: 女优详情展示头像、中日文名、别名、简介、写真图库、关联影片网格和收藏状态；所有嵌套集合使用确定性顺序且最多 100 项，Windows 写真失败隔离、查看器和布局由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结。
 - **AC-077 `[IMP]`**: 首版提供可稳定游标分页查看的影片和女优单一收藏集合，不提供多个自定义播放列表；Windows 影片收藏筛选由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 约束，影片详情收藏恢复由 [Windows 影片详情客户端契约](contracts/windows-movie-detail-client.md) 约束，女优收藏与失败保留由 [Windows 女优客户端契约](contracts/windows-actors-client.md) 约束。
@@ -235,7 +235,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、缓存期限、同步状态和连接测试；五个连接目标必须执行真实只读 probe，未配置、凭据无效与上游不可用不得混淆；同步状态同时显示持久统计中的已导入总数；JavDB/AI 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie 与 API key 只返回是否已配置；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
 - **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试、元数据总体进度、失败数量和持久暂停状态；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
-- **AC-122 `[IMP]`**: 管理员可暂停或恢复元数据新任务领取、查看并手动重试失败元数据任务，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；暂停不中断运行中任务，恢复不创建或自动重试任务；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 冻结。
+- **AC-122 `[IMP]`**: 管理员可暂停或恢复元数据新任务领取、查看并手动重试失败元数据任务、从影片详情显式重新刮削当前番号，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；暂停不中断运行中任务，恢复不创建或自动重试任务；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 和 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结。
 
 ## 11. 部署、可靠性与验收
 

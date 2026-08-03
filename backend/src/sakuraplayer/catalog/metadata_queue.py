@@ -52,6 +52,13 @@ class EnqueueOutcome:
 
 
 @dataclass(frozen=True)
+class MetadataRescrapeOutcome:
+    job_id: uuid.UUID
+    state: str
+    created: bool
+
+
+@dataclass(frozen=True)
 class MetadataCompletionOutcome:
     job_id: uuid.UUID
     state: str
@@ -261,6 +268,62 @@ class MetadataQueue:
             if existing.status == "running":
                 return MetadataCompletionOutcome(existing.id, "running")
             return MetadataCompletionOutcome(existing.id, "failed")
+
+    def rescrape_movie(self, movie_id: uuid.UUID) -> MetadataRescrapeOutcome:
+        current = self._utc_now()
+        manual_priority = priority_for_reason("manual_or_search")
+        with self._session_factory.begin() as session:
+            movie = session.get(Movie, movie_id, with_for_update=True)
+            if movie is None:
+                raise MetadataQueueProblem(
+                    status_code=404,
+                    code="resource_not_found",
+                )
+            latest = session.scalar(
+                select(MetadataJob)
+                .where(MetadataJob.normalized_number == movie.normalized_number)
+                .order_by(MetadataJob.attempt_no.desc())
+                .limit(1)
+                .with_for_update()
+            )
+            if latest is not None and latest.status in {"queued", "running"}:
+                if latest.retry_mode != "full":
+                    raise MetadataQueueProblem(
+                        status_code=409,
+                        code="metadata_job_already_active",
+                    )
+                if latest.status == "queued":
+                    changed = (
+                        latest.priority != manual_priority
+                        or latest.reason != "manual_or_search"
+                    )
+                    latest.priority = manual_priority
+                    latest.reason = "manual_or_search"
+                    if changed:
+                        self._publish_job(
+                            session,
+                            latest,
+                            event_type="metadata.job.queued.v1",
+                        )
+                return MetadataRescrapeOutcome(
+                    latest.id,
+                    state=latest.status,
+                    created=False,
+                )
+            job = self._add_job(
+                session,
+                movie=movie,
+                normalized_number=movie.normalized_number,
+                priority=manual_priority,
+                reason="manual_or_search",
+                sort_date=latest.sort_date if latest is not None else None,
+                retry_mode="full",
+                requested_stages=(),
+                attempt_no=(latest.attempt_no + 1 if latest is not None else 1),
+                parent_job_id=latest.id if latest is not None else None,
+                created_at=current,
+            )
+            return MetadataRescrapeOutcome(job.id, state="queued", created=True)
 
     def manual_retry(self, parent_job_id: uuid.UUID) -> EnqueueOutcome:
         current = self._utc_now()

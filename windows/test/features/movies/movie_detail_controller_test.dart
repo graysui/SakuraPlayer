@@ -79,16 +79,24 @@ void main() {
         expect(await api.loadCatalogImage(_plotUrl), <int>[1, 2, 3]);
         await api.setFavorite(movieId, enabled: true);
         await api.setFavorite(movieId, enabled: false);
+        final rescrape = await api.rescrapeMovie(movieId);
 
         expect(adapter.requests.map((request) => request.method), <String>[
           'GET',
           'GET',
           'PUT',
           'DELETE',
+          'POST',
         ]);
         expect(adapter.requests.first.path, 'movies/$movieId');
         expect(adapter.requests[1].path, 'catalog/images/$plotImageId');
         expect(adapter.requests[2].path, 'movies/$movieId/favorite');
+        expect(
+          adapter.requests[4].path,
+          'admin/movies/$movieId/metadata-rescrape',
+        );
+        expect(rescrape.state, MetadataRescrapeState.queued);
+        expect(rescrape.created, isTrue);
         for (final request in adapter.requests) {
           expect(request.headers['Authorization'], 'Bearer access-token');
         }
@@ -121,6 +129,34 @@ void main() {
           _detailJson()
             ..['tags'] = List<Object?>.generate(101, (index) => '标签$index'),
         ),
+        throwsA(isA<ProtocolException>()),
+      );
+    });
+
+    test('rescrape response rejects missing, extra and unknown fields', () {
+      const valid = <String, Object?>{
+        'job_id': '00000000-0000-4000-8000-000000000501',
+        'state': 'queued',
+        'created': true,
+      };
+      expect(
+        () => MetadataRescrapeResult.fromJson(<String, Object?>{
+          ...valid,
+          'extra': 1,
+        }),
+        throwsA(isA<ProtocolException>()),
+      );
+      expect(
+        () => MetadataRescrapeResult.fromJson(
+          Map<String, Object?>.from(valid)..remove('created'),
+        ),
+        throwsA(isA<ProtocolException>()),
+      );
+      expect(
+        () => MetadataRescrapeResult.fromJson(<String, Object?>{
+          ...valid,
+          'state': 'completed',
+        }),
         throwsA(isA<ProtocolException>()),
       );
     });
@@ -272,6 +308,105 @@ void main() {
     });
 
     test(
+      'rescrape blocks duplicates and preserves detail and selection',
+      () async {
+        final gateway = _ControlledMovieDetailGateway();
+        final container = _container(gateway);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          movieDetailControllerProvider.notifier,
+        );
+        final load = controller.load(movieId);
+        gateway.completeDetail(0, _detail());
+        await load;
+        controller.selectSource(sourceId);
+
+        final first = controller.rescrape();
+        final duplicate = controller.rescrape();
+        expect(gateway.rescrapeRequests, <String>[movieId]);
+        expect(
+          container.read(movieDetailControllerProvider).isRescrapeInFlight,
+          isTrue,
+        );
+        gateway.completeRescrape(
+          0,
+          const MetadataRescrapeResult(
+            jobId: '00000000-0000-4000-8000-000000000501',
+            state: MetadataRescrapeState.queued,
+            created: true,
+          ),
+        );
+        await Future.wait(<Future<void>>[first, duplicate]);
+
+        final state = container.read(movieDetailControllerProvider);
+        expect(state.detail?.id, movieId);
+        expect(state.selectedSourceId, sourceId);
+        expect(state.rescrapeState, MetadataRescrapeState.queued);
+        expect(state.rescrapeErrorCode, isNull);
+        expect(state.isRescrapeInFlight, isFalse);
+      },
+    );
+
+    test('rescrape failure preserves the loaded detail', () async {
+      final gateway = _ControlledMovieDetailGateway();
+      final container = _container(gateway);
+      addTearDown(container.dispose);
+      final controller = container.read(movieDetailControllerProvider.notifier);
+      final load = controller.load(movieId);
+      gateway.completeDetail(0, _detail());
+      await load;
+
+      final request = controller.rescrape();
+      gateway.failRescrape(
+        0,
+        const ApiException(
+          code: 'metadata_job_already_active',
+          message: 'conflict',
+          statusCode: 409,
+        ),
+      );
+      await request;
+
+      final state = container.read(movieDetailControllerProvider);
+      expect(state.detail?.id, movieId);
+      expect(state.rescrapeState, isNull);
+      expect(state.rescrapeErrorCode, 'metadata_job_already_active');
+    });
+
+    test(
+      'rescrape completion does not overwrite a concurrent favorite',
+      () async {
+        final gateway = _ControlledMovieDetailGateway();
+        final container = _container(gateway);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          movieDetailControllerProvider.notifier,
+        );
+        final load = controller.load(movieId);
+        gateway.completeDetail(0, _detail());
+        await load;
+
+        final rescrape = controller.rescrape();
+        final favorite = controller.setFavorite(enabled: true);
+        gateway.completeFavorite(0);
+        await favorite;
+        gateway.completeRescrape(
+          0,
+          const MetadataRescrapeResult(
+            jobId: '00000000-0000-4000-8000-000000000501',
+            state: MetadataRescrapeState.running,
+            created: false,
+          ),
+        );
+        await rescrape;
+
+        final state = container.read(movieDetailControllerProvider);
+        expect(state.detail?.favorite, isTrue);
+        expect(state.rescrapeState, MetadataRescrapeState.running);
+      },
+    );
+
+    test(
       'server session change clears state and ignores old response',
       () async {
         final gateway = _ControlledMovieDetailGateway();
@@ -421,6 +556,9 @@ class _ControlledMovieDetailGateway implements MovieDetailGateway {
       <Completer<MovieDetailDto>>[];
   final List<Completer<void>> _favoriteCompleters = <Completer<void>>[];
   final List<_FavoriteRequest> favoriteRequests = <_FavoriteRequest>[];
+  final List<Completer<MetadataRescrapeResult>> _rescrapeCompleters =
+      <Completer<MetadataRescrapeResult>>[];
+  final List<String> rescrapeRequests = <String>[];
 
   @override
   Future<MovieDetailDto> getMovie(String movieId) {
@@ -450,6 +588,20 @@ class _ControlledMovieDetailGateway implements MovieDetailGateway {
 
   void failFavorite(int index, Object error) =>
       _favoriteCompleters[index].completeError(error);
+
+  @override
+  Future<MetadataRescrapeResult> rescrapeMovie(String movieId) {
+    rescrapeRequests.add(movieId);
+    final completer = Completer<MetadataRescrapeResult>();
+    _rescrapeCompleters.add(completer);
+    return completer.future;
+  }
+
+  void completeRescrape(int index, MetadataRescrapeResult result) =>
+      _rescrapeCompleters[index].complete(result);
+
+  void failRescrape(int index, Object error) =>
+      _rescrapeCompleters[index].completeError(error);
 }
 
 class _MovieDetailAdapter implements HttpClientAdapter {
@@ -474,6 +626,14 @@ class _MovieDetailAdapter implements HttpClientAdapter {
     }
     if (options.path == 'movies/$movieId/favorite') {
       return ResponseBody.fromString('', favoriteStatus);
+    }
+    if (options.method == 'POST' &&
+        options.path == 'admin/movies/$movieId/metadata-rescrape') {
+      return _jsonResponse(200, <String, Object?>{
+        'job_id': '00000000-0000-4000-8000-000000000501',
+        'state': 'queued',
+        'created': true,
+      });
     }
     throw StateError('unexpected request ${options.method} ${options.path}');
   }

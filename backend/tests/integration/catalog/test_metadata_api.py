@@ -261,6 +261,43 @@ def test_admin_retry_endpoints_create_new_attempts_and_keep_parent_immutable(
     assert {job.status for job in parents} == {"failed", "completed_with_warnings"}
 
 
+def test_admin_movie_rescrape_is_authenticated_and_uses_server_movie_number(
+    api_context,
+) -> None:
+    client, _queue, factory = api_context
+    movie = add_movie(factory, "ABP-227")
+
+    anonymous = client.post(
+        f"/api/v1/admin/movies/{movie.id}/metadata-rescrape",
+    )
+    headers = auth_headers(client)
+    created = client.post(
+        f"/api/v1/admin/movies/{movie.id}/metadata-rescrape",
+        headers=headers,
+    )
+    reused = client.post(
+        f"/api/v1/admin/movies/{movie.id}/metadata-rescrape",
+        headers=headers,
+    )
+
+    assert anonymous.status_code == 401
+    assert created.status_code == reused.status_code == 200
+    assert created.json() == {
+        "job_id": reused.json()["job_id"],
+        "state": "queued",
+        "created": True,
+    }
+    assert reused.json()["created"] is False
+    with factory() as session:
+        job = session.get(MetadataJob, uuid.UUID(created.json()["job_id"]))
+        assert job is not None
+        assert (job.movie_id, job.normalized_number, job.priority) == (
+            movie.id,
+            "ABP-227",
+            10,
+        )
+
+
 def test_admin_metadata_queue_pause_and_resume_preserve_running_attempt(
     api_context,
 ) -> None:

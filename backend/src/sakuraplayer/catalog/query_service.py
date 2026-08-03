@@ -500,7 +500,7 @@ class CatalogQueryService:
                 series=movie.series,
                 director=movie.director,
                 score=float(movie.score) if movie.score is not None else None,
-                description=movie.description_zh or movie.description_original,
+                description=movie.description_zh,
                 description_original=movie.description_original,
                 actors=actors,
                 tags=tags,

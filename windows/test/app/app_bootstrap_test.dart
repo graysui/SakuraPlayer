@@ -787,6 +787,14 @@ class _MovieDetailGateway implements MovieDetailGateway {
   Future<List<int>> loadCatalogImage(String imageUrl) async => <int>[];
 
   @override
+  Future<MetadataRescrapeResult> rescrapeMovie(String movieId) async =>
+      const MetadataRescrapeResult(
+        jobId: '00000000-0000-4000-8000-000000000501',
+        state: MetadataRescrapeState.queued,
+        created: true,
+      );
+
+  @override
   Future<void> setFavorite(String movieId, {required bool enabled}) async {}
 }
 

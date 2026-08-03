@@ -19,13 +19,14 @@
 | [TASK-224](tasks/TASK-224.md) | WebSocket 运行依赖修复 | API 镜像协议实现、启动依赖门禁 | TASK-013 | 否 | 否 |
 | [TASK-225](tasks/TASK-225.md) | 硅基流动 Qwen 翻译兼容修复 | prompt v2、非思考 profile、安全诊断 | TASK-010,TASK-223,TASK-224 | 否 | 是 |
 | [TASK-226](tasks/TASK-226.md) | 115 离线确认及时性与协议兼容修复 | 2 秒确认、状态归一化、不重复提交 | TASK-101,TASK-104,TASK-105,TASK-112 | 否 | 是 |
+| [TASK-227](tasks/TASK-227.md) | 影片详情中文简介与重新刮削 | 中文-only 简介、影片级 priority 10 完整刮削 | TASK-007,TASK-207,TASK-218,TASK-225 | 是 | 否 |
 
 ## 数量检查
 
-- 实现任务：7，未超过 15。
+- 实现任务：8，未超过 15。
 - E2E：0。
 - 清理：0；Windows 文件统一由 TASK-214 清理。
 
 ## 文件冲突结论
 
-TASK-220 只修改 Windows 认证初始化和登录前服务端地址页面；TASK-221 只修改 Windows typed player route 和影片详情布局；TASK-222 修改 Windows 导航/诊断和后端 DMM provider，并使用既有队列 API 执行显式运行恢复；TASK-223 修改后端目录可选资产投影并验证既有 Windows 严格 DTO；TASK-224 只补齐 WebSocket 运行依赖；TASK-225 只修改后端翻译 adapter、业务键协议与安全诊断。Windows 运行修复由 TASK-214 在全部相关任务完成后统一执行卫生清理；TASK-225 不改变数据库 Schema、认证协议或发布配置。
+TASK-220 只修改 Windows 认证初始化和登录前服务端地址页面；TASK-221 只修改 Windows typed player route 和影片详情布局；TASK-222 修改 Windows 导航/诊断和后端 DMM provider，并使用既有队列 API 执行显式运行恢复；TASK-223 修改后端目录可选资产投影并验证既有 Windows 严格 DTO；TASK-224 只补齐 WebSocket 运行依赖；TASK-225 只修改后端翻译 adapter、业务键协议与安全诊断；TASK-227 只增加详情中文简介投影和用户显式影片级重新刮削。Windows 运行修复由 TASK-214 在全部相关任务完成后统一执行卫生清理；TASK-227 不改变数据库 Schema、provider 协议或付费翻译幂等事实。

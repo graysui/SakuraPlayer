@@ -42,6 +42,7 @@
   `test_cache_events_snapshot_api.py`；不发布 playback 心跳事件，worker/scheduler 无心跳证据时继续为 unknown。
 - AC-049 至 AC-053 的固定 provider 地址、16/32 MiB 上限、XML/路径安全、周日 05:00 持久入队、独立 current 快照、唯一身份匹配和陈旧 GFriends 资产清理由 [TASK-009 提供方快照安全与重建边界](changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结，并由 TASK-009 实现。
 - AC-054 至 AC-058 的加密配置快照、单字段 JSON、protected 规范化、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结并由 TASK-010 实现；prompt v2、硅基流动 Qwen3.5 非思考 profile、动态输出上限、安全诊断和旧 v1 事实隔离由 [TASK-225 硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结并由 TASK-225 实现。
+- AC-040/041/055/057/074/122 的详情中文-only 简介、影片级 priority 10 完整重新刮削、活动 attempt 复用和旧翻译事实保护由 [TASK-227 影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结并由 TASK-227 实现。
 - AC-063 至 AC-068、AC-074 至 AC-078 的同来源筛选、稳定键集游标、Phase 1 空状态端口、搜索队列提升、收藏 Schema、安全 DTO 与集合上限由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，并由 TASK-011 实现。
 - AC-063、AC-064、AC-067、AC-068、AC-077 的 Windows DTO 所有权、认证封面、固定桌面几何、筛选 generation、游标恢复和追加失败语义由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 与 [Windows 媒体库客户端契约](contracts/windows-library-client.md) 冻结；TASK-204 已完成客户端实现，自动证据位于 `library_controller_test.dart`、`library_page_test.dart`、`search_controller_test.dart` 和 `app_bootstrap_test.dart`。
 - AC-051 至 AC-053、AC-075 至 AC-077 的 Windows Actor DTO 所有权、查询/收藏 generation、typed route、GFriends 精确 URL、匿名下载、取消、四并发、7 天期限、512 文件/256 MiB LRU、会话清理隔离和固定桌面几何由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 与 [Windows 女优客户端契约](contracts/windows-actors-client.md) 冻结；TASK-206 已完成客户端实现，自动证据位于 `actors_controller_test.dart`、`actor_pages_test.dart`、`gfriends_cache_test.dart`、`desktop_shell_test.dart`、`auth_controller_test.dart` 和 `app_bootstrap_test.dart`。
@@ -163,8 +164,8 @@
 | `AC-037` | `[I]` | `REQ-008` | `TASK-007` |
 | `AC-038` | `[I]` | `REQ-008` | `TASK-007` |
 | `AC-039` | `[I]` | `REQ-008` | `TASK-007` |
-| `AC-040` | `[I]` | `REQ-008` | `TASK-007`, `TASK-222` |
-| `AC-041` | `[I]` | `REQ-008` | `TASK-007` |
+| `AC-040` | `[I]` | `REQ-008` | `TASK-007`, `TASK-222`, `TASK-227` |
+| `AC-041` | `[I]` | `REQ-008` | `TASK-007`, `TASK-227` |
 | `AC-042` | `[I]` | `REQ-008` | `TASK-007`, `TASK-008`, `TASK-216`, `TASK-223` |
 | `AC-043` | `[I]` | `REQ-008` | `TASK-007` |
 | `AC-044` | `[I]` | `REQ-009` | `TASK-008`, `TASK-216` |
@@ -178,9 +179,9 @@
 | `AC-052` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306` |
 | `AC-053` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306` |
 | `AC-054` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
-| `AC-055` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
+| `AC-055` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-227` |
 | `AC-056` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
-| `AC-057` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
+| `AC-057` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-227` |
 | `AC-058` | `[S]` | `REQ-011` | `TASK-014`, `TASK-225` |
 | `AC-059` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
 | `AC-060` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
@@ -197,7 +198,7 @@
 | `AC-071` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-222`, `TASK-305` |
 | `AC-072` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-222`, `TASK-305` |
 | `AC-073` | `[I]` | `REQ-014` | `TASK-012`, `TASK-205`, `TASK-305` |
-| `AC-074` | `[I]` | `REQ-015` | `TASK-011`, `TASK-207`, `TASK-221`, `TASK-223`, `TASK-307` |
+| `AC-074` | `[I]` | `REQ-015` | `TASK-011`, `TASK-207`, `TASK-221`, `TASK-223`, `TASK-227`, `TASK-307` |
 | `AC-075` | `[I]` | `REQ-015` | `TASK-011`, `TASK-206`, `TASK-223`, `TASK-306` |
 | `AC-076` | `[I]` | `REQ-015` | `TASK-011`, `TASK-206`, `TASK-306` |
 | `AC-077` | `[I]` | `REQ-015` | `TASK-011`, `TASK-204`, `TASK-206`, `TASK-207`, `TASK-304`, `TASK-306`, `TASK-307` |
@@ -245,7 +246,7 @@
 | `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308` |
 | `AC-120` | `[I]` | `REQ-022` | `TASK-003`, `TASK-013`, `TASK-208`, `TASK-308` |
 | `AC-121` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-218`, `TASK-222`, `TASK-308` |
-| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-308` |
+| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-227`, `TASK-308` |
 | `AC-123` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-124` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-125` | `[I]` | `REQ-023` | `TASK-001` |
@@ -287,3 +288,7 @@ REQ-CHG-264 至 REQ-CHG-270 约束；它不新增 AC，总任务数增至 65。
 TASK-226 的 AC-084/086/087/088/089/090/091 映射还受
 [115 离线确认及时性与协议兼容](changes/2026-08-03--task-226-cloud115-offline-confirmation.md) 中
 REQ-CHG-271 至 REQ-CHG-275 约束；它不新增 AC，总任务数增至 69。
+
+TASK-227 的 AC-040/041/055/057/074/122 映射还受
+[影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 中
+REQ-CHG-289 至 REQ-CHG-295 约束；它不新增 AC，总任务数增至 70。

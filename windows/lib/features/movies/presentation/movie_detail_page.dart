@@ -132,15 +132,8 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
                       Text(
                         detail.description?.trim().isNotEmpty == true
                             ? detail.description!
-                            : '暂无简介',
+                            : '暂无中文简介',
                       ),
-                      if (_isDistinct(
-                        detail.descriptionOriginal,
-                        detail.description,
-                      )) ...[
-                        const SizedBox(height: 10),
-                        Text(detail.descriptionOriginal!),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 28),
@@ -298,27 +291,62 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
           ),
         ],
         const SizedBox(height: 18),
-        SizedBox(
-          width: 220,
-          height: 44,
-          child: FilledButton.icon(
-            key: const ValueKey('movie-detail-play'),
-            onPressed:
-                state.selectedSourceId != null && widget.onPlaySource != null
-                    ? () => ref
-                        .read(movieDetailControllerProvider.notifier)
-                        .playSelected(widget.onPlaySource)
-                    : null,
-            icon: Icon(
-              completed ? Icons.check_circle_outline : Icons.play_arrow,
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          children: [
+            SizedBox(
+              width: 220,
+              height: 44,
+              child: FilledButton.icon(
+                key: const ValueKey('movie-detail-play'),
+                onPressed:
+                    state.selectedSourceId != null &&
+                            widget.onPlaySource != null
+                        ? () => ref
+                            .read(movieDetailControllerProvider.notifier)
+                            .playSelected(widget.onPlaySource)
+                        : null,
+                icon: Icon(
+                  completed ? Icons.check_circle_outline : Icons.play_arrow,
+                ),
+                label: Text(
+                  liveProgress == null
+                      ? movieProgressLabel(detail.progress)
+                      : liveMovieProgressLabel(liveProgress),
+                ),
+              ),
             ),
-            label: Text(
-              liveProgress == null
-                  ? movieProgressLabel(detail.progress)
-                  : liveMovieProgressLabel(liveProgress),
+            SizedBox(
+              width: 180,
+              height: 44,
+              child: OutlinedButton.icon(
+                key: const ValueKey('movie-detail-rescrape'),
+                onPressed:
+                    state.isRescrapeInFlight
+                        ? null
+                        : () => unawaited(
+                          ref
+                              .read(movieDetailControllerProvider.notifier)
+                              .rescrape(),
+                        ),
+                icon: const Icon(Icons.refresh),
+                label: Text(state.isRescrapeInFlight ? '提交中...' : '重新刮削'),
+              ),
             ),
-          ),
+          ],
         ),
+        if (_rescrapeMessage(state) case final message?) ...[
+          const SizedBox(height: 8),
+          Text(
+            message,
+            key: const ValueKey('movie-detail-rescrape-message'),
+            style:
+                state.rescrapeErrorCode == null
+                    ? null
+                    : TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
       ],
     );
   }
@@ -517,3 +545,19 @@ Widget _sectionTitle(BuildContext context, String label) =>
 
 bool _isDistinct(String? value, String? primary) =>
     value != null && value.trim().isNotEmpty && value.trim() != primary?.trim();
+
+String? _rescrapeMessage(MovieDetailState state) {
+  if (state.rescrapeErrorCode != null) {
+    return switch (state.rescrapeErrorCode) {
+      'metadata_job_already_active' => '已有富化任务正在执行，请完成后再试',
+      'resource_not_found' => '影片资料不存在',
+      'client_transport_error' => '无法连接服务器，请稍后重试',
+      _ => '重新刮削失败，请重试',
+    };
+  }
+  return switch (state.rescrapeState) {
+    MetadataRescrapeState.queued => '已加入最高优先级刮削队列',
+    MetadataRescrapeState.running => '当前番号正在刮削',
+    null => null,
+  };
+}

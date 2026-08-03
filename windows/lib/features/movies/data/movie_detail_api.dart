@@ -8,6 +8,43 @@ import 'package:sakuraplayer_windows/features/library/data/movies_api.dart';
 
 enum MovieMetadataState { coreReady, queued, running, failed }
 
+enum MetadataRescrapeState { queued, running }
+
+@immutable
+class MetadataRescrapeResult {
+  const MetadataRescrapeResult({
+    required this.jobId,
+    required this.state,
+    required this.created,
+  });
+
+  factory MetadataRescrapeResult.fromJson(Map<String, Object?> json) {
+    const keys = <String>{'job_id', 'state', 'created'};
+    if (json.keys.toSet().difference(keys).isNotEmpty ||
+        keys.difference(json.keys.toSet()).isNotEmpty) {
+      throw const ProtocolException('MetadataRescrape has invalid fields');
+    }
+    final reader = JsonReader(json, 'MetadataRescrape');
+    final state = switch (reader.enumeration('state', const {
+      'queued',
+      'running',
+    })) {
+      'queued' => MetadataRescrapeState.queued,
+      'running' => MetadataRescrapeState.running,
+      _ => throw const ProtocolException('MetadataRescrape.state is invalid'),
+    };
+    return MetadataRescrapeResult(
+      jobId: reader.uuid('job_id'),
+      state: state,
+      created: reader.boolean('created'),
+    );
+  }
+
+  final String jobId;
+  final MetadataRescrapeState state;
+  final bool created;
+}
+
 enum MovieSourceAvailability {
   available,
   queued,
@@ -251,6 +288,8 @@ abstract interface class MovieDetailGateway {
 
   Future<void> setFavorite(String movieId, {required bool enabled});
 
+  Future<MetadataRescrapeResult> rescrapeMovie(String movieId);
+
   Future<List<int>> loadCatalogImage(String imageUrl);
 }
 
@@ -273,6 +312,15 @@ class MovieDetailApi implements MovieDetailGateway {
     requireMovieId(movieId);
     final path = 'movies/$movieId/favorite';
     return enabled ? _client.putEmpty(path) : _client.deleteEmpty(path);
+  }
+
+  @override
+  Future<MetadataRescrapeResult> rescrapeMovie(String movieId) {
+    requireMovieId(movieId);
+    return _client.post(
+      'admin/movies/$movieId/metadata-rescrape',
+      decode: MetadataRescrapeResult.fromJson,
+    );
   }
 
   @override

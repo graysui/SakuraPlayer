@@ -2,13 +2,13 @@
 
 **更新时间**: 2026-08-03
 
-**当前阶段**: Phase 3 运行修复阶段，TASK-226 已完成；TASK-214 保持 pending，等待用户明确开始。
+**当前阶段**: Phase 3 运行修复阶段，TASK-227 已完成；TASK-214 保持 pending，等待用户明确开始。
 
 ## 1. 当前成果
 
 - 功能规格包含 135 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 68 个任务已拆为后端元数据、115 缓存播放、Windows、HarmonyOS 和运行修复五个工作流。
+- 70 个任务已拆为后端元数据、115 缓存播放、Windows、HarmonyOS 和运行修复五个工作流。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
@@ -212,12 +212,14 @@
 - TASK-225 Fast 为 Ruff、857 项自包含和宿主配置通过；Compose Final 一次通过 857 项自包含与 128 项 PostgreSQL integration/E2E。显式真实硅基流动合成文本门禁 744 ms 通过严格 schema/protected guard，未写业务翻译记录或修改刮削队列。
 - TASK-226 已交付 Cloud115 离线状态/字段兼容归一化、2 秒确认反馈和 1 秒 cache worker 空闲等待；保留 90 秒 claim fencing，`submit_uncertain` 不自动重复提交，覆盖 `11c8de8b`/`394a1904` 类故障。
 - TASK-226 Fast 为 Ruff、858 项自包含和宿主配置通过；Compose Final 一次通过 858 项自包含和 128 项 PostgreSQL integration/E2E，迁移、健康、认证、秘密扫描、重启、ready 降级恢复和隔离资源清理全部完成，默认测试未访问真实 115。
+- TASK-227 已交付详情中文-only 简介投影、认证影片级重新刮削 API 和 Windows 详情操作；服务端固定 MovieId 对应番号、priority 10 与 full attempt，queued/running 安全复用，终态历史和旧翻译事实保持不可变。
+- TASK-227 Fast 为 Ruff、864 项自包含、宿主配置、Windows analyze、233 项 Flutter 测试和 4 项 Fake 用户旅程通过；Compose Final 一次通过 864 项自包含和完整 PostgreSQL integration/E2E，Windows Release、迁移、健康、认证、秘密扫描、重启、ready 降级恢复和隔离资源清理全部完成。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-226 completed；TASK-214 保持 pending，未开始。
-- **最近绿色快速门禁**: TASK-226 全量 Ruff、858 项自包含测试、宿主配置、差异和秘密扫描通过，审计无剩余 P0/P1/P2。
-- **最终门禁状态**: TASK-226 Compose Final 一次通过 858 项自包含、128 项 PostgreSQL integration/E2E 和全部运行门禁；默认测试未访问真实 115。
+- **当前任务门禁阶段**: TASK-227 completed；TASK-214 保持 pending，未开始。
+- **最近绿色快速门禁**: TASK-227 全量 Ruff、864 项自包含、宿主配置、Windows analyze、233 项 Flutter 测试、4 项 Fake 用户旅程、差异和秘密扫描通过，审计无剩余 P0/P1/P2。
+- **最终门禁状态**: TASK-227 Compose Final 一次通过 864 项自包含、完整 PostgreSQL integration/E2E 和全部运行门禁；Windows Release 构建通过，默认测试未访问真实 provider、115 或付费 AI。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -234,12 +236,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227。
 - **下一任务**: TASK-214 Windows 代码清理；保持 pending，等待用户明确开始。
 - **当前阻塞项**: 无。
 - **未完成外部门禁**: TASK-312 HarmonyOS API 24 真机门禁仍未完成；TASK-213 Windows/真实 115 已通过。
 
-TASK-226 已完成，TASK-214 尚未开始。后端当前使用普通 Compose，Windows 使用 Release 直接启动；不替用户批量创建影片刮削或富化任务，不自动重试任何旧 v1 翻译事实。提交事实以 Git 为准。
+TASK-227 已完成，TASK-214 尚未开始。TASK-227 Windows Release 已构建但未启动，后端现有普通 Compose 未因隔离 Final 被替换；不替用户批量创建影片刮削或富化任务，不自动重试任何旧 v1 翻译事实。提交事实以 Git 为准。
 
 ## 4. 必读契约
 
