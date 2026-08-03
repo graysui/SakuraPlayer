@@ -129,7 +129,7 @@ class _SakuraPlayerCompositionRootState
     try {
       await _subtitleLifecycle?.reconcileCleanedJobs(jobIds);
     } on Object {
-      debugPrint('subtitle_cache_cleanup_failed');
+      // A later snapshot retries this best-effort cache reconciliation.
     }
   }
 
@@ -139,7 +139,7 @@ class _SakuraPlayerCompositionRootState
     try {
       await lifecycle.initialize(now: DateTime.now().toUtc());
     } on Object {
-      debugPrint('subtitle_cache_cleanup_failed');
+      // Startup cleanup is best effort and runs again on the next launch.
     }
   }
 
