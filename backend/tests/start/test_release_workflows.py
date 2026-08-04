@@ -32,18 +32,29 @@ def _load_version_tool():
 
 def test_release_version_matches_flutter_semver_and_preserves_build_number() -> None:
     module = _load_version_tool()
+    pubspec_path = REPOSITORY_ROOT / "windows" / "pubspec.yaml"
+    pubspec = _read(pubspec_path)
+    match = re.search(
+        r"^version:\s*(?P<semver>\d+\.\d+\.\d+)\+(?P<build>\d+)\s*$",
+        pubspec,
+        re.MULTILINE,
+    )
+    assert match is not None
+    semver = match.group("semver")
+    build_number = match.group("build")
 
     version = module.validate_release_version(
-        tag="v1.0.0",
-        pubspec_path=REPOSITORY_ROOT / "windows" / "pubspec.yaml",
+        tag=f"v{semver}",
+        pubspec_path=pubspec_path,
     )
 
-    assert version.semver == "1.0.0"
-    assert version.build_number == "1"
-    assert version.artifact_version == "1.0.0-1"
-    assert version.archive_name == "SakuraPlayer-Windows-1.0.0-1.zip"
-    assert version.installer_name == "SakuraPlayer-Windows-1.0.0-1-Setup.exe"
-    assert version.docker_archive_name == "SakuraPlayer-Docker-1.0.0.tar.gz"
+    assert version.semver == semver
+    assert version.build_number == build_number
+    artifact_version = f"{semver}-{build_number}"
+    assert version.artifact_version == artifact_version
+    assert version.archive_name == f"SakuraPlayer-Windows-{artifact_version}.zip"
+    assert version.installer_name == f"SakuraPlayer-Windows-{artifact_version}-Setup.exe"
+    assert version.docker_archive_name == f"SakuraPlayer-Docker-{semver}.tar.gz"
 
 
 @pytest.mark.parametrize("tag", ["1.0.0", "v1.0", "v1.0.0-rc.1", "v01.0.0"])
