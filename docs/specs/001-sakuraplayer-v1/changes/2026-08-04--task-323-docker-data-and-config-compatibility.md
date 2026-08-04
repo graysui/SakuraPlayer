@@ -24,4 +24,4 @@ TASK-321 修复了一键脚本将 `.env` 和 secret 留在临时目录的问题�
 
 ## 验证边界
 
-本次回归运行 `backend/tests/start/test_linux_installer.py`，结果为 `18 passed`；未运行完整 Compose。用户仍需在飞牛 NAS 上验证实际安装、Compose 健康状态、`.env` 内容和数据目录位置。
+本次回归运行 `backend/tests/start/test_linux_installer.py`，结果为 `18 passed`；Compose 结构断言已同步为 bind mount 契约，但本机 WSL 未接入 Docker，未能运行 `test_docker_entrypoint.py` 或完整 Compose。CI 和用户仍需验证实际 Compose 配置、安装、健康状态、`.env` 内容和数据目录位置。

@@ -103,15 +103,49 @@ def test_compose_has_isolated_processes_and_pinned_postgres() -> None:
     assert services["migrate"]["restart"] == "no"
 
 
-def test_compose_has_required_volumes_and_healthchecks() -> None:
+def test_compose_has_required_bind_mounts_and_healthchecks() -> None:
     config = _compose_config()
 
-    assert set(config["volumes"]) == {
-        "app-logs",
-        "catalog-images",
-        "db-data",
-        "provider-cache",
+    assert "volumes" not in config
+    expected_mounts = {
+        "postgres": {
+            ("data/postgres", "/var/lib/postgresql/data"),
+        },
+        "api": {
+            ("data/catalog-images", "/var/lib/sakuraplayer/catalog-images"),
+            ("data/provider-cache", "/var/lib/sakuraplayer/provider-cache"),
+            ("data/app-logs", "/var/log/sakuraplayer"),
+        },
+        "worker": {
+            ("data/catalog-images", "/var/lib/sakuraplayer/catalog-images"),
+            ("data/provider-cache", "/var/lib/sakuraplayer/provider-cache"),
+            ("data/app-logs", "/var/log/sakuraplayer"),
+        },
+        "scheduler": {
+            ("data/catalog-images", "/var/lib/sakuraplayer/catalog-images"),
+            ("data/provider-cache", "/var/lib/sakuraplayer/provider-cache"),
+            ("data/app-logs", "/var/log/sakuraplayer"),
+        },
     }
+
+    for service_name, mounts in expected_mounts.items():
+        actual_mounts = {
+            (
+                Path(
+                    volume["source"]
+                    if Path(volume["source"]).is_absolute()
+                    else BACKEND_ROOT / volume["source"]
+                )
+                .resolve()
+                .relative_to(BACKEND_ROOT.resolve())
+                .as_posix(),
+                volume["target"],
+            )
+            for volume in config["services"][service_name]["volumes"]
+            if volume["type"] == "bind"
+        }
+        assert actual_mounts == mounts
+
     for service_name in ("api", "scheduler", "worker", "postgres"):
         assert "healthcheck" in config["services"][service_name]
 
@@ -219,7 +253,7 @@ def test_compose_finally_covers_secret_setup_and_skips_down_without_env_file() -
 
 if __name__ == "__main__":
     test_compose_has_isolated_processes_and_pinned_postgres()
-    test_compose_has_required_volumes_and_healthchecks()
+    test_compose_has_required_bind_mounts_and_healthchecks()
     test_development_compose_watches_all_and_only_long_running_app_services()
     test_entrypoint_percent_encodes_database_password()
     test_powershell_verbose_alias_consumes_short_volume_flag()
