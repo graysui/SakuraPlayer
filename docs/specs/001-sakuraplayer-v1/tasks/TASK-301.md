@@ -3,7 +3,7 @@ id: TASK-301
 title: "API 24 Stage 工程与签名侧载基线"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: implemented
+status: reviewed
 dependencies: [TASK-213, TASK-214]
 ac-mapping: [AC-007, AC-008, AC-009, AC-131]
 imp-requirements: [REQ-002]
