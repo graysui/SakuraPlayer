@@ -14,8 +14,20 @@
 推荐直接复制下面这一行执行。它会自动找到最新正式 Release、下载 Docker 部署包、临时解压并启动服务，不需要手动下载 Release、解压或执行 SHA256 校验：
 
 ```bash
+cd /vol1/1000/docker/Sakuraplayer
 curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/install-latest.sh | bash
 ```
+
+脚本会把下载的发布文件安装到执行命令时的当前目录，因此 `.env`、`secrets/` 和 Docker Compose 数据配置会持久保存在 `/vol1/1000/docker/Sakuraplayer/`，不会随着 `/tmp` 临时目录删除。
+
+首次交互式安装时，脚本会询问发布地址和 API 端口：
+
+```dotenv
+SAKURAPLAYER_PUBLISH_HOST=192.168.1.50
+SAKURAPLAYER_API_PORT=8000
+```
+
+请将 `192.168.1.50` 换成 NAS 自己的私网 IPv4 地址。直接回车使用 `127.0.0.1:8000`；没有终端输入时也自动使用这个默认值。已有 `.env` 会保留原值，不会被一键脚本覆盖。
 
 也可以在已解压的官方部署包目录执行本地安装器：
 
@@ -23,9 +35,9 @@ curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/i
 ./install.sh
 ```
 
-安装器会创建发布版 `.env`，自动生成五个用途独立的强随机 secret，拉取当前固定版本镜像，并等待所有服务健康。重复执行会保留有效的 `.env`、secret 和 Docker volumes，不会重置数据库密码或加密密钥。
+安装器会创建发布版 `.env`，自动生成五个用途独立的强随机 secret，拉取当前固定版本镜像，并等待所有服务健康。重复执行会保留有效的 `.env`、secret 和 Docker volumes，不会重置数据库密码或加密密钥。旧版本一键脚本已经启动但误删宿主 secret 时，会先尝试从仍在运行的 SakuraPlayer 容器恢复它们；无法完整恢复时会停止并提示，不会生成与旧数据库混用的新 secret。
 
-成功后，API 默认只监听 `http://127.0.0.1:8000`。首次创建管理员时，按安装器提示读取 `secrets/bootstrap_token.txt`；不要把内容发到聊天、日志或截图中。
+成功后，API 会监听你选择的地址和端口。首次创建管理员时，按安装器提示读取 `secrets/bootstrap_token.txt`；不要把内容发到聊天、日志或截图中。
 
 ## 私网访问
 

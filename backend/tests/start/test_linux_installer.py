@@ -68,12 +68,18 @@ def _run_installer(
     cwd: Path,
     sleep: int = 0,
     fail_phase: str = "",
+    publish_host: str | None = None,
+    api_port: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
     env["FAKE_DOCKER_LOG"] = str(docker_log)
     env["FAKE_DOCKER_SLEEP"] = str(sleep)
     env["FAKE_DOCKER_FAIL_PHASE"] = fail_phase
+    if publish_host is not None:
+        env["SAKURAPLAYER_INSTALLER_PUBLISH_HOST"] = publish_host
+    if api_port is not None:
+        env["SAKURAPLAYER_INSTALLER_API_PORT"] = api_port
     return subprocess.run(
         ["/bin/bash", str(deployment / "install.sh")],
         cwd=cwd,
@@ -152,6 +158,52 @@ def test_installer_accepts_crlf_release_template(tmp_path: Path) -> None:
     env_bytes = (deployment / ".env").read_bytes()
     assert b"\r" not in env_bytes
     assert b"SAKURAPLAYER_PUBLISH_HOST=127.0.0.1\n" in env_bytes
+
+
+def test_installer_uses_selected_network_configuration(tmp_path: Path) -> None:
+    deployment, fake_bin, docker_log = _prepare_deployment(tmp_path)
+
+    result = _run_installer(
+        deployment,
+        fake_bin,
+        docker_log,
+        cwd=tmp_path,
+        publish_host="192.168.1.50",
+        api_port="8000",
+    )
+
+    assert result.returncode == 0, result.stderr
+    env_text = (deployment / ".env").read_text(encoding="utf-8")
+    assert "SAKURAPLAYER_PUBLISH_HOST=192.168.1.50" in env_text
+    assert "SAKURAPLAYER_API_PORT=8000" in env_text
+    assert "http://192.168.1.50:8000" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("publish_host", "api_port"),
+    [("0.0.0.0", "8000"), ("192.168.1.50", "65536")],
+)
+def test_installer_rejects_invalid_selected_network_configuration(
+    tmp_path: Path, publish_host: str, api_port: str
+) -> None:
+    deployment, fake_bin, docker_log = _prepare_deployment(tmp_path)
+
+    result = _run_installer(
+        deployment,
+        fake_bin,
+        docker_log,
+        cwd=tmp_path,
+        publish_host=publish_host,
+        api_port=api_port,
+    )
+
+    assert result.returncode != 0
+    assert "network_" in result.stderr
+    assert not (deployment / ".env").exists()
+    calls = docker_log.read_text(encoding="utf-8").splitlines()
+    assert not any(" config --quiet" in call for call in calls)
+    assert not any(call.endswith(" pull") for call in calls)
+    assert not any(call.endswith(" up -d --no-build --wait") for call in calls)
 
 
 def test_installer_preserves_configuration_and_secrets_after_compose_failure(
@@ -311,7 +363,15 @@ def _prepare_latest_bootstrap(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
         encoding="ascii",
     )
     package_installer.chmod(0o755)
-    for name in ("docker-compose.yml", ".env.example", ".release-version"):
+    for name in (
+        "docker-compose.yml",
+        ".env.example",
+        ".release-version",
+        "install-latest.sh",
+        "README.md",
+        "LICENSE",
+        "THIRD_PARTY_NOTICES.md",
+    ):
         (package_root / name).write_text("fixture\n", encoding="ascii")
     archive = tmp_path / "SakuraPlayer-Docker-1.2.3.tar.gz"
     subprocess.run(
@@ -353,7 +413,10 @@ def _run_latest_installer(
     curl_log: Path,
     *,
     release_url: str,
+    container_secrets: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    target = archive.parent / "deployment"
+    target.mkdir()
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
     env["FAKE_ARCHIVE"] = str(archive)
@@ -361,9 +424,11 @@ def _run_latest_installer(
     env["FAKE_RELEASE_URL"] = release_url
     env["BOOTSTRAP_MARKER"] = str(marker)
     env["TMPDIR"] = str(archive.parent)
+    if container_secrets is not None:
+        env["FAKE_CONTAINER_SECRETS"] = str(container_secrets)
     return subprocess.run(
         ["/bin/bash", str(LATEST_INSTALLER)],
-        cwd=archive.parent,
+        cwd=target,
         env=env,
         text=True,
         capture_output=True,
@@ -387,6 +452,11 @@ def test_latest_installer_downloads_latest_release_without_checksum(
 
     assert result.returncode == 0, result.stderr
     assert marker.read_text(encoding="ascii") == "package-installer-ran\n"
+    target = archive.parent / "deployment"
+    assert (target / "install.sh").is_file()
+    assert (target / "docker-compose.yml").is_file()
+    assert (target / ".env.example").is_file()
+    assert (target / ".release-version").read_text(encoding="ascii") == "fixture\n"
     calls = curl_log.read_text(encoding="ascii").splitlines()
     assert calls[0].endswith("https://github.com/graysui/SakuraPlayer/releases/latest")
     assert calls[1].endswith(
@@ -412,5 +482,48 @@ def test_latest_installer_rejects_unversioned_latest_release(tmp_path: Path) -> 
     assert result.returncode != 0
     assert "release_version_invalid" in result.stderr
     assert not marker.exists()
+    assert not any((archive.parent / "deployment").iterdir())
     assert len(curl_log.read_text(encoding="ascii").splitlines()) == 1
     assert not list(archive.parent.glob("sakuraplayer-install.*"))
+
+
+def test_latest_installer_recovers_secrets_from_running_compose_container(
+    tmp_path: Path,
+) -> None:
+    archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(tmp_path)
+    secret_source = tmp_path / "container-secrets"
+    secret_source.mkdir()
+    for index, (name, length) in enumerate(SECRET_LENGTHS.items()):
+        secret_source.joinpath(name.removesuffix(".txt")).write_text(
+            chr(ord("a") + index) * length, encoding="ascii"
+        )
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        'case "$1" in\n'
+        "  ps) printf '%s\\n' old-container ;;\n"
+        "  cp)\n"
+        '    name="${2##*/}"\n'
+        '    cp "$FAKE_CONTAINER_SECRETS/$name" "$3"\n'
+        "    ;;\n"
+        "esac\n",
+        encoding="ascii",
+    )
+    docker.chmod(0o755)
+
+    result = _run_latest_installer(
+        fake_bin,
+        archive,
+        marker,
+        curl_log,
+        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/v1.2.3",
+        container_secrets=secret_source,
+    )
+
+    assert result.returncode == 0, result.stderr
+    target = archive.parent / "deployment"
+    for index, (name, length) in enumerate(SECRET_LENGTHS.items()):
+        assert (target / "secrets" / name).read_text(encoding="ascii") == chr(
+            ord("a") + index
+        ) * length

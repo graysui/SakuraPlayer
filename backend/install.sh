@@ -79,6 +79,23 @@ value_is_reused() {
   return 1
 }
 
+validate_ipv4() {
+  local value="$1"
+  local octet
+  [[ "$value" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || return 1
+  [[ "$value" != "0.0.0.0" ]] || return 1
+  IFS=. read -r -a octets <<<"$value"
+  for octet in "${octets[@]}"; do
+    ((10#$octet <= 255)) || return 1
+  done
+}
+
+validate_port() {
+  local value="$1"
+  [[ "$value" =~ ^[0-9]+$ ]] || return 1
+  ((10#$value >= 1 && 10#$value <= 65535))
+}
+
 generate_secret() {
   local byte_count="$1"
   openssl rand -base64 "$byte_count" | tr '+/' '-_' | tr -d '=\n'
@@ -87,6 +104,8 @@ generate_secret() {
 create_env_if_missing() {
   local version="$1"
   local image="docker.io/graysui/sakuraplayer-backend:$version"
+  local publish_host="${SAKURAPLAYER_INSTALLER_PUBLISH_HOST:-127.0.0.1}"
+  local api_port="${SAKURAPLAYER_INSTALLER_API_PORT:-8000}"
 
   if [[ -L "$ENV_FILE" || ( -e "$ENV_FILE" && ! -f "$ENV_FILE" ) ]]; then
     fail "env_unsafe_path" ".env must be a regular file"
@@ -97,15 +116,24 @@ create_env_if_missing() {
     return
   fi
 
+  validate_ipv4 "$publish_host" ||
+    fail "network_host_invalid" "Publish host must be a valid IPv4 address other than 0.0.0.0"
+  validate_port "$api_port" ||
+    fail "network_port_invalid" "API port must be an integer from 1 to 65535"
+
   CURRENT_TEMP="$(mktemp "$SCRIPT_DIR/.env.tmp.XXXXXX")"
   sed -e 's/\r$//' \
     -e "s|^SAKURAPLAYER_BACKEND_IMAGE=.*$|SAKURAPLAYER_BACKEND_IMAGE=$image|" \
+    -e "s|^SAKURAPLAYER_PUBLISH_HOST=.*$|SAKURAPLAYER_PUBLISH_HOST=$publish_host|" \
+    -e "s|^SAKURAPLAYER_API_PORT=.*$|SAKURAPLAYER_API_PORT=$api_port|" \
     "$ENV_TEMPLATE" >"$CURRENT_TEMP"
   chmod 600 "$CURRENT_TEMP"
   grep -Fx "SAKURAPLAYER_BACKEND_IMAGE=$image" "$CURRENT_TEMP" >/dev/null ||
     fail "env_template_invalid" "Image setting is missing from .env.example"
-  grep -Fx 'SAKURAPLAYER_PUBLISH_HOST=127.0.0.1' "$CURRENT_TEMP" >/dev/null ||
-    fail "env_template_invalid" "Loopback default is missing from .env.example"
+  grep -Fx "SAKURAPLAYER_PUBLISH_HOST=$publish_host" "$CURRENT_TEMP" >/dev/null ||
+    fail "env_template_invalid" "Publish host setting is missing from .env.example"
+  grep -Fx "SAKURAPLAYER_API_PORT=$api_port" "$CURRENT_TEMP" >/dev/null ||
+    fail "env_template_invalid" "API port setting is missing from .env.example"
   if ! ln "$CURRENT_TEMP" "$ENV_FILE" 2>/dev/null; then
     fail "env_create_race" ".env appeared during installation; retry after review"
   fi
@@ -231,7 +259,12 @@ main() {
   "${compose[@]}" up -d --no-build --wait >/dev/null 2>&1 ||
     fail "compose_start_failed" "SakuraPlayer services did not become healthy"
 
-  printf 'SakuraPlayer backend is ready at http://127.0.0.1:8000\n'
+  local publish_host api_port
+  publish_host="$(sed -nE 's/^SAKURAPLAYER_PUBLISH_HOST=([^[:space:]]*).*$/\1/p' "$ENV_FILE" | sed -n '1p')"
+  api_port="$(sed -nE 's/^SAKURAPLAYER_API_PORT=([^[:space:]]*).*$/\1/p' "$ENV_FILE" | sed -n '1p')"
+  publish_host="${publish_host:-127.0.0.1}"
+  api_port="${api_port:-8000}"
+  printf 'SakuraPlayer backend is ready at http://%s:%s\n' "$publish_host" "$api_port"
   printf 'Bootstrap token file: %s\n' "$SECRET_DIR/bootstrap_token.txt"
 }
 

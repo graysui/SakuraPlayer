@@ -6,11 +6,13 @@ Remote clients must connect through HTTPS or a trusted encrypted VPN. This repos
 
 ## One-command Linux install
 
-The recommended Linux path is a single command. It resolves the latest GitHub Release, downloads the matching Docker deployment archive, extracts it into a temporary directory, and runs the bundled installer. It does not require manually downloading a Release, extracting it, or checking SHA-256:
+The recommended Linux path is a single command. Run it from the directory where SakuraPlayer should keep its `.env` and `secrets/`; it resolves the latest GitHub Release, downloads the matching Docker deployment archive into a temporary directory, copies the deployment files to the current directory, and runs the installer there. It does not require manually downloading a Release, extracting it, or checking SHA-256:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/install-latest.sh | bash
 ```
+
+On the first interactive run, the script asks for the Docker publish IPv4 address and API port. Press Enter to keep `127.0.0.1` and `8000`; enter the NAS private address, such as `192.168.1.50`, when trusted LAN clients must connect directly. Non-interactive runs use those defaults automatically. If `.env` already exists, its values are preserved and no prompt is shown.
 
 For offline or manually reviewed deployments, download a release archive, optionally verify its `.sha256` file, extract it, and run `./install.sh` from the extracted directory.
 

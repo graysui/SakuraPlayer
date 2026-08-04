@@ -61,6 +61,7 @@ API、migrate、worker、scheduler 必须引用相同的 `SAKURAPLAYER_BACKEND_I
 
 - 从脚本自身目录定位 `docker-compose.yml`、`.env.example` 和 `.release-version`，不依赖调用者当前目录。
 - 只在 `.env` 缺失时由模板原子创建，并把后端镜像固定为 `docker.io/graysui/sakuraplayer-backend:X.Y.Z`；已存在 `.env` 视为操作者配置，不自动覆盖。
+- 远程 `install-latest.sh` 首次安装把发布文件、`.env` 和 `secrets/` 持久化到执行命令时的当前目录；下载和解压中间文件才允许留在临时目录。首次交互运行可选择合法 IPv4 发布地址和 `1..65535` API 端口，直接回车或无 TTY 时使用 `127.0.0.1:8000`；已有 `.env` 不询问且保留原值。
 - 以 `umask 077` 创建 `secrets/`，五个文件分别使用 32、32、48、48、48 个 CSPRNG 字节编码为无 padding Base64URL；文件名和 Compose 引用保持现有契约。
 - 生成前获取单实例文件锁；拒绝 secret 目录/文件符号链接、非普通文件、错误长度、非规范字符或用途复用。有效既有文件保持内容不变，只允许把目录/文件权限收紧到 `0700/0600`。
 - 新文件先写同目录临时文件、验证后原子安装；中断或 Compose 失败不得删除或重新生成已完成的 secret，重复执行可安全恢复。
