@@ -1,6 +1,7 @@
 /**
  * 私有字幕缓存目录约定与清理（AC-012：logout 删除字幕缓存）。
  * 实际缓存读写由 TASK-311 实现；此处固定目录常量与证明式清理。
+ * API 24 fileIo 无递归删除，手动遍历目录树。
  */
 
 import { fileIo as fs } from '@kit.CoreFileKit';
@@ -14,17 +15,33 @@ export class SubtitleCache {
     return `${context.cacheDir}/${SubtitleCache.DIR_NAME}`;
   }
 
-  /** 递归清理整个字幕缓存目录（TASK-311 写入后目录非空，必须递归删除）。 */
+  /** 递归清理整个字幕缓存目录（TASK-311 写入后目录非空）。 */
   static async clear(context: common.Context): Promise<void> {
-    const dir = SubtitleCache.dir(context);
     try {
-      const exists = fs.accessSync(dir);
-      if (!exists) {
+      if (!fs.accessSync(SubtitleCache.dir(context))) {
         return;
       }
-      fs.rmdirSync(dir, true);
+      await SubtitleCache.removeRecursive(SubtitleCache.dir(context));
     } catch (err) {
       // 目录不存在或删除失败：不阻塞 logout
+    }
+  }
+
+  private static async removeRecursive(path: string): Promise<void> {
+    try {
+      const entries = fs.listFileSync(path);
+      for (const name of entries) {
+        const child = `${path}/${name}`;
+        const stat = fs.statSync(child);
+        if (stat.isDirectory()) {
+          await SubtitleCache.removeRecursive(child);
+        } else {
+          fs.unlinkSync(child);
+        }
+      }
+      fs.rmdirSync(path);
+    } catch (err) {
+      // 单项删除失败：继续其余清理
     }
   }
 }

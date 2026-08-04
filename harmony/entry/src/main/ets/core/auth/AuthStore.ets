@@ -13,7 +13,7 @@
 import { preferences } from '@kit.ArkData';
 import { util } from '@kit.ArkTS';
 import { common } from '@kit.AbilityKit';
-import { ApiClient, NetworkHttpTransport, SessionProvider } from '../api/ApiClient';
+import { ApiClient, HttpTransport, NetworkHttpTransport, SessionProvider } from '../api/ApiClient';
 import { ServerAddressCodes, ServerAddressException, ServerProfile, ServerProfileStore } from '../api/ServerProfile';
 import { ApiException, TokenPair } from '../api/ApiModels';
 import { SecureSessionStore } from './SecureSessionStore';
@@ -45,6 +45,7 @@ export class AuthStore {
   private snapshot: SnapshotStore | null = null;
   private context: common.Context | null = null;
   private clientInstanceId: string = '';
+  private testTransport: HttpTransport | null = null;
 
   constructor() {
     this.session = new SecureSessionStore();
@@ -56,6 +57,20 @@ export class AuthStore {
 
   get snapshotStore(): SnapshotStore | null {
     return this.snapshot;
+  }
+
+  get apiClientProvider(): ApiClient | null {
+    return this.apiClient;
+  }
+
+  /** 是否存在已持久化的 refresh token（测试环境检测真实会话用）。 */
+  async hasStoredRefreshToken(): Promise<boolean> {
+    return (await this.session.loadRefreshToken()) !== null;
+  }
+
+  /** 测试注入：替换生产 HTTP 传输（仅 ohosTest 使用，不在生产调用）。 */
+  setTransportForTesting(transport: HttpTransport | null): void {
+    this.testTransport = transport;
   }
 
   /** 启动初始化：预生成 client_instance_id，恢复已存基址与会话。 */
@@ -212,7 +227,8 @@ export class AuthStore {
   }
 
   private buildClient(baseUrl: string): void {
-    this.apiClient = new ApiClient(new NetworkHttpTransport(), `${baseUrl}/api/v1`, this.session);
+    const transport = this.testTransport !== null ? this.testTransport : new NetworkHttpTransport();
+    this.apiClient = new ApiClient(transport, `${baseUrl}/api/v1`, this.session);
   }
 
   private enterAuthenticated(pair: TokenPair): void {

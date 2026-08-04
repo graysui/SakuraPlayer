@@ -3,7 +3,7 @@ id: TASK-303
 title: "Navigation 底部 Tab 主题搜索与角标"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
 dependencies: [TASK-302]
 ac-mapping: [AC-059, AC-060, AC-061, AC-062, AC-065, AC-066, AC-118]
 imp-requirements: [REQ-012, REQ-013, REQ-021]
@@ -22,11 +22,11 @@ provides: [HarmonyOS Navigation root, bottom tabs, theme, search, cache badge]
 
 ## 验收条件
 
-- [ ] 手机端底部导航只有媒体库、排行榜、女优；对应 AC-059、AC-060。
-- [ ] 顶部提供全局搜索、缓存状态和设置；对应 AC-061。
-- [ ] 浅/深主题默认跟随系统，播放器页面独立深色；对应 AC-062。
-- [ ] 搜索按影片/女优分组并处理“正在补全资料”；对应 AC-065、AC-066。
-- [ ] 缓存入口显示 queued/running/ready 角标；对应 AC-118。
+- [x] 手机端底部导航只有媒体库、排行榜、女优；对应 AC-059、AC-060。
+- [x] 顶部提供全局搜索、缓存状态和设置；对应 AC-061。
+- [x] 浅/深主题默认跟随系统，播放器页面独立深色；对应 AC-062。
+- [x] 搜索按影片/女优分组并处理“正在补全资料”；对应 AC-065、AC-066。
+- [x] 缓存入口显示 queued/running/ready 角标；对应 AC-118。
 
 ## Definition of Ready
 
@@ -61,9 +61,9 @@ provides: [HarmonyOS Navigation root, bottom tabs, theme, search, cache badge]
 
 ## Definition of Done
 
-- [ ] Navigation、Tab、主题、搜索和角标完成。
-- [ ] 无旧 router、发现/历史/订阅 Tab。
-- [ ] Hypium/UiTest 基础测试通过。
+- [x] Navigation、Tab、主题、搜索和角标完成。
+- [x] 无旧 router、发现/历史/订阅 Tab。
+- [x] Hypium/UiTest 基础测试通过（ohosTest 30/30，含 UiTest 认证态驱动与干净设备安全门禁）。
 
 **依赖**: TASK-302
 

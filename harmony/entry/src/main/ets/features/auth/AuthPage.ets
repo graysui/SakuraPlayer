@@ -87,7 +87,7 @@ export struct AuthPage {
         .fontWeight(FontWeight.Bold)
         .alignSelf(ItemAlign.Start)
       TextInput({ placeholder: 'http(s)://主机:端口', text: $$this.addressInput })
-        .type(InputType.Url)
+        .type(InputType.URL)
         .width('100%')
       Button('保存并测试连接')
         .width('100%')
@@ -114,7 +114,7 @@ export struct AuthPage {
           .width('100%')
       }
       TextInput({ placeholder: '管理员用户名', text: $$this.usernameInput })
-        .type(InputType.UserName)
+        .type(InputType.USER_NAME)
         .width('100%')
       TextInput({ placeholder: '密码', text: $$this.passwordInput })
         .type(InputType.Password)
@@ -165,8 +165,7 @@ export struct AuthPage {
         Scroll() {
           Column({ space: 24 }) {
             this.addressSection()
-            if (authStore.status === AuthStatus.UNAUTHENTICATED ||
-              authStore.status === AuthStatus.AUTHENTICATED) {
+            if (authStore.status === AuthStatus.UNAUTHENTICATED) {
               this.credentialSection()
             }
           }

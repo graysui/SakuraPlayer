@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-08-04
 
-**当前阶段**: TASK-302 completed：认证（bootstrap/login/refresh/logout）、Asset Store 令牌、类型化 HTTP、WebSocket 事件与 REST 快照恢复完成，ohosTest 21/21 通过。下一任务 TASK-303。
+**当前阶段**: TASK-303 completed：Navigation 组合根、底部三 Tab、明暗主题、全局搜索（分组/pending 自动刷新）与缓存角标完成，ohosTest 30/30 通过。下一任务 TASK-304。
 
 ## 1. 当前成果
 
@@ -228,7 +228,7 @@
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-302 completed；ohosTest 模拟器实测 21/21 通过（认证 5 + URL 6 + 快照合并 4 + 连接 3 + Scaffold 3）。
+- **当前任务门禁阶段**: TASK-303 completed；ohosTest 模拟器实测 30/30 通过（搜索 4 + 队列 1 + UiTest 5 + 认证 5 + URL 6 + 快照合并 4 + 连接 3 + Scaffold 3）。
 - **最近绿色快速门禁**: TASK-320 的 33 项 Linux 部署/归档/发布契约/文档测试、Ruff、Bash 语法、Compose config、差异和 secret 扫描通过。
 - **最终门禁状态**: TASK-320 未运行完整后端 Compose；本任务只涉及远程发布引导和资产契约，部署相关完整证据已通过。全部 `tests/start` 的容器内 Docker CLI/PowerShell 依赖失败和既有 worker 超时已记录，不影响本任务相关测试。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
@@ -248,11 +248,11 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 ## 3. 恢复状态
 
 - **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320。
-- **下一任务**: TASK-303 Navigation 底部 Tab 主题搜索与角标；依赖 TASK-302 completed，可开始。
+- **下一任务**: TASK-304 媒体库列表与过滤；依赖 TASK-302、TASK-303 completed，可开始。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。
 
-TASK-318、TASK-319 与 TASK-320 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署包、Windows 安装器或远程引导资产；未来正式 tag 才生成新增发布资产。TASK-301 与 TASK-302 已完成（ohosTest 模拟器实测 21/21 通过）。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
+TASK-318、TASK-319 与 TASK-320 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署包、Windows 安装器或远程引导资产；未来正式 tag 才生成新增发布资产。TASK-301、TASK-302 与 TASK-303 已完成（ohosTest 模拟器实测 30/30 通过）。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
 
 ## 4. 必读契约
 

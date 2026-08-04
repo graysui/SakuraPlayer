@@ -1,6 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { authStore } from '../core/auth/AuthStore';
 
 const DOMAIN = 0x0000;
 
@@ -29,6 +30,8 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
+    // TASK-302：初始化认证会话（恢复基址/令牌/事件连接）
+    authStore.initialize(this.context);
   }
 
   onWindowStageDestroy(): void {

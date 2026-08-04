@@ -9,7 +9,7 @@
 import { http } from '@kit.NetworkKit';
 import {
   ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader, ProtocolException,
-  TokenPair,
+  SearchResult, TokenPair,
 } from './ApiModels';
 
 /** 与状态无关的 HTTP 传输层。 */
@@ -257,6 +257,19 @@ export class ApiClient {
       throw this.throwForError(response);
     }
     return EventSnapshot.fromText(response.body);
+  }
+
+  // ---- 发现端点 ----
+
+  /** GET /search：全局搜索（番号/标题/别名，影片与女优分组）。 */
+  async search(query: string, limit: number): Promise<SearchResult> {
+    const encoded = encodeURIComponent(query);
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/search?q=${encoded}&limit=${limit}`, 'GET', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return SearchResult.fromText(response.body);
   }
 
   /** PUT /notifications/{id}/read：幂等标记已读。 */

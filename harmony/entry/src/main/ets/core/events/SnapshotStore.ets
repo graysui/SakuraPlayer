@@ -9,7 +9,7 @@
  */
 
 import { ApiClient } from '../api/ApiClient';
-import { CacheJob, EventSnapshot, JsonReader, Notification, ProtocolException } from '../api/ApiModels';
+import { CacheJob, EventSnapshot, JsonReader, Notification, ProtocolException, QueueDiagnostic } from '../api/ApiModels';
 
 /** 事件信封（版本 1）。 */
 export class EventEnvelope {
@@ -73,6 +73,7 @@ export class SnapshotStore {
   private readonly resourceVersions: Map<string, number> = new Map();
   private readonly listeners: SnapshotListener[] = [];
   private readonly MAX_SEEN = 2048;
+  private queueDiagnostic: QueueDiagnostic | null = null;
 
   constructor(apiClient: ApiClient) {
     this.apiClient = apiClient;
@@ -96,6 +97,11 @@ export class SnapshotStore {
     const result: Notification[] = [];
     this.notifications.forEach((notification) => result.push(notification));
     return result;
+  }
+
+  /** 队列计数（缓存角标数据源）。 */
+  get queues(): QueueDiagnostic | null {
+    return this.queueDiagnostic;
   }
 
   /** 事件去重：已见则忽略。 */
@@ -218,6 +224,7 @@ export class SnapshotStore {
     this.resourceVersions.clear();
     this.notifications.clear();
     this.metadataJobIds.length = 0;
+    this.queueDiagnostic = snapshot.queues;
     for (const job of snapshot.cacheJobs) {
       this.cacheJobs.set(job.id, job);
     }

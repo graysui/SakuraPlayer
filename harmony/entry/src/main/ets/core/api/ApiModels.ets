@@ -469,6 +469,136 @@ export class QueueDiagnostic {
   }
 }
 
+/** MovieSummary：搜索影片结果（openapi MovieSummary）。 */
+export class MovieSummary {
+  readonly id: string;
+  readonly number: string;
+  readonly title: string;
+  readonly titleOriginal: string | null;
+  readonly coverUrl: string | null;
+  readonly publishDate: string | null;
+  readonly labels: string[];
+  readonly favorite: boolean;
+  readonly sourceCount: number;
+
+  constructor(id: string, number: string, title: string, titleOriginal: string | null,
+    coverUrl: string | null, publishDate: string | null, labels: string[],
+    favorite: boolean, sourceCount: number) {
+    this.id = id;
+    this.number = number;
+    this.title = title;
+    this.titleOriginal = titleOriginal;
+    this.coverUrl = coverUrl;
+    this.publishDate = publishDate;
+    this.labels = labels;
+    this.favorite = favorite;
+    this.sourceCount = sourceCount;
+  }
+
+  static fromReader(reader: JsonReader): MovieSummary {
+    return new MovieSummary(
+      reader.string('id'),
+      reader.string('number'),
+      reader.string('title'),
+      reader.nullableString('title_original'),
+      reader.nullableString('cover_url'),
+      reader.nullableString('publish_date'),
+      reader.stringArray('labels'),
+      reader.boolean('favorite'),
+      reader.number('source_count'));
+  }
+}
+
+/** ActorSummary：搜索女优结果（openapi ActorSummary）。 */
+export class ActorSummary {
+  readonly id: string;
+  readonly displayName: string;
+  readonly nameJa: string | null;
+  readonly nameZh: string | null;
+  readonly aliases: string[];
+  readonly profileUrl: string | null;
+  readonly favorite: boolean;
+
+  constructor(id: string, displayName: string, nameJa: string | null, nameZh: string | null,
+    aliases: string[], profileUrl: string | null, favorite: boolean) {
+    this.id = id;
+    this.displayName = displayName;
+    this.nameJa = nameJa;
+    this.nameZh = nameZh;
+    this.aliases = aliases;
+    this.profileUrl = profileUrl;
+    this.favorite = favorite;
+  }
+
+  static fromReader(reader: JsonReader): ActorSummary {
+    return new ActorSummary(
+      reader.string('id'),
+      reader.string('display_name'),
+      reader.nullableString('name_ja'),
+      reader.nullableString('name_zh'),
+      reader.stringArray('aliases'),
+      reader.nullableString('profile_url'),
+      reader.boolean('favorite'));
+  }
+}
+
+/** PendingMetadata：搜索补全状态（queued/running/failed）。 */
+export class PendingMetadata {
+  readonly movieId: string;
+  readonly number: string;
+  readonly state: string;
+  readonly metadataJobId: string;
+
+  constructor(movieId: string, number: string, state: string, metadataJobId: string) {
+    this.movieId = movieId;
+    this.number = number;
+    this.state = state;
+    this.metadataJobId = metadataJobId;
+  }
+
+  static fromReader(reader: JsonReader): PendingMetadata {
+    const state = reader.string('state');
+    if (state !== 'queued' && state !== 'running' && state !== 'failed') {
+      throw new ProtocolException(`unexpected pending state: ${state}`);
+    }
+    return new PendingMetadata(
+      reader.string('movie_id'),
+      reader.string('number'),
+      state,
+      reader.string('metadata_job_id'));
+  }
+}
+
+/** SearchResult：全局搜索结果（movies/actors/pending_metadata 三分组）。 */
+export class SearchResult {
+  readonly movies: MovieSummary[];
+  readonly actors: ActorSummary[];
+  readonly pendingMetadata: PendingMetadata[];
+
+  constructor(movies: MovieSummary[], actors: ActorSummary[], pendingMetadata: PendingMetadata[]) {
+    this.movies = movies;
+    this.actors = actors;
+    this.pendingMetadata = pendingMetadata;
+  }
+
+  static fromText(text: string): SearchResult {
+    const reader = JsonReader.fromText(text);
+    const movies: MovieSummary[] = [];
+    for (const item of reader.objectArray('movies')) {
+      movies.push(MovieSummary.fromReader(new JsonReader(item)));
+    }
+    const actors: ActorSummary[] = [];
+    for (const item of reader.objectArray('actors')) {
+      actors.push(ActorSummary.fromReader(new JsonReader(item)));
+    }
+    const pending: PendingMetadata[] = [];
+    for (const item of reader.objectArray('pending_metadata')) {
+      pending.push(PendingMetadata.fromReader(new JsonReader(item)));
+    }
+    return new SearchResult(movies, actors, pending);
+  }
+}
+
 /** EventSnapshot：REST 恢复快照。 */
 export class EventSnapshot {
   readonly snapshotVersion: number;

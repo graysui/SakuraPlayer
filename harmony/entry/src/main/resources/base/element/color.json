@@ -2,7 +2,43 @@
   "color": [
     {
       "name": "start_window_background",
+      "value": "#F7F8FA"
+    },
+    {
+      "name": "background",
+      "value": "#F7F8FA"
+    },
+    {
+      "name": "surface",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "surface_alt",
+      "value": "#F1F3F5"
+    },
+    {
+      "name": "text_primary",
+      "value": "#202124"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#667085"
+    },
+    {
+      "name": "primary",
+      "value": "#B4233A"
+    },
+    {
+      "name": "divider",
+      "value": "#E4E7EC"
+    },
+    {
+      "name": "badge_bg",
+      "value": "#EFF8FF"
+    },
+    {
+      "name": "player_background",
+      "value": "#0B0C0E"
     }
   ]
 }
