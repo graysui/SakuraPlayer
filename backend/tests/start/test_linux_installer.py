@@ -352,7 +352,9 @@ def test_installer_rejects_concurrent_execution(tmp_path: Path) -> None:
         assert value not in second.stderr
 
 
-def _prepare_latest_bootstrap(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
+def _prepare_latest_bootstrap(
+    tmp_path: Path, *, include_remote_installer: bool = True
+) -> tuple[Path, Path, Path, Path]:
     package_root = tmp_path / "SakuraPlayer-Docker-1.2.3"
     package_root.mkdir()
     package_installer = package_root / "install.sh"
@@ -363,15 +365,17 @@ def _prepare_latest_bootstrap(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
         encoding="ascii",
     )
     package_installer.chmod(0o755)
-    for name in (
+    package_files = (
         "docker-compose.yml",
         ".env.example",
         ".release-version",
-        "install-latest.sh",
         "README.md",
         "LICENSE",
         "THIRD_PARTY_NOTICES.md",
-    ):
+    )
+    if include_remote_installer:
+        package_files += ("install-latest.sh",)
+    for name in package_files:
         (package_root / name).write_text("fixture\n", encoding="ascii")
     archive = tmp_path / "SakuraPlayer-Docker-1.2.3.tar.gz"
     subprocess.run(
@@ -485,6 +489,26 @@ def test_latest_installer_rejects_unversioned_latest_release(tmp_path: Path) -> 
     assert not any((archive.parent / "deployment").iterdir())
     assert len(curl_log.read_text(encoding="ascii").splitlines()) == 1
     assert not list(archive.parent.glob("sakuraplayer-install.*"))
+
+
+def test_latest_installer_accepts_legacy_release_without_remote_installer(
+    tmp_path: Path,
+) -> None:
+    archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(
+        tmp_path, include_remote_installer=False
+    )
+
+    result = _run_latest_installer(
+        fake_bin,
+        archive,
+        marker,
+        curl_log,
+        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/v1.2.3",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert marker.read_text(encoding="ascii") == "package-installer-ran\n"
+    assert not (archive.parent / "deployment" / "install-latest.sh").exists()
 
 
 def test_latest_installer_recovers_secrets_from_running_compose_container(

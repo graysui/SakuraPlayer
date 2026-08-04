@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-08-04
 
-**当前阶段**: TASK-321 completed：Linux Docker 一键部署已持久化到当前目录，并支持首次选择私网 host/port。下一任务 TASK-304。
+**当前阶段**: TASK-322 completed：兼容缺少 `install-latest.sh` 的旧版 Linux Docker 归档。下一任务 TASK-304。
 
 ## 1. 当前成果
 
@@ -226,12 +226,13 @@
 - TASK-320 已交付 `install-latest.sh` 远程引导器：一条 `curl | bash` 命令自动解析最新 Release、下载并临时解压 Docker 发布包，再调用包内安装器；推荐路径不要求用户手动下载、解压或执行 SHA256，原有校验文件和本地安装器继续保留。
 - TASK-320 定向部署测试为 Linux 容器 `33 passed`，Ruff 格式/检查、Bash 语法、Compose config、`git diff --check` 和 secret 扫描通过；全部 `tests/start` 的 5 个失败来自测试容器缺少 Docker CLI/PowerShell及既有 worker 超时，未作为本任务完成证据。
 - TASK-321 已修复远程引导器把 `.env`、`secrets/` 和 bootstrap token 留在临时目录的问题：发布文件复制到当前目录后才运行安装器；已有 `.env` 保留，旧运行容器的 secret 可恢复且不完整时拒绝混用。首次交互运行从 `/dev/tty` 选择 IPv4 host/port，无 TTY 默认 `127.0.0.1:8000`。
+- TASK-322 已确认 GitHub `v1.0.1` 旧归档缺少 `install-latest.sh`，并让当前引导器兼容该历史资产；新归档仍严格要求并复制完整发布文件。定向 Linux 测试为 `38 passed`。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-321 completed；定向 Linux 安装器、发布包、发布契约和部署文档验证通过。
-- **最近绿色快速门禁**: TASK-321 定向测试、Ruff、Bash 语法、Compose config、差异和 secret 扫描通过。
-- **最终门禁状态**: TASK-321 未运行完整后端 Compose；本任务只涉及远程发布引导、持久化配置和网络选择，相关定向证据已通过。全部 `tests/start` 的容器内 Docker CLI/PowerShell 依赖失败和既有 worker 超时仍按历史环境问题记录。
+- **当前任务门禁阶段**: TASK-322 completed；定向 Linux 安装器、发布包、发布契约和部署文档验证通过。
+- **最近绿色快速门禁**: TASK-322 定向测试 `38 passed`、Ruff、Bash 语法、Compose config、差异和 secret 扫描通过。
+- **最终门禁状态**: TASK-322 未运行完整后端 Compose；本任务只涉及旧版远程发布归档兼容，Compose config 解析和相关定向证据已通过。全部 `tests/start` 的容器内 Docker CLI/PowerShell 依赖失败和既有 worker 超时仍按历史环境问题记录。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -248,7 +249,7 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322。
 - **下一任务**: TASK-304 媒体库列表与过滤；依赖 TASK-302、TASK-303 completed，可开始。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。

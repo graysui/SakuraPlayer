@@ -330,5 +330,9 @@ TASK-321 的 AC-134/143/144/147/148 映射受
 [运行配置契约](contracts/runtime-configuration.md) 和 [GitHub 自动发布契约](contracts/github-release.md)
 约束；它新增 AC-148，当前有效任务总数增至 75。
 
+TASK-322 的 AC-147/148 映射受
+[旧版 Linux Docker 归档兼容](changes/2026-08-04--task-322-legacy-docker-archive-compatibility.md)
+和 [GitHub 自动发布契约](contracts/github-release.md) 约束；它不新增产品 AC。
+
 HarmonyOS 的 AC-007/AC-131 工具链、API 24 SDK/构建/fixture 边界受
 [HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md) 约束；该变更撤销 TASK-312 的物理真机门禁，但保留 API 24 编译和 API 签名基线。

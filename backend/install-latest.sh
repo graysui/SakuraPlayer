@@ -143,11 +143,15 @@ download_and_run() {
     .env.example
     .release-version
     install.sh
-    install-latest.sh
     README.md
     LICENSE
     THIRD_PARTY_NOTICES.md
   )
+  if [[ -e "$package_dir/install-latest.sh" || -L "$package_dir/install-latest.sh" ]]; then
+    package_files+=(install-latest.sh)
+  elif [[ -L "$TARGET_DIR/install-latest.sh" || ( -e "$TARGET_DIR/install-latest.sh" && ! -f "$TARGET_DIR/install-latest.sh" ) ]]; then
+    fail "install_dir_unsafe" "Installation directory contains an unsafe deployment file"
+  fi
   for package_file in "${package_files[@]}"; do
     package_path="$package_dir/$package_file"
     target_path="$TARGET_DIR/$package_file"
