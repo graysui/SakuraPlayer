@@ -40,10 +40,11 @@
 
 - 压缩包：`SakuraPlayer-Docker-X.Y.Z.tar.gz`
 - 外层校验：`SakuraPlayer-Docker-X.Y.Z.tar.gz.sha256`
-- 包内固定包含 `docker-compose.yml`、`.env.example`、`.release-version`、`install.sh`、`README.md`、`LICENSE` 和 `THIRD_PARTY_NOTICES.md`，不得包含 `.env`、`secrets/`、Git 元数据、构建缓存或业务数据。
+- 包内固定包含 `docker-compose.yml`、`.env.example`、`.release-version`、`install.sh`、`install-latest.sh`、`README.md`、`LICENSE` 和 `THIRD_PARTY_NOTICES.md`，不得包含 `.env`、`secrets/`、Git 元数据、构建缓存或业务数据。
 - `.release-version` 只包含与 tag 相同的规范 `X.Y.Z`；安装脚本据此选择 Docker Hub 完整版本镜像，不使用 `latest`。
 - 归档必须使用稳定相对路径且解压后可直接运行 `./install.sh`；工作流在上传前检查文件白名单、脚本 Bash 语法、版本一致性和 SHA-256。
 - 压缩包与校验文件均生成 GitHub artifact attestation；该证明覆盖发布字节和来源工作流，不替代操作者对下载校验文件的核对。
+- `install-latest.sh` 是新手推荐的远程引导器：通过 `releases/latest` 重定向解析规范 `vX.Y.Z`，按固定资产名称下载归档，在临时目录解压后调用归档内 `install.sh`。它不要求用户手动下载、解压或执行 SHA-256；非法版本、下载失败和归档布局异常必须在 Compose 启动前失败并清理临时目录。
 
 ## 后端镜像
 

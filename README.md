@@ -108,24 +108,18 @@ flowchart LR
 
 #### 下载并一键安装
 
-从包含 Linux 部署资产的正式版本开始，打开 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest)，下载同一版本的：
-
-- `SakuraPlayer-Docker-X.Y.Z.tar.gz`
-- `SakuraPlayer-Docker-X.Y.Z.tar.gz.sha256`
-
-在下载目录执行：
+直接复制下面这一行执行即可。它会自动找到最新正式 Release、下载对应的 Linux Docker 部署包、临时解压并启动服务，不需要手动下载 Release、解压或执行 SHA256 校验：
 
 ```bash
-sha256sum --check SakuraPlayer-Docker-*.tar.gz.sha256
-tar -xzf SakuraPlayer-Docker-*.tar.gz
-cd SakuraPlayer-Docker-*
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/install-latest.sh | bash
 ```
 
 安装脚本会自动生成五个独立的强随机 secret、创建发布版 `.env`、拉取固定版本镜像，并等待 PostgreSQL、迁移、API、Worker 和 Scheduler 健康。它不会在终端显示 secret，只会告诉你初始化口令文件的位置。重复执行 `./install.sh` 会复用原文件，不会重置数据库密码或加密密钥。
 
 > [!NOTE]
-> 已发布的 `v1.0.0` 早于一键部署包功能，因此该 Release 只有 Windows 资产。新版本发布前，可以从当前源码使用同一个安装器：
+> 该命令需要 Linux 主机预装 Docker Engine、Docker Compose v2、curl、OpenSSL 和 `flock`（Ubuntu/Debian 的 `util-linux` 包），并要求最新正式 Release 已携带 Linux Docker 资产。若当前 Release 尚未发布该资产，脚本会明确报错；也可以从源码路径临时部署。如果需要离线部署或人工审查发布资产，仍可从 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest) 手动下载归档，使用同目录的 `./install.sh`；正式 Release 仍提供 `.sha256` 文件供高级用户选择校验。
+
+新版本发布前，也可以从当前源码使用同一个安装器：
 
 ```bash
 git clone --depth 1 https://github.com/graysui/SakuraPlayer.git

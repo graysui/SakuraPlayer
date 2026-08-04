@@ -279,6 +279,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 - **AC-145 `[IMP]`**: 正式 GitHub Release 除 Windows ZIP 外必须提供 `SakuraPlayer-Windows-X.Y.Z-B-Setup.exe` 及同名 `.sha256`；安装器必须来自同一份 Flutter x64 release bundle，包含应用 EXE、Flutter/native DLL、AOT/ICU 数据、许可证和第三方声明。
 - **AC-146 `[IMP]`**: Windows 安装器必须由固定版本 Inno Setup 在 `windows-2022` 上构建，默认使用当前用户安装目录且不要求管理员权限；安装器和校验文件生成 GitHub artifact attestation，公共构建继续明确为 unsigned。
+- **AC-147 `[IMP]`**: Linux 新手入口支持一条 `curl | bash` 命令自动解析最新正式 `vX.Y.Z` Release、下载对应 Docker 部署包、临时解压并调用包内安装器；不要求用户手动下载、解压或执行 SHA-256 校验，非法版本、下载失败和归档布局异常必须在 Compose 启动前失败并清理临时目录。
 
 ## 12. 非功能要求
 
@@ -318,4 +319,4 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ## 14. 发布门禁
 
-Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-146 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。
+Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-147 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。

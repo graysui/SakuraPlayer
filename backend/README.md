@@ -6,11 +6,13 @@ Remote clients must connect through HTTPS or a trusted encrypted VPN. This repos
 
 ## One-command Linux install
 
-Official Linux release bundles contain this Compose file, `.env.example`, a fixed `.release-version`, and `install.sh`. After verifying and extracting the release archive, run:
+The recommended Linux path is a single command. It resolves the latest GitHub Release, downloads the matching Docker deployment archive, extracts it into a temporary directory, and runs the bundled installer. It does not require manually downloading a Release, extracting it, or checking SHA-256:
 
 ```bash
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/install-latest.sh | bash
 ```
+
+For offline or manually reviewed deployments, download a release archive, optionally verify its `.sha256` file, extract it, and run `./install.sh` from the extracted directory.
 
 The installer requires Docker Engine, Docker Compose v2, OpenSSL, and `flock`. It creates a release `.env`, generates the five independent secret files with private permissions, pulls the fixed SemVer image, validates Compose, and waits for every service to become healthy. It never prints secret values. Re-running it preserves every valid existing secret and `.env`; unsafe paths, malformed values, reused material, and concurrent runs fail before Compose starts.
 

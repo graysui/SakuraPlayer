@@ -11,7 +11,13 @@
 
 ## 一键安装
 
-在当前目录执行：
+推荐直接复制下面这一行执行。它会自动找到最新正式 Release、下载 Docker 部署包、临时解压并启动服务，不需要手动下载 Release、解压或执行 SHA256 校验：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/install-latest.sh | bash
+```
+
+也可以在已解压的官方部署包目录执行本地安装器：
 
 ```bash
 ./install.sh
@@ -48,5 +54,7 @@ docker compose --env-file .env -p sakuraplayer down
 ```
 
 不要执行 `docker compose down -v`，它会删除数据库、图片和缓存卷。SakuraPlayer v1 不提供自动备份；升级或迁移前请自行备份 Docker volumes、`.env` 和 `secrets/`。
+
+正式 Release 仍会提供 SHA256 文件，供需要自行核对发布资产的高级用户选择使用；推荐的一键命令不会要求这一步。
 
 许可证与第三方声明见同目录的 `LICENSE` 和 `THIRD_PARTY_NOTICES.md`。

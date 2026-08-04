@@ -44,16 +44,18 @@ def test_docker_release_bundle_has_strict_allowlist_and_checksum(
             f"{root}/.env.example",
             f"{root}/.release-version",
             f"{root}/install.sh",
+            f"{root}/install-latest.sh",
             f"{root}/README.md",
             f"{root}/LICENSE",
             f"{root}/THIRD_PARTY_NOTICES.md",
         }
         assert set(members) == expected
         assert members[f"{root}/install.sh"].mode == 0o755
+        assert members[f"{root}/install-latest.sh"].mode == 0o755
         assert all(
             member.mode == 0o644
             for name, member in members.items()
-            if name != f"{root}/install.sh"
+            if name not in {f"{root}/install.sh", f"{root}/install-latest.sh"}
         )
         version_file = archive.extractfile(members[f"{root}/.release-version"])
         assert version_file is not None

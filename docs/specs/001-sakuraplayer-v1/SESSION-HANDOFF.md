@@ -2,13 +2,13 @@
 
 **更新时间**: 2026-08-04
 
-**当前阶段**: Windows v1、发布自动化、新手文档、Linux 一键安全部署和 Windows 单文件安装器已完成，TASK-319 completed；下一任务 TASK-301 保持 pending，未开始。
+**当前阶段**: TASK-301 in_progress：harmony/ API 24 Stage 工程、开发者签名侧载基线与 GPLv3 许可证完成，debug/release HAP 构建和签名核验通过；ohosTest 待模拟器运行确认。
 
 ## 1. 当前成果
 
-- 功能规格包含 146 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
+- 功能规格包含 147 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 73 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
+- 74 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小 Stage 工程；API 24 SDK 签名、构建和 fixture 基线通过后才实施鸿蒙业务功能，不要求连接物理真机。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
@@ -223,12 +223,14 @@
 - TASK-318 经用户明确批准不执行 Focused/Fast/Final 或完整 Compose；定向 Ruff、Shell 语法和 30 项测试通过，实际发布包白名单/SHA-256/0755 与隔离真实 Compose config 通过，临时 secret 已清理。
 - TASK-319 已交付固定 Inno Setup 6.4.2 的 Windows 当前用户单文件安装器 EXE；安装器从已验证 ZIP bundle 构建，保留 ZIP 发布物，并接入版本输出、Release 上传和 artifact attestation。
 - TASK-319 定向验证包括发布契约测试 `12 passed`、PowerShell 语法、Flutter release bundle、Inno 编译、安装器内容/sidecar SHA-256、隔离静默安装与卸载；安装器哈希为 `69fba7e2d427e62f094dba7f0409ace2f243353431c3f93528460e1d8770ef8e`。用户明确批准不运行三层后端验证或完整 Compose。
+- TASK-320 已交付 `install-latest.sh` 远程引导器：一条 `curl | bash` 命令自动解析最新 Release、下载并临时解压 Docker 发布包，再调用包内安装器；推荐路径不要求用户手动下载、解压或执行 SHA256，原有校验文件和本地安装器继续保留。
+- TASK-320 定向部署测试为 Linux 容器 `33 passed`，Ruff 格式/检查、Bash 语法、Compose config、`git diff --check` 和 secret 扫描通过；全部 `tests/start` 的 5 个失败来自测试容器缺少 Docker CLI/PowerShell及既有 worker 超时，未作为本任务完成证据。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-319 completed；TASK-301 保持 pending，未开始。
-- **最近绿色快速门禁**: TASK-319 的 12 项发布契约测试、PowerShell 语法、Flutter/Inno 构建、安装器内容与安装卸载检查、差异和 secret 扫描通过。
-- **最终门禁状态**: 用户明确批准 TASK-319 不运行 Focused/Fast/Final 三层后端验证或完整 Compose；Windows 安装器定向证据全部通过。`v1.0.0` 既有 Release 不追溯增加安装器资产。
+- **当前任务门禁阶段**: TASK-301 in_progress；harmony/ 工程配置、签名本地化与 HAP 构建基线完成，ohosTest 待模拟器运行。
+- **最近绿色快速门禁**: TASK-320 的 33 项 Linux 部署/归档/发布契约/文档测试、Ruff、Bash 语法、Compose config、差异和 secret 扫描通过。
+- **最终门禁状态**: TASK-320 未运行完整后端 Compose；本任务只涉及远程发布引导和资产契约，部署相关完整证据已通过。全部 `tests/start` 的容器内 Docker CLI/PowerShell 依赖失败和既有 worker 超时已记录，不影响本任务相关测试。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -245,12 +247,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319。
-- **下一任务**: TASK-301 API 24 Stage 工程与签名侧载基线；保持 pending，等待用户明确开始并核验外部 DoR。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320。
+- **下一任务**: TASK-301 API 24 Stage 工程与签名侧载基线；实施中，ohosTest 完成后标记 completed 并提交。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。
 
-TASK-318 与 TASK-319 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署包或 Windows 安装器；未来正式 tag 才生成新增发布资产。TASK-301 尚未开始。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
+TASK-318、TASK-319 与 TASK-320 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署包、Windows 安装器或远程引导资产；未来正式 tag 才生成新增发布资产。TASK-301 正在实施：harmony/ 工程与签名基线完成，构建验证通过，ohosTest 待模拟器。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
 
 ## 4. 必读契约
 

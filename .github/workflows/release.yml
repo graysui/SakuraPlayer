@@ -200,7 +200,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Check installer syntax
-        run: bash -n backend/install.sh
+        run: bash -n backend/install.sh backend/install-latest.sh
       - name: Build Linux Docker deployment assets
         run: >-
           python tools/release/build_docker_bundle.py
@@ -230,6 +230,7 @@ jobs:
             "$root/README.md" \
             "$root/THIRD_PARTY_NOTICES.md" \
             "$root/docker-compose.yml" \
+            "$root/install-latest.sh" \
             "$root/install.sh" | LC_ALL=C sort > "$expected"
           diff -u "$expected" "$actual"
           test "$(tar -xOzf "$archive" "$root/.release-version")" = "$RELEASE_VERSION"

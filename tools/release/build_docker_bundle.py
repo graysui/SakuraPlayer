@@ -22,6 +22,7 @@ def _bundle_files(repository_root: Path, version: str) -> dict[str, bytes]:
         "docker-compose.yml": repository_root / "backend" / "docker-compose.yml",
         ".env.example": repository_root / "backend" / ".env.example",
         "install.sh": repository_root / "backend" / "install.sh",
+        "install-latest.sh": repository_root / "backend" / "install-latest.sh",
         "README.md": repository_root / "backend" / "README.docker.md",
         "LICENSE": repository_root / "LICENSE",
         "THIRD_PARTY_NOTICES.md": repository_root / "THIRD_PARTY_NOTICES.md",
@@ -48,7 +49,9 @@ def _write_archive(path: Path, *, version: str, files: dict[str, bytes]) -> None
                     data = files[name]
                     member = tarfile.TarInfo(f"{root}/{name}")
                     member.size = len(data)
-                    member.mode = 0o755 if name == "install.sh" else 0o644
+                    member.mode = (
+                        0o755 if name in {"install.sh", "install-latest.sh"} else 0o644
+                    )
                     member.mtime = 0
                     member.uid = 0
                     member.gid = 0

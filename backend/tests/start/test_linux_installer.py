@@ -13,6 +13,7 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = REPOSITORY_ROOT / "backend"
 INSTALLER = BACKEND_ROOT / "install.sh"
+LATEST_INSTALLER = BACKEND_ROOT / "install-latest.sh"
 SECRET_LENGTHS = {
     "postgres_password.txt": 43,
     "settings_key.txt": 43,
@@ -297,3 +298,119 @@ def test_installer_rejects_concurrent_execution(tmp_path: Path) -> None:
         assert value not in first_stderr
         assert value not in second.stdout
         assert value not in second.stderr
+
+
+def _prepare_latest_bootstrap(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
+    package_root = tmp_path / "SakuraPlayer-Docker-1.2.3"
+    package_root.mkdir()
+    package_installer = package_root / "install.sh"
+    package_installer.write_text(
+        "#!/bin/bash\n"
+        "set -eu\n"
+        "printf '%s\\n' package-installer-ran > \"$BOOTSTRAP_MARKER\"\n",
+        encoding="ascii",
+    )
+    package_installer.chmod(0o755)
+    for name in ("docker-compose.yml", ".env.example", ".release-version"):
+        (package_root / name).write_text("fixture\n", encoding="ascii")
+    archive = tmp_path / "SakuraPlayer-Docker-1.2.3.tar.gz"
+    subprocess.run(
+        ["tar", "-czf", str(archive), "-C", str(tmp_path), package_root.name],
+        check=True,
+    )
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    curl = fake_bin / "curl"
+    curl.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        'printf \'%s\\n\' "$*" >> "$FAKE_CURL_LOG"\n'
+        'case " $* " in\n'
+        "  *'%{url_effective}'*) printf '%s' \"$FAKE_RELEASE_URL\" ;;\n"
+        "  *)\n"
+        "    output=''\n"
+        "    previous=''\n"
+        '    for argument in "$@"; do\n'
+        '      if [ "$previous" = \'-o\' ]; then output="$argument"; fi\n'
+        '      previous="$argument"\n'
+        "    done\n"
+        '    test -n "$output"\n'
+        '    cp "$FAKE_ARCHIVE" "$output"\n'
+        "    ;;\n"
+        "esac\n",
+        encoding="ascii",
+    )
+    curl.chmod(0o755)
+    marker = tmp_path / "bootstrap-marker"
+    return archive, fake_bin, marker, tmp_path / "curl.log"
+
+
+def _run_latest_installer(
+    fake_bin: Path,
+    archive: Path,
+    marker: Path,
+    curl_log: Path,
+    *,
+    release_url: str,
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env['PATH']}"
+    env["FAKE_ARCHIVE"] = str(archive)
+    env["FAKE_CURL_LOG"] = str(curl_log)
+    env["FAKE_RELEASE_URL"] = release_url
+    env["BOOTSTRAP_MARKER"] = str(marker)
+    env["TMPDIR"] = str(archive.parent)
+    return subprocess.run(
+        ["/bin/bash", str(LATEST_INSTALLER)],
+        cwd=archive.parent,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=20,
+    )
+
+
+def test_latest_installer_downloads_latest_release_without_checksum(
+    tmp_path: Path,
+) -> None:
+    archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(tmp_path)
+
+    result = _run_latest_installer(
+        fake_bin,
+        archive,
+        marker,
+        curl_log,
+        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/v1.2.3",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert marker.read_text(encoding="ascii") == "package-installer-ran\n"
+    calls = curl_log.read_text(encoding="ascii").splitlines()
+    assert calls[0].endswith("https://github.com/graysui/SakuraPlayer/releases/latest")
+    assert calls[1].endswith(
+        "/releases/download/v1.2.3/SakuraPlayer-Docker-1.2.3.tar.gz"
+    )
+    assert "sha256" not in "\n".join(calls).lower()
+    assert "sha256" not in result.stdout.lower()
+    assert "sha256" not in result.stderr.lower()
+    assert not list(archive.parent.glob("sakuraplayer-install.*"))
+
+
+def test_latest_installer_rejects_unversioned_latest_release(tmp_path: Path) -> None:
+    archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(tmp_path)
+
+    result = _run_latest_installer(
+        fake_bin,
+        archive,
+        marker,
+        curl_log,
+        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/main",
+    )
+
+    assert result.returncode != 0
+    assert "release_version_invalid" in result.stderr
+    assert not marker.exists()
+    assert len(curl_log.read_text(encoding="ascii").splitlines()) == 1
+    assert not list(archive.parent.glob("sakuraplayer-install.*"))

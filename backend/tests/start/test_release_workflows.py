@@ -132,7 +132,7 @@ def test_release_workflow_has_atomic_tag_release_and_attestations() -> None:
     assert "actions/attest-build-provenance" in workflow
     assert workflow.count("push-to-registry: true") == 2
     assert "build_docker_bundle.py" in workflow
-    assert "bash -n backend/install.sh" in workflow
+    assert "bash -n backend/install.sh backend/install-latest.sh" in workflow
     assert "name: docker-deployment" in workflow
     assert "SakuraPlayer-Docker-" in workflow
     assert 'diff -u "$expected" "$actual"' in workflow
@@ -184,7 +184,7 @@ def test_release_build_environment_avoids_moving_runner_and_base_tags() -> None:
     workflows = _read(VERIFY_WORKFLOW) + _read(RELEASE_WORKFLOW)
     dockerfile = _read(DOCKERFILE)
 
-    assert "-latest" not in workflows
+    assert "-latest" not in workflows.replace("install-latest.sh", "")
     assert "runs-on: ubuntu-24.04" in workflows
     assert "runs-on: windows-2022" in workflows
     assert re.search(
