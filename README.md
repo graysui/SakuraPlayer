@@ -115,10 +115,10 @@ cd /vol1/1000/docker/Sakuraplayer
 curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/install-latest.sh | bash
 ```
 
-安装脚本会自动生成五个独立的强随机 secret、创建发布版 `.env`、拉取固定版本镜像，并等待 PostgreSQL、迁移、API、Worker 和 Scheduler 健康。它不会在终端显示 secret，只会告诉你初始化口令文件的位置。重复执行 `./install.sh` 会复用原文件，不会重置数据库密码或加密密钥。
+安装脚本会自动生成五个独立的强随机 secret、创建发布版 `.env`、拉取固定版本镜像，并等待 PostgreSQL、迁移、API、Worker 和 Scheduler 健康。首次输入的 host/port 会写入当前目录的 `.env`；已有 `.env` 会保留原值，不会再次询问。数据库、图片、缓存和日志会保存到当前目录的 `data/` 子目录，不会落到 Docker 系统卷目录。它不会在终端显示 secret，只会告诉你初始化口令文件的位置。重复执行 `./install.sh` 会复用原文件，不会重置数据库密码或加密密钥。
 
 > [!NOTE]
-> 该命令需要 Linux 主机预装 Docker Engine、Docker Compose v2、curl、OpenSSL 和 `flock`（Ubuntu/Debian 的 `util-linux` 包），并要求最新正式 Release 已携带 Linux Docker 资产。脚本会把 `.env`、`secrets/` 和发布文件写入执行命令时的当前目录；首次交互运行时会询问 `SAKURAPLAYER_PUBLISH_HOST` 与 `SAKURAPLAYER_API_PORT`，直接回车使用 `127.0.0.1:8000`。若当前 Release 尚未发布该资产，脚本会明确报错；也可以从源码路径临时部署。如果需要离线部署或人工审查发布资产，仍可从 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest) 手动下载归档，使用同目录的 `./install.sh`；正式 Release 仍提供 `.sha256` 文件供高级用户选择校验。
+> 该命令需要 Linux 主机预装 Docker Engine、Docker Compose v2、curl、OpenSSL 和 `flock`（Ubuntu/Debian 的 `util-linux` 包）。脚本会把 `.env`、`secrets/`、发布文件和 `data/` 写入执行命令时的当前目录；首次交互运行时会询问 `SAKURAPLAYER_PUBLISH_HOST` 与 `SAKURAPLAYER_API_PORT`，直接回车使用 `127.0.0.1:8000`。旧版发布包的 named volume 会在启动前复制到当前目录的 `data/`，原卷不会自动删除。如果需要离线部署或人工审查发布资产，仍可从 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest) 手动下载归档，使用同目录的 `./install.sh`；正式 Release 仍提供 `.sha256` 文件供高级用户选择校验。
 
 新版本发布前，也可以从当前源码使用同一个安装器：
 
@@ -233,7 +233,7 @@ docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
 docker compose --env-file .env -p sakuraplayer down
 ```
 
-不要执行 `docker compose down -v`，该参数会删除数据库、图片和缓存卷。v1 暂不提供自动备份，升级或迁移前请先备份 Docker volumes 和 `backend/secrets/`。
+升级或迁移前请先备份当前目录的 `data/`、`.env` 和 `secrets/`。旧版本 named volume 尚未确认迁移完成前，不要执行 `docker compose down -v`，否则可能删除仍未迁移的旧数据卷。v1 暂不提供自动备份。
 
 <details>
 <summary><strong>在 Windows Docker Desktop 部署后端</strong></summary>
@@ -363,7 +363,7 @@ LICENSE     GPL-3.0-only 完整许可证
 
 - 不要提交 `backend/secrets/`、`.env`、115 Cookie、密码、API key、磁力、二维码或完整签名 URL。
 - 默认 Compose 只监听 loopback。跨设备使用时应通过 HTTPS 反向代理或可信 VPN，不要把 HTTP API 直接暴露到公网。
-- v1 不提供自动数据库或图片备份；升级、迁移或清理前应自行备份 Docker volumes。
+- v1 不提供自动数据库或图片备份；升级、迁移或清理前应自行备份部署目录的 `data/`、`.env` 和 `secrets/`。
 - 115、JavDB、DMM、GFriends、GitHub 数据源和 AI 服务均为独立第三方，SakuraPlayer 与其无隶属或授权关系。
 - 本项目面向成年人进行私有部署。用户必须确保其账号、数据源、缓存和播放行为符合服务条款、版权要求及所在地法律。
 

@@ -9,7 +9,7 @@ services:
     secrets:
       - postgres_password
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -52,9 +52,9 @@ services:
     ports:
       - "${SAKURAPLAYER_PUBLISH_HOST:-127.0.0.1}:${SAKURAPLAYER_API_PORT:-8000}:8000"
     volumes: &app-volumes
-      - catalog-images:/var/lib/sakuraplayer/catalog-images
-      - provider-cache:/var/lib/sakuraplayer/provider-cache
-      - app-logs:/var/log/sakuraplayer
+      - ./data/catalog-images:/var/lib/sakuraplayer/catalog-images
+      - ./data/provider-cache:/var/lib/sakuraplayer/provider-cache
+      - ./data/app-logs:/var/log/sakuraplayer
     healthcheck:
       test:
         - CMD
@@ -131,9 +131,3 @@ secrets:
     file: ${SAKURAPLAYER_PLAYBACK_KEY_SECRET_FILE:-./secrets/playback_key.txt}
   bootstrap_token:
     file: ${SAKURAPLAYER_BOOTSTRAP_TOKEN_SECRET_FILE:-./secrets/bootstrap_token.txt}
-
-volumes:
-  db-data:
-  catalog-images:
-  provider-cache:
-  app-logs:

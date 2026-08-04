@@ -281,6 +281,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-146 `[IMP]`**: Windows 安装器必须由固定版本 Inno Setup 在 `windows-2022` 上构建，默认使用当前用户安装目录且不要求管理员权限；安装器和校验文件生成 GitHub artifact attestation，公共构建继续明确为 unsigned。
 - **AC-147 `[IMP]`**: Linux 新手入口支持一条 `curl | bash` 命令自动解析最新正式 `vX.Y.Z` Release、下载对应 Docker 部署包、临时解压并调用包内安装器；不要求用户手动下载、解压或执行 SHA-256 校验，非法版本、下载失败和归档布局异常必须在 Compose 启动前失败并清理临时目录。
 - **AC-148 `[IMP]`**: Linux `install-latest.sh` 默认把发布文件、`.env`、`secrets/` 和 bootstrap token 持久化到执行命令时的当前目录；首次交互安装可从 `/dev/tty` 选择合法 IPv4 发布地址和 `1..65535` API 端口，直接回车或无 TTY 使用 `127.0.0.1:8000`，已有 `.env` 保持原值，临时目录不得承载运行配置。
+- **AC-149 `[IMP]`**: Linux Docker 的 PostgreSQL、永久图片、上游缓存和脱敏日志必须分别绑定到安装目录下的 `data/postgres/`、`data/catalog-images/`、`data/provider-cache/` 和 `data/app-logs/`；从旧版 named volume 升级时，一键安装必须在 Compose 启动前复制对应数据到这些目录，并将当前 `postgres_password.txt` 同步到既有数据库角色后再执行迁移，原 named volume 不得被自动删除。
 
 ## 12. 非功能要求
 
@@ -320,4 +321,4 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ## 14. 发布门禁
 
-Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-148 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。
+Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-149 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。

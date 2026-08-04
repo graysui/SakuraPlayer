@@ -9,6 +9,7 @@ CURRENT_TEMP_DIR=""
 TARGET_DIR=""
 SAKURAPLAYER_INSTALLER_PUBLISH_HOST=""
 SAKURAPLAYER_INSTALLER_API_PORT=""
+NETWORK_CONFIG_SELECTED=0
 
 cleanup_temp() {
   if [[ -n "$CURRENT_TEMP_DIR" && -d "$CURRENT_TEMP_DIR" ]]; then
@@ -57,21 +58,28 @@ validate_port() {
 }
 
 select_network_config() {
-  local host port
+  local host port current_host current_port
   if [[ -e "$TARGET_DIR/.env" || -L "$TARGET_DIR/.env" ]]; then
-    return
-  fi
-
-  host="${SAKURAPLAYER_INSTALLER_PUBLISH_HOST:-127.0.0.1}"
-  port="${SAKURAPLAYER_INSTALLER_API_PORT:-8000}"
-  if [[ -t 0 || -t 1 ]] && [[ -r /dev/tty ]]; then
-    printf 'SakuraPlayer first-install network configuration\n' >/dev/tty
-    printf 'Publish host [ %s ]: ' "$host" >/dev/tty
-    IFS= read -r host </dev/tty || host=""
-    host="${host:-127.0.0.1}"
-    printf 'API port [ %s ]: ' "$port" >/dev/tty
-    IFS= read -r port </dev/tty || port=""
-    port="${port:-8000}"
+    if [[ -L "$TARGET_DIR/.env" || ! -f "$TARGET_DIR/.env" ]]; then
+      fail "install_dir_unsafe" "Installation .env path is unsafe"
+    fi
+    current_host="$(sed -nE 's/^SAKURAPLAYER_PUBLISH_HOST=([^[:space:]]*).*$/\1/p' "$TARGET_DIR/.env" | sed -n '1p')"
+    current_port="$(sed -nE 's/^SAKURAPLAYER_API_PORT=([^[:space:]]*).*$/\1/p' "$TARGET_DIR/.env" | sed -n '1p')"
+    host="${current_host:-127.0.0.1}"
+    port="${current_port:-8000}"
+  else
+    host="${SAKURAPLAYER_INSTALLER_PUBLISH_HOST:-127.0.0.1}"
+    port="${SAKURAPLAYER_INSTALLER_API_PORT:-8000}"
+    if [[ -t 0 || -t 1 ]] && [[ -r /dev/tty ]]; then
+      printf 'SakuraPlayer first-install network configuration\n' >/dev/tty
+      printf 'Publish host [ %s ]: ' "$host" >/dev/tty
+      IFS= read -r host </dev/tty || host=""
+      host="${host:-127.0.0.1}"
+      printf 'API port [ %s ]: ' "$port" >/dev/tty
+      IFS= read -r port </dev/tty || port=""
+      port="${port:-8000}"
+    fi
+    NETWORK_CONFIG_SELECTED=1
   fi
 
   validate_ipv4 "$host" ||
@@ -173,13 +181,138 @@ download_and_run() {
     chmod "$mode" "$target_path"
   done
 
+  prepare_target_env "$version"
   recover_running_secrets
+  prepare_data_bind_mounts
 
   printf 'Installing SakuraPlayer files to %s\n' "$TARGET_DIR"
   printf 'Starting SakuraPlayer Docker services...\n'
+  if /bin/bash "$TARGET_DIR/install.sh" "$@"; then
+    return 0
+  fi
+  printf 'Repairing PostgreSQL credentials for the existing database...\n'
+  repair_postgres_password ||
+    fail "postgres_password_repair_failed" "Could not synchronize the PostgreSQL password with the local secret"
   SAKURAPLAYER_INSTALLER_PUBLISH_HOST="$SAKURAPLAYER_INSTALLER_PUBLISH_HOST" \
     SAKURAPLAYER_INSTALLER_API_PORT="$SAKURAPLAYER_INSTALLER_API_PORT" \
     /bin/bash "$TARGET_DIR/install.sh" "$@"
+}
+
+prepare_target_env() {
+  local version="$1"
+  local env_file="$TARGET_DIR/.env"
+  local source_file="$env_file"
+  local temporary
+
+  if [[ "$NETWORK_CONFIG_SELECTED" != 1 ]]; then
+    return
+  fi
+  if [[ -L "$env_file" || ( -e "$env_file" && ! -f "$env_file" ) ]]; then
+    fail "install_dir_unsafe" "Installation .env path is unsafe"
+  fi
+  if [[ ! -f "$env_file" ]]; then
+    source_file="$TARGET_DIR/.env.example"
+  fi
+  temporary="$(mktemp "$TARGET_DIR/.env.tmp.XXXXXX")"
+  sed -e 's/\r$//' \
+    -e "s|^SAKURAPLAYER_BACKEND_IMAGE=.*$|SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:$version|" \
+    -e "s|^SAKURAPLAYER_PUBLISH_HOST=.*$|SAKURAPLAYER_PUBLISH_HOST=$SAKURAPLAYER_INSTALLER_PUBLISH_HOST|" \
+    -e "s|^SAKURAPLAYER_API_PORT=.*$|SAKURAPLAYER_API_PORT=$SAKURAPLAYER_INSTALLER_API_PORT|" \
+    "$source_file" >"$temporary"
+  chmod 600 "$temporary"
+  mv -f -- "$temporary" "$env_file"
+}
+
+prepare_data_bind_mounts() {
+  local override_file="$TARGET_DIR/docker-compose.override.yml"
+  local temporary
+  if [[ -L "$override_file" || ( -e "$override_file" && ! -f "$override_file" ) ]]; then
+    fail "install_dir_unsafe" "Installation Compose override path is unsafe"
+  fi
+  mkdir -p --
+    "$TARGET_DIR/data/postgres" \
+    "$TARGET_DIR/data/catalog-images" \
+    "$TARGET_DIR/data/provider-cache" \
+    "$TARGET_DIR/data/app-logs"
+  migrate_named_volumes
+  if grep -Fq './data/postgres:/var/lib/postgresql/data' "$TARGET_DIR/docker-compose.yml" &&
+    grep -Fq './data/catalog-images:/var/lib/sakuraplayer/catalog-images' "$TARGET_DIR/docker-compose.yml" &&
+    grep -Fq './data/provider-cache:/var/lib/sakuraplayer/provider-cache' "$TARGET_DIR/docker-compose.yml" &&
+    grep -Fq './data/app-logs:/var/log/sakuraplayer' "$TARGET_DIR/docker-compose.yml"; then
+    return
+  fi
+  if [[ -f "$override_file" ]]; then
+    return
+  fi
+  temporary="$(mktemp "$TARGET_DIR/.docker-compose.override.yml.tmp.XXXXXX")"
+  printf '%s\n' \
+    'services:' \
+    '  postgres:' \
+    '    volumes:' \
+    '      - ./data/postgres:/var/lib/postgresql/data' \
+    '  api:' \
+    '    volumes:' \
+    '      - ./data/catalog-images:/var/lib/sakuraplayer/catalog-images' \
+    '      - ./data/provider-cache:/var/lib/sakuraplayer/provider-cache' \
+    '      - ./data/app-logs:/var/log/sakuraplayer' \
+    '  worker:' \
+    '    volumes:' \
+    '      - ./data/catalog-images:/var/lib/sakuraplayer/catalog-images' \
+    '      - ./data/provider-cache:/var/lib/sakuraplayer/provider-cache' \
+    '      - ./data/app-logs:/var/log/sakuraplayer' \
+    '  scheduler:' \
+    '    volumes:' \
+    '      - ./data/catalog-images:/var/lib/sakuraplayer/catalog-images' \
+    '      - ./data/provider-cache:/var/lib/sakuraplayer/provider-cache' \
+    '      - ./data/app-logs:/var/log/sakuraplayer' \
+    >"$temporary"
+  chmod 644 "$temporary"
+  mv -f -- "$temporary" "$override_file"
+}
+
+migrate_named_volumes() {
+  local volume_name target_dir
+  local volumes=(db-data catalog-images provider-cache app-logs)
+  local containers
+  containers="$(docker ps -aq --filter 'label=com.docker.compose.project=sakuraplayer' 2>/dev/null || true)"
+  if [[ -n "$containers" ]]; then
+    docker compose --project-directory "$TARGET_DIR" -p sakuraplayer down >/dev/null 2>&1 || true
+  fi
+  for volume_name in "${volumes[@]}"; do
+    if [[ "$volume_name" == "db-data" ]]; then
+      target_dir="$TARGET_DIR/data/postgres"
+    else
+      target_dir="$TARGET_DIR/data/$volume_name"
+    fi
+    if ! docker volume inspect "sakuraplayer_$volume_name" >/dev/null 2>&1; then
+      continue
+    fi
+    if find "$target_dir" -mindepth 1 -print -quit 2>/dev/null | grep -q .; then
+      continue
+    fi
+    docker run --rm \
+      --user 0:0 \
+      -v "sakuraplayer_$volume_name:/from:ro" \
+      -v "$target_dir:/to" \
+      postgres:17.5 \
+      sh -c 'cp -a /from/. /to/' >/dev/null 2>&1 ||
+      fail "volume_migration_failed" "Could not move Docker volume $volume_name into the installation directory"
+  done
+}
+
+repair_postgres_password() {
+  local env_file="$TARGET_DIR/.env"
+  local postgres_user postgres_db password
+  postgres_user="$(sed -nE 's/^POSTGRES_USER=([^[:space:]]*).*$/\1/p' "$env_file" | sed -n '1p')"
+  postgres_db="$(sed -nE 's/^POSTGRES_DB=([^[:space:]]*).*$/\1/p' "$env_file" | sed -n '1p')"
+  postgres_user="${postgres_user:-sakuraplayer}"
+  postgres_db="${postgres_db:-sakuraplayer}"
+  [[ "$postgres_user" =~ ^[A-Za-z0-9_]+$ && "$postgres_db" =~ ^[A-Za-z0-9_]+$ ]] || return 1
+  password="$(<"$TARGET_DIR/secrets/postgres_password.txt")"
+  local compose=(docker compose --project-directory "$TARGET_DIR" --env-file "$env_file" -p sakuraplayer)
+  "${compose[@]}" up -d --wait postgres >/dev/null 2>&1 || return 1
+  printf 'ALTER ROLE "%s" PASSWORD \'%s\';\n' "$postgres_user" "$password" |
+    "${compose[@]}" exec -T -u postgres postgres psql -v ON_ERROR_STOP=1 -d postgres >/dev/null 2>&1
 }
 
 recover_running_secrets() {
@@ -244,6 +377,9 @@ main() {
   require_command chmod
   require_command ln
   require_command mv
+  require_command docker
+  require_command find
+  require_command grep
 
   resolve_target_dir
   select_network_config

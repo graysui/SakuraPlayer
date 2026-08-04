@@ -117,7 +117,7 @@ Windows Flutter                         HarmonyOS ArkTS
 | Worker | Python 独立进程 | 3.10.16 | 元数据与 115 持久任务 |
 | Scheduler | APScheduler | 3.10.4 | 仅负责确定性定时入队和维护任务 |
 | 数据库 | PostgreSQL | 17.5 | 业务数据、任务队列、互斥、事件日志 |
-| 文件卷 | Docker named volumes | Compose 2.37.1 | 永久图片、上游清单缓存、必要日志 |
+| 文件卷 | Compose 相对部署目录的 bind mounts | Compose 2.37.1 | PostgreSQL、永久图片、上游清单缓存、必要日志 |
 | Windows | Flutter | 3.29.2 | Windows 10/11 桌面客户端 |
 | HarmonyOS | DevEco Studio / OpenHarmony SDK / Hvigor / ohpm / DevEco 内置 Node | 6.1.1.290 / API 24（包标记 6.1.1.125）/ 6.24.3 / 6.1.2.285 / 18.20.1 | ArkTS/ArkUI 原生手机端工具链 |
 
@@ -147,14 +147,14 @@ v1 是单机单管理员产品，不做水平自动扩展。所有上限由数�
 | 就绪缓存 | 默认 20 个 | LRU 选择器；活跃租约排除 |
 | WebSocket | 单管理员多客户端 | 持久事件游标 + REST 快照恢复 |
 
-### 2.5 持久化卷
+### 2.5 持久化目录
 
-| 卷 | 保留内容 | 不允许内容 |
+| 部署目录 | 保留内容 | 不允许内容 |
 |---|---|---|
-| `db-data` | PostgreSQL 数据 | 无 |
-| `catalog-images` | 封面、剧照、永久演员图片 | GFriends 全量镜像、视频、字幕 |
-| `provider-cache` | AVdb 加密包摘要、演员映射、GFriends 索引、最近成功清单 | Cookie、AI 明文密钥 |
-| `app-logs` | 脱敏结构化日志 | 完整磁力、Cookie、签名 URL、令牌 |
+| `data/postgres/` | PostgreSQL 数据 | 无 |
+| `data/catalog-images/` | 封面、剧照、永久演员图片 | GFriends 全量镜像、视频、字幕 |
+| `data/provider-cache/` | AVdb 加密包摘要、演员映射、GFriends 索引、最近成功清单 | Cookie、AI 明文密钥 |
+| `data/app-logs/` | 脱敏结构化日志 | 完整磁力、Cookie、签名 URL、令牌 |
 
 客户端字幕只进入应用私有缓存，不进入后端卷。客户端卸载、退出登录、对应 115 缓存清理或本地过期时删除。
 

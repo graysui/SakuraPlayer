@@ -22,7 +22,7 @@ From a source checkout, run `bash backend/install.sh`; the installer derives the
 
 The one-shot `migrate` service performs the explicit Alembic upgrade; API, worker, and scheduler only check the Schema head and never migrate it. The long-running processes start only after migration succeeds.
 
-The four named volumes keep PostgreSQL data, permanent catalog images, provider manifests, and necessary redacted logs separate. v1 does not create an automatic backup for the database or images. Operators must arrange any desired backup outside SakuraPlayer.
+The deployment directory keeps PostgreSQL data, permanent catalog images, provider manifests, and necessary redacted logs in `data/postgres/`, `data/catalog-images/`, `data/provider-cache/`, and `data/app-logs/`. These are bind mounts relative to the installation directory, so the data does not fall back to Docker's system storage. When the remote installer finds a legacy `sakuraplayer_*` named volume, it copies the contents into the matching directory before startup and leaves the original volume untouched. v1 does not create an automatic backup for the database or images. Operators must arrange any desired backup outside SakuraPlayer.
 
 Windows delivery uses a private installer. HarmonyOS delivery remains blocked until the Windows and real 115 gates pass, then uses developer-signed sideloading. No public app-store workflow is included.
 

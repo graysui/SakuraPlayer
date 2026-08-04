@@ -35,7 +35,7 @@ SAKURAPLAYER_API_PORT=8000
 ./install.sh
 ```
 
-安装器会创建发布版 `.env`，自动生成五个用途独立的强随机 secret，拉取当前固定版本镜像，并等待所有服务健康。重复执行会保留有效的 `.env`、secret 和 Docker volumes，不会重置数据库密码或加密密钥。旧版本一键脚本已经启动但误删宿主 secret 时，会先尝试从仍在运行的 SakuraPlayer 容器恢复它们；无法完整恢复时会停止并提示，不会生成与旧数据库混用的新 secret。
+安装器会创建发布版 `.env`，自动生成五个用途独立的强随机 secret，拉取当前固定版本镜像，并等待所有服务健康。首次安装时输入的 host/port 会写入安装目录的 `.env`；已有 `.env` 会原样保留，不会再次询问或覆盖。PostgreSQL、图片、上游缓存和日志分别保存在安装目录的 `data/postgres/`、`data/catalog-images/`、`data/provider-cache/` 和 `data/app-logs/`，不会落到 Docker 系统卷目录。重复执行会保留有效配置和 secret，不会重置数据库密码或加密密钥；旧版本 named volume 会在首次切换时复制到这些目录，原卷保留不删除。旧版本一键脚本已经启动但误删宿主 secret 时，会先尝试从仍在运行的 SakuraPlayer 容器恢复它们；无法完整恢复时会停止并提示，不会生成与旧数据库混用的新 secret。
 
 成功后，API 会监听你选择的地址和端口。首次创建管理员时，按安装器提示读取 `secrets/bootstrap_token.txt`；不要把内容发到聊天、日志或截图中。
 
@@ -65,7 +65,7 @@ docker compose --env-file .env -p sakuraplayer down
 ./install.sh
 ```
 
-不要执行 `docker compose down -v`，它会删除数据库、图片和缓存卷。SakuraPlayer v1 不提供自动备份；升级或迁移前请自行备份 Docker volumes、`.env` 和 `secrets/`。
+升级或迁移前请自行备份安装目录下的 `data/`、`.env` 和 `secrets/`。旧版本遗留的 named volume 在确认 `data/` 内容可用前不要执行 `docker compose down -v`，否则可能删除尚未迁移的旧数据卷。SakuraPlayer v1 不提供自动备份。
 
 正式 Release 仍会提供 SHA256 文件，供需要自行核对发布资产的高级用户选择使用；推荐的一键命令不会要求这一步。
 

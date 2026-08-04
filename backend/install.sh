@@ -101,6 +101,43 @@ generate_secret() {
   openssl rand -base64 "$byte_count" | tr '+/' '-_' | tr -d '=\n'
 }
 
+prepare_data_dirs() {
+  local path
+  for path in \
+    "$SCRIPT_DIR/data/postgres" \
+    "$SCRIPT_DIR/data/catalog-images" \
+    "$SCRIPT_DIR/data/provider-cache" \
+    "$SCRIPT_DIR/data/app-logs"; do
+    mkdir -p -- "$path"
+  done
+  if [[ -z "$(find "$SCRIPT_DIR/data/postgres" -mindepth 1 -print -quit 2>/dev/null)" ]]; then
+    chown 999:999 "$SCRIPT_DIR/data/postgres" ||
+      fail "data_permissions_invalid" "Could not prepare PostgreSQL data directory permissions"
+  fi
+}
+
+read_env_value() {
+  local name="$1"
+  sed -nE "s/^${name}=([^[:space:]]*).*$/\1/p" "$ENV_FILE" | sed -n '1p'
+}
+
+repair_postgres_password() {
+  local postgres_user postgres_db password
+  postgres_user="$(read_env_value POSTGRES_USER)"
+  postgres_db="$(read_env_value POSTGRES_DB)"
+  postgres_user="${postgres_user:-sakuraplayer}"
+  postgres_db="${postgres_db:-sakuraplayer}"
+  [[ "$postgres_user" =~ ^[A-Za-z0-9_]+$ && "$postgres_db" =~ ^[A-Za-z0-9_]+$ ]] ||
+    fail "postgres_config_invalid" "PostgreSQL database and user names are invalid"
+  password="$(<"$SECRET_DIR/postgres_password.txt")"
+  local compose=(docker compose --project-directory "$SCRIPT_DIR" --env-file "$ENV_FILE" -p sakuraplayer)
+  "${compose[@]}" up -d --wait postgres >/dev/null 2>&1 ||
+    fail "postgres_start_failed" "PostgreSQL did not become healthy"
+  printf 'ALTER ROLE "%s" PASSWORD '\''%s'\'';\n' "$postgres_user" "$password" |
+    "${compose[@]}" exec -T -u postgres postgres psql -v ON_ERROR_STOP=1 -d postgres >/dev/null 2>&1 ||
+    fail "postgres_password_prepare_failed" "Could not synchronize the PostgreSQL password"
+}
+
 create_env_if_missing() {
   local version="$1"
   local image="docker.io/graysui/sakuraplayer-backend:$version"
@@ -233,6 +270,8 @@ main() {
   require_command tr
   require_command wc
   require_command ln
+  require_command find
+  require_command chown
 
   require_regular_source "$COMPOSE_FILE" "docker-compose.yml"
   require_regular_source "$ENV_TEMPLATE" ".env.example"
@@ -245,6 +284,7 @@ main() {
   local version
   version="$(resolve_version)"
   cd -- "$SCRIPT_DIR"
+  prepare_data_dirs
   prepare_secrets
   create_env_if_missing "$version"
 
@@ -255,6 +295,8 @@ main() {
   printf 'Pulling SakuraPlayer images...\n'
   "${compose[@]}" pull >/dev/null 2>&1 ||
     fail "compose_pull_failed" "SakuraPlayer images could not be pulled"
+  printf 'Preparing PostgreSQL credentials...\n'
+  repair_postgres_password
   printf 'Starting SakuraPlayer services...\n'
   "${compose[@]}" up -d --no-build --wait >/dev/null 2>&1 ||
     fail "compose_start_failed" "SakuraPlayer services did not become healthy"

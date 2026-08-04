@@ -2,16 +2,16 @@
 
 **更新时间**: 2026-08-04
 
-**当前阶段**: TASK-322 completed：兼容缺少 `install-latest.sh` 的旧版 Linux Docker 归档。下一任务 TASK-304。
+**当前阶段**: TASK-323 completed：修复 Linux Docker 数据目录、网络配置写回和旧数据库兼容。下一任务 TASK-304。
 
 ## 1. 当前成果
 
-- 功能规格包含 147 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
+- 功能规格包含 149 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 74 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
+- 76 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小 Stage 工程；API 24 SDK 签名、构建和 fixture 基线通过后才实施鸿蒙业务功能，不要求连接物理真机。
-- TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
+- TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久化数据目录和内部健康检查。
 - 启动配置固定四用途 secret，生产三类进程缺失、格式错误、来源冲突或用途复用时拒绝启动；bootstrap secret 生命周期由已接受变更规格冻结。
 - TASK-001 自动验证覆盖 44 项启动测试、14 项 PostgreSQL 集成测试、四组件健康、持久日志、重启恢复、ready 故障降级和项目级 Docker 资源清理。
 - TASK-002 已交付唯一管理员、Argon2id 密码、类型化 JWT、可撤销 refresh 会话、统一 HTTP/WebSocket 授权依赖和 logout epoch 清理语义。
@@ -227,12 +227,13 @@
 - TASK-320 定向部署测试为 Linux 容器 `33 passed`，Ruff 格式/检查、Bash 语法、Compose config、`git diff --check` 和 secret 扫描通过；全部 `tests/start` 的 5 个失败来自测试容器缺少 Docker CLI/PowerShell及既有 worker 超时，未作为本任务完成证据。
 - TASK-321 已修复远程引导器把 `.env`、`secrets/` 和 bootstrap token 留在临时目录的问题：发布文件复制到当前目录后才运行安装器；已有 `.env` 保留，旧运行容器的 secret 可恢复且不完整时拒绝混用。首次交互运行从 `/dev/tty` 选择 IPv4 host/port，无 TTY 默认 `127.0.0.1:8000`。
 - TASK-322 已确认 GitHub `v1.0.1` 旧归档缺少 `install-latest.sh`，并让当前引导器兼容该历史资产；新归档仍严格要求并复制完整发布文件。定向 Linux 测试为 `38 passed`。
+- TASK-323 已修复首次 host/port 输入写回安装目录 `.env`、新 Compose 使用 `data/` bind mount、旧 named volume 复制迁移，以及旧数据库角色密码与宿主 PostgreSQL secret 不一致导致的迁移失败。用户明确要求本轮不运行测试，待飞牛 NAS 实测。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-322 completed；定向 Linux 安装器、发布包、发布契约和部署文档验证通过。
-- **最近绿色快速门禁**: TASK-322 定向测试 `38 passed`、Ruff、Bash 语法、Compose config、差异和 secret 扫描通过。
-- **最终门禁状态**: TASK-322 未运行完整后端 Compose；本任务只涉及旧版远程发布归档兼容，Compose config 解析和相关定向证据已通过。全部 `tests/start` 的容器内 Docker CLI/PowerShell 依赖失败和既有 worker 超时仍按历史环境问题记录。
+- **当前任务门禁阶段**: TASK-323 completed；实现和规格/README 已同步，用户要求跳过测试并自行在飞牛 NAS 验证。
+- **最近绿色快速门禁**: TASK-322 定向测试 `38 passed`、Ruff、Bash 语法、Compose config、差异和 secret 扫描通过；TASK-323 未运行测试。
+- **最终门禁状态**: TASK-323 未运行完整后端 Compose 或自动测试，未将历史 TASK-322 结果冒充本任务证据；待用户实测实际 `.env` 写回、data 目录、数据库迁移和服务健康。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
