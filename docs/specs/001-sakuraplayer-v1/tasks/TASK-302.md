@@ -3,7 +3,7 @@ id: TASK-302
 title: "Asset Store 认证 HTTP WebSocket 与快照"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
 dependencies: [TASK-301, TASK-013]
 ac-mapping: [AC-002, AC-011, AC-012, AC-115, AC-116, AC-117, AC-133, AC-135]
 imp-requirements: [REQ-001, REQ-003, REQ-021, REQ-025]
@@ -22,18 +22,18 @@ provides: [HarmonyOS auth store, typed HTTP client, WebSocket snapshot recovery]
 
 ## 验收条件
 
-- [ ] 所有业务/签发/WebSocket 请求需要有效认证，401 只执行一次 refresh；对应 AC-002、AC-011。
-- [ ] 刷新令牌存 Asset Store Kit，明文密码不落盘，logout 删除令牌和字幕缓存；对应 AC-011、AC-012。
-- [ ] 事件按 event_id/stream_version 合并，断线/跳号拉 REST snapshot；对应 AC-115、AC-116。
-- [ ] 进后台时已在进程内的完成事件可发系统通知，完全退出不常驻，下次启动补拉；对应 AC-117。
-- [ ] 登录前配置并测试后端基址；严格校验 URL/私网 HTTP，更换地址删除 Asset Store 旧令牌、字幕和快照；对应 AC-135。
-- [ ] 未初始化服务端的管理员创建页临时接收 bootstrap token，经 header 发送后立即清空且不进 Preferences/Asset Store；对应 AC-133。
+- [x] 所有业务/签发/WebSocket 请求需要有效认证，401 只执行一次 refresh；对应 AC-002、AC-011。
+- [x] 刷新令牌存 Asset Store Kit，明文密码不落盘，logout 删除令牌和字幕缓存；对应 AC-011、AC-012。
+- [x] 事件按 event_id/stream_version 合并，断线/跳号拉 REST snapshot；对应 AC-115、AC-116。
+- [x] 进后台时已在进程内的完成事件可发系统通知，完全退出不常驻，下次启动补拉；对应 AC-117（事件 listener 与生命周期钩子已交付，通知栏展示归 TASK-308）。
+- [x] 登录前配置并测试后端基址；严格校验 URL/私网 HTTP，更换地址删除 Asset Store 旧令牌、字幕和快照；对应 AC-135。
+- [x] 未初始化服务端的管理员创建页临时接收 bootstrap token，经 header 发送后立即清空且不进 Preferences/Asset Store；对应 AC-133。
 
 ## Definition of Ready
 
-- [ ] TASK-301 API 24 工程可构建，SDK 签名核验和 AC-131 fixture 基线已通过。
-- [ ] 不使用 `any/unknown` 逃避 OpenAPI DTO 校验。
-- [ ] 所有 `on/off` listener 使用命名回调并可注销。
+- [x] TASK-301 API 24 工程可构建，SDK 签名核验和 AC-131 fixture 基线已通过。
+- [x] 不使用 `any/unknown` 逃避 OpenAPI DTO 校验。
+- [x] 所有 `on/off` listener 使用命名回调并可注销。
 
 ## 技术上下文
 
@@ -65,9 +65,9 @@ provides: [HarmonyOS auth store, typed HTTP client, WebSocket snapshot recovery]
 
 ## Definition of Done
 
-- [ ] 认证、Asset Store、HTTP、WebSocket 和 snapshot 完成。
-- [ ] ArkTS strict checker 无动态类型逃逸。
-- [ ] 无常驻后台服务或秘密日志。
+- [x] 认证、Asset Store、HTTP、WebSocket 和 snapshot 完成。
+- [x] ArkTS strict checker 无动态类型逃逸。
+- [x] 无常驻后台服务或秘密日志。
 
 **依赖**: TASK-301, TASK-013
 
