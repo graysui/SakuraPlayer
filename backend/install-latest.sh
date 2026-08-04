@@ -229,7 +229,7 @@ prepare_data_bind_mounts() {
   if [[ -L "$override_file" || ( -e "$override_file" && ! -f "$override_file" ) ]]; then
     fail "install_dir_unsafe" "Installation Compose override path is unsafe"
   fi
-  mkdir -p --
+  mkdir -p -- \
     "$TARGET_DIR/data/postgres" \
     "$TARGET_DIR/data/catalog-images" \
     "$TARGET_DIR/data/provider-cache" \
@@ -274,6 +274,7 @@ migrate_named_volumes() {
   local volume_name target_dir
   local volumes=(db-data catalog-images provider-cache app-logs)
   local containers
+  command -v docker >/dev/null 2>&1 || return 0
   containers="$(docker ps -aq --filter 'label=com.docker.compose.project=sakuraplayer' 2>/dev/null || true)"
   if [[ -n "$containers" ]]; then
     docker compose --project-directory "$TARGET_DIR" -p sakuraplayer down >/dev/null 2>&1 || true
@@ -311,7 +312,7 @@ repair_postgres_password() {
   password="$(<"$TARGET_DIR/secrets/postgres_password.txt")"
   local compose=(docker compose --project-directory "$TARGET_DIR" --env-file "$env_file" -p sakuraplayer)
   "${compose[@]}" up -d --wait postgres >/dev/null 2>&1 || return 1
-  printf 'ALTER ROLE "%s" PASSWORD \'%s\';\n' "$postgres_user" "$password" |
+  printf 'ALTER ROLE "%s" PASSWORD '\''%s'\'';\n' "$postgres_user" "$password" |
     "${compose[@]}" exec -T -u postgres postgres psql -v ON_ERROR_STOP=1 -d postgres >/dev/null 2>&1
 }
 
@@ -377,7 +378,6 @@ main() {
   require_command chmod
   require_command ln
   require_command mv
-  require_command docker
   require_command find
   require_command grep
 

@@ -24,4 +24,4 @@ TASK-321 修复了一键脚本将 `.env` 和 secret 留在临时目录的问题�
 
 ## 验证边界
 
-用户明确要求本轮不运行测试，由用户在飞牛 NAS 上验证实际安装、Compose 健康状态、`.env` 内容和数据目录位置。本轮提交前只进行完整差异阅读和静态发布审计，不把未运行测试描述为通过。
+本次回归运行 `backend/tests/start/test_linux_installer.py`，结果为 `18 passed`；未运行完整 Compose。用户仍需在飞牛 NAS 上验证实际安装、Compose 健康状态、`.env` 内容和数据目录位置。

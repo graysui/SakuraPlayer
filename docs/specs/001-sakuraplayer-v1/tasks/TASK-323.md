@@ -58,11 +58,11 @@ provides: [Linux Docker bind-mounted data directories, persistent network config
 - [x] 部署脚本、Compose、旧 named volume 迁移和 PostgreSQL 密码兼容实现完成。
 - [x] 正式变更规格、功能规格、契约、任务索引、追踪矩阵、README、架构和交接同步。
 - [x] 只暂存 TASK-323 相关文件，并使用中文 Git 提交推送。
-- [x] 用户明确要求本轮不运行测试；未运行测试事实已在变更规格、任务证据和交接中记录。
+- [x] Linux 安装器回归测试 `backend/tests/start/test_linux_installer.py` 通过 `18 passed`；未运行完整 Compose。
 
 ## 实现证据
 
-- 静态差异审计确认：首次 `.env` 才进入交互选择；新 Compose 使用 `./data/...`；旧卷复制使用 root 权限；安装前同步 PostgreSQL 角色密码。
-- 测试未运行，待用户在飞牛 NAS 上自行验证实际容器健康、`.env` 写回和安装目录数据持久化。
+- 静态差异审计确认：首次 `.env` 才进入交互选择；新 Compose 使用 `./data/...`；旧卷复制使用 root 权限；安装前同步 PostgreSQL 角色密码；远程引导器的 Docker 调用按需执行。
+- 修复后 `backend/tests/start/test_linux_installer.py` 通过 `18 passed`，覆盖 secret、网络配置、归档下载、非法版本、旧归档和运行容器 secret 恢复；待用户在飞牛 NAS 上验证实际容器健康、`.env` 写回和安装目录数据持久化。
 
 **依赖**: TASK-322

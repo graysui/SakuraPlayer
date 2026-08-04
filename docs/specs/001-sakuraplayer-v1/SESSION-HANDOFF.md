@@ -227,13 +227,13 @@
 - TASK-320 定向部署测试为 Linux 容器 `33 passed`，Ruff 格式/检查、Bash 语法、Compose config、`git diff --check` 和 secret 扫描通过；全部 `tests/start` 的 5 个失败来自测试容器缺少 Docker CLI/PowerShell及既有 worker 超时，未作为本任务完成证据。
 - TASK-321 已修复远程引导器把 `.env`、`secrets/` 和 bootstrap token 留在临时目录的问题：发布文件复制到当前目录后才运行安装器；已有 `.env` 保留，旧运行容器的 secret 可恢复且不完整时拒绝混用。首次交互运行从 `/dev/tty` 选择 IPv4 host/port，无 TTY 默认 `127.0.0.1:8000`。
 - TASK-322 已确认 GitHub `v1.0.1` 旧归档缺少 `install-latest.sh`，并让当前引导器兼容该历史资产；新归档仍严格要求并复制完整发布文件。定向 Linux 测试为 `38 passed`。
-- TASK-323 已修复首次 host/port 输入写回安装目录 `.env`、新 Compose 使用 `data/` bind mount、旧 named volume 复制迁移，以及旧数据库角色密码与宿主 PostgreSQL secret 不一致导致的迁移失败。用户明确要求本轮不运行测试，待飞牛 NAS 实测。
+- TASK-323 已修复首次 host/port 输入写回安装目录 `.env`、新 Compose 使用 `data/` bind mount、旧 named volume 复制迁移，以及旧数据库角色密码与宿主 PostgreSQL secret 不一致导致的迁移失败；远程引导器 Docker 依赖改为按需调用，并修复 Bash SQL 输出与多目录创建语法。Linux 安装器回归为 `18 passed`，待飞牛 NAS 实测。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-323 completed；实现和规格/README 已同步，用户要求跳过测试并自行在飞牛 NAS 验证。
-- **最近绿色快速门禁**: TASK-322 定向测试 `38 passed`、Ruff、Bash 语法、Compose config、差异和 secret 扫描通过；TASK-323 未运行测试。
-- **最终门禁状态**: TASK-323 未运行完整后端 Compose 或自动测试，未将历史 TASK-322 结果冒充本任务证据；待用户实测实际 `.env` 写回、data 目录、数据库迁移和服务健康。
+- **当前任务门禁阶段**: TASK-323 completed；Linux 安装器回归已通过，待用户在飞牛 NAS 验证实际 Compose 部署。
+- **最近绿色快速门禁**: TASK-323 `backend/tests/start/test_linux_installer.py` 为 `18 passed`；未运行完整 Compose。
+- **最终门禁状态**: TASK-323 未运行完整后端 Compose；安装器自动测试已通过，待用户实测实际 `.env` 写回、data 目录、数据库迁移和服务健康。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
