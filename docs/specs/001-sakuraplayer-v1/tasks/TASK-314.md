@@ -16,7 +16,7 @@ provides: [reviewed HarmonyOS client files]
 
 # TASK-314: HarmonyOS 客户端代码清理
 
-**功能描述**: HarmonyOS E2E 与真机门禁通过后执行 ArkTS/ArkUI/Hvigor 卫生清理，不改变导航、状态、AVPlayer、固定 UA、字幕或签名行为。
+**功能描述**: HarmonyOS E2E 与 API 24 SDK/fixture 检查通过后执行 ArkTS/ArkUI/Hvigor 卫生清理，不改变导航、状态、AVPlayer、固定 UA、字幕或签名行为。
 
 ## 验收条件
 
@@ -27,7 +27,7 @@ provides: [reviewed HarmonyOS client files]
 
 ## Definition of Ready
 
-- [ ] TASK-313 reviewed/implemented，TASK-312 的 AC-131 真机证据仍有效。
+- [ ] TASK-313 reviewed/implemented，TASK-301、TASK-310、TASK-311 的 AC-131 SDK/fixture 证据仍有效。
 - [ ] 当前 strict check、测试和签名 release HAP 构建通过。
 - [ ] 所有清理文件已列入 review report，ArkGuard nameCache 可用。
 
@@ -49,7 +49,7 @@ provides: [reviewed HarmonyOS client files]
 ## 测试说明
 
 - 扫描 `console.`、临时 HiLog、TODO remove、未使用资源、动态类型逃逸和非 API 24 引用。
-- 完整 strict check、unit、Hypium/UiTest、release HAP、ArkGuard/nameCache 和 HAP 内容检查重跑。
+- 完整 strict check、unit、fixture、release HAP、ArkGuard/nameCache 和 HAP 内容检查重跑；不要求物理真机连接。
 - 比较 OpenAPI DTO、固定 UA、NavPathStack 路由、Asset Store 键和 AVPlayer 状态映射，确认无行为或签名变化。
 
 ## Definition of Done

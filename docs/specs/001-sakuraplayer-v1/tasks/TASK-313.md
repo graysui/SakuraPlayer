@@ -4,7 +4,7 @@ title: "HarmonyOS 端到端验收"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
-dependencies: [TASK-302, TASK-303, TASK-304, TASK-305, TASK-306, TASK-307, TASK-308, TASK-309, TASK-310, TASK-311, TASK-312, TASK-213]
+dependencies: [TASK-302, TASK-303, TASK-304, TASK-305, TASK-306, TASK-307, TASK-308, TASK-309, TASK-310, TASK-311, TASK-213]
 ac-mapping: [AC-003, AC-059..AC-122, AC-128, AC-129, AC-132, AC-133..AC-135]
 imp-requirements: [REQ-001, REQ-012..REQ-025]
 cross-boundary: false
@@ -16,35 +16,35 @@ provides: [HarmonyOS E2E suite, cross-platform state evidence]
 
 # TASK-313: HarmonyOS 端到端验收
 
-**功能描述**: 在 AC-131 前置门禁和全部鸿蒙功能任务完成后，使用 Fake 后端验证完整用户旅程、跨端状态一致性和可选服务故障隔离。
+**功能描述**: 在 TASK-301 的 API 24 SDK/构建基线和全部鸿蒙功能任务完成后，使用 Fake 后端验证完整用户旅程、跨端状态一致性和可选服务故障隔离。
 
 **规格映射**: HarmonyOS/后端适用 `[IMP]`、AC-003/132 `[SEF]`
 
 ## 外部依赖风险
 
-- **依赖**: 已通过的 Windows 状态样本、API 24 设备或模拟器，以及 TASK-312 的真机前置证据。
+- **依赖**: 已通过的 Windows 状态样本、API 24 SDK/构建基线和自动化 fixture。
 - **状态**: 跨端一致性需要用同一服务端账号和固定快照验证，不能只比较页面截图。
-- **缓解**: 默认套件使用 Fake 服务和固定快照；真机只做前置门禁的回归冒烟，不重复接触用户目录。
+- **缓解**: 默认套件使用 Fake 服务和固定快照；不连接物理真机或真实用户目录。
 
 ## 验收条件
 
 - [ ] Fake E2E 完成登录、三导航、搜索、榜单、女优、详情、多来源、等待、播放器、字幕、进度、设置和清理。
 - [ ] Windows 与 HarmonyOS 使用同一账号时目录、收藏、任务和播放进度一致；对应 `[SEF]` AC-003。
 - [ ] 单个可选元数据源、AI 或 GFriends 故障不影响已有目录、排行榜快照和 115 播放；对应 `[SEF]` AC-132。
-- [ ] TASK-312 的 AC-131 门禁仍为 passed；若 SDK、设备或播放实现改变，必须重新执行前置探针。
+- [ ] TASK-301、TASK-310、TASK-311 的 AC-131 SDK 签名和 fixture 证据可查；若 SDK 或播放实现改变，必须重新执行受影响的自动化检查。
 - [ ] 首次连接覆盖后端地址测试、bootstrap token、登录以及换地址后的 Asset Store/字幕/快照清理；对应 AC-133 至 AC-135。
 
 ## Definition of Ready
 
-- [ ] TASK-213、TASK-302 至 TASK-312 已实现并评审，签名 HAP 可侧载启动。
-- [ ] TASK-312 的 API 24 前置门禁证据可查且没有关键失败。
-- [ ] Windows 跨端状态 fixture、Fake 后端和 API 24 测试设备已准备。
+- [ ] TASK-213、TASK-302 至 TASK-311 已实现并评审，签名 HAP 构建产物可检查。
+- [ ] AC-131 的 API 24 SDK/fixture 证据可查且没有关键失败。
+- [ ] Windows 跨端状态 fixture 和 Fake 后端已准备，不要求 API 24 测试设备。
 
 ## 技术上下文
 
 - 默认 CI 只执行 Fake Hypium/UiTest，不访问真实 115、JavDB 写操作或付费 AI。
 - 使用同一 OpenAPI/事件 fixture 验证 Windows 与 HarmonyOS 的状态语义，不比较本地缓存路径。
-- 真机回归若发现固定 UA、302、Range、HLS、MKV 或 ASS 退化，重新打开 AC-131 阻断门禁。
+- 自动化回归若发现固定 UA、302、Range、HLS、MKV 或 ASS 退化，重新打开 AC-131 相关实现阻断项。
 
 ## 实现文件（仅文件名）
 
@@ -65,9 +65,9 @@ provides: [HarmonyOS E2E suite, cross-platform state evidence]
 
 - [ ] Fake HarmonyOS E2E 全部通过，默认套件无真实外部访问。
 - [ ] AC-003、AC-132 有跨端与故障隔离证据。
-- [ ] AC-131 前置证据仍有效，HarmonyOS 完成门禁标记为 passed。
+- [ ] AC-131 的 API 24 SDK/fixture 证据仍有效，HarmonyOS 完成门禁标记为 passed。
 
-**依赖**: TASK-213, TASK-302..TASK-312
+**依赖**: TASK-213, TASK-302..TASK-311
 
 **实现命令**:
 

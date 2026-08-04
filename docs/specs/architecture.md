@@ -119,7 +119,7 @@ Windows Flutter                         HarmonyOS ArkTS
 | 数据库 | PostgreSQL | 17.5 | 业务数据、任务队列、互斥、事件日志 |
 | 文件卷 | Docker named volumes | Compose 2.37.1 | 永久图片、上游清单缓存、必要日志 |
 | Windows | Flutter | 3.29.2 | Windows 10/11 桌面客户端 |
-| HarmonyOS | HarmonyOS SDK | 6.1.1 Release / API 24 | ArkTS/ArkUI 原生手机端 |
+| HarmonyOS | DevEco Studio / OpenHarmony SDK / Hvigor / ohpm / DevEco 内置 Node | 6.1.1.290 / API 24（包标记 6.1.1.125）/ 6.24.3 / 6.1.2.285 / 18.20.1 | ArkTS/ArkUI 原生手机端工具链 |
 
 版本是 v1 实现基线。升级必须单独提交依赖验证记录，不得在功能任务中顺带升级。
 
@@ -403,7 +403,7 @@ contracts/
 7. 不得自动重试失败的元数据影片任务；只有管理员动作能创建新的尝试。
 8. 不得为了测试而增加规格未要求的产品行为；补充测试只能列为非阻断验证。
 9. 任何播放代码必须保留固定 UA、`302 no-store`、seek 合并和不代理视频字节四项约束。
-10. HarmonyOS 功能实现必须等待 Windows 与真实 115 门禁完成；在此之前只允许契约探针和工程脚手架。
+10. HarmonyOS 功能实现必须等待 Windows 与真实 115 门禁完成；在此之前只允许 API 24 SDK 签名核验、契约 fixture 和工程脚手架，不要求连接物理真机。
 11. 不得让客户端在更换后端基址后继续使用旧服务端令牌、字幕或内存快照。
 12. 共享工作区采用单写者，多智能体只做并行只读审计；审计结论由主实施路径统一修改。
 13. 实施验证分为快速反馈与最终门禁两级；快速结果不能降低最终质量集合。

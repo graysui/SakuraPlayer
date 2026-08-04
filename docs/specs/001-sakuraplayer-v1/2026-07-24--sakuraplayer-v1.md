@@ -36,7 +36,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 - **AC-005 `[IMP]`**: 第一阶段交付 Docker 后端和 Windows 10/11 Flutter 客户端。
 - **AC-006 `[EXT]`**: Windows 核心链路通过真实 115 验收后，才允许开始 HarmonyOS 客户端实施。
-- **AC-007 `[IMP]`**: HarmonyOS 客户端以 HarmonyOS 6.1.1 Release、API 24、ArkTS/ArkUI 和原生 `AVPlayer` 为基线。
+- **AC-007 `[IMP]`**: HarmonyOS 客户端以 HarmonyOS 6.1.1 Release、API 24、ArkTS/ArkUI 和原生 `AVPlayer` 为基线；冻结工具链为 DevEco Studio `6.1.1.290`、OpenHarmony SDK API `24`（本机包标记 `6.1.1.125`）、Hvigor `6.24.3`、ohpm `6.1.2.285` 和 DevEco 内置 Node `18.20.1`，详见 [HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md)。
 - **AC-008 `[IMP]`**: Windows 使用私有安装包，HarmonyOS 使用开发者签名侧载，不提供公开商店发布流程。
 - **AC-009 `[IMP]`**: 项目采用 GPLv3，并保留复用代码的许可证与来源说明。
 
@@ -252,7 +252,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-128 `[IMP]`**: 默认自动测试不得访问真实 115、JavDB/DMM/GFriends 或真实 AI 付费接口，必须使用替身和固定样本；显式本机 provider 验收只允许无写 JavDB 登录、固定公开源和 AI models 读取，不得输出 secret；Phase 1 跨边界测试遵循 [TASK-014 后端元数据 E2E 确定性边界](changes/2026-07-27--task-014-e2e-boundaries.md)，115 协议测试遵循 [TASK-101 Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md)，Phase 2 后端组合测试遵循 [TASK-113 115 缓存播放后端 E2E 边界](changes/2026-07-29--task-113-backend-e2e-boundaries.md)。
 - **AC-129 `[IMP]`**: AVdb 解密、幂等导入、番号合并、分类标签、元数据超时、任务优先级、缓存状态机、安全删除、签名校验、播放进度和字幕生命周期都有自动测试；各工作流只对已交付算法负责，TASK-013 固化 Phase 1 测试清单，后续缓存与播放测试仍由对应任务交付。
 - **AC-130 `[EXT]`**: Windows 发布前使用真实 115 验证扫码、离线、原画、HLS 回退、Range seek、字幕下载和安全清理；上游能力域漂移只按 [TASK-213 Cloud115 能力域兼容边界](changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md) 扩展精确 HTTPS 子域白名单，真实 Range 按 [TASK-213 Range seek 证据串行化](changes/2026-08-01--task-213-range-seek-evidence-serialization.md) 与生产 seek 合并行为一致。TASK-213 本轮真实来源缺少外置字幕时，仅允许按 [外置字幕真实证据豁免](changes/2026-08-01--task-213-external-subtitle-evidence-waiver.md) 显式记录操作者批准的 `.srt` / `.ass` 跳过证据；字幕产品契约和默认自动测试不变。
-- **AC-131 `[EXT]`**: HarmonyOS 开发前使用真实 API 24 设备验证固定 User-Agent、302、Range、HLS、MKV 与 ASS 字幕；任何关键项失败都阻断鸿蒙功能开发。
+- **AC-131 `[IMP]`**: HarmonyOS 开发前通过安装 SDK API 24 签名核验、ArkTS/ArkUI/能力构建检查和自动化契约 fixture 验证固定 User-Agent、302、Range、HLS、MKV 与 ASS 字幕的协议及状态语义；不要求连接、授权或侧载 API 24 物理真机，未运行真实设备验证不得宣称真实设备证据已通过。边界由 [HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md) 冻结。
 - **AC-132 `[SEF]`**: 单个外部元数据源、AI 或 GFriends 故障不会使已入库影片、排行榜快照或 115 播放整体不可用。
 
 ### REQ-025 首次连接与私有传输
@@ -318,4 +318,4 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ## 14. 发布门禁
 
-Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-146 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 AC-131 的真实设备探针全部通过后才能开始；AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。
+Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-146 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。

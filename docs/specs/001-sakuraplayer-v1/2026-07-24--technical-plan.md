@@ -44,7 +44,7 @@
 | 密码与秘密 | Argon2id / AES-256-GCM | argon2-cffi 23.1.0 / cryptography 45.0.4 | 分离不可逆密码和可恢复外部凭据 |
 | Windows | Flutter / Riverpod | 3.29.2 / 3.1.0 | 桌面 UI 与单一状态方案 |
 | 播放 | media_kit / libmpv | 1.1.11 / 1.0.5 打包版本 | 原画 Range、HLS、MKV、libass 与底层 seek 控制 |
-| HarmonyOS | ArkTS/ArkUI/AVPlayer | API 24 | 用户指定的原生 HarmonyOS 基线 |
+| HarmonyOS | ArkTS/ArkUI/AVPlayer | API 24；DevEco Studio 6.1.1.290；SDK 包标记 6.1.1.125；Hvigor 6.24.3；ohpm 6.1.2.285；DevEco 内置 Node 18.20.1 | 用户指定的原生 HarmonyOS 基线与本机已安装工具链 |
 | 部署 | Docker Compose | 2.37.1 | 单机私有部署，最少运维组件 |
 
 ### 2.1 禁止技术
@@ -264,7 +264,7 @@ Windows 的 Player 包装器覆盖 `seek`：已有 seek 在飞时只保留最后
 并向 controller 返回错误。ready job/首媒体 typed route、候选组选择、同 origin capability、
 media_kit `http-header-fields` 固定 UA、过期重签和所有 seek 入口由
 [Windows 播放器客户端契约](contracts/windows-playback-client.md) 冻结。HarmonyOS 在 AVPlayer 上
-实现等价串行 seek 队列，真实设备门禁验证 Range、302 和 HLS 子请求 UA。TASK-213 的真实
+实现等价串行 seek 队列，使用 API 24 SDK 签名核验和契约 fixture 验证 Range、302 和 HLS 子请求 UA。TASK-213 的真实
 Range 证据按 [Range seek 证据串行化](changes/2026-08-01--task-213-range-seek-evidence-serialization.md)
 与生产 in-flight 合并一致地顺序执行，每次仍独立请求 stream 入口；后端并发请求独立签发责任不变。
 
@@ -326,7 +326,7 @@ Riverpod controller
 - 使用系统安全存储保存刷新令牌，应用私有目录缓存字幕和 GFriends 图片。
 - AVPlayer 适配器必须显式设置固定 UA，处理 `302`、Range、HLS、MKV、内嵌字幕/音轨与外置 ASS。
 - 系统后台仅使用平台允许的通知与生命周期，不建设常驻下载服务；115 离线在后端继续。
-- 功能任务在 Windows 真实门禁后开始，之前只建立空工程、契约测试和真实设备播放探针。
+- 功能任务在 Windows 真实门禁和 TASK-301 API 24 SDK/构建基线后开始，之前只建立空工程、契约测试和播放 fixture；不要求连接物理真机。
 
 ## 6. 实施阶段
 
@@ -375,14 +375,14 @@ Riverpod controller
 
 **目标**: 在 Windows 门禁后交付 API 24 原生侧载客户端。
 
-**进入条件**: Phase 3 完成且 AC-131 设备探针的固定 UA、302、Range、HLS、MKV、ASS 全部通过。
+**进入条件**: Phase 3 完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过；固定 UA、302、Range、HLS、MKV、ASS 的自动化验证由对应功能任务完成。
 
 **里程碑**:
 
 - ArkTS 网络/认证/事件基础设施和底部导航。
 - 媒体库、排行榜、女优、详情、设置与缓存状态。
 - AVPlayer 播放、字幕、音轨、进度、通知和私有缓存。
-- ohosTest、契约 fixture、真实设备 E2E 和签名侧载产物。
+- ohosTest、契约 fixture、自动化 E2E 和开发者签名侧载产物；物理真机连接不属于进入条件。
 
 ## 7. 性能与容量
 
@@ -428,7 +428,7 @@ Riverpod controller
 |---|---|---|---|---|
 | 115 非官方协议变化 | 高 | 高 | 独立适配器、fixture、真实显式集成、稳定错误映射 | Phase 2/3 |
 | 原画 URL 的 UA/Range 行为变化 | 中 | 高 | 固定 UA、seek 串行、302 观测、真实 seek 测试 | AC-130 |
-| HarmonyOS AVPlayer 子请求改写 UA | 中 | 高 | 先做 API 24 设备探针，失败阻断功能开发 | AC-131 |
+| HarmonyOS AVPlayer 子请求改写 UA | 中 | 高 | 先做 API 24 SDK 签名核验与契约 fixture，失败阻断相关功能实现 | AC-131 |
 | AVdb 资产格式或密钥参数变化 | 中 | 高 | manifest 白名单、GCM 认证、摘要、保留最近成功游标 | Phase 1 |
 | JavDB 限流或结构变化 | 高 | 中 | 固定并发 3、超时、核心任务可手动重试、provider fixture | Phase 1 |
 | 600 秒终止时留下部分数据 | 中 | 中 | 核心短事务、stage 幂等、父进程对账 | Phase 1 |
@@ -473,7 +473,7 @@ Riverpod controller
 | Fake E2E | 浏览 -> 来源 -> 离线 -> 解析 -> 播放 -> 字幕 -> 清理 |
 | Windows | analyze、test、integration_test、release build |
 | 真实 115 | 仅显式运行，覆盖 AC-130；TASK-213 本轮外置字幕证据仅按批准 Delta 显式跳过 |
-| HarmonyOS | Windows 门禁后，API 24 探针和 AC-131 先通过 |
+| HarmonyOS | Windows 门禁后，API 24 SDK/构建/fixture 基线和 AC-131 先通过 |
 | 许可证 | GPLv3、第三方声明、移植来源随产物 |
 
 ## 11. 技术计划摘要
@@ -486,7 +486,7 @@ Riverpod controller
 | 115 | 单绑定、独立任务目录、2 运行/10 排队、证明式删除 |
 | 播放 | 12 小时能力入口、原画优先、最高 HLS 兼容、302 直连 |
 | Windows | Flutter + media_kit/libmpv，先交付 |
-| HarmonyOS | ArkTS/ArkUI + AVPlayer，真实设备探针后实施 |
+| HarmonyOS | ArkTS/ArkUI + AVPlayer，API 24 SDK/构建/fixture 基线后实施 |
 | 私有连接 | loopback 默认；客户端配置基址，远程使用 HTTPS 或可信 VPN |
 
 下一步按四个实现工作流生成任务，每个工作流不超过 15 个实现任务，并为每个工作流追加独立 E2E 与代码清理任务。

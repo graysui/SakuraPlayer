@@ -32,7 +32,7 @@ provides: [HarmonyOS play request store, full-screen blocking wait, completion n
 
 - [ ] TASK-307 source ID、TASK-308 cache event/notification 可用。
 - [ ] bindContentCover/openCustomDialog API 24 签名已核验，不用 deprecated CustomDialog。
-- [ ] onBackPress/Navigation interception 行为在真机验证。
+- [ ] onBackPress/Navigation interception 行为通过 API 24 SDK 签名检查和自动化 UI fixture 验证。
 
 ## 技术上下文
 

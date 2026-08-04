@@ -65,5 +65,5 @@ JavDB 是影片核心元数据和排行榜主来源，DMM 补充影片简介，G
 
 - 不配置自动备份意味着 Docker 卷损坏时，元数据、播放进度、收藏和永久图片可能无法恢复。
 - 115、JavDB、DMM、GitHub Raw 和 GFriends 都是外部依赖，协议、限流和可用性可能变化。
-- HarmonyOS `AVPlayer` 对固定 User-Agent、302、Range 和 HLS 子请求的一致性必须在真实设备上验证后，才能进入鸿蒙实现阶段。
+- HarmonyOS `AVPlayer` 对固定 User-Agent、302、Range 和 HLS 子请求的一致性必须通过 API 24 SDK 签名核验、构建检查和自动化 fixture 验证后，才能进入鸿蒙实现阶段；不要求连接 API 24 物理真机。
 - 项目涉及成人内容、磁力资源和云端离线，使用者负责遵守适用法律、版权要求和 115 服务条款。

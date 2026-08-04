@@ -8,9 +8,9 @@
 
 - 功能规格包含 146 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 74 个任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作。
+- 73 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
-- Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小探针；API 24 真机探针通过后才实施鸿蒙业务功能。
+- Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小 Stage 工程；API 24 SDK 签名、构建和 fixture 基线通过后才实施鸿蒙业务功能，不要求连接物理真机。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久卷和内部健康检查。
 - 启动配置固定四用途 secret，生产三类进程缺失、格式错误、来源冲突或用途复用时拒绝启动；bootstrap secret 生命周期由已接受变更规格冻结。
 - TASK-001 自动验证覆盖 44 项启动测试、14 项 PostgreSQL 集成测试、四组件健康、持久日志、重启恢复、ready 故障降级和项目级 Docker 资源清理。
@@ -248,7 +248,7 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 - **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319。
 - **下一任务**: TASK-301 API 24 Stage 工程与签名侧载基线；保持 pending，等待用户明确开始并核验外部 DoR。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
-- **未完成外部门禁**: TASK-317 首发外部门禁已完成；仅 TASK-312 HarmonyOS API 24 真机门禁仍未完成。
+- **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。
 
 TASK-318 与 TASK-319 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署包或 Windows 安装器；未来正式 tag 才生成新增发布资产。TASK-301 尚未开始。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
 
@@ -279,5 +279,5 @@ TASK-318 与 TASK-319 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部
 
 - TASK-213 真实 Windows、真实 115 和专属测试目录门禁已完成，专属验收 Compose 与远端任务目录已清理。
 - TASK-317 首发已完成：`v1.0.0` 指向 `991f541`，Release `30803267055` attempt 2 全绿；GitHub Release 包含 `SakuraPlayer-Windows-1.0.0-1.zip` 与校验文件，GHCR 匿名拉取返回 200，GHCR/Docker Hub `1.0.0` digest 均为 `sha256:f328eef81f09739bae2dda16560dcedb2b5bbfbad2e4f28bbebf3fb59209ff0a`。
-- TASK-312 需要 DevEco Studio 6.1.1.280、HarmonyOS SDK 6.1.1(24)、API 24 真机和 MKV/HLS/ASS 样本。
+- TASK-312 已按 `2026-08-04--harmony-baseline-and-device-gate.md` 撤销，仅保留历史记录；当前鸿蒙基线为 DevEco Studio 6.1.1.290、OpenHarmony SDK API 24（包标记 6.1.1.125）、Hvigor 6.24.3、ohpm 6.1.2.285、DevEco 内置 Node 18.20.1。
 - 外部凭据不进入仓库、普通日志、测试快照或聊天输出。

@@ -8,7 +8,7 @@
 
 - `[I]` 对应规格中的 `[IMP]`，只列实际产出该行为的实现任务；自动验证细节保留在各实现任务和工作流 E2E 中。
 - `[S]` 对应 `[SEF]`，只由可观察结果所属的 E2E 检查点验证，不创建实现任务。
-- `[E]` 对应 `[EXT]`，只由需要真实外部系统的显式 E2E 门禁验证，不进入默认自动测试。
+- `[E]` 对应 `[EXT]`，只由需要真实外部系统的显式 E2E 门禁验证，不进入默认自动测试；不要求物理设备连接的 SDK/fixture 检查归入 `[I]`。
 - 普通实现任务的 `provides` 和 Definition of Done 定义其产出角色；客户端任务消费公开契约，E2E 任务的 `ac-mapping` 表示验证范围而非实现所有权。一个 AC 映射多个任务时，不代表每个任务重复实现完整行为。
 - 清理任务不承担新需求，因此不映射 AC。
 - AC-133 的 bootstrap secret 启动依赖与管理员创建后失去权限的生命周期由 [Bootstrap Secret 生命周期澄清](changes/2026-07-24--bootstrap-secret-lifecycle.md) 冻结；TASK-001 负责启动校验，TASK-002 负责永久关闭初始化行为。
@@ -26,7 +26,7 @@
 - AC-028/AC-030 的标准番号、FC2、保守拒绝和固定样本由 [影片番号规范化输入边界](changes/2026-07-25--movie-number-normalization.md) 冻结，并由 TASK-005 实现。
 - AC-018 至 AC-021 的 AVdb 资产名与公开信封兼容由 [TASK-213 AVdb 资产名兼容边界](changes/2026-07-31--task-213-avdb-asset-name-compatibility.md) 和 [TASK-213 AVdb manifest 兼容边界](changes/2026-07-31--task-213-avdb-manifest-compatibility.md) 冻结；TASK-004 保持发现、摘要、解密和导入主责，TASK-213 只修复真实门禁发现的官方带连字符时间戳与严格 manifest 阻断并验证隔离 30D 导入。
 - AC-105/AC-130 的真实原画能力域兼容由 [TASK-213 Cloud115 能力域兼容边界](changes/2026-07-31--task-213-cloud115-capability-host-compatibility.md) 与 [Cloud115Port 契约](contracts/cloud115-port.md) 冻结；TASK-213 只增加真实观察且批准参考实现已记录的 `*.115cdn.net` HTTPS 子域，并保持每个并发 stream 请求独立签发能力 URL，其他主机、完整能力 URL 持久化和日志输出继续拒绝。
-- AC-130 的 TASK-213 本轮外置字幕真实证据由 [TASK-213 外置字幕真实证据豁免](changes/2026-08-01--task-213-external-subtitle-evidence-waiver.md) 冻结；只有显式 marker 可把 `.srt` / `.ass` 下载替换为 `subtitle_external_skipped state=operator_approved`，字幕产品契约、默认自动测试及后续真实设备 ASS 门禁不变。
+- AC-130 的 TASK-213 本轮外置字幕真实证据由 [TASK-213 外置字幕真实证据豁免](changes/2026-08-01--task-213-external-subtitle-evidence-waiver.md) 冻结；只有显式 marker 可把 `.srt` / `.ass` 下载替换为 `subtitle_external_skipped state=operator_approved`，字幕产品契约和默认自动测试不变。
 - AC-105/AC-130 的真实 Range seek 证据由 [TASK-213 Range seek 证据串行化](changes/2026-08-01--task-213-range-seek-evidence-serialization.md) 冻结；Windows probe 按生产 `ThrottlingPlayer` 顺序验证三个偏移，每次独立请求 stream，后端并发请求独立签发和不缓存能力 URL 的自动回归继续保留。
 - AC-026/AC-027 的 90 日历日边界、5000 截断、稳定排序和无上限历史候选由 [首批元数据范围边界与排序](changes/2026-07-25--initial-metadata-scope-ordering.md) 冻结，并由 TASK-005 输出、TASK-007 消费。
 - TASK-007 的元数据队列表、活动 attempt 部分唯一约束和 claim expiry 由 [元数据队列 DoR 迁移归属修正](changes/2026-07-25--metadata-queue-dor-correction.md) 明确归属 TASK-007，不改变 AC-037 至 AC-043、AC-122 或任务依赖。
@@ -130,7 +130,7 @@
 | `AC-003` | `[S]` | `REQ-001` | `TASK-313` |
 | `AC-004` | `[I]` | `REQ-001` | `TASK-002` |
 | `AC-005` | `[I]` | `REQ-002` | `TASK-001`, `TASK-201`, `TASK-212`, `TASK-317` |
-| `AC-006` | `[E]` | `REQ-002` | `TASK-312` |
+| `AC-006` | `[E]` | `REQ-002` | `TASK-213` |
 | `AC-007` | `[I]` | `REQ-002` | `TASK-301` |
 | `AC-008` | `[I]` | `REQ-002` | `TASK-001`, `TASK-212`, `TASK-301` |
 | `AC-009` | `[I]` | `REQ-002` | `TASK-001`, `TASK-201`, `TASK-212`, `TASK-301`, `TASK-317` |
@@ -255,7 +255,7 @@
 | `AC-128` | `[I]` | `REQ-024` | `TASK-003`, `TASK-013`, `TASK-101`, `TASK-212`, `TASK-216` |
 | `AC-129` | `[I]` | `REQ-024` | `TASK-013`, `TASK-101`, `TASK-212` |
 | `AC-130` | `[E]` | `REQ-024` | `TASK-213` |
-| `AC-131` | `[E]` | `REQ-024` | `TASK-312` |
+| `AC-131` | `[I]` | `REQ-024` | `TASK-301`, `TASK-310`, `TASK-311` |
 | `AC-132` | `[S]` | `REQ-024` | `TASK-014`, `TASK-113`, `TASK-213`, `TASK-313` |
 | `AC-133` | `[I]` | `REQ-025` | `TASK-001`, `TASK-002`, `TASK-202`, `TASK-302`, `TASK-318` |
 | `AC-134` | `[I]` | `REQ-025` | `TASK-001`, `TASK-219`, `TASK-317`, `TASK-318` |
@@ -317,4 +317,7 @@ TASK-318 的 AC-120/123/127/133/134/140/142/143/144 映射受
 
 TASK-319 的 AC-138/140/142/145/146 映射受
 [Windows 单文件安装器](changes/2026-08-03--task-319-windows-installer.md) 和
-[GitHub 自动发布契约](contracts/github-release.md) 约束；它新增 AC-145/146，任务总数增至 74。
+[GitHub 自动发布契约](contracts/github-release.md) 约束；它新增 AC-145/146，当前有效任务总数为 73；TASK-312 已撤销并仅保留历史记录。
+
+HarmonyOS 的 AC-007/AC-131 工具链、API 24 SDK/构建/fixture 边界受
+[HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md) 约束；该变更撤销 TASK-312 的物理真机门禁，但保留 API 24 编译和 API 签名基线。

@@ -44,7 +44,7 @@ SakuraPlayer 由两个部分组成，普通用户需要同时准备后端和 Win
 | Docker 后端 | 已完成 | FastAPI、PostgreSQL、Scheduler、Worker 与显式 Alembic 迁移 |
 | Windows 客户端 | v1.0.0 | Windows 10/11、Flutter、media_kit/libmpv、ZIP + 当前用户安装脚本 |
 | 真实 115 链路 | 已验证 | 扫码、离线、原画、HLS、Range seek、进度、租约与安全清理 |
-| HarmonyOS 客户端 | 规划中 | API 24 工程与真机播放门禁尚未开始，不属于当前可用版本 |
+| HarmonyOS 客户端 | 规划中 | API 24 工程与 SDK/构建/fixture 基线尚未开始，不属于当前可用版本 |
 | GitHub Release | v1.0.0 首发 | 自动构建 Windows x64 ZIP、GHCR/Docker Hub 后端镜像、SHA-256 与供应链证明 |
 
 完整需求、任务状态和验证证据位于 [项目规格](docs/specs/001-sakuraplayer-v1/)；提交历史是最终实现事实。
@@ -376,7 +376,7 @@ LICENSE     GPL-3.0-only 完整许可证
 
 - Windows v1 与真实 115 主链路已完成并通过发布门禁。
 - 当前优先完善公开发布材料、可复现安装说明和首个 GitHub Release。
-- HarmonyOS API 24 客户端仍处于规划阶段；须先完成 Stage 工程和真机播放探针，不能使用当前 README 中的 Windows 状态推断其可用性。
+- HarmonyOS API 24 客户端仍处于规划阶段；须先完成 Stage 工程和 API 24 SDK/构建/fixture 兼容性验证，不能使用当前 README 中的 Windows 状态推断其可用性；不要求连接 API 24 物理真机。
 
 ## 参考与致谢
 

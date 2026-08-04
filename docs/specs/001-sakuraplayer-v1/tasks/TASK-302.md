@@ -4,7 +4,7 @@ title: "Asset Store 认证 HTTP WebSocket 与快照"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
 status: pending
-dependencies: [TASK-301, TASK-312, TASK-013]
+dependencies: [TASK-301, TASK-013]
 ac-mapping: [AC-002, AC-011, AC-012, AC-115, AC-116, AC-117, AC-133, AC-135]
 imp-requirements: [REQ-001, REQ-003, REQ-021, REQ-025]
 cross-boundary: false
@@ -16,7 +16,7 @@ provides: [HarmonyOS auth store, typed HTTP client, WebSocket snapshot recovery]
 
 # TASK-302: Asset Store 认证 HTTP WebSocket 与快照
 
-**功能描述**: 用 API 24 官方能力实现后端基址配置/测试、安全令牌、严格 ArkTS DTO、HTTP refresh、WebSocket 去重和 REST snapshot 恢复。
+**功能描述**: 用 API 24 官方能力实现后端基址配置/测试、安全令牌、严格 ArkTS DTO、HTTP refresh、WebSocket 去重和 REST snapshot 恢复；不要求 API 24 物理真机连接。
 
 **规格映射**: AC-002、AC-011、AC-012、AC-115 至 AC-117、AC-133、AC-135
 
@@ -31,7 +31,7 @@ provides: [HarmonyOS auth store, typed HTTP client, WebSocket snapshot recovery]
 
 ## Definition of Ready
 
-- [ ] TASK-301 API 24 工程可构建，TASK-312 的 AC-131 真机前置门禁已通过。
+- [ ] TASK-301 API 24 工程可构建，SDK 签名核验和 AC-131 fixture 基线已通过。
 - [ ] 不使用 `any/unknown` 逃避 OpenAPI DTO 校验。
 - [ ] 所有 `on/off` listener 使用命名回调并可注销。
 
@@ -69,7 +69,7 @@ provides: [HarmonyOS auth store, typed HTTP client, WebSocket snapshot recovery]
 - [ ] ArkTS strict checker 无动态类型逃逸。
 - [ ] 无常驻后台服务或秘密日志。
 
-**依赖**: TASK-301, TASK-312, TASK-013
+**依赖**: TASK-301, TASK-013
 
 **实现命令**:
 

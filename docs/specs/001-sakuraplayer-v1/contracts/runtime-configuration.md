@@ -1,6 +1,6 @@
 # SakuraPlayer v1 运行配置契约
 
-**版本**: 1.5.0
+**版本**: 1.6.0
 
 **适用范围**: Docker 后端、Windows 客户端、HarmonyOS 客户端、显式外部验收
 
@@ -126,7 +126,7 @@ TASK-009 固定公共地址：
 | 名称 | 用途 |
 |---|---|
 | `SAKURAPLAYER_TEST_REAL115=1` | Windows/后端真实 115 门禁 |
-| `SAKURAPLAYER_TEST_HARMONY_API24=1` | HarmonyOS API 24 真机探针 |
+| `SAKURAPLAYER_TEST_HARMONY_API24_FIXTURE=1` | HarmonyOS API 24 SDK/契约 fixture 验证；不连接物理真机、不代表真实设备证据 |
 
 缺少 marker 时套件必须明确 skip，不能尝试网络。测试报告不得输出 secret、Cookie、磁力或完整签名 URL。
 
