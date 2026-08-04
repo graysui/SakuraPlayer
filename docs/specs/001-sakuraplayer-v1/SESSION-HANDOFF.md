@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-08-04
 
-**当前阶段**: TASK-301 in_progress：harmony/ API 24 Stage 工程、开发者签名侧载基线与 GPLv3 许可证完成，debug/release HAP 构建和签名核验通过；ohosTest 待模拟器运行确认。
+**当前阶段**: TASK-301 implemented：harmony/ API 24 Stage 工程、开发者签名侧载基线与 GPLv3 许可证完成，debug/release HAP 构建与签名核验通过；ohosTest（Scaffold 基线）未运行，原因：无可用设备，待模拟器/真机后补跑转 completed。
 
 ## 1. 当前成果
 

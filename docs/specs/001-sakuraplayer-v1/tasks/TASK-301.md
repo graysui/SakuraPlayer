@@ -3,7 +3,7 @@ id: TASK-301
 title: "API 24 Stage 工程与签名侧载基线"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: implemented
 dependencies: [TASK-213, TASK-214]
 ac-mapping: [AC-007, AC-008, AC-009, AC-131]
 imp-requirements: [REQ-002]
@@ -28,15 +28,15 @@ provides: [HarmonyOS API24 Stage app scaffold, SDK/build baseline, signing basel
 
 ## 验收条件
 
-- [ ] 使用 HarmonyOS 6.1.1 Release API 24、ArkTS/ArkUI、Stage 模型和原生 AVPlayer 基线；对应 AC-007。
-- [ ] 产物使用开发者签名并可供侧载，不创建 AppGallery 公开发布流程；对应 AC-008。
-- [ ] HAP/源码包含 GPLv3 和第三方/移植来源声明；对应 AC-009。
+- [x] 使用 HarmonyOS 6.1.1 Release API 24、ArkTS/ArkUI、Stage 模型和原生 AVPlayer 基线；对应 AC-007。
+- [x] 产物使用开发者签名并可供侧载，不创建 AppGallery 公开发布流程；对应 AC-008。
+- [x] HAP/源码包含 GPLv3 和第三方/移植来源声明；对应 AC-009。
 
 ## Definition of Ready
 
-- [ ] TASK-213 的 AC-130 Windows 门禁通过且 TASK-214 清理完成。
-- [ ] AC-131 的 API 24 SDK 签名、构建和 fixture 验证范围已确定；本任务完成后进入 TASK-302 及后续功能任务。
-- [ ] DevEco Studio 6.1.1.290、SDK API 24（包标记 6.1.1.125）、Hvigor 6.24.3、ohpm 6.1.2.285、DevEco 内置 Node 18.20.1 可用。
+- [x] TASK-213 的 AC-130 Windows 门禁通过且 TASK-214 清理完成。
+- [x] AC-131 的 API 24 SDK 签名、构建和 fixture 验证范围已确定；本任务完成后进入 TASK-302 及后续功能任务。
+- [x] DevEco Studio 6.1.1.290、SDK API 24（包标记 6.1.1.125）、Hvigor 6.24.3、ohpm 6.1.2.285、DevEco 内置 Node 18.20.1 可用。
 
 ## 技术上下文
 
@@ -65,9 +65,9 @@ provides: [HarmonyOS API24 Stage app scaffold, SDK/build baseline, signing basel
 
 ## Definition of Done
 
-- [ ] API 24 Stage 工程、精确工具链和可侧载签名基线完成。
-- [ ] 许可证随 HAP/工程保留。
-- [ ] 最小 Stage HAP 和 API 24 SDK/fixture 基线可供后续鸿蒙任务使用，尚未开始鸿蒙业务功能开发。
+- [x] API 24 Stage 工程、精确工具链和可侧载签名基线完成。
+- [x] 许可证随 HAP/工程保留。
+- [ ] 最小 Stage HAP 和 API 24 SDK/fixture 基线可供后续鸿蒙任务使用，尚未开始鸿蒙业务功能开发（ohosTest 待模拟器运行确认）。
 
 **依赖**: TASK-213, TASK-214
 

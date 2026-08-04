@@ -1,0 +1,60 @@
+// 签名配置说明：keyPassword/storePassword 本机保存在 harmony/.local/signing.json5
+// （已被 harmony/.gitignore 忽略），不进入 Git。构建前运行
+// python tools/harmony/apply_local_signing.py apply 填充密码，提交前运行 strip 清空。
+// 签名材料（.p12/.cer/.p7b）位于本机 ~/.ohos/config/，只引用本地路径。
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\gray9\\.ohos\\config\\default_harmony_5Uqy5QaS5efM8biTZjYVwXXjF7I6r_gXjRshJtri4AE=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "",
+          "profile": "C:\\Users\\gray9\\.ohos\\config\\default_harmony_5Uqy5QaS5efM8biTZjYVwXXjF7I6r_gXjRshJtri4AE=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\gray9\\.ohos\\config\\default_harmony_5Uqy5QaS5efM8biTZjYVwXXjF7I6r_gXjRshJtri4AE=.p12",
+          "storePassword": ""
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "6.1.1(24)",
+        "compatibleSdkVersion": "6.1.1(24)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
