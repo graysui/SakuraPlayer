@@ -42,13 +42,13 @@
 
 - Windows 与真实 115 门禁（TASK-213/AC-130）已完成，HarmonyOS 业务功能可以实施；HarmonyOS 不要求连接、授权或侧载 API 24 物理真机，未运行真实设备验证不得宣称真实设备证据已通过（AC-131）。
 - 默认自动测试不得访问真实 115、JavDB 写操作或付费 AI。
-- 保留根目录用户资料（含三份原始分析文档和 `HarmonyOS/` 试验工程）的未跟踪状态，除非用户明确要求纳入版本控制。
+- 保留根目录三份用户原始分析文档的未跟踪状态，除非用户明确要求纳入版本控制。
 
 ## HarmonyOS 客户端实施规则
 
 - 冻结工具链：DevEco Studio `6.1.1.290`、OpenHarmony SDK API `24`（包标记 `6.1.1.125`）、Hvigor `6.24.3`、ohpm `6.1.2.285`、DevEco 内置 Node `18.20.1`；系统 PATH 中的其他 Node 版本不属于鸿蒙基线，升级需先创建变更规格。
 - 只用 Stage 模型 + ArkTS/ArkUI + 原生 `AVPlayer`；不使用 FA 模型、ArkUI-X 或跨平台 UI 运行时。
-- 正式工程目录固定为 `harmony/`，`compileSdkVersion/targetSdkVersion=6.1.1(24)`；根目录未跟踪的 `HarmonyOS/`（ArkUI-X 试验产物）不纳入提交、不改造。
+- 正式工程目录固定为 `harmony/`，`compileSdkVersion/targetSdkVersion=6.1.1(24)`；不使用 ArkUI-X 模板工程（原有 `HarmonyOS/` 试验工程已删除）。
 - 各功能任务只编辑独立 feature 目录；Navigation 组合根由 TASK-303 统一拥有；所有事件监听使用可注销的命名回调。
 - 严格 ArkTS：不得用 `any/unknown` 逃避 OpenAPI DTO 校验，ArkTS strict check 零动态类型逃逸。
 - 验证基线：Hvigor sync、ArkTS strict check、debug/release HAP 构建、HAP 内容与开发者签名配置检查；固定 UA、302、Range、HLS、MKV、ASS 协议语义用 ohosTest/fixture 验证；默认测试不访问真实 115、JavDB 写操作或付费 AI。
