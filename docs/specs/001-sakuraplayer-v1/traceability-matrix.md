@@ -269,6 +269,8 @@
 | `AC-142` | `[I]` | `REQ-026` | `TASK-316`, `TASK-318` |
 | `AC-143` | `[I]` | `REQ-027` | `TASK-318` |
 | `AC-144` | `[I]` | `REQ-027` | `TASK-318` |
+| `AC-145` | `[I]` | `REQ-028` | `TASK-319` |
+| `AC-146` | `[I]` | `REQ-028` | `TASK-319` |
 
 TASK-101 的 AC-013/016/017/128/129 映射还受
 [Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md) 中
@@ -312,3 +314,7 @@ TASK-318 的 AC-120/123/127/133/134/140/142/143/144 映射受
 [Linux 一键安全部署](changes/2026-08-03--task-318-one-command-docker-install.md)、
 [运行配置契约](contracts/runtime-configuration.md) 和 [GitHub 自动发布契约](contracts/github-release.md)
 约束；它新增 AC-143/144，任务总数增至 73。
+
+TASK-319 的 AC-138/140/142/145/146 映射受
+[Windows 单文件安装器](changes/2026-08-03--task-319-windows-installer.md) 和
+[GitHub 自动发布契约](contracts/github-release.md) 约束；它新增 AC-145/146，任务总数增至 74。

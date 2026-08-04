@@ -1,8 +1,8 @@
 # GitHub 自动发布契约
 
-**Version**: 1.2.0
+**Version**: 1.3.0
 **Status**: Accepted
-**Owner**: TASK-316、TASK-318
+**Owner**: TASK-316、TASK-318、TASK-319
 
 ## 验证工作流
 
@@ -26,6 +26,15 @@
 - 外层校验：`SakuraPlayer-Windows-X.Y.Z-B.zip.sha256`
 - ZIP 由 `windows/tool/build_private_release.ps1` 生成；脚本负责 release build、包内容、GPL/NOTICE、包内清单与外层 SHA-256。
 - 公共 CI 没有个人代码签名证书，Windows 资产明确为 unsigned；GitHub artifact attestation 不能替代 Authenticode。
+
+### Windows 单文件安装器
+
+- 安装器：`SakuraPlayer-Windows-X.Y.Z-B-Setup.exe`
+- 外层校验：`SakuraPlayer-Windows-X.Y.Z-B-Setup.exe.sha256`
+- 安装器由 `windows/tool/build_windows_installer.ps1` 从已通过 `verify_release_contents.ps1` 的同一份 ZIP bundle 生成，使用固定 Inno Setup 6.4.2；不得单独构造或省略 Flutter/native DLL、AOT/ICU 数据、许可证和第三方声明。
+- 安装器默认写入 `%LOCALAPPDATA%\Programs\SakuraPlayer`，`PrivilegesRequired=lowest`，不要求管理员权限；用户数据不由安装器删除或迁移。
+- “单文件安装器”表示单个下载文件，不表示 Flutter 应用成为真正单一可执行文件；运行时依赖在安装器内部展开到安装目录。
+- 安装器及其校验文件与 ZIP 资产一起生成 GitHub artifact attestation。公共 CI 没有个人代码签名证书，安装器明确为 unsigned；attestation 不能替代 Authenticode。
 
 ## Linux Docker 部署资产
 
@@ -54,17 +63,17 @@
 - 所有第三方 `uses:` 固定到 40 字符 commit SHA，并以注释记录人类可读版本。
 - 所有源码 checkout 禁止持久化临时仓库凭据。
 - GitHub Release 与 GHCR 只使用 GitHub 自动提供的仓库 token；Docker Hub 只使用仓库级 Actions Secret `DOCKERHUB_TOKEN` 和固定用户名 `graysui`。不得使用个人 GitHub PAT 或任何业务 secret。
-- Windows ZIP/校验文件、Linux Docker 压缩包/校验文件、GHCR digest 与 Docker Hub digest 均生成 GitHub artifact attestation。
+- Windows ZIP/校验文件、Windows 安装器/校验文件、Linux Docker 压缩包/校验文件、GHCR digest 与 Docker Hub digest 均生成 GitHub artifact attestation。
 
 ## 发布顺序
 
 ```text
 严格 tag 与版本校验
-  -> Windows 构建、校验、attestation、artifact
+  -> Windows 构建 ZIP 与安装器、校验、attestation、artifact
   -> Linux Docker 部署包白名单、校验、attestation、artifact
   -> 单次 Docker build，同时推送 GHCR/Docker Hub、分别登记 digest attestation
   -> 汇总下载 Windows 与 Linux artifact
-  -> 创建 GitHub Release 并上传 Windows ZIP、Linux 资产及 SHA-256
+  -> 创建 GitHub Release 并上传 Windows 两组资产、Linux 资产及 SHA-256
 ```
 
 Release 创建必须依赖 Windows、Linux 部署包与 Docker 三条发布路径成功，避免只发布一部分版本。

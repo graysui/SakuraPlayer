@@ -20,6 +20,7 @@ jobs:
       semver: ${{ steps.version.outputs.semver }}
       artifact_version: ${{ steps.version.outputs.artifact_version }}
       archive_name: ${{ steps.version.outputs.archive_name }}
+      installer_name: ${{ steps.version.outputs.installer_name }}
       docker_archive_name: ${{ steps.version.outputs.docker_archive_name }}
     steps:
       - name: Check out source
@@ -64,14 +65,40 @@ jobs:
       - name: Build and verify private ZIP
         shell: pwsh
         run: windows/tool/build_private_release.ps1 -OutputDirectory windows/dist
+      - name: Set up Inno Setup 6.4.2
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'innosetup-6.4.2.exe'
+          Invoke-WebRequest `
+            -Uri 'https://github.com/jrsoftware/issrc/releases/download/is-6_4_2/innosetup-6.4.2.exe' `
+            -OutFile $installer
+          $expectedHash = '238e2cf82c212a3879a050e02d787283c54bcb72d5cb6070830942de56627d5b'
+          $actualHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) { throw 'Inno Setup download SHA-256 mismatch.' }
+          $installRoot = Join-Path $env:RUNNER_TEMP 'InnoSetup642'
+          $process = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', "/DIR=$installRoot") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Inno Setup installation failed with exit code $($process.ExitCode)." }
+          $compiler = Join-Path $installRoot 'ISCC.exe'
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) { throw "Missing $compiler" }
+          "INNO_SETUP_PATH=$compiler" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build Windows installer
+        shell: pwsh
+        run: >-
+          windows/tool/build_windows_installer.ps1
+          -OutputDirectory windows/dist
+          -SkipBuild
+          -InnoSetupPath "$env:INNO_SETUP_PATH"
       - name: Verify release asset names
         shell: pwsh
         env:
           ARCHIVE_NAME: ${{ needs.validate.outputs.archive_name }}
+          INSTALLER_NAME: ${{ needs.validate.outputs.installer_name }}
         run: |
-          $archive = Join-Path 'windows/dist' $env:ARCHIVE_NAME
-          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw "Missing $archive" }
-          if (-not (Test-Path -LiteralPath "$archive.sha256" -PathType Leaf)) { throw "Missing $archive.sha256" }
+          foreach ($name in @($env:ARCHIVE_NAME, $env:INSTALLER_NAME)) {
+            $asset = Join-Path 'windows/dist' $name
+            if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Missing $asset" }
+            if (-not (Test-Path -LiteralPath "$asset.sha256" -PathType Leaf)) { throw "Missing $asset.sha256" }
+          }
       - name: Upload Windows release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -79,6 +106,8 @@ jobs:
           path: |
             windows/dist/${{ needs.validate.outputs.archive_name }}
             windows/dist/${{ needs.validate.outputs.archive_name }}.sha256
+            windows/dist/${{ needs.validate.outputs.installer_name }}
+            windows/dist/${{ needs.validate.outputs.installer_name }}.sha256
           if-no-files-found: error
           retention-days: 14
       - name: Attest Windows release assets
@@ -87,6 +116,8 @@ jobs:
           subject-path: |
             windows/dist/${{ needs.validate.outputs.archive_name }}
             windows/dist/${{ needs.validate.outputs.archive_name }}.sha256
+            windows/dist/${{ needs.validate.outputs.installer_name }}
+            windows/dist/${{ needs.validate.outputs.installer_name }}.sha256
 
   docker:
     name: Publish backend image
@@ -241,12 +272,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ARCHIVE_NAME: ${{ needs.validate.outputs.archive_name }}
+          INSTALLER_NAME: ${{ needs.validate.outputs.installer_name }}
           DOCKER_ARCHIVE_NAME: ${{ needs.validate.outputs.docker_archive_name }}
           RELEASE_VERSION: ${{ needs.validate.outputs.semver }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
             "release-assets/$ARCHIVE_NAME" \
             "release-assets/$ARCHIVE_NAME.sha256" \
+            "release-assets/$INSTALLER_NAME" \
+            "release-assets/$INSTALLER_NAME.sha256" \
             "release-assets/$DOCKER_ARCHIVE_NAME" \
             "release-assets/$DOCKER_ARCHIVE_NAME.sha256" \
             --repo "$GITHUB_REPOSITORY" \

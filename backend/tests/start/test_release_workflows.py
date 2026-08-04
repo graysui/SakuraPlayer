@@ -12,6 +12,8 @@ RELEASE_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "release.yml"
 VERSION_TOOL = REPOSITORY_ROOT / "tools" / "release" / "validate_version.py"
 COMPOSE_FILE = REPOSITORY_ROOT / "backend" / "docker-compose.yml"
 DOCKERFILE = REPOSITORY_ROOT / "backend" / "docker" / "api.Dockerfile"
+INSTALLER_SCRIPT = REPOSITORY_ROOT / "windows" / "tool" / "package" / "SakuraPlayer.iss"
+INSTALLER_BUILDER = REPOSITORY_ROOT / "windows" / "tool" / "build_windows_installer.ps1"
 
 
 def _read(path: Path) -> str:
@@ -40,6 +42,7 @@ def test_release_version_matches_flutter_semver_and_preserves_build_number() -> 
     assert version.build_number == "1"
     assert version.artifact_version == "1.0.0-1"
     assert version.archive_name == "SakuraPlayer-Windows-1.0.0-1.zip"
+    assert version.installer_name == "SakuraPlayer-Windows-1.0.0-1-Setup.exe"
     assert version.docker_archive_name == "SakuraPlayer-Docker-1.0.0.tar.gz"
 
 
@@ -88,11 +91,19 @@ def test_release_workflow_has_atomic_tag_release_and_attestations() -> None:
     assert "validate_version.py" in workflow
     assert "uses: ./.github/workflows/verify.yml" in workflow
     assert "archive_name: ${{ steps.version.outputs.archive_name }}" in workflow
+    assert "installer_name: ${{ steps.version.outputs.installer_name }}" in workflow
     assert (
         "docker_archive_name: ${{ steps.version.outputs.docker_archive_name }}"
         in workflow
     )
     assert "windows/dist/${{ needs.validate.outputs.archive_name }}" in workflow
+    assert "windows/dist/${{ needs.validate.outputs.installer_name }}" in workflow
+    assert "Build Windows installer" in workflow
+    assert "jrsoftware/issrc/releases/download/is-6_4_2/innosetup-6.4.2.exe" in workflow
+    assert "Inno Setup 6.4.2" in workflow
+    assert (
+        "238e2cf82c212a3879a050e02d787283c54bcb72d5cb6070830942de56627d5b" in workflow
+    )
     assert "ghcr.io/graysui/sakuraplayer-backend" in workflow
     assert "docker.io/graysui/sakuraplayer-backend" in workflow
     assert "Log in to Docker Hub" in workflow
@@ -122,6 +133,23 @@ def test_release_workflow_has_atomic_tag_release_and_attestations() -> None:
     assert "--generate-notes" in workflow
     assert set(re.findall(r"secrets\.([A-Z0-9_]+)", workflow)) == {"DOCKERHUB_TOKEN"}
     assert workflow.count("actions/attest-build-provenance") == 4
+
+
+def test_windows_installer_reuses_verified_bundle_and_is_per_user() -> None:
+    installer = _read(INSTALLER_SCRIPT)
+    builder = _read(INSTALLER_BUILDER)
+
+    assert "PrivilegesRequired=lowest" in installer
+    assert "DefaultDirName={localappdata}\\Programs\\SakuraPlayer" in installer
+    assert 'Source: "{#SourceDir}\\*"' in installer
+    assert "ArchitecturesAllowed=x64" in installer
+    assert "build_private_release.ps1" in builder
+    assert "Expand-Archive" in builder
+    assert "ISCC.exe" in builder
+    assert "Get-FileHash" in builder
+    assert "-Setup.exe" in builder
+    assert "CertificateThumbprint" in builder
+    assert "Set-AuthenticodeSignature" in builder
 
 
 def test_all_actions_are_pinned_to_immutable_commits() -> None:

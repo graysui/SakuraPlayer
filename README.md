@@ -178,17 +178,19 @@ docker compose --env-file .env -p sakuraplayer up -d --no-build --wait
 ### 2. 安装 Windows 客户端
 
 1. 打开 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest)。
-2. 下载 `SakuraPlayer-Windows-1.0.0-1.zip` 和同名 `.sha256` 文件。
+2. 推荐下载 `SakuraPlayer-Windows-1.0.0-1-Setup.exe` 和同名 `.sha256` 文件；也可以下载 ZIP 手动安装包。
 3. 在下载目录打开 PowerShell，校验文件未被篡改：
 
 ```powershell
-$archive = '.\SakuraPlayer-Windows-1.0.0-1.zip'
+$archive = '.\SakuraPlayer-Windows-1.0.0-1-Setup.exe'
 $expected = (Get-Content "$archive.sha256").Split()[0].ToLowerInvariant()
 $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
 $actual -eq $expected
 ```
 
-结果必须为 `True`。解压 ZIP，进入其中的 `SakuraPlayer` 文件夹，然后运行：
+结果必须为 `True`。双击校验后的安装器，按向导安装即可；默认安装到当前用户的 `%LOCALAPPDATA%\Programs\SakuraPlayer`，不需要管理员权限。
+
+如果选择 ZIP，解压后进入其中的 `SakuraPlayer` 文件夹，然后运行：
 
 ```powershell
 Unblock-File .\Install-SakuraPlayer.ps1
@@ -198,7 +200,7 @@ Unblock-File .\Install-SakuraPlayer.ps1
 应用会安装到当前用户的 `%LOCALAPPDATA%\Programs\SakuraPlayer`，并创建开始菜单快捷方式；使用 `-DesktopShortcut` 时也会创建桌面快捷方式，不需要管理员权限。
 
 > [!IMPORTANT]
-> ZIP 内有真正的 `sakuraplayer_windows.exe`，但它依赖同目录运行库，不能单独复制。当前没有单文件 EXE/MSI 安装器。公共构建也没有 Authenticode 证书签名，请先完成 SHA-256 校验再运行安装脚本。
+> 安装器是单文件下载包，内部仍包含 Flutter 应用所需的运行库和 `data` 目录；它不是可以脱离运行库直接复制的单二进制 EXE。公共构建没有 Authenticode 证书签名，请先完成 SHA-256 校验再运行安装器或安装脚本。
 
 ### 3. 连接并初始化
 
@@ -303,9 +305,11 @@ docker compose --env-file .env -p sakuraplayer up -d --build --wait
 Set-Location windows
 flutter pub get
 .\tool\build_private_release.ps1
+# 已安装 Inno Setup 6.4.2 后，再生成单文件当前用户安装器
+.\tool\build_windows_installer.ps1 -SkipBuild -InnoSetupPath 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
 ```
 
-输出位于 `windows/dist/`，仍是 ZIP，而不是单文件 EXE/MSI 安装器。
+输出位于 `windows/dist/`，包含 ZIP、单文件安装器 EXE 及各自的 SHA-256 文件。
 
 </details>
 
