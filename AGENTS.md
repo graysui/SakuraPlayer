@@ -17,6 +17,7 @@
 4. `docs/specs/001-sakuraplayer-v1/2026-07-24--technical-plan.md`
 5. `docs/specs/001-sakuraplayer-v1/implementation-workflow.md`
 6. 当前任务文件及其直接引用的契约
+7. 涉及 HarmonyOS 任务时，先读 `docs/specs/001-sakuraplayer-v1/2026-07-24--harmonyos-client--tasks.md` 和 `changes/2026-08-04--harmony-baseline-and-device-gate.md`，并加载项目自带 `harmonyos-development` 技能（`run_skill`），再读当前任务文件
 
 ## 会话与进度管理
 
@@ -39,9 +40,20 @@
 
 ## 实施边界
 
-- Windows 与真实 115 门禁完成前，不实施 HarmonyOS 业务功能。
+- Windows 与真实 115 门禁（TASK-213/AC-130）已完成，HarmonyOS 业务功能可以实施；HarmonyOS 不要求连接、授权或侧载 API 24 物理真机，未运行真实设备验证不得宣称真实设备证据已通过（AC-131）。
 - 默认自动测试不得访问真实 115、JavDB 写操作或付费 AI。
-- 保留三份根目录用户资料的未跟踪状态，除非用户明确要求纳入版本控制。
+- 保留根目录用户资料（含三份原始分析文档和 `HarmonyOS/` 试验工程）的未跟踪状态，除非用户明确要求纳入版本控制。
+
+## HarmonyOS 客户端实施规则
+
+- 冻结工具链：DevEco Studio `6.1.1.290`、OpenHarmony SDK API `24`（包标记 `6.1.1.125`）、Hvigor `6.24.3`、ohpm `6.1.2.285`、DevEco 内置 Node `18.20.1`；系统 PATH 中的其他 Node 版本不属于鸿蒙基线，升级需先创建变更规格。
+- 只用 Stage 模型 + ArkTS/ArkUI + 原生 `AVPlayer`；不使用 FA 模型、ArkUI-X 或跨平台 UI 运行时。
+- 正式工程目录固定为 `harmony/`，`compileSdkVersion/targetSdkVersion=6.1.1(24)`；根目录未跟踪的 `HarmonyOS/`（ArkUI-X 试验产物）不纳入提交、不改造。
+- 各功能任务只编辑独立 feature 目录；Navigation 组合根由 TASK-303 统一拥有；所有事件监听使用可注销的命名回调。
+- 严格 ArkTS：不得用 `any/unknown` 逃避 OpenAPI DTO 校验，ArkTS strict check 零动态类型逃逸。
+- 验证基线：Hvigor sync、ArkTS strict check、debug/release HAP 构建、HAP 内容与开发者签名配置检查；固定 UA、302、Range、HLS、MKV、ASS 协议语义用 ohosTest/fixture 验证；默认测试不访问真实 115、JavDB 写操作或付费 AI。
+- `harmonyos-development` 是项目自带技能（`.agents/skills/harmonyos-development/`，不属于 `superpowers:*`，不受禁止条款约束）。涉及鸿蒙的规划、实施、评审、调试和迁移必须先 `run_skill` 加载，并按意图读取其参考文件（如 `build-sign-release`、`navigation`、`state-management`、`permissions`）；其中 ArkTS 规则、Stage 模型、ArkUI 组件与性能规则是鸿蒙任务的实施依据。
+- 技能使用边界：生产实现只使用 API 24 Release 能力，不得把 API 26 Beta1 预览 API、版本或行为写入生产代码；API 26 内容仅在用户明确要求预览适配时参考，并明确标注为预览。
 
 ## 完成门禁
 
@@ -54,5 +66,6 @@
 ## 安全边界
 
 - 密钥、115 Cookie、磁力链接、完整签名 URL 和用户密码不得进入 Git、普通日志、测试快照或回复内容。
+- 鸿蒙开发者签名材料（`.p12`/`.cer`/`.p7b` 及密码）与 Asset Store 令牌不得进入 Git、普通日志或测试快照；签名配置只引用本地路径。
 - 真实 115 测试必须使用显式测试开关和专属测试目录；清理目录前必须验证目标位于应用管理根目录内。
 - 不得擅自升级冻结的语言、框架、数据库或客户端版本；确需升级时先创建变更规格。
