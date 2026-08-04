@@ -39,7 +39,8 @@ export default function scaffoldTest() {
 
       // 最小权限：只声明 INTERNET（不声明媒体库等无关权限）
       const perms = bundleInfo.requestedPermissions ?? [];
-      expect(perms.includes('ohos.permission.INTERNET')).assertTrue();
+      expect(perms.length).assertEqual(1);
+      expect(perms[0]).assertEqual('ohos.permission.INTERNET');
       done();
     });
 

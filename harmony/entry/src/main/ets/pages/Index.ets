@@ -18,6 +18,15 @@ struct Index {
       .justifyContent(FlexAlign.Center)
       .width('100%')
       .height('100%')
+    } else {
+      Column() {
+        Text('未知页面')
+          .fontSize(16)
+          .fontColor('#99000000')
+      }
+      .justifyContent(FlexAlign.Center)
+      .width('100%')
+      .height('100%')
     }
   }
 

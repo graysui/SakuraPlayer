@@ -16,24 +16,33 @@ harmony/build-profile.json5。本项目安全边界要求签名密码不进入 G
 """
 
 import json
+import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 HARMONY = Path(__file__).resolve().parents[2] / "harmony"
 BUILD_PROFILE = HARMONY / "build-profile.json5"
 LOCAL_SIGNING = HARMONY / ".local" / "signing.json5"
 PASSWORD_FIELDS = ("keyPassword", "storePassword")
+# DevEco 生成的密码为加密混淆后的十六进制串；限制字符集防止破坏 JSON/正则。
+PASSWORD_CHARSET = re.compile(r"^[0-9A-Za-z_]+$")
 
 
 def load_local() -> dict:
-    if not LOCAL_SIGNING.exists():
-        sys.exit(f"错误：未找到本机签名密码文件 {LOCAL_SIGNING}；请在 DevEco Studio 的 "
-                 "File > Project Structure > Signing Configs 中重新生成签名。")
-    data = json.loads(LOCAL_SIGNING.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(LOCAL_SIGNING.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.exit(f"错误：无法读取本机签名密码文件 {LOCAL_SIGNING}（{exc}）；"
+                 "请在 DevEco Studio 的 File > Project Structure > Signing Configs "
+                 "中重新生成签名。")
     missing = [f for f in PASSWORD_FIELDS if not data.get(f)]
     if missing:
         sys.exit(f"错误：{LOCAL_SIGNING} 缺少字段 {missing}。")
+    for field in PASSWORD_FIELDS:
+        if not PASSWORD_CHARSET.match(data[field]):
+            sys.exit(f"错误：{LOCAL_SIGNING} 中 {field} 含不支持字符，拒绝写入。")
     return data
 
 
@@ -42,12 +51,25 @@ def read_profile() -> str:
 
 
 def write_profile(text: str) -> None:
-    BUILD_PROFILE.write_text(text, encoding="utf-8")
+    # 原子写入：避免中途异常留下半修改的 build-profile.json5。
+    fd, tmp_path = tempfile.mkstemp(dir=str(BUILD_PROFILE.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        os.replace(tmp_path, BUILD_PROFILE)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 def replace_password(text: str, field: str, value: str) -> str:
     pattern = re.compile(rf'("{field}":\s*")[^"]*(")')
-    new, count = pattern.subn(rf"\g<1>{value}\g<2>", text)
+
+    def repl(match: re.Match) -> str:
+        return match.group(1) + value + match.group(2)
+
+    new, count = pattern.subn(repl, text)
     if count != 1:
         sys.exit(f"错误：build-profile.json5 中 {field} 字段匹配到 {count} 处（应为 1）。")
     return new
@@ -72,8 +94,11 @@ def main() -> None:
     elif command == "check":
         local = load_local()
         for field in PASSWORD_FIELDS:
-            in_profile = re.search(rf'"{field}":\s*"([^"]*)"', text).group(1)
-            state = "已填充" if in_profile else "为空"
+            match = re.search(rf'"{field}":\s*"([^"]*)"', text)
+            if match is None:
+                print(f"{field}: profile=字段缺失, local={'存在' if local.get(field) else '缺失'}")
+                continue
+            state = "已填充" if match.group(1) else "为空"
             print(f"{field}: profile={state}, local={'存在' if local.get(field) else '缺失'}")
     else:
         sys.exit(f"未知命令：{command}\n{__doc__}")

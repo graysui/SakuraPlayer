@@ -50,7 +50,7 @@ provides: [HarmonyOS API24 Stage app scaffold, SDK/build baseline, signing basel
 
 - `harmony/AppScope/app.json5` - 应用标识/资源。
 - `harmony/build-profile.json5` - API 24/签名引用/strictCheckerOnly。
-- `harmony/hvigor/wrapper/hvigor-config.json5` - Hvigor 6.24.3。
+- `harmony/hvigor/hvigor-config.json5` - Hvigor 6.24.3（DevEco 6.1.1 无 wrapper 子目录，Hvigor 由内置工具链提供）。
 - `harmony/entry/src/main/module.json5` - Stage EntryAbility/INTERNET。
 - `harmony/entry/src/main/ets/entryability/EntryAbility.ets` - 生命周期和首屏。
 - `harmony/entry/src/main/ets/pages/Index.ets` - Navigation 根骨架。
