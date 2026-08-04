@@ -3,7 +3,7 @@ id: TASK-301
 title: "API 24 Stage 工程与签名侧载基线"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: reviewed
+status: completed
 dependencies: [TASK-213, TASK-214]
 ac-mapping: [AC-007, AC-008, AC-009, AC-131]
 imp-requirements: [REQ-002]
@@ -67,7 +67,7 @@ provides: [HarmonyOS API24 Stage app scaffold, SDK/build baseline, signing basel
 
 - [x] API 24 Stage 工程、精确工具链和可侧载签名基线完成。
 - [x] 许可证随 HAP/工程保留。
-- [ ] 最小 Stage HAP 和 API 24 SDK/fixture 基线可供后续鸿蒙任务使用，尚未开始鸿蒙业务功能开发（ohosTest 待模拟器运行确认）。
+- [x] 最小 Stage HAP 和 API 24 SDK/fixture 基线可供后续鸿蒙任务使用，尚未开始鸿蒙业务功能开发。
 
 **依赖**: TASK-213, TASK-214
 
