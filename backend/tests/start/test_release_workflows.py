@@ -53,7 +53,9 @@ def test_release_version_matches_flutter_semver_and_preserves_build_number() -> 
     artifact_version = f"{semver}-{build_number}"
     assert version.artifact_version == artifact_version
     assert version.archive_name == f"SakuraPlayer-Windows-{artifact_version}.zip"
-    assert version.installer_name == f"SakuraPlayer-Windows-{artifact_version}-Setup.exe"
+    assert (
+        version.installer_name == f"SakuraPlayer-Windows-{artifact_version}-Setup.exe"
+    )
     assert version.docker_archive_name == f"SakuraPlayer-Docker-{semver}.tar.gz"
 
 
