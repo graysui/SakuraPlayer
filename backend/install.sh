@@ -134,7 +134,8 @@ repair_postgres_password() {
   "${compose[@]}" up -d --wait postgres >/dev/null 2>&1 ||
     fail "postgres_start_failed" "PostgreSQL did not become healthy"
   printf 'ALTER ROLE "%s" PASSWORD '\''%s'\'';\n' "$postgres_user" "$password" |
-    "${compose[@]}" exec -T -u postgres postgres psql -v ON_ERROR_STOP=1 -d postgres >/dev/null 2>&1 ||
+    "${compose[@]}" exec -T -u postgres postgres \
+      psql -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$postgres_db" >/dev/null 2>&1 ||
     fail "postgres_password_prepare_failed" "Could not synchronize the PostgreSQL password"
 }
 

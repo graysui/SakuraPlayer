@@ -98,6 +98,19 @@ def _secret_values(deployment: Path) -> dict[str, str]:
     }
 
 
+@pytest.mark.parametrize("installer", [INSTALLER, LATEST_INSTALLER])
+def test_postgres_password_repair_uses_configured_database_role(
+    installer: Path,
+) -> None:
+    source = installer.read_text(encoding="utf-8")
+
+    assert re.search(
+        r'psql\s+-v\s+ON_ERROR_STOP=1\s+-U\s+"\$postgres_user"\s+'
+        r'-d\s+"\$postgres_db"',
+        source,
+    )
+
+
 def test_installer_generates_private_secrets_and_is_idempotent(tmp_path: Path) -> None:
     deployment, fake_bin, docker_log = _prepare_deployment(tmp_path)
     outside = tmp_path / "outside"

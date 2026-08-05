@@ -8,7 +8,7 @@ TASK-321 修复了一键脚本将 `.env` 和 secret 留在临时目录的问题�
 
 - REQ-CHG-308 / AC-148：只有首次安装且没有 `.env` 时才通过 `/dev/tty` 询问 host/port；输入值写入执行目录的 `.env`，已有 `.env` 不再询问、不覆盖。
 - REQ-CHG-309 / AC-149：新 Compose 使用安装目录下的四个 `data/` bind mount。远程引导器遇到旧 `sakuraplayer_*` named volume 时，停止旧项目容器、复制数据到对应目录并保留旧卷；复制过程使用 root 权限避免 NAS 宿主目录初始权限阻断迁移。
-- REQ-CHG-310 / AC-149：安装启动 PostgreSQL 后，以当前 `secrets/postgres_password.txt` 同步既有数据库角色密码，再执行迁移和其余服务健康等待，兼容旧数据库与新 secret 的组合。
+- REQ-CHG-310 / AC-149：安装启动 PostgreSQL 后，使用 `.env` 的 `POSTGRES_USER` 和 `POSTGRES_DB` 连接实际数据库角色，以当前 `secrets/postgres_password.txt` 同步该角色密码，再执行迁移和其余服务健康等待，兼容没有默认 `postgres` 角色的旧数据库与新 secret 组合。
 - 发布说明、README、架构、运行配置契约、任务索引、追踪矩阵和交接文档必须说明实际 `data/` 路径与旧 named volume 的迁移边界。
 
 ## 范围与安全
@@ -24,4 +24,4 @@ TASK-321 修复了一键脚本将 `.env` 和 secret 留在临时目录的问题�
 
 ## 验证边界
 
-本次回归运行 `backend/tests/start/test_linux_installer.py`，结果为 `18 passed`；Compose 结构断言已同步为 bind mount 契约，但本机 WSL 未接入 Docker，未能运行 `test_docker_entrypoint.py` 或完整 Compose。CI 和用户仍需验证实际 Compose 配置、安装、健康状态、`.env` 内容和数据目录位置。
+此前回归运行 `backend/tests/start/test_linux_installer.py`，结果为 `18 passed`；Compose 结构断言已同步为 bind mount 契约。飞牛 NAS 后续暴露了密码修复命令依赖不存在的默认 `postgres` 数据库角色，本轮已补配置角色/数据库断言；按用户要求未执行测试或完整 Compose。用户仍需验证实际安装、健康状态、`.env` 内容和数据目录位置。

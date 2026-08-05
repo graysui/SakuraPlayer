@@ -313,7 +313,8 @@ repair_postgres_password() {
   local compose=(docker compose --project-directory "$TARGET_DIR" --env-file "$env_file" -p sakuraplayer)
   "${compose[@]}" up -d --wait postgres >/dev/null 2>&1 || return 1
   printf 'ALTER ROLE "%s" PASSWORD '\''%s'\'';\n' "$postgres_user" "$password" |
-    "${compose[@]}" exec -T -u postgres postgres psql -v ON_ERROR_STOP=1 -d postgres >/dev/null 2>&1
+    "${compose[@]}" exec -T -u postgres postgres \
+      psql -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$postgres_db" >/dev/null 2>&1
 }
 
 recover_running_secrets() {

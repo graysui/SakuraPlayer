@@ -21,7 +21,7 @@ provides: [Linux Docker bind-mounted data directories, persistent network config
 - [x] 新版 Compose 将 PostgreSQL、永久图片、上游缓存和日志绑定到安装目录下的四个 `data/` 子目录，安装器会创建这些目录。
 - [x] 首次一键安装询问的 `SAKURAPLAYER_PUBLISH_HOST` 和 `SAKURAPLAYER_API_PORT` 写入安装目录 `.env` 并供 Compose 使用；已有 `.env` 不再询问或覆盖。
 - [x] 旧版 `sakuraplayer_*` named volume 会在首次切换时复制到安装目录对应的 `data/` 子目录，原卷保留；迁移失败会在服务完整启动前停止。
-- [x] 使用当前 `secrets/postgres_password.txt` 同步既有 PostgreSQL 角色密码后再执行迁移，兼容旧数据库和新 secret，不输出 secret 或完整 DSN。
+- [x] 使用 `.env` 配置的数据库角色和数据库连接 PostgreSQL，并以当前 `secrets/postgres_password.txt` 同步既有角色密码后再执行迁移；兼容旧数据库和新 secret，不输出 secret 或完整 DSN。
 - [x] README、架构、运行配置契约、发布契约、任务索引、追踪矩阵和交接文档与实际部署路径一致。
 
 ## Definition of Ready
@@ -61,10 +61,12 @@ provides: [Linux Docker bind-mounted data directories, persistent network config
 - [x] 只暂存 TASK-323 相关文件，并使用中文 Git 提交推送。
 - [x] Linux 安装器回归测试 `backend/tests/start/test_linux_installer.py` 通过 `18 passed`；未运行完整 Compose。
 - [x] Compose 结构测试已同步为验证四个 `data/` bind mount 和无顶层 named volume。
+- [x] PostgreSQL 密码修复命令显式使用配置中的 `POSTGRES_USER` 和 `POSTGRES_DB`，不再依赖可能不存在的默认 `postgres` 数据库角色。
 
 ## 实现证据
 
-- 静态差异审计确认：首次 `.env` 才进入交互选择；新 Compose 使用 `./data/...`；旧卷复制使用 root 权限；安装前同步 PostgreSQL 角色密码；远程引导器的 Docker 调用按需执行。
+- 静态差异审计确认：首次 `.env` 才进入交互选择；新 Compose 使用 `./data/...`；旧卷复制使用 root 权限；安装前通过配置角色和数据库同步 PostgreSQL 角色密码；远程引导器的 Docker 调用按需执行。
 - 修复后 `backend/tests/start/test_linux_installer.py` 通过 `18 passed`，覆盖 secret、网络配置、归档下载、非法版本、旧归档和运行容器 secret 恢复。`test_docker_entrypoint.py` 已更新，但本机 WSL 未接入 Docker，无法执行其 Compose config；待 CI 和用户飞牛 NAS 验证。
+- 飞牛 NAS 后续现场确认旧修复命令错误连接数据库角色 `postgres`；两个安装脚本已显式改用 `.env` 的 `POSTGRES_USER`/`POSTGRES_DB` 并补回归断言。按用户要求，本轮未执行测试，由用户在 NAS 上复验。
 
 **依赖**: TASK-322
