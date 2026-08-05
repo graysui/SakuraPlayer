@@ -6,6 +6,7 @@
 
 import { LibraryPage } from '../features/library/LibraryPage';
 import { RankingsPage } from '../features/rankings/RankingsPage';
+import { ActorsPage } from '../features/actors/ActorsPage';
 
 @Builder
 function LibraryTabPlaceholder() {
@@ -18,22 +19,13 @@ function RankingsTabPlaceholder() {
 }
 
 @Builder
-function ActorsTabPlaceholder() {
-  Column({ space: 8 }) {
-    SymbolGlyph($r('sys.symbol.person'))
-      .fontSize(28)
-      .fontColor([$r('app.color.text_secondary')])
-    Text('女优')
-      .fontSize(14)
-      .fontColor($r('app.color.text_secondary'))
-  }
-  .justifyContent(FlexAlign.Center)
-  .width('100%')
-  .height('100%')
+function ActorsTabPlaceholder(pathStack: NavPathStack) {
+  ActorsPage({ pathStack: pathStack })
 }
 
 @Component
 export struct BottomTabs {
+  @Require pathStack: NavPathStack;
   @State currentIndex: number = 0;
 
   @Builder
@@ -62,7 +54,7 @@ export struct BottomTabs {
       }
       .tabBar(this.tabBuilder(1, '排行榜', 'sys.symbol.star'))
       TabContent() {
-        ActorsTabPlaceholder()
+        ActorsTabPlaceholder(this.pathStack)
       }
       .tabBar(this.tabBuilder(2, '女优', 'sys.symbol.person'))
     }

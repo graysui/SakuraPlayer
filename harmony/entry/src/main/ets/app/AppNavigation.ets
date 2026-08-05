@@ -15,6 +15,8 @@ import { searchStore } from '../features/search/SearchStore';
 import { LibraryPage } from '../features/library/LibraryPage';
 import { libraryStore } from '../features/library/LibraryStore';
 import { rankingsStore } from '../features/rankings/RankingsStore';
+import { ActorDetailPage } from '../features/actors/ActorDetailPage';
+import { actorsStore } from '../features/actors/ActorsStore';
 
 /** 播放器占位路由：固定深色背景（AC-062）。 */
 @Builder
@@ -51,6 +53,9 @@ function SettingsRoute() {
   .height('100%')
 }
 
+/** 模块级路由 builder 使用的 pathStack（由 AppNavigation aboutToAppear 注入）。 */
+let appNavigationPathStack: NavPathStack | null = null;
+
 @Builder
 export function pageMapBuilder(name: string, param: Object) {
   if (name === 'Player') {
@@ -65,53 +70,54 @@ export function pageMapBuilder(name: string, param: Object) {
     }
     .title('设置')
   } else if (name === 'MovieDetail') {
-    Column() {
-      Text('影片详情（占位）')
-        .fontSize(14)
-        .fontColor($r('app.color.text_secondary'))
-      if (param instanceof MovieSummary) {
-        Text(`${param.number} ${param.title}`)
-          .fontSize(16)
-          .fontColor($r('app.color.text_primary'))
-          .margin({ top: 8 })
+    NavDestination() {
+      Column() {
+        Text('影片详情（占位）')
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+        if (param instanceof MovieSummary) {
+          Text(`${param.number} ${param.title}`)
+            .fontSize(16)
+            .fontColor($r('app.color.text_primary'))
+            .margin({ top: 8 })
+        }
       }
+      .justifyContent(FlexAlign.Center)
+      .width('100%')
+      .height('100%')
     }
-    .justifyContent(FlexAlign.Center)
-    .width('100%')
-    .height('100%')
+    .title('影片详情')
+    .backgroundColor($r('app.color.background'))
   } else if (name === 'ActorDetail') {
-    Column() {
-      Text('女优详情（占位）')
-        .fontSize(14)
-        .fontColor($r('app.color.text_secondary'))
-      if (param instanceof ActorSummary) {
-        Text(param.displayName)
-          .fontSize(16)
-          .fontColor($r('app.color.text_primary'))
-          .margin({ top: 8 })
+    NavDestination() {
+      if (param instanceof ActorSummary && appNavigationPathStack !== null) {
+        ActorDetailPage({ actorId: param.id, summary: param, pathStack: appNavigationPathStack })
       }
     }
-    .justifyContent(FlexAlign.Center)
-    .width('100%')
-    .height('100%')
+    .title('女优详情')
+    .backgroundColor($r('app.color.background'))
   } else if (name === 'PendingDetail') {
-    Column({ space: 8 }) {
-      Text('待补全影片（受限详情）')
-        .fontSize(14)
-        .fontColor($r('app.color.text_secondary'))
-      if (param instanceof PendingMetadata) {
-        Text(param.number)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.text_primary'))
-        Text(param.state === 'failed' ? '补全失败' : (param.state === 'running' ? '正在补全' : '等待补全'))
-          .fontSize(13)
-          .fontColor(param.state === 'failed' ? '#FF3B30' : $r('app.color.text_secondary'))
+    NavDestination() {
+      Column({ space: 8 }) {
+        Text('待补全影片（受限详情）')
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+        if (param instanceof PendingMetadata) {
+          Text(param.number)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.text_primary'))
+          Text(param.state === 'failed' ? '补全失败' : (param.state === 'running' ? '正在补全' : '等待补全'))
+            .fontSize(13)
+            .fontColor(param.state === 'failed' ? '#FF3B30' : $r('app.color.text_secondary'))
+        }
       }
+      .justifyContent(FlexAlign.Center)
+      .width('100%')
+      .height('100%')
     }
-    .justifyContent(FlexAlign.Center)
-    .width('100%')
-    .height('100%')
+    .title('待补全影片')
+    .backgroundColor($r('app.color.background'))
   } else {
     Column() {
       Text('未知页面')
@@ -132,16 +138,21 @@ export struct AppNavigation {
   @State showSearch: boolean = false;
 
   aboutToAppear(): void {
-    // 挂接全局搜索与媒体库/排行榜到认证客户端与事件快照
+    // 模块级路由 builder 需要 pathStack 转发（ActorDetail 内关联影片 push）
+    appNavigationPathStack = this.pathStack;
+    // 挂接全局搜索与媒体库/排行榜/女优到认证客户端与事件快照
     searchStore.attach(authStore.apiClientProvider, authStore.snapshotStore);
     libraryStore.attach(authStore.apiClientProvider);
     rankingsStore.attach(authStore.apiClientProvider);
+    actorsStore.attach(authStore.apiClientProvider);
   }
 
   aboutToDisappear(): void {
+    appNavigationPathStack = null;
     searchStore.detach();
     libraryStore.detach();
     rankingsStore.detach();
+    actorsStore.detach();
   }
 
   @Builder
@@ -176,7 +187,7 @@ export struct AppNavigation {
     Navigation(this.pathStack) {
       Column() {
         this.topBar()
-        BottomTabs()
+        BottomTabs({ pathStack: this.pathStack })
       }
       .width('100%')
       .height('100%')

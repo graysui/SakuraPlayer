@@ -8,8 +8,8 @@
 
 import { http } from '@kit.NetworkKit';
 import {
-  ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader, MoviePage, ProtocolException,
-  RankingPage, SearchResult, TokenPair,
+  ActorDetail, ActorPage, ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader,
+  MoviePage, ProtocolException, RankingPage, SearchResult, TokenPair,
 } from './ApiModels';
 
 /** 与状态无关的 HTTP 传输层。 */
@@ -77,6 +77,14 @@ export interface RankingQueryParams {
   year?: number | null;
   cursor?: string | null;
   limit?: number;
+}
+
+/** /actors 查询参数（q 去首尾空白后 1..200；空查询省略；favorite=true 收藏集合）。 */
+export interface ActorListParams {
+  query?: string | null;
+  cursor?: string | null;
+  limit?: number;
+  favorite?: boolean;
 }
 
 /** 生产传输层：Network Kit http，请求结束后 finally destroy。 */
@@ -318,6 +326,41 @@ export class ApiClient {
     return RankingPage.fromText(response.body);
   }
 
+  // ---- 女优端点 ----
+
+  /** GET /actors：姓名/别名搜索或收藏集合分页列表。 */
+  async listActors(params: ActorListParams): Promise<ActorPage> {
+    const query = this.buildActorQuery(params);
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/actors${query}`, 'GET', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return ActorPage.fromText(response.body);
+  }
+
+  /** GET /actors/{id}：女优详情（头像/简介/写真/关联影片）。 */
+  async getActor(actorId: string): Promise<ActorDetail> {
+    const encoded = encodeURIComponent(actorId);
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/actors/${encoded}`, 'GET', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return ActorDetail.fromText(response.body);
+  }
+
+  /** PUT/DELETE /actors/{id}/favorite：幂等收藏切换（204）。 */
+  async setActorFavorite(actorId: string, enabled: boolean): Promise<void> {
+    const encoded = encodeURIComponent(actorId);
+    const method = enabled ? 'PUT' : 'DELETE';
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/actors/${encoded}/favorite`, method, options);
+    if (response.statusCode !== 204) {
+      throw this.throwForError(response);
+    }
+  }
+
   private buildMovieQuery(params: MovieListParams): string {
     const parts: string[] = [];
     if (params.cursor !== null && params.cursor !== undefined && params.cursor.length > 0) {
@@ -366,6 +409,24 @@ export class ApiClient {
       parts.push(`limit=${params.limit}`);
     }
     return `?${parts.join('&')}`;
+  }
+
+  private buildActorQuery(params: ActorListParams): string {
+    const parts: string[] = [];
+    const query = params.query !== null && params.query !== undefined ? params.query.trim() : '';
+    if (query.length > 0) {
+      parts.push(`q=${encodeURIComponent(query)}`);
+    }
+    if (params.cursor !== null && params.cursor !== undefined && params.cursor.length > 0) {
+      parts.push(`cursor=${encodeURIComponent(params.cursor)}`);
+    }
+    if (params.limit !== undefined) {
+      parts.push(`limit=${params.limit}`);
+    }
+    if (params.favorite === true) {
+      parts.push('favorite=true');
+    }
+    return parts.length > 0 ? `?${parts.join('&')}` : '';
   }
 
   /** PUT /notifications/{id}/read：幂等标记已读。 */

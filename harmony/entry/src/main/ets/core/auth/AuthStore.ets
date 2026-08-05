@@ -20,6 +20,7 @@ import { SecureSessionStore } from './SecureSessionStore';
 import { EventClient, NetworkWebSocketTransport, WebSocketTransport } from '../events/EventClient';
 import { SnapshotStore } from '../events/SnapshotStore';
 import { SubtitleCache } from '../storage/SubtitleCache';
+import { gfriendsCache } from '../images/GfriendsCache';
 
 export enum AuthStatus {
   INITIALIZING,
@@ -175,6 +176,8 @@ export class AuthStore {
     const context = this.context;
     if (context !== null) {
       await SubtitleCache.clear(context);
+      // GFriends 临时图片缓存（cacheDir/gfriends-v1 证明式清理）
+      await gfriendsCache.clear();
     }
     this.status = this.serverBaseUrl.length > 0 ? AuthStatus.UNAUTHENTICATED : AuthStatus.SERVER_REQUIRED;
   }

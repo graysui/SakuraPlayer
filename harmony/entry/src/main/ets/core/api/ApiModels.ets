@@ -709,6 +709,76 @@ export class ActorSummary {
   }
 }
 
+/** ActorDetail：/actors/{id} 响应（openapi ActorDetail）。 */
+export class ActorDetail {
+  readonly summary: ActorSummary;
+  readonly bio: string | null;
+  readonly bioOriginal: string | null;
+  readonly galleryUrls: string[];
+  readonly movies: MovieSummary[];
+
+  constructor(summary: ActorSummary, bio: string | null, bioOriginal: string | null,
+    galleryUrls: string[], movies: MovieSummary[]) {
+    this.summary = summary;
+    this.bio = bio;
+    this.bioOriginal = bioOriginal;
+    this.galleryUrls = galleryUrls;
+    this.movies = movies;
+  }
+
+  static fromText(text: string): ActorDetail {
+    const reader = JsonReader.fromText(text);
+    const summary = ActorSummary.fromReader(reader);
+    const galleryUrls = reader.stringArray('gallery_urls');
+    if (galleryUrls.length > 100 || !ActorDetail.uniqueNonEmpty(galleryUrls)) {
+      throw new ProtocolException('ActorDetail.gallery_urls is invalid');
+    }
+    const movies: MovieSummary[] = [];
+    for (const item of reader.objectArray('movies')) {
+      if (movies.length >= 100) {
+        throw new ProtocolException('ActorDetail.movies exceeds limit');
+      }
+      movies.push(MovieSummary.fromReader(new JsonReader(item)));
+    }
+    return new ActorDetail(summary, reader.nullableString('bio'),
+      reader.nullableString('bio_original'), galleryUrls, movies);
+  }
+
+  private static uniqueNonEmpty(values: string[]): boolean {
+    const seen: string[] = [];
+    for (const value of values) {
+      if (value.length === 0 || seen.includes(value)) {
+        return false;
+      }
+      seen.push(value);
+    }
+    return true;
+  }
+}
+
+/** ActorPage：/actors 游标分页列表（items + next_cursor）。 */
+export class ActorPage {
+  readonly items: ActorSummary[];
+  readonly nextCursor: string | null;
+
+  constructor(items: ActorSummary[], nextCursor: string | null) {
+    this.items = items;
+    this.nextCursor = nextCursor;
+  }
+
+  static fromText(text: string): ActorPage {
+    const reader = JsonReader.fromText(text);
+    const items: ActorSummary[] = [];
+    for (const item of reader.objectArray('items')) {
+      if (items.length >= 100) {
+        throw new ProtocolException('ActorPage.items exceeds limit');
+      }
+      items.push(ActorSummary.fromReader(new JsonReader(item)));
+    }
+    return new ActorPage(items, reader.nullableString('next_cursor'));
+  }
+}
+
 /** PendingMetadata：搜索补全状态（queued/running/failed）。 */
 export class PendingMetadata {
   readonly movieId: string;
