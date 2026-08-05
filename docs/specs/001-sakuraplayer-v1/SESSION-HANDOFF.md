@@ -2,7 +2,7 @@
 
 **更新时间**: 2026-08-05
 
-**当前阶段**: TASK-324 completed：交付 MGDB 手动全量同步后端与 Windows 设置入口。下一任务 TASK-304。
+**当前阶段**: TASK-304 completed：HarmonyOS 媒体库网格筛选与进度。下一任务 TASK-305。
 
 ## 1. 当前成果
 
@@ -229,12 +229,14 @@
 - TASK-322 已确认 GitHub `v1.0.1` 旧归档缺少 `install-latest.sh`，并让当前引导器兼容该历史资产；新归档仍严格要求并复制完整发布文件。定向 Linux 测试为 `38 passed`。
 - TASK-323 已修复首次 host/port 输入写回安装目录 `.env`、新 Compose 使用 `data/` bind mount、旧 named volume 复制迁移，以及旧数据库角色密码与宿主 PostgreSQL secret 不一致导致的迁移失败；密码修复命令显式使用 `.env` 的 PostgreSQL 角色和数据库，不再连接可能不存在的默认 `postgres` 角色。远程引导器 Docker 依赖改为按需调用，并修复 Bash SQL 输出与多目录创建语法。此前 Linux 安装器回归为 `18 passed`；最新角色连接修复按用户要求未执行测试，待飞牛 NAS 实测。
 - TASK-324 已交付受认证 MGDB `full_reconcile` 手动请求、活动请求复用与终态审计保留、Windows“立即全量同步”按钮和中文反馈；保存来源与周期同步语义不变。Final 同时修复 PostgreSQL 初始化临时服务器误报健康、测试 bind 数据隔离和一次性 migrate 重启边界。
+- TASK-304 已交付 HarmonyOS 媒体库：六分类/四标签/来源/可播放/大小/收藏组合筛选、默认 `publish_date_desc`、游标分页按 movie ID 去重、422 `validation_failed` 游标失效恢复、`favorite=true` 收藏浏览、进度按钮（未播放/继续 N%/已看完）、LazyForEach movie ID 键控网格、mediaquery 横竖屏响应式列数，以及空/加载/失败/追加失败状态。
+- TASK-304 模拟器实测 ohosTest 39/39 通过（含新增 LibraryStore 7 项 JsUnit 与 LibraryPage 2 项 UiTest）；debug/release HAP 构建与 `verify-app success` 签名校验通过；并行只读审计 P0/P1 已修复（favorite 变更即刷新、游标 422 恢复、@Reusable、旋转响应、INVALID/加载态通知、progress 解析降级）。审计 P2 记录：追加全量 reload 与 O(n²) 去重在 24/页规模可接受；UiTest 无法可靠触发 bindSheet 关闭手势，sheet 关闭由生产 onDismiss 覆盖。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-324 completed；MGDB 手动全量同步后端、Windows 入口、契约与运行门禁均完成。
+- **当前任务门禁阶段**: TASK-304 completed；HarmonyOS 媒体库网格筛选与进度完成。
 - **最近绿色快速门禁**: 后端自包含 `914 passed, 11 deselected`；宿主 Docker 契约、Ruff 和 Windows 15 项聚焦/236 项完整测试均通过，`flutter analyze` 零问题。
-- **最终门禁状态**: Windows Release 构建成功；完整 Compose 通过 `914` 项自包含与 `129` 项 PostgreSQL integration/E2E，迁移、四服务健康、认证 canary、秘密日志、重启、ready 降级恢复和资源清理全部完成。
+- **最终门禁状态**: HarmonyOS ohosTest 模拟器实测 39/39 通过；debug/release HAP 构建成功，`verify-app success`；完整 Compose 通过 `914` 项自包含与 `129` 项 PostgreSQL integration/E2E，迁移、四服务健康、认证 canary、秘密日志、重启、ready 降级恢复和资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -251,12 +253,12 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322、TASK-323、TASK-324。
-- **下一任务**: TASK-304 媒体库列表与过滤；依赖 TASK-302、TASK-303 completed，可开始。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322、TASK-323、TASK-324、TASK-301、TASK-302、TASK-303、TASK-304。
+- **下一任务**: TASK-305 排行榜；依赖 TASK-304 completed，可开始。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。
 
-TASK-318、TASK-319 与 TASK-320 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署包、Windows 安装器或远程引导资产；未来正式 tag 才生成新增发布资产。TASK-301、TASK-302 与 TASK-303 已完成（ohosTest 模拟器实测 30/30 通过）。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
+TASK-318、TASK-319 与 TASK-320 已完成，`v1.0.0` 既有首发不追溯增加 Linux 部署包、Windows 安装器或远程引导资产；未来正式 tag 才生成新增发布资产。TASK-301、TASK-302、TASK-303 与 TASK-304 已完成（ohosTest 模拟器实测 39/39 通过）。Windows 客户端与普通后端 Compose 均已停止，持久卷保留。`.planning/` 只保存本地执行证据，不纳入 Git；提交、tag、Release 和 registry 摘要为最终事实。
 
 ## 4. 必读契约
 

@@ -469,6 +469,38 @@ export class QueueDiagnostic {
   }
 }
 
+/** PlaybackProgress：影片级播放进度（AC-068；TASK-111 前为 null）。 */
+export class PlaybackProgress {
+  readonly positionSeconds: number;
+  readonly durationSeconds: number | null;
+  readonly completed: boolean;
+  readonly version: number;
+
+  constructor(positionSeconds: number, durationSeconds: number | null, completed: boolean, version: number) {
+    this.positionSeconds = positionSeconds;
+    this.durationSeconds = durationSeconds;
+    this.completed = completed;
+    this.version = version;
+  }
+
+  static fromReader(reader: JsonReader): PlaybackProgress {
+    return new PlaybackProgress(
+      reader.number('position_seconds'),
+      reader.nullableNumber('duration_seconds'),
+      reader.boolean('completed'),
+      reader.number('version'));
+  }
+
+  /** 进度比例：completed 或未知时长返回 null（按钮显示“播放/已看完”）。 */
+  fraction(): number | null {
+    if (this.completed || this.durationSeconds === null || this.durationSeconds <= 0) {
+      return null;
+    }
+    const ratio = this.positionSeconds / this.durationSeconds;
+    return ratio < 0 ? 0 : (ratio > 1 ? 1 : ratio);
+  }
+}
+
 /** MovieSummary：搜索影片结果（openapi MovieSummary）。 */
 export class MovieSummary {
   readonly id: string;
@@ -480,10 +512,11 @@ export class MovieSummary {
   readonly labels: string[];
   readonly favorite: boolean;
   readonly sourceCount: number;
+  readonly progress: PlaybackProgress | null;
 
   constructor(id: string, number: string, title: string, titleOriginal: string | null,
     coverUrl: string | null, publishDate: string | null, labels: string[],
-    favorite: boolean, sourceCount: number) {
+    favorite: boolean, sourceCount: number, progress: PlaybackProgress | null) {
     this.id = id;
     this.number = number;
     this.title = title;
@@ -493,9 +526,19 @@ export class MovieSummary {
     this.labels = labels;
     this.favorite = favorite;
     this.sourceCount = sourceCount;
+    this.progress = progress;
   }
 
   static fromReader(reader: JsonReader): MovieSummary {
+    let progress: PlaybackProgress | null = null;
+    if (reader.has('progress') && reader.nullableObject('progress') !== null) {
+      try {
+        progress = PlaybackProgress.fromReader(new JsonReader(reader.object('progress')));
+      } catch (err) {
+        // 进度子对象异常不拖垮整页列表（降级为无进度）
+        progress = null;
+      }
+    }
     return new MovieSummary(
       reader.string('id'),
       reader.string('number'),
@@ -505,7 +548,28 @@ export class MovieSummary {
       reader.nullableString('publish_date'),
       reader.stringArray('labels'),
       reader.boolean('favorite'),
-      reader.number('source_count'));
+      reader.number('source_count'),
+      progress);
+  }
+}
+
+/** MoviePage：游标分页的影片列表（items + next_cursor）。 */
+export class MoviePage {
+  readonly items: MovieSummary[];
+  readonly nextCursor: string | null;
+
+  constructor(items: MovieSummary[], nextCursor: string | null) {
+    this.items = items;
+    this.nextCursor = nextCursor;
+  }
+
+  static fromText(text: string): MoviePage {
+    const reader = JsonReader.fromText(text);
+    const items: MovieSummary[] = [];
+    for (const item of reader.objectArray('items')) {
+      items.push(MovieSummary.fromReader(new JsonReader(item)));
+    }
+    return new MoviePage(items, reader.nullableString('next_cursor'));
   }
 }
 

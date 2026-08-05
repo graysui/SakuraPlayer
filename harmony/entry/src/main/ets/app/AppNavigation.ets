@@ -12,6 +12,8 @@ import { BottomTabs } from './BottomTabs';
 import { CacheBadge } from '../features/cache/CacheBadge';
 import { SearchOverlay } from '../features/search/SearchOverlay';
 import { searchStore } from '../features/search/SearchStore';
+import { LibraryPage } from '../features/library/LibraryPage';
+import { libraryStore } from '../features/library/LibraryStore';
 
 /** 播放器占位路由：固定深色背景（AC-062）。 */
 @Builder
@@ -129,12 +131,14 @@ export struct AppNavigation {
   @State showSearch: boolean = false;
 
   aboutToAppear(): void {
-    // 挂接全局搜索到认证客户端与事件快照（补全完成后自动刷新）
+    // 挂接全局搜索与媒体库到认证客户端与事件快照
     searchStore.attach(authStore.apiClientProvider, authStore.snapshotStore);
+    libraryStore.attach(authStore.apiClientProvider);
   }
 
   aboutToDisappear(): void {
     searchStore.detach();
+    libraryStore.detach();
   }
 
   @Builder

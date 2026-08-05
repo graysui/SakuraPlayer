@@ -8,7 +8,7 @@
 
 import { http } from '@kit.NetworkKit';
 import {
-  ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader, ProtocolException,
+  ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader, MoviePage, ProtocolException,
   SearchResult, TokenPair,
 } from './ApiModels';
 
@@ -55,6 +55,20 @@ interface CredentialsPayload {
 /** refresh 载荷。 */
 interface RefreshPayload {
   refresh_token: string;
+}
+
+/** /movies 查询参数。 */
+export interface MovieListParams {
+  cursor?: string | null;
+  limit?: number;
+  categories?: string[];
+  labels?: string[];
+  sourceWebsite?: string | null;
+  playable?: boolean | null;
+  minResourceSizeMb?: number | null;
+  maxResourceSizeMb?: number | null;
+  sort?: string | null;
+  favorite?: boolean;
 }
 
 /** 生产传输层：Network Kit http，请求结束后 finally destroy。 */
@@ -270,6 +284,54 @@ export class ApiClient {
       throw this.throwForError(response);
     }
     return SearchResult.fromText(response.body);
+  }
+
+  // ---- 目录端点 ----
+
+  /** GET /movies：去重影片分页列表（游标绑定筛选/排序/收藏）。 */
+  async listMovies(params: MovieListParams): Promise<MoviePage> {
+    const query = this.buildMovieQuery(params);
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/movies${query}`, 'GET', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return MoviePage.fromText(response.body);
+  }
+
+  private buildMovieQuery(params: MovieListParams): string {
+    const parts: string[] = [];
+    if (params.cursor !== null && params.cursor !== undefined && params.cursor.length > 0) {
+      parts.push(`cursor=${encodeURIComponent(params.cursor)}`);
+    }
+    if (params.limit !== undefined) {
+      parts.push(`limit=${params.limit}`);
+    }
+    if (params.categories !== undefined && params.categories.length > 0) {
+      parts.push(`categories=${encodeURIComponent(params.categories.join(','))}`);
+    }
+    if (params.labels !== undefined && params.labels.length > 0) {
+      parts.push(`labels=${encodeURIComponent(params.labels.join(','))}`);
+    }
+    if (params.sourceWebsite !== null && params.sourceWebsite !== undefined && params.sourceWebsite.length > 0) {
+      parts.push(`source_website=${encodeURIComponent(params.sourceWebsite)}`);
+    }
+    if (params.playable !== null && params.playable !== undefined) {
+      parts.push(`playable=${params.playable}`);
+    }
+    if (params.minResourceSizeMb !== null && params.minResourceSizeMb !== undefined) {
+      parts.push(`min_resource_size_mb=${params.minResourceSizeMb}`);
+    }
+    if (params.maxResourceSizeMb !== null && params.maxResourceSizeMb !== undefined) {
+      parts.push(`max_resource_size_mb=${params.maxResourceSizeMb}`);
+    }
+    if (params.sort !== null && params.sort !== undefined && params.sort.length > 0) {
+      parts.push(`sort=${encodeURIComponent(params.sort)}`);
+    }
+    if (params.favorite === true) {
+      parts.push('favorite=true');
+    }
+    return parts.length > 0 ? `?${parts.join('&')}` : '';
   }
 
   /** PUT /notifications/{id}/read：幂等标记已读。 */

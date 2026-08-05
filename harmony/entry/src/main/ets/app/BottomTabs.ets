@@ -4,19 +4,11 @@
  * Navigation 组合根由 TASK-303 统一拥有。
  */
 
+import { LibraryPage } from '../features/library/LibraryPage';
+
 @Builder
 function LibraryTabPlaceholder() {
-  Column({ space: 8 }) {
-    SymbolGlyph($r('sys.symbol.doc'))
-      .fontSize(28)
-      .fontColor([$r('app.color.text_secondary')])
-    Text('媒体库')
-      .fontSize(14)
-      .fontColor($r('app.color.text_secondary'))
-  }
-  .justifyContent(FlexAlign.Center)
-  .width('100%')
-  .height('100%')
+  LibraryPage()
 }
 
 @Builder

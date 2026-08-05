@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_test_desc",
+      "value": "SakuraPlayer ohosTest module"
+    },
+    {
+      "name": "TestAbility_desc",
+      "value": "SakuraPlayer ohosTest ability"
+    },
+    {
+      "name": "TestAbility_label",
+      "value": "TestAbility"
+    }
+  ]
+}

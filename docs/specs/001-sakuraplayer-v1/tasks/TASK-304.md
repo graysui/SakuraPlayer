@@ -3,14 +3,14 @@ id: TASK-304
 title: "HarmonyOS 媒体库网格筛选与进度"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
 dependencies: [TASK-303]
 ac-mapping: [AC-063, AC-064, AC-067, AC-068, AC-077]
 imp-requirements: [REQ-013, REQ-015]
 cross-boundary: false
 external-dependency-risk: false
 provides: [HarmonyOS media library grid and filters]
----
+completed-at: 2026-08-05
 
 **实施与验证流程**: [统一实施与验证工作流](../implementation-workflow.md)
 
@@ -22,17 +22,17 @@ provides: [HarmonyOS media library grid and filters]
 
 ## 验收条件
 
-- [ ] 一个去重影片网格，六分类可组合；对应 AC-063。
-- [ ] 默认发布日期降序，支持四标签、来源、可播放和资源大小；对应 AC-064。
-- [ ] 只显示 core_ready 正式卡片；对应 AC-067。
-- [ ] 播放按钮显示影片级进度/已看完；对应 AC-068。
-- [ ] 收藏筛选使用 `favorite=true` 分页浏览单一影片收藏集合；对应 AC-077。
+- [x] 一个去重影片网格，六分类可组合；对应 AC-063。
+- [x] 默认发布日期降序，支持四标签、来源、可播放和资源大小；对应 AC-064。
+- [x] 只显示 core_ready 正式卡片；对应 AC-067。
+- [x] 播放按钮显示影片级进度/已看完；对应 AC-068。
+- [x] 收藏筛选使用 `favorite=true` 分页浏览单一影片收藏集合；对应 AC-077。
 
 ## Definition of Ready
 
-- [ ] TASK-303 根导航和 typed Movies API 可用。
-- [ ] phone portrait/landscape breakpoint 和 Grid 列数已定义。
-- [ ] 列表 item key 使用 movie ID，不能使用 index。
+- [x] TASK-303 根导航和 typed Movies API 可用。
+- [x] phone portrait/landscape breakpoint 和 Grid 列数已定义。
+- [x] 列表 item key 使用 movie ID，不能使用 index。
 
 ## 技术上下文
 
@@ -59,9 +59,9 @@ provides: [HarmonyOS media library grid and filters]
 
 ## Definition of Done
 
-- [ ] 媒体库、筛选、分页和进度完成。
-- [ ] 大列表使用懒加载且无 build 副作用。
-- [ ] Hypium/UiTest 通过。
+- [x] 媒体库、筛选、分页和进度完成。
+- [x] 大列表使用懒加载且无 build 副作用。
+- [x] Hypium/UiTest 通过（模拟器实测 39/39）。
 
 **依赖**: TASK-303
 
