@@ -5,6 +5,7 @@
  */
 
 import { LibraryPage } from '../features/library/LibraryPage';
+import { RankingsPage } from '../features/rankings/RankingsPage';
 
 @Builder
 function LibraryTabPlaceholder() {
@@ -13,17 +14,7 @@ function LibraryTabPlaceholder() {
 
 @Builder
 function RankingsTabPlaceholder() {
-  Column({ space: 8 }) {
-    SymbolGlyph($r('sys.symbol.star'))
-      .fontSize(28)
-      .fontColor([$r('app.color.text_secondary')])
-    Text('排行榜')
-      .fontSize(14)
-      .fontColor($r('app.color.text_secondary'))
-  }
-  .justifyContent(FlexAlign.Center)
-  .width('100%')
-  .height('100%')
+  RankingsPage()
 }
 
 @Builder

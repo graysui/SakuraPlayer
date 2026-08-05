@@ -203,6 +203,22 @@ export class JsonReader {
     return this.stringArray(key);
   }
 
+  numberArray(key: string): number[] {
+    const value = this.raw(key);
+    if (!Array.isArray(value)) {
+      throw new ProtocolException(`field not array: ${key}`);
+    }
+    const items = value as Object[];
+    const result: number[] = [];
+    for (const item of items) {
+      if (typeof item !== 'number' || !Number.isFinite(item)) {
+        throw new ProtocolException(`array item not number: ${key}`);
+      }
+      result.push(item);
+    }
+    return result;
+  }
+
   objectArray(key: string): Record<string, Object>[] {
     const value = this.raw(key);
     if (!Array.isArray(value)) {
@@ -570,6 +586,93 @@ export class MoviePage {
       items.push(MovieSummary.fromReader(new JsonReader(item)));
     }
     return new MoviePage(items, reader.nullableString('next_cursor'));
+  }
+}
+
+/** RankingItem：榜单条目（rank 正整数允许间隙；movie 复用 MovieSummary）。 */
+export class RankingItem {
+  readonly rank: number;
+  readonly movie: MovieSummary;
+
+  constructor(rank: number, movie: MovieSummary) {
+    this.rank = rank;
+    this.movie = movie;
+  }
+
+  static fromReader(reader: JsonReader): RankingItem {
+    const rank = reader.number('rank');
+    if (!Number.isInteger(rank) || rank < 1) {
+      throw new ProtocolException('RankingItem.rank is invalid');
+    }
+    return new RankingItem(rank, MovieSummary.fromReader(new JsonReader(reader.object('movie'))));
+  }
+}
+
+/** RankingPage：/rankings 响应（openapi RankingPage）。 */
+export class RankingPage {
+  static readonly BOARDS: string[] = ['daily', 'weekly', 'monthly', 'top250'];
+
+  readonly board: string;
+  readonly year: number | null;
+  readonly availableYears: number[];
+  readonly syncedAt: string;
+  readonly items: RankingItem[];
+  readonly nextCursor: string | null;
+
+  constructor(board: string, year: number | null, availableYears: number[],
+    syncedAt: string, items: RankingItem[], nextCursor: string | null) {
+    this.board = board;
+    this.year = year;
+    this.availableYears = availableYears;
+    this.syncedAt = syncedAt;
+    this.items = items;
+    this.nextCursor = nextCursor;
+  }
+
+  static fromText(text: string): RankingPage {
+    const reader = JsonReader.fromText(text);
+    const board = reader.string('board');
+    if (!RankingPage.BOARDS.includes(board)) {
+      throw new ProtocolException(`RankingPage.board is invalid: ${board}`);
+    }
+    const year = reader.nullableNumber('year');
+    if (year !== null &&
+      (board !== 'top250' || !Number.isInteger(year) || year < 2008 || year > 2200)) {
+      throw new ProtocolException('RankingPage.year is invalid');
+    }
+    const availableYears = reader.numberArray('available_years');
+    RankingPage.validateAvailableYears(availableYears, board);
+    const items: RankingItem[] = [];
+    for (const item of reader.objectArray('items')) {
+      if (items.length >= 100) {
+        throw new ProtocolException('RankingPage.items exceeds limit');
+      }
+      items.push(RankingItem.fromReader(new JsonReader(item)));
+    }
+    return new RankingPage(board, year, availableYears,
+      reader.dateTime('synced_at'), items, reader.nullableString('next_cursor'));
+  }
+
+  private static validateAvailableYears(years: number[], board: string): void {
+    if (years.length > 100) {
+      throw new ProtocolException('RankingPage.available_years exceeds limit');
+    }
+    if (board !== 'top250') {
+      if (years.length > 0) {
+        throw new ProtocolException('RankingPage.available_years invalid for board');
+      }
+      return;
+    }
+    let previous: number | null = null;
+    for (const year of years) {
+      if (!Number.isInteger(year) || year < 2008 || year > 2200) {
+        throw new ProtocolException('RankingPage.available_years contains invalid year');
+      }
+      if (previous !== null && year >= previous) {
+        throw new ProtocolException('RankingPage.available_years must be descending');
+      }
+      previous = year;
+    }
   }
 }
 

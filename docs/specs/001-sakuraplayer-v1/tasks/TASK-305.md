@@ -3,7 +3,8 @@ id: TASK-305
 title: "HarmonyOS 日周月 TOP250 排行榜"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
+completed-at: 2026-08-05
 dependencies: [TASK-303]
 ac-mapping: [AC-046, AC-069, AC-070, AC-071, AC-072, AC-073]
 imp-requirements: [REQ-009, REQ-014]
@@ -22,17 +23,17 @@ provides: [HarmonyOS rankings page]
 
 ## 验收条件
 
-- [ ] 页面只读后端本地快照；对应 AC-069。
-- [ ] 日/周/月/TOP250 与适用年份筛选可用；对应 AC-070。
-- [ ] 只显示有来源且 core_ready 影片；对应 AC-071。
-- [ ] 缺元数据/同步失败时保留已有快照并显示安全状态；对应 AC-072、AC-073。
-- [ ] TOP250 从未有快照且凭据未配置时显示可操作的不可用状态，不影响其他榜单；对应 AC-046。
+- [x] 页面只读后端本地快照；对应 AC-069。
+- [x] 日/周/月/TOP250 与适用年份筛选可用；对应 AC-070。
+- [x] 只显示有来源且 core_ready 影片；对应 AC-071。
+- [x] 缺元数据/同步失败时保留已有快照并显示安全状态；对应 AC-072、AC-073。
+- [x] TOP250 从未有快照且凭据未配置时显示可操作的不可用状态，不影响其他榜单；对应 AC-046。
 
 ## Definition of Ready
 
-- [ ] TASK-303 Navigation 和 Ranking DTO/API 可用。
-- [ ] 年份只在后端声明适用时显示。
-- [ ] 排名卡复用 MovieCard，不复制目录业务逻辑。
+- [x] TASK-303 Navigation 和 Ranking DTO/API 可用。
+- [x] 年份只在后端声明适用时显示。
+- [x] 排名卡复用 MovieCard，不复制目录业务逻辑。
 
 ## 技术上下文
 
@@ -56,9 +57,15 @@ provides: [HarmonyOS rankings page]
 
 ## Definition of Done
 
-- [ ] 四榜单、年份、刷新和错误态完成。
-- [ ] 无 JavDB 客户端直接访问。
-- [ ] Hypium/UiTest 通过。
+- [x] 四榜单、年份、刷新和错误态完成。
+- [x] 无 JavDB 客户端直接访问。
+- [x] Hypium/UiTest 通过（模拟器实测 60/60，含 RankingsStore 18 项 JsUnit 与 RankingsPage 3 项 UiTest）。
+
+**实现证据**: `RankingsStore.ets`（board/year/游标/generation/刷新保留/503 reason 白名单）、
+`RankingsPage.ets`（segmented 四榜单、年份 Select、Refresh、rank 角标 + MovieCard、响应式网格、
+空/加载/失败/不可用/追加失败态）、`ApiModels.ets`（RankingItem/RankingPage DTO 严格校验 +
+JsonReader.numberArray）、`ApiClient.ets`（RankingQueryParams + getRanking）；debug/release HAP
+构建成功且 `verify-app success`（API 24 Release、INTERNET 最小权限）。
 
 **依赖**: TASK-303
 

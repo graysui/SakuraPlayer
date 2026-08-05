@@ -5,6 +5,8 @@ import eventClientTest from './EventClient.test';
 import appNavigationTest from './AppNavigation.test';
 import libraryStoreTest from './LibraryStore.test';
 import libraryPageTest from './LibraryPage.test';
+import rankingsStoreTest from './RankingsStore.test';
+import rankingsPageTest from './RankingsPage.test';
 
 export default function testsuite() {
   abilityTest();
@@ -14,4 +16,6 @@ export default function testsuite() {
   appNavigationTest();
   libraryStoreTest();
   libraryPageTest();
+  rankingsStoreTest();
+  rankingsPageTest();
 }

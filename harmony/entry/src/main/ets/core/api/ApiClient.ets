@@ -9,7 +9,7 @@
 import { http } from '@kit.NetworkKit';
 import {
   ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader, MoviePage, ProtocolException,
-  SearchResult, TokenPair,
+  RankingPage, SearchResult, TokenPair,
 } from './ApiModels';
 
 /** 与状态无关的 HTTP 传输层。 */
@@ -69,6 +69,14 @@ export interface MovieListParams {
   maxResourceSizeMb?: number | null;
   sort?: string | null;
   favorite?: boolean;
+}
+
+/** /rankings 查询参数（board 必填；year 仅 top250 有效；省略 year=TOP250 总榜）。 */
+export interface RankingQueryParams {
+  board: string;
+  year?: number | null;
+  cursor?: string | null;
+  limit?: number;
 }
 
 /** 生产传输层：Network Kit http，请求结束后 finally destroy。 */
@@ -299,6 +307,17 @@ export class ApiClient {
     return MoviePage.fromText(response.body);
   }
 
+  /** GET /rankings：只读本地榜单快照（board + top250 可选 year + 游标分页）。 */
+  async getRanking(params: RankingQueryParams): Promise<RankingPage> {
+    const query = this.buildRankingQuery(params);
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/rankings${query}`, 'GET', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return RankingPage.fromText(response.body);
+  }
+
   private buildMovieQuery(params: MovieListParams): string {
     const parts: string[] = [];
     if (params.cursor !== null && params.cursor !== undefined && params.cursor.length > 0) {
@@ -332,6 +351,21 @@ export class ApiClient {
       parts.push('favorite=true');
     }
     return parts.length > 0 ? `?${parts.join('&')}` : '';
+  }
+
+  private buildRankingQuery(params: RankingQueryParams): string {
+    const parts: string[] = [];
+    parts.push(`board=${encodeURIComponent(params.board)}`);
+    if (params.year !== null && params.year !== undefined) {
+      parts.push(`year=${params.year}`);
+    }
+    if (params.cursor !== null && params.cursor !== undefined && params.cursor.length > 0) {
+      parts.push(`cursor=${encodeURIComponent(params.cursor)}`);
+    }
+    if (params.limit !== undefined) {
+      parts.push(`limit=${params.limit}`);
+    }
+    return `?${parts.join('&')}`;
   }
 
   /** PUT /notifications/{id}/read：幂等标记已读。 */
