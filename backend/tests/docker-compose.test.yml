@@ -1,0 +1,24 @@
+services:
+  postgres:
+    volumes:
+      - type: bind
+        source: ${SAKURAPLAYER_TEST_DATA_ROOT}/postgres
+        target: /var/lib/postgresql/data
+
+  api:
+    volumes: &test-app-volumes
+      - type: bind
+        source: ${SAKURAPLAYER_TEST_DATA_ROOT}/catalog-images
+        target: /var/lib/sakuraplayer/catalog-images
+      - type: bind
+        source: ${SAKURAPLAYER_TEST_DATA_ROOT}/provider-cache
+        target: /var/lib/sakuraplayer/provider-cache
+      - type: bind
+        source: ${SAKURAPLAYER_TEST_DATA_ROOT}/app-logs
+        target: /var/log/sakuraplayer
+
+  worker:
+    volumes: *test-app-volumes
+
+  scheduler:
+    volumes: *test-app-volumes

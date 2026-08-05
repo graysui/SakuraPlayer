@@ -13,6 +13,10 @@
 !tools/release/validate_version.py
 !windows/
 !windows/pubspec.yaml
+!windows/tool/
+!windows/tool/build_windows_installer.ps1
+!windows/tool/package/
+!windows/tool/package/SakuraPlayer.iss
 !LICENSE
 !THIRD_PARTY_NOTICES.md
 backend/secrets/

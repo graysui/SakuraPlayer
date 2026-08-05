@@ -236,6 +236,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
 - **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试、元数据总体进度、失败数量和持久暂停状态；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
 - **AC-122 `[IMP]`**: 管理员可暂停或恢复元数据新任务领取、查看并手动重试失败元数据任务、从影片详情显式重新刮削当前番号，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；暂停不中断运行中任务，恢复不创建或自动重试任务；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 和 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结。
+- **AC-150 `[IMP]`**: 管理员可在 Windows“设置 - 同步状态”中显式创建 MGDB 全量校对请求；保存数据源不隐式同步，未配置时不得入队，同模式活动请求幂等复用，只有终态请求时必须保留审计记录并使用空闲分钟槽新建请求；按钮在途禁用并在成功后显示已提交和刷新服务端状态；边界由 [TASK-324 MGDB 手动同步](changes/2026-08-05--task-324-mgdb-manual-sync.md) 冻结。
 
 ## 11. 部署、可靠性与验收
 
@@ -321,4 +322,4 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ## 14. 发布门禁
 
-Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-149 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。
+Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-150 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。

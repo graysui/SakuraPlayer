@@ -56,6 +56,7 @@
 | HTTP/位置 | code | 语义 |
 |---|---|---|
 | 409 | `avdb_release_already_imported` | 同一 Release 已完成，幂等成功 |
+| 409 | `mgdb_source_not_configured` | MGDB 数据源尚未配置；手动同步不入队，客户端保留状态并引导先保存 GitHub 仓库地址 |
 | 422 | `avdb_asset_invalid` | 资产名、manifest 或内层格式不合法 |
 | 422 | `avdb_asset_digest_mismatch` | 主备或下载摘要不匹配，停止导入 |
 | 422 | `avdb_decryption_failed` | GCM 认证或解密失败 |

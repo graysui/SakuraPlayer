@@ -2,13 +2,13 @@
 
 **更新时间**: 2026-08-05
 
-**当前阶段**: TASK-323 completed：修复 Linux Docker 数据目录、网络配置写回和旧数据库兼容。下一任务 TASK-304。
+**当前阶段**: TASK-324 completed：交付 MGDB 手动全量同步后端与 Windows 设置入口。下一任务 TASK-304。
 
 ## 1. 当前成果
 
-- 功能规格包含 149 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
+- 功能规格包含 150 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 76 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
+- 77 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小 Stage 工程；API 24 SDK 签名、构建和 fixture 基线通过后才实施鸿蒙业务功能，不要求连接物理真机。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久化数据目录和内部健康检查。
@@ -228,12 +228,13 @@
 - TASK-321 已修复远程引导器把 `.env`、`secrets/` 和 bootstrap token 留在临时目录的问题：发布文件复制到当前目录后才运行安装器；已有 `.env` 保留，旧运行容器的 secret 可恢复且不完整时拒绝混用。首次交互运行从 `/dev/tty` 选择 IPv4 host/port，无 TTY 默认 `127.0.0.1:8000`。
 - TASK-322 已确认 GitHub `v1.0.1` 旧归档缺少 `install-latest.sh`，并让当前引导器兼容该历史资产；新归档仍严格要求并复制完整发布文件。定向 Linux 测试为 `38 passed`。
 - TASK-323 已修复首次 host/port 输入写回安装目录 `.env`、新 Compose 使用 `data/` bind mount、旧 named volume 复制迁移，以及旧数据库角色密码与宿主 PostgreSQL secret 不一致导致的迁移失败；密码修复命令显式使用 `.env` 的 PostgreSQL 角色和数据库，不再连接可能不存在的默认 `postgres` 角色。远程引导器 Docker 依赖改为按需调用，并修复 Bash SQL 输出与多目录创建语法。此前 Linux 安装器回归为 `18 passed`；最新角色连接修复按用户要求未执行测试，待飞牛 NAS 实测。
+- TASK-324 已交付受认证 MGDB `full_reconcile` 手动请求、活动请求复用与终态审计保留、Windows“立即全量同步”按钮和中文反馈；保存来源与周期同步语义不变。Final 同时修复 PostgreSQL 初始化临时服务器误报健康、测试 bind 数据隔离和一次性 migrate 重启边界。
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-323 completed；Linux 安装器回归已通过，待用户在飞牛 NAS 验证实际 Compose 部署。
-- **最近绿色快速门禁**: TASK-323 修改 PostgreSQL 配置角色连接前，`backend/tests/start/test_linux_installer.py` 为 `18 passed`；最新修复按用户要求未运行测试，也未运行完整 Compose。
-- **最终门禁状态**: TASK-323 未运行完整后端 Compose；Compose 结构测试因本机 WSL 未接入 Docker 未执行，最新 PostgreSQL 连接角色修复待用户实测实际 `.env` 写回、data 目录、数据库迁移和服务健康。
+- **当前任务门禁阶段**: TASK-324 completed；MGDB 手动全量同步后端、Windows 入口、契约与运行门禁均完成。
+- **最近绿色快速门禁**: 后端自包含 `914 passed, 11 deselected`；宿主 Docker 契约、Ruff 和 Windows 15 项聚焦/236 项完整测试均通过，`flutter analyze` 零问题。
+- **最终门禁状态**: Windows Release 构建成功；完整 Compose 通过 `914` 项自包含与 `129` 项 PostgreSQL integration/E2E，迁移、四服务健康、认证 canary、秘密日志、重启、ready 降级恢复和资源清理全部完成。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -250,7 +251,7 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322、TASK-323、TASK-324。
 - **下一任务**: TASK-304 媒体库列表与过滤；依赖 TASK-302、TASK-303 completed，可开始。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。

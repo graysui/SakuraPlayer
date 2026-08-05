@@ -38,7 +38,7 @@
 - password/API key 控件初始为空，不用占位值伪装已保存秘密；响应、页面树、错误和测试快照只显示 `password_configured/api_key_configured`。提交完成或离开页面时清空输入 controller。
 - MGDB 不是磁力输入框；页面不读取、显示或保存磁力内容。
 - 连接测试目标固定为 `cloud115/javdb/dmm/gfriends/ai`，同一目标在途时禁用。响应只显示 status、稳定 error code、耗时和检查时间，不展示上游正文。DMM/GFriends/AI 专属错误码必须映射为中文；未知码统一显示“未知错误”，不得直接展示英文稳定码。
-- 设置页显示 MGDB 30D 增量与全量同步的中文状态、已导入总数、最近成功与下次计划；不增加手动同步入口。协议枚举保持 `never/running/succeeded/failed`，显示映射由 TASK-215 统一处理。
+- 设置页显示 MGDB 30D 增量与全量同步的中文状态、已导入总数、最近成功与下次计划。同步区提供单个“立即全量同步”按钮，只调用 `POST /settings/mgdb-sync-requests`；未配置 MGDB 或请求在途时禁用，成功显示“全量同步请求已提交”并刷新 Settings，失败保留原状态。后端复用同模式 `queued/claimed` 活动请求；只有终态请求时保留其审计记录并创建新请求。保存来源不自动同步，不提供手动增量或任意模式。协议枚举保持 `never/running/succeeded/failed`，显示映射由 TASK-215 统一处理。
 
 ## 5. 诊断与元数据操作
 
@@ -60,4 +60,4 @@
 
 - DTO/API：五组端点、13 个 cache 状态、Provider `not_configured`、集合/范围/重复、严格秘密响应、CAS payload、UUID 路径和 202/201/200/204 响应。
 - Controller：QR 轮询串行/停止/释放、expired/unavailable 区分、generation、分页、snapshot 刷新、操作在途、TTL/CAS、连接测试、完整/富化 retry。
-- Widget/Route：宽窄布局、QR 内存图片、容量与任务动作、取消/解绑确认、active lease、只读常量、秘密不回显、同步/诊断中文状态、元数据聚合进度与当前番号、设置与诊断 route。
+- Widget/Route：宽窄布局、QR 内存图片、容量与任务动作、取消/解绑确认、active lease、只读常量、秘密不回显、同步/诊断中文状态、MGDB 手动全量同步禁用/在途/成功反馈、元数据聚合进度与当前番号、设置与诊断 route。

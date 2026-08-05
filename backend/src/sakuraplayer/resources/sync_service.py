@@ -118,34 +118,13 @@ class AvdbSyncQueue:
     def enqueue(self, mode: str) -> EnqueueOutcome:
         if mode not in {"incremental_30d", "full_reconcile"}:
             raise ValueError("invalid AVdb synchronization mode")
-        current = self._now()
-        if current.tzinfo is None:
-            raise ValueError("queue clock must be timezone-aware")
-        scheduled_for = current.astimezone(timezone.utc).replace(
+        current = self._utc_now()
+        scheduled_for = current.replace(
             second=0,
             microsecond=0,
         )
-        request_id = uuid.uuid4()
         try:
-            with self._session_factory.begin() as session:
-                session.add(
-                    AvdbSyncRequest(
-                        id=request_id,
-                        mode=mode,
-                        scheduled_for=scheduled_for,
-                        status="queued",
-                        claim_owner=None,
-                        claim_token=None,
-                        claimed_at=None,
-                        claim_expires_at=None,
-                        attempt_count=0,
-                        created_at=current.astimezone(timezone.utc),
-                        completed_at=None,
-                        failure_code=None,
-                        failure_detail=None,
-                        sync_run_id=None,
-                    )
-                )
+            request_id = self._create_request(mode, scheduled_for, current)
         except IntegrityError:
             with self._session_factory() as session:
                 existing = session.scalar(
@@ -158,6 +137,91 @@ class AvdbSyncQueue:
                     raise
                 return EnqueueOutcome(existing.id, created=False)
         return EnqueueOutcome(request_id, created=True)
+
+    def enqueue_manual(self, mode: str) -> EnqueueOutcome:
+        if mode not in {"incremental_30d", "full_reconcile"}:
+            raise ValueError("invalid AVdb synchronization mode")
+        current = self._utc_now()
+        scheduled_for = current.replace(second=0, microsecond=0)
+        with self._session_factory() as session:
+            active = self._active_request(session, mode)
+            latest_slot = session.scalar(
+                select(AvdbSyncRequest.scheduled_for)
+                .where(AvdbSyncRequest.mode == mode)
+                .order_by(AvdbSyncRequest.scheduled_for.desc())
+                .limit(1)
+            )
+        if active is not None:
+            return EnqueueOutcome(active.id, created=False)
+        if latest_slot is not None:
+            if latest_slot.tzinfo is None:
+                latest_slot = latest_slot.replace(tzinfo=timezone.utc)
+            else:
+                latest_slot = latest_slot.astimezone(timezone.utc)
+            scheduled_for = max(
+                scheduled_for,
+                latest_slot.replace(second=0, microsecond=0) + timedelta(minutes=1),
+            )
+
+        while True:
+            try:
+                request_id = self._create_request(mode, scheduled_for, current)
+            except IntegrityError:
+                with self._session_factory() as session:
+                    active = self._active_request(session, mode)
+                    occupied = session.scalar(
+                        select(AvdbSyncRequest.id).where(
+                            AvdbSyncRequest.mode == mode,
+                            AvdbSyncRequest.scheduled_for == scheduled_for,
+                        )
+                    )
+                if active is not None:
+                    return EnqueueOutcome(active.id, created=False)
+                if occupied is None:
+                    raise
+                scheduled_for += timedelta(minutes=1)
+                continue
+            return EnqueueOutcome(request_id, created=True)
+
+    def _create_request(
+        self,
+        mode: str,
+        scheduled_for: datetime,
+        created_at: datetime,
+    ) -> uuid.UUID:
+        request_id = uuid.uuid4()
+        with self._session_factory.begin() as session:
+            session.add(
+                AvdbSyncRequest(
+                    id=request_id,
+                    mode=mode,
+                    scheduled_for=scheduled_for,
+                    status="queued",
+                    claim_owner=None,
+                    claim_token=None,
+                    claimed_at=None,
+                    claim_expires_at=None,
+                    attempt_count=0,
+                    created_at=created_at,
+                    completed_at=None,
+                    failure_code=None,
+                    failure_detail=None,
+                    sync_run_id=None,
+                )
+            )
+        return request_id
+
+    @staticmethod
+    def _active_request(session: Session, mode: str) -> AvdbSyncRequest | None:
+        return session.scalar(
+            select(AvdbSyncRequest)
+            .where(
+                AvdbSyncRequest.mode == mode,
+                AvdbSyncRequest.status.in_(("queued", "claimed")),
+            )
+            .order_by(AvdbSyncRequest.scheduled_for, AvdbSyncRequest.id)
+            .limit(1)
+        )
 
     def ensure_initial_full(self) -> EnqueueOutcome | None:
         with self._session_factory() as session:

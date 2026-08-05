@@ -14,24 +14,28 @@ class SettingsState {
     required this.errorCode,
     required this.inFlight,
     required this.connectionTests,
+    required this.mgdbSyncRequested,
   });
   const SettingsState.initial()
     : status = SettingsStatus.idle,
       settings = null,
       errorCode = null,
       inFlight = const {},
-      connectionTests = const {};
+      connectionTests = const {},
+      mgdbSyncRequested = false;
   final SettingsStatus status;
   final SettingsDto? settings;
   final String? errorCode;
   final Set<String> inFlight;
   final Map<String, ConnectionTestDto> connectionTests;
+  final bool mgdbSyncRequested;
   SettingsState copyWith({
     SettingsStatus? status,
     Object? settings = _absent,
     Object? errorCode = _absent,
     Set<String>? inFlight,
     Map<String, ConnectionTestDto>? connectionTests,
+    bool? mgdbSyncRequested,
   }) => SettingsState(
     status: status ?? this.status,
     settings:
@@ -40,6 +44,7 @@ class SettingsState {
         identical(errorCode, _absent) ? this.errorCode : errorCode as String?,
     inFlight: inFlight ?? this.inFlight,
     connectionTests: connectionTests ?? this.connectionTests,
+    mgdbSyncRequested: mgdbSyncRequested ?? this.mgdbSyncRequested,
   );
 }
 
@@ -61,6 +66,7 @@ class SettingsController extends Notifier<SettingsState> {
       status: SettingsStatus.loading,
       errorCode: null,
       inFlight: const {},
+      mgdbSyncRequested: false,
     );
     try {
       final settings = await ref.read(settingsGatewayProvider).getSettings();
@@ -161,6 +167,44 @@ class SettingsController extends Notifier<SettingsState> {
       'mgdb',
       () => ref.read(settingsGatewayProvider).clearMgdb(current.mgdb.version),
     );
+  }
+
+  Future<void> requestMgdbSync() async {
+    const key = 'mgdb-sync';
+    if (state.settings?.mgdb.configured != true ||
+        state.inFlight.contains(key)) {
+      return;
+    }
+    final generation = _generation;
+    state = state.copyWith(
+      inFlight: {...state.inFlight, key},
+      errorCode: null,
+      mgdbSyncRequested: false,
+    );
+    try {
+      await ref.read(settingsGatewayProvider).requestMgdbSync();
+      if (generation != _generation) return;
+      state = state.copyWith(
+        inFlight: {...state.inFlight}..remove(key),
+        mgdbSyncRequested: true,
+      );
+      try {
+        final settings = await ref.read(settingsGatewayProvider).getSettings();
+        if (generation != _generation) return;
+        state = state.copyWith(settings: settings, errorCode: null);
+      } on ApiException catch (error) {
+        if (generation == _generation) {
+          state = state.copyWith(errorCode: error.code);
+        }
+      }
+    } on ApiException catch (error) {
+      if (generation != _generation) return;
+      state = state.copyWith(
+        inFlight: {...state.inFlight}..remove(key),
+        errorCode: error.code,
+        mgdbSyncRequested: false,
+      );
+    }
   }
 
   Future<void> testConnection(String target) async {

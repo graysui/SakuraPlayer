@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -31,6 +32,7 @@ from sakuraplayer.identity.secrets import (
 )
 from sakuraplayer.resources.avdb_release import EncryptedAvdbSourceStore
 from sakuraplayer.resources.models import AvdbSyncRequest, AvdbSyncRun
+from sakuraplayer.resources.sync_service import AvdbSyncQueue
 from sakuraplayer.shared.redaction import stable_error_code
 
 ConnectionTarget = Literal["cloud115", "javdb", "dmm", "gfriends", "ai"]
@@ -142,6 +144,14 @@ class AvdbSyncStatusOutput(BaseModel):
     full_reconcile: SyncRunStateOutput
 
 
+class MgdbSyncRequestOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: uuid.UUID
+    mode: Literal["full_reconcile"] = "full_reconcile"
+    created: bool
+
+
 class SettingsOutput(BaseModel):
     cache_ttl_hours: int
     ready_cache_limit: Literal[20] = 20
@@ -180,6 +190,10 @@ class ConnectionProbe(Protocol):
     def __call__(self) -> ProbeResult: ...
 
 
+class MgdbSourceNotConfigured(RuntimeError):
+    pass
+
+
 class SettingsService:
     def __init__(
         self,
@@ -189,6 +203,7 @@ class SettingsService:
         ai_store: EncryptedAiConfigurationStore,
         mgdb_store: EncryptedAvdbSourceStore | None = None,
         *,
+        sync_queue: AvdbSyncQueue | None = None,
         probes: Mapping[str, ConnectionProbe] | None = None,
         now: Callable[[], datetime] | None = None,
         monotonic_clock: Callable[[], float] | None = None,
@@ -198,6 +213,7 @@ class SettingsService:
         self._javdb_store = javdb_store
         self._ai_store = ai_store
         self._mgdb_store = mgdb_store
+        self._sync_queue = sync_queue or AvdbSyncQueue(session_factory)
         self._probes = dict(probes or {})
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._monotonic = monotonic_clock or monotonic
@@ -348,6 +364,15 @@ class SettingsService:
             row.elapsed_ms = output.elapsed_ms
             row.checked_at = output.checked_at
         return output
+
+    def request_mgdb_sync(self) -> MgdbSyncRequestOutput:
+        if self._mgdb_store is None or self._mgdb_store.load() is None:
+            raise MgdbSourceNotConfigured
+        outcome = self._sync_queue.enqueue_manual("full_reconcile")
+        return MgdbSyncRequestOutput(
+            request_id=outcome.request_id,
+            created=outcome.created,
+        )
 
     def connection_results(self) -> dict[str, ConnectionTestOutput]:
         with self._session_factory() as session:
@@ -601,6 +626,21 @@ def create_settings_api(
     def test_connection(body: ConnectionTestInput) -> ConnectionTestOutput:
         return service.test_connection(body.target)
 
+    @router.post(
+        "/mgdb-sync-requests",
+        response_model=MgdbSyncRequestOutput,
+        status_code=202,
+    )
+    def request_mgdb_sync() -> MgdbSyncRequestOutput:
+        try:
+            return service.request_mgdb_sync()
+        except MgdbSourceNotConfigured:
+            raise ApiProblem(
+                status_code=409,
+                code="mgdb_source_not_configured",
+                message="MGDB source is not configured",
+            ) from None
+
     return router
 
 
@@ -634,5 +674,6 @@ __all__ = [
     "SettingsPatchInput",
     "SettingsService",
     "MgdbReplaceInput",
+    "MgdbSyncRequestOutput",
     "create_settings_api",
 ]

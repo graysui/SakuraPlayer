@@ -190,7 +190,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
           aiTimeout: _aiTimeout,
           aiApiKey: _aiApiKey,
         ),
-        _ => _SyncSettings(settings: state.settings),
+        _ => _SyncSettings(state: state),
       };
 }
 
@@ -599,19 +599,53 @@ class _TestButton extends ConsumerWidget {
   }
 }
 
-class _SyncSettings extends StatelessWidget {
-  const _SyncSettings({required this.settings});
-  final SettingsDto? settings;
+class _SyncSettings extends ConsumerWidget {
+  const _SyncSettings({required this.state});
+  final SettingsState state;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text('MGDB 同步', style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 12),
-      _SyncRow(label: '30D 增量', value: settings?.incrementalSync),
-      _SyncRow(label: '全量校对', value: settings?.fullSync),
-    ],
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = state.settings;
+    final submitting = state.inFlight.contains('mgdb-sync');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'MGDB 同步',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            FilledButton.icon(
+              key: const ValueKey('mgdb-sync-button'),
+              onPressed:
+                  settings?.mgdb.configured == true && !submitting
+                      ? ref
+                          .read(settingsControllerProvider.notifier)
+                          .requestMgdbSync
+                      : null,
+              icon:
+                  submitting
+                      ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.sync),
+              label: Text(submitting ? '提交中' : '立即全量同步'),
+            ),
+          ],
+        ),
+        if (state.mgdbSyncRequested) ...[
+          const SizedBox(height: 8),
+          const Text('全量同步请求已提交'),
+        ],
+        const SizedBox(height: 12),
+        _SyncRow(label: '30D 增量', value: settings?.incrementalSync),
+        _SyncRow(label: '全量校对', value: settings?.fullSync),
+      ],
+    );
+  }
 }
 
 class _SyncRow extends StatelessWidget {

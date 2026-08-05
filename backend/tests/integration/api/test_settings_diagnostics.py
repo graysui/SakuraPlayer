@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
@@ -24,7 +24,8 @@ from sakuraplayer.identity.models import Base, EncryptedSetting
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
 from sakuraplayer.identity.service import AuthService
 from sakuraplayer.resources.avdb_release import EncryptedAvdbSourceStore
-from sakuraplayer.resources.models import AvdbSyncRun, Movie
+from sakuraplayer.resources.models import AvdbSyncRequest, AvdbSyncRun, Movie
+from sakuraplayer.resources.sync_service import AvdbSyncQueue
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=timezone.utc)
 BOOTSTRAP_TOKEN = b"bootstrap-token-with-at-least-32-bytes"
@@ -49,6 +50,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
         EncryptedJavdbCredentialStore(repository),
         EncryptedAiConfigurationStore(repository),
         EncryptedAvdbSourceStore(repository),
+        sync_queue=AvdbSyncQueue(factory, now=lambda: NOW),
         probes={
             "javdb": lambda: ProbeResult("available"),
             "ai": _translation_credentials_probe,
@@ -80,6 +82,7 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
         with TestClient(app) as client:
             headers = _auth_headers(client)
             assert client.get("/api/v1/settings").status_code == 401
+            assert client.post("/api/v1/settings/mgdb-sync-requests").status_code == 401
             defaults = client.get("/api/v1/settings", headers=headers).json()
             assert defaults["cache_ttl_hours"] == 24
             assert defaults["javdb"]["version"] == 0
@@ -91,6 +94,35 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             }
             assert defaults["providers"]["cloud115"]["configured"] is False
             assert defaults["avdb_sync"]["full_reconcile"]["imported_count"] == 0
+
+            not_configured = client.post(
+                "/api/v1/settings/mgdb-sync-requests",
+                headers=headers,
+            )
+            assert not_configured.status_code == 409
+            assert not_configured.json()["code"] == "mgdb_source_not_configured"
+            with factory() as session:
+                assert list(session.scalars(select(AvdbSyncRequest))) == []
+            failed_request_id = uuid.uuid4()
+            with factory.begin() as session:
+                session.add(
+                    AvdbSyncRequest(
+                        id=failed_request_id,
+                        mode="full_reconcile",
+                        scheduled_for=NOW,
+                        status="failed",
+                        claim_owner=None,
+                        claim_token=None,
+                        claimed_at=NOW,
+                        claim_expires_at=None,
+                        attempt_count=1,
+                        created_at=NOW,
+                        completed_at=NOW,
+                        failure_code="mgdb_source_not_configured",
+                        failure_detail="mgdb_source_not_configured",
+                        sync_run_id=None,
+                    )
+                )
 
             response = client.patch(
                 "/api/v1/settings",
@@ -138,6 +170,35 @@ def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None
             }
             assert javdb_password not in response.text
             assert ai_key not in response.text
+
+            requested = client.post(
+                "/api/v1/settings/mgdb-sync-requests",
+                headers=headers,
+            )
+            assert requested.status_code == 202
+            assert requested.json()["mode"] == "full_reconcile"
+            assert requested.json()["created"] is True
+            repeated = client.post(
+                "/api/v1/settings/mgdb-sync-requests",
+                headers=headers,
+            )
+            assert repeated.status_code == 202
+            assert repeated.json() == {
+                **requested.json(),
+                "created": False,
+            }
+            with factory() as session:
+                sync_requests = list(session.scalars(select(AvdbSyncRequest)))
+            assert len(sync_requests) == 2
+            assert {item.status for item in sync_requests} == {"failed", "queued"}
+            queued_request = next(
+                item for item in sync_requests if item.status == "queued"
+            )
+            assert queued_request.id == uuid.UUID(requested.json()["request_id"])
+            assert queued_request.id != failed_request_id
+            assert queued_request.scheduled_for.replace(tzinfo=timezone.utc) == (
+                NOW + timedelta(minutes=1)
+            )
 
             invalid_source = client.patch(
                 "/api/v1/settings",

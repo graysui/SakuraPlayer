@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $composeFile = Join-Path $backendRoot 'docker-compose.yml'
+$testComposeFile = Join-Path $backendRoot 'tests\docker-compose.test.yml'
 $projectName = "sakuraplayer-task002-$PID"
 $testImage = "$projectName-test"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) $projectName
@@ -21,14 +22,14 @@ function ConvertTo-Base64Url([byte[]] $Value) {
 }
 
 function Invoke-Compose([Parameter(ValueFromRemainingArguments)] [string[]] $Arguments) {
-    & docker compose --env-file $envFile -f $composeFile -p $projectName @Arguments
+    & docker compose --env-file $envFile -f $composeFile -f $testComposeFile -p $projectName @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "docker compose failed: $($Arguments -join ' ')"
     }
 }
 
 function Assert-Healthy([string] $Service) {
-    $containerId = (& docker compose --env-file $envFile -f $composeFile -p $projectName ps -q $Service).Trim()
+    $containerId = (& docker compose --env-file $envFile -f $composeFile -f $testComposeFile -p $projectName ps -q $Service).Trim()
     if (-not $containerId) {
         throw "$Service container was not created"
     }
@@ -57,7 +58,7 @@ function Assert-ReadyDegraded([string] $ApiAddress) {
         Start-Sleep -Milliseconds 500
     } while ([DateTime]::UtcNow -lt $deadline)
 
-    $apiId = (& docker compose --env-file $envFile -f $composeFile -p $projectName ps -a -q api).Trim()
+    $apiId = (& docker compose --env-file $envFile -f $composeFile -f $testComposeFile -p $projectName ps -a -q api).Trim()
     $apiState = if ($apiId) {
         (& docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} health={{.State.Health.Status}}' $apiId).Trim()
     }
@@ -69,7 +70,7 @@ function Assert-ReadyDegraded([string] $ApiAddress) {
 
 function Get-ComponentLog([string] $Service) {
     $content = @(
-        & docker compose --env-file $envFile -f $composeFile -p $projectName `
+        & docker compose --env-file $envFile -f $composeFile -f $testComposeFile -p $projectName `
             exec -T $Service cat "/var/log/sakuraplayer/$Service.log"
     )
     if ($LASTEXITCODE -ne 0) {
@@ -147,6 +148,7 @@ try {
         'SAKURAPLAYER_DATABASE_URL='
         'SAKURAPLAYER_PUBLISH_HOST=127.0.0.1'
         'SAKURAPLAYER_API_PORT=0'
+        "SAKURAPLAYER_TEST_DATA_ROOT=$(& $path 'data')"
         "SAKURAPLAYER_POSTGRES_PASSWORD_SECRET_FILE=$(& $path 'postgres_password.txt')"
         "SAKURAPLAYER_SETTINGS_KEY_SECRET_FILE=$(& $path 'settings_key.txt')"
         "SAKURAPLAYER_TOKEN_KEY_SECRET_FILE=$(& $path 'token_key.txt')"
@@ -174,11 +176,11 @@ try {
         Assert-Healthy $service
     }
 
-    $migrateId = (& docker compose --env-file $envFile -f $composeFile -p $projectName ps -a -q migrate).Trim()
+    $migrateId = (& docker compose --env-file $envFile -f $composeFile -f $testComposeFile -p $projectName ps -a -q migrate).Trim()
     $migrateExit = (& docker inspect --format '{{.State.ExitCode}}' $migrateId).Trim()
     if ($migrateExit -ne '0') { throw "migrate exited with $migrateExit" }
 
-    $apiAddress = (& docker compose --env-file $envFile -f $composeFile -p $projectName port api 8000).Trim()
+    $apiAddress = (& docker compose --env-file $envFile -f $composeFile -f $testComposeFile -p $projectName port api 8000).Trim()
     $authBaseUrl = "http://$apiAddress/api/v1/auth"
     $authCanaryPassword = "Task002!$(ConvertTo-Base64Url (New-RandomBytes 18))"
     $credentials = @{
@@ -233,8 +235,10 @@ try {
     & docker run --rm --network "${projectName}_default" -e SAKURAPLAYER_TEST_DATABASE_URL -e SAKURAPLAYER_TEST_DATABASE_PASSWORD --entrypoint python $testImage -m pytest tests/integration tests/e2e -m 'integration' -q
     if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL integration and E2E tests failed' }
 
-    Invoke-Compose restart
-    Invoke-Compose up -d --wait --wait-timeout 120
+    Invoke-Compose restart postgres
+    Invoke-Compose up -d --wait --wait-timeout 120 --no-deps postgres
+    Invoke-Compose restart api worker scheduler
+    Invoke-Compose up -d --wait --wait-timeout 120 --no-deps api worker scheduler
     foreach ($service in @('api', 'worker', 'scheduler', 'postgres')) {
         Assert-Healthy $service
     }
@@ -246,7 +250,7 @@ try {
         }
     }
 
-    $apiAddress = (& docker compose --env-file $envFile -f $composeFile -p $projectName port api 8000).Trim()
+    $apiAddress = (& docker compose --env-file $envFile -f $composeFile -f $testComposeFile -p $projectName port api 8000).Trim()
     Invoke-Compose stop postgres
     Assert-ReadyDegraded $apiAddress
 

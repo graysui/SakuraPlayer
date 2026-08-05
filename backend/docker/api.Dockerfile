@@ -23,13 +23,17 @@ ENTRYPOINT ["/workspace/backend/docker/entrypoint.sh"]
 FROM base AS test
 COPY backend/tests ./tests
 COPY backend/install.sh ./install.sh
+COPY backend/install-latest.sh ./install-latest.sh
 COPY backend/.env.example ./.env.example
+COPY backend/README.docker.md ./README.docker.md
 COPY backend/docker/api.Dockerfile ./docker/api.Dockerfile
 COPY backend/docker-compose.yml ./docker-compose.yml
 COPY docs /workspace/docs
 COPY .github /workspace/.github
 COPY tools /workspace/tools
 COPY windows/pubspec.yaml /workspace/windows/pubspec.yaml
+COPY windows/tool/build_windows_installer.ps1 /workspace/windows/tool/build_windows_installer.ps1
+COPY windows/tool/package/SakuraPlayer.iss /workspace/windows/tool/package/SakuraPlayer.iss
 RUN python -m pip install --no-cache-dir --disable-pip-version-check ".[test]"
 CMD ["python", "-m", "pytest", "tests/start", "tests/unit", "tests/integration/identity/test_auth_api.py", "-m", "not integration and not host_docker"]
 

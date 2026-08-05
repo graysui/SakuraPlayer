@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -108,6 +109,7 @@ void main() {
         expectedVersion: 4,
         sourceUrl: 'https://github.com/example/mgdb',
       );
+      final syncRequest = await api.requestMgdbSync();
       await api.retryMetadataEnrichment(
         _metadataJobId,
         const <String>['translation', 'images'],
@@ -119,9 +121,13 @@ void main() {
         <String>[
           'PATCH settings',
           'PATCH settings',
+          'POST settings/mgdb-sync-requests',
           'POST admin/metadata-jobs/$_metadataJobId/retry-enrichment',
         ],
       );
+      expect(syncRequest.requestId, '00000000-0000-4000-8000-000000000324');
+      expect(syncRequest.mode, 'full_reconcile');
+      expect(syncRequest.created, isTrue);
       expect(adapter.requests.first.data, <String, Object?>{
         'javdb': <String, Object?>{
           'action': 'replace',
@@ -321,6 +327,97 @@ void main() {
     },
   );
 
+  testWidgets('MGDB manual sync is disabled until a source is configured', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsGatewayProvider.overrideWithValue(_SettingsPageGateway()),
+        ],
+        child: const MaterialApp(home: Scaffold(body: SettingsPage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('同步状态'));
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('mgdb-sync-button')),
+    );
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('MGDB manual sync submits once and shows accepted feedback', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final gateway = _ManualSyncGateway();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [settingsGatewayProvider.overrideWithValue(gateway)],
+        child: const MaterialApp(home: Scaffold(body: SettingsPage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('同步状态'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('立即全量同步'));
+    await tester.pump();
+
+    final submittingButton = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('mgdb-sync-button')),
+    );
+    expect(submittingButton.onPressed, isNull);
+    expect(find.text('提交中'), findsOneWidget);
+    expect(gateway.syncRequests, 1);
+
+    gateway.completeRequest();
+    await tester.pumpAndSettle();
+
+    expect(gateway.syncRequests, 1);
+    expect(gateway.settingsLoads, 2);
+    expect(find.text('全量同步请求已提交'), findsOneWidget);
+  });
+
+  testWidgets('MGDB manual sync failure keeps the previous sync status', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final gateway = _FailedManualSyncGateway();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [settingsGatewayProvider.overrideWithValue(gateway)],
+        child: const MaterialApp(home: Scaffold(body: SettingsPage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('同步状态'));
+    await tester.pumpAndSettle();
+    expect(find.text('尚未同步 · 已导入 0 条'), findsNWidgets(2));
+    await tester.tap(find.text('立即全量同步'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('请先配置 MGDB 数据源'), findsOneWidget);
+    expect(find.text('尚未同步 · 已导入 0 条'), findsNWidgets(2));
+    expect(find.text('全量同步请求已提交'), findsNothing);
+    expect(gateway.syncRequests, 1);
+    expect(gateway.settingsLoads, 1);
+  });
+
   testWidgets('diagnostics pauses and resumes metadata claims', (tester) async {
     final gateway = _DiagnosticsGateway();
     await tester.pumpWidget(
@@ -514,6 +611,51 @@ class _SettingsPageGateway implements SettingsGateway {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+class _ManualSyncGateway extends _SettingsPageGateway {
+  int syncRequests = 0;
+  int settingsLoads = 0;
+  final Completer<MgdbSyncRequestDto> _request = Completer();
+
+  @override
+  Future<SettingsDto> getSettings() async {
+    settingsLoads++;
+    final json = _settingsJson();
+    json['mgdb'] = <String, Object?>{
+      'configured': true,
+      'source_url': 'https://github.com/example/mgdb',
+      'version': 1,
+    };
+    return SettingsDto.fromJson(json);
+  }
+
+  @override
+  Future<MgdbSyncRequestDto> requestMgdbSync() {
+    syncRequests++;
+    return _request.future;
+  }
+
+  void completeRequest() {
+    _request.complete(
+      const MgdbSyncRequestDto(
+        requestId: '00000000-0000-4000-8000-000000000324',
+        mode: 'full_reconcile',
+        created: true,
+      ),
+    );
+  }
+}
+
+class _FailedManualSyncGateway extends _ManualSyncGateway {
+  @override
+  Future<MgdbSyncRequestDto> requestMgdbSync() async {
+    syncRequests++;
+    throw const ApiException(
+      code: 'mgdb_source_not_configured',
+      message: 'not configured',
+    );
+  }
+}
+
 class _DiagnosticsGateway extends _SettingsPageGateway {
   int diagnosticsCalls = 0;
   int metadataPageCalls = 0;
@@ -627,6 +769,14 @@ class _SettingsAdapter implements HttpClientAdapter {
     requests.add(options);
     if (options.method == 'PATCH' && options.path == 'settings') {
       return _jsonResponse(200, _settingsJson());
+    }
+    if (options.method == 'POST' &&
+        options.path == 'settings/mgdb-sync-requests') {
+      return _jsonResponse(202, <String, Object?>{
+        'request_id': '00000000-0000-4000-8000-000000000324',
+        'mode': 'full_reconcile',
+        'created': true,
+      });
     }
     if (options.method == 'POST' &&
         options.path.endsWith('/retry-enrichment')) {

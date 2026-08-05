@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 try:
@@ -15,6 +16,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = BACKEND_ROOT / "docker-compose.yml"
 DEVELOPMENT_COMPOSE_FILE = BACKEND_ROOT / "docker-compose.dev.yml"
 RUN_COMPOSE_SCRIPT = BACKEND_ROOT / "tests" / "run-compose.ps1"
+TEST_COMPOSE_FILE = BACKEND_ROOT / "tests" / "docker-compose.test.yml"
 pytestmark = pytest.mark.host_docker if pytest is not None else None
 
 
@@ -101,6 +103,86 @@ def test_compose_has_isolated_processes_and_pinned_postgres() -> None:
         "service_completed_successfully"
     )
     assert services["migrate"]["restart"] == "no"
+    assert services["postgres"]["healthcheck"]["test"] == [
+        "CMD-SHELL",
+        'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" '
+        '&& psql -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" '
+        "-tAc 'SELECT 1' >/dev/null",
+    ]
+
+
+def test_final_restart_excludes_one_shot_migration() -> None:
+    source = RUN_COMPOSE_SCRIPT.read_text(encoding="utf-8")
+    restart_commands = [
+        line.strip()
+        for line in source.splitlines()
+        if line.strip().startswith("Invoke-Compose restart")
+    ]
+
+    assert restart_commands == [
+        "Invoke-Compose restart postgres",
+        "Invoke-Compose restart api worker scheduler",
+    ]
+
+
+def test_final_compose_uses_isolated_bind_mount_root() -> None:
+    source = RUN_COMPOSE_SCRIPT.read_text(encoding="utf-8")
+    compose_commands = [
+        line.strip() for line in source.splitlines() if "& docker compose" in line
+    ]
+
+    assert len(compose_commands) == 7
+    assert all("-f $testComposeFile" in command for command in compose_commands)
+
+    with tempfile.TemporaryDirectory() as directory:
+        data_root = Path(directory) / "data"
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "SAKURAPLAYER_TEST_DATA_ROOT": str(data_root),
+                "SAKURAPLAYER_POSTGRES_PASSWORD_SECRET_FILE": str(
+                    BACKEND_ROOT / "tests/fixtures/postgres_password.txt"
+                ),
+                "SAKURAPLAYER_SETTINGS_KEY_SECRET_FILE": str(
+                    BACKEND_ROOT / "tests/fixtures/settings_key.txt"
+                ),
+                "SAKURAPLAYER_TOKEN_KEY_SECRET_FILE": str(
+                    BACKEND_ROOT / "tests/fixtures/token_key.txt"
+                ),
+                "SAKURAPLAYER_PLAYBACK_KEY_SECRET_FILE": str(
+                    BACKEND_ROOT / "tests/fixtures/playback_key.txt"
+                ),
+                "SAKURAPLAYER_BOOTSTRAP_TOKEN_SECRET_FILE": str(
+                    BACKEND_ROOT / "tests/fixtures/bootstrap_token.txt"
+                ),
+            }
+        )
+        result = subprocess.run(
+            [
+                "docker",
+                "compose",
+                "-f",
+                str(COMPOSE_FILE),
+                "-f",
+                str(TEST_COMPOSE_FILE),
+                "config",
+                "--format",
+                "json",
+            ],
+            cwd=BACKEND_ROOT,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        config = json.loads(result.stdout)
+
+    assert Path(config["services"]["api"]["build"]["context"]).resolve() == (
+        BACKEND_ROOT.parent.resolve()
+    )
+    for service in ("postgres", "api", "worker", "scheduler"):
+        for mount in config["services"][service]["volumes"]:
+            assert Path(mount["source"]).resolve().parent == data_root.resolve()
 
 
 def test_compose_has_required_bind_mounts_and_healthchecks() -> None:
@@ -253,6 +335,8 @@ def test_compose_finally_covers_secret_setup_and_skips_down_without_env_file() -
 
 if __name__ == "__main__":
     test_compose_has_isolated_processes_and_pinned_postgres()
+    test_final_restart_excludes_one_shot_migration()
+    test_final_compose_uses_isolated_bind_mount_root()
     test_compose_has_required_bind_mounts_and_healthchecks()
     test_development_compose_watches_all_and_only_long_running_app_services()
     test_entrypoint_percent_encodes_database_password()

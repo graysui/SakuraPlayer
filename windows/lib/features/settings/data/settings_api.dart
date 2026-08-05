@@ -205,6 +205,28 @@ class MgdbSettingsDto {
   final int version;
 }
 
+@immutable
+class MgdbSyncRequestDto {
+  const MgdbSyncRequestDto({
+    required this.requestId,
+    required this.mode,
+    required this.created,
+  });
+
+  factory MgdbSyncRequestDto.fromJson(Map<String, Object?> json) {
+    final reader = JsonReader(json, 'MgdbSyncRequest');
+    return MgdbSyncRequestDto(
+      requestId: reader.uuid('request_id'),
+      mode: reader.enumeration('mode', const {'full_reconcile'}),
+      created: reader.boolean('created'),
+    );
+  }
+
+  final String requestId;
+  final String mode;
+  final bool created;
+}
+
 bool _isGithubSourceUrl(String value) {
   final uri = Uri.tryParse(value);
   if (uri == null || uri.scheme != 'https' || uri.userInfo.isNotEmpty) {
@@ -671,6 +693,7 @@ abstract interface class SettingsGateway {
     required String sourceUrl,
   });
   Future<SettingsDto> clearMgdb(int expectedVersion);
+  Future<MgdbSyncRequestDto> requestMgdbSync();
   Future<ConnectionTestDto> testConnection(String target);
   Future<DiagnosticsDto> getDiagnostics();
   Future<MetadataQueueControlDto> setMetadataPaused(bool paused);
@@ -829,6 +852,12 @@ class SettingsApi implements SettingsGateway {
       },
     });
   }
+
+  @override
+  Future<MgdbSyncRequestDto> requestMgdbSync() => _client.post(
+    'settings/mgdb-sync-requests',
+    decode: MgdbSyncRequestDto.fromJson,
+  );
 
   Future<SettingsDto> _patch(Map<String, Object?> data) =>
       _client.patch('settings', data: data, decode: SettingsDto.fromJson);

@@ -63,6 +63,7 @@ String settingsErrorLabel(String? value) => switch (value) {
   'translation_upstream_error' => 'AI 服务暂时无法访问',
   'translation_not_configured' => 'AI 尚未配置',
   'translation_guardrail_failed' => 'AI 返回内容未通过安全校验',
+  'mgdb_source_not_configured' => '请先配置 MGDB 数据源',
   'metadata_timeout' => '元数据刮削超时',
   'validation_failed' => '输入内容不符合要求',
   'state_conflict' => '数据已变化，请刷新后重试',

@@ -1002,6 +1002,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionTest'
+  /settings/mgdb-sync-requests:
+    post:
+      tags: [Admin]
+      operationId: requestMgdbFullSync
+      description: >-
+        Enqueues one full MGDB reconciliation using the configured source. The
+        same mode reuses an existing queued or claimed request. Terminal
+        requests remain immutable and a new request uses the next free UTC
+        minute slot.
+      responses:
+        '202':
+          description: The full reconciliation request was created or reused.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MgdbSyncRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /admin/metadata-queue:
     put:
       tags: [Admin]
@@ -2396,6 +2414,19 @@ components:
       oneOf:
         - $ref: '#/components/schemas/MgdbSettingsReplace'
         - $ref: '#/components/schemas/SettingClearCommand'
+    MgdbSyncRequest:
+      type: object
+      required: [request_id, mode, created]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          const: full_reconcile
+        created:
+          type: boolean
+      additionalProperties: false
     ConnectionTest:
       type: object
       required: [target, status, error_code, elapsed_ms, checked_at]

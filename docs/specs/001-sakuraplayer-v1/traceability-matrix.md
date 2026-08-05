@@ -274,6 +274,7 @@
 | `AC-147` | `[I]` | `REQ-027` | `TASK-320` |
 | `AC-148` | `[I]` | `REQ-027` | `TASK-321` |
 | `AC-149` | `[I]` | `REQ-027` | `TASK-323` |
+| `AC-150` | `[I]` | `REQ-022` | `TASK-324` |
 
 TASK-101 的 AC-013/016/017/128/129 映射还受
 [Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md) 中
@@ -339,6 +340,11 @@ TASK-323 的 AC-148/149 映射受
 [Linux Docker 数据目录与配置兼容](changes/2026-08-04--task-323-docker-data-and-config-compatibility.md)、
 [运行配置契约](contracts/runtime-configuration.md) 和 [GitHub 自动发布契约](contracts/github-release.md)
 约束；它新增 AC-149，当前有效任务总数增至 76。
+
+TASK-324 的 AC-119/150 映射受
+[MGDB 手动同步](changes/2026-08-05--task-324-mgdb-manual-sync.md)、
+[Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 和
+[REST OpenAPI](contracts/rest-api.openapi.yaml) 约束；它新增 AC-150，当前有效任务总数增至 77。
 
 HarmonyOS 的 AC-007/AC-131 工具链、API 24 SDK/构建/fixture 边界受
 [HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md) 约束；该变更撤销 TASK-312 的物理真机门禁，但保留 API 24 编译和 API 签名基线。
