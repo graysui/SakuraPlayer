@@ -406,16 +406,30 @@ export class MetadataJob {
 
 /** Cloud115Binding：snapshot 凭据状态。 */
 export class Cloud115Binding {
+  readonly bound: boolean;
   readonly status: string;
+  readonly displayName: string | null;
+  readonly cacheRootReady: boolean;
   readonly lastVerifiedAt: string | null;
 
-  constructor(status: string, lastVerifiedAt: string | null) {
+  constructor(bound: boolean, status: string, displayName: string | null,
+    cacheRootReady: boolean, lastVerifiedAt: string | null) {
+    this.bound = bound;
     this.status = status;
+    this.displayName = displayName;
+    this.cacheRootReady = cacheRootReady;
     this.lastVerifiedAt = lastVerifiedAt;
   }
 
   static fromReader(reader: JsonReader): Cloud115Binding {
-    return new Cloud115Binding(reader.string('status'), reader.nullableDateTime('last_verified_at'));
+    const status = reader.string('status');
+    const statuses: string[] = ['unbound', 'active', 'expired', 'unavailable', 'detached'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected binding status: ${status}`);
+    }
+    return new Cloud115Binding(reader.boolean('bound'), status,
+      reader.nullableString('display_name'), reader.boolean('cache_root_ready'),
+      reader.nullableDateTime('last_verified_at'));
   }
 }
 
@@ -475,12 +489,24 @@ export class QueueDiagnostic {
   }
 
   static fromReader(reader: JsonReader): QueueDiagnostic {
+    const metadataRunning = reader.number('metadata_running');
+    const cacheQueued = reader.number('cache_queued');
+    const cacheRunning = reader.number('cache_running');
+    if (metadataRunning < 0 || metadataRunning > 3) {
+      throw new ProtocolException('QueueDiagnostic.metadata_running out of range');
+    }
+    if (cacheQueued < 0 || cacheQueued > 10) {
+      throw new ProtocolException('QueueDiagnostic.cache_queued out of range');
+    }
+    if (cacheRunning < 0 || cacheRunning > 2) {
+      throw new ProtocolException('QueueDiagnostic.cache_running out of range');
+    }
     return new QueueDiagnostic(
       reader.number('metadata_queued'),
-      reader.number('metadata_running'),
+      metadataRunning,
       reader.boolean('metadata_paused'),
-      reader.number('cache_queued'),
-      reader.number('cache_running'),
+      cacheQueued,
+      cacheRunning,
       reader.number('cache_ready'));
   }
 }
@@ -1124,5 +1150,766 @@ export class EventSnapshot {
     }
     return new EventSnapshot(snapshotVersion, lastEventId, queues, cacheJobs, metadataJobs,
       Cloud115Binding.fromReader(new JsonReader(reader.object('cloud115_binding'))), notifications);
+  }
+}
+
+/** QrSession：115 扫码会话（openapi QrSession；PNG 只存内存）。 */
+export class QrSession {
+  readonly id: string;
+  readonly status: string;
+  readonly qrcodePngBase64: string | null;
+  readonly expiresAt: string;
+
+  constructor(id: string, status: string, qrcodePngBase64: string | null, expiresAt: string) {
+    this.id = id;
+    this.status = status;
+    this.qrcodePngBase64 = qrcodePngBase64;
+    this.expiresAt = expiresAt;
+  }
+
+  static fromText(text: string): QrSession {
+    const reader = JsonReader.fromText(text);
+    const id = reader.string('id');
+    if (!SOURCE_UUID_PATTERN.test(id)) {
+      throw new ProtocolException('QrSession.id is not a uuid');
+    }
+    const status = reader.string('status');
+    const statuses: string[] = ['waiting', 'scanned', 'confirmed', 'expired', 'canceled'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected qr status: ${status}`);
+    }
+    const png = reader.nullableString('qrcode_png_base64');
+    if (png !== null && !png.startsWith('iVBOR')) {
+      // PNG base64 必须以合法 PNG 魔数开头（iVBORw0KGgo）
+      throw new ProtocolException('QrSession.qrcode_png_base64 is not a png');
+    }
+    return new QrSession(id, status, png, reader.dateTime('expires_at'));
+  }
+}
+
+/** CacheCapacity：固定容量计数（running2/queued10/ready20）。 */
+export class CacheCapacity {
+  readonly running: number;
+  readonly runningLimit: number;
+  readonly queued: number;
+  readonly queuedLimit: number;
+  readonly ready: number;
+  readonly readyLimit: number;
+
+  constructor(running: number, runningLimit: number, queued: number, queuedLimit: number,
+    ready: number, readyLimit: number) {
+    this.running = running;
+    this.runningLimit = runningLimit;
+    this.queued = queued;
+    this.queuedLimit = queuedLimit;
+    this.ready = ready;
+    this.readyLimit = readyLimit;
+  }
+
+  static fromReader(reader: JsonReader): CacheCapacity {
+    const running = reader.number('running');
+    const queued = reader.number('queued');
+    const ready = reader.number('ready');
+    const runningLimit = reader.number('running_limit');
+    const queuedLimit = reader.number('queued_limit');
+    const readyLimit = reader.number('ready_limit');
+    if (runningLimit !== 2 || queuedLimit !== 10 || readyLimit !== 20) {
+      throw new ProtocolException('CacheCapacity limits are not 2/10/20');
+    }
+    if (running > runningLimit || queued > queuedLimit || ready > readyLimit) {
+      throw new ProtocolException('CacheCapacity count exceeds limit');
+    }
+    return new CacheCapacity(running, runningLimit, queued, queuedLimit, ready, readyLimit);
+  }
+}
+
+/** CacheJobDetail：/cache-jobs 列表/详情任务（13 状态）。 */
+export class CacheJobDetail {
+  readonly id: string;
+  readonly movieId: string;
+  readonly sourceId: string;
+  readonly status: string;
+  readonly remotePercent: number | null;
+  readonly errorCode: string | null;
+  readonly mediaCandidates: Object[];
+  readonly selectedMediaIds: string[];
+  readonly subtitles: Object[];
+  readonly readyAt: string | null;
+  readonly expiresAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+
+  constructor(id: string, movieId: string, sourceId: string, status: string,
+    remotePercent: number | null, errorCode: string | null, mediaCandidates: Object[],
+    selectedMediaIds: string[], subtitles: Object[], readyAt: string | null,
+    expiresAt: string | null, createdAt: string, updatedAt: string) {
+    this.id = id;
+    this.movieId = movieId;
+    this.sourceId = sourceId;
+    this.status = status;
+    this.remotePercent = remotePercent;
+    this.errorCode = errorCode;
+    this.mediaCandidates = mediaCandidates;
+    this.selectedMediaIds = selectedMediaIds;
+    this.subtitles = subtitles;
+    this.readyAt = readyAt;
+    this.expiresAt = expiresAt;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
+  }
+
+  static fromText(text: string): CacheJobDetail {
+    return CacheJobDetail.fromReader(JsonReader.fromText(text));
+  }
+
+  static fromReader(reader: JsonReader): CacheJobDetail {
+    const id = reader.string('id');
+    if (!SOURCE_UUID_PATTERN.test(id)) {
+      throw new ProtocolException('CacheJobDetail.id is not a uuid');
+    }
+    const status = reader.string('status');
+    const statuses: string[] = ['queued', 'submitting', 'offlining', 'submit_uncertain',
+      'resolving', 'awaiting_selection', 'ready', 'cancelling', 'cleaning', 'cleanup_failed',
+      'failed', 'cleaned', 'detached'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected cache job status: ${status}`);
+    }
+    const remotePercent = reader.nullableNumber('remote_percent');
+    if (remotePercent !== null && (remotePercent < 0 || remotePercent > 100)) {
+      throw new ProtocolException('CacheJobDetail.remote_percent out of range');
+    }
+    return new CacheJobDetail(id, reader.string('movie_id'), reader.string('source_id'),
+      status, remotePercent, reader.nullableString('error_code'),
+      reader.objectArray('media_candidates'), reader.stringArray('selected_media_ids'),
+      reader.objectArray('subtitles'), reader.nullableDateTime('ready_at'),
+      reader.nullableDateTime('expires_at'), reader.dateTime('created_at'),
+      reader.dateTime('updated_at'));
+  }
+}
+
+/** CacheJobPage：分页任务列表 + 容量。 */
+export class CacheJobPage {
+  readonly items: CacheJobDetail[];
+  readonly capacity: CacheCapacity;
+  readonly nextCursor: string | null;
+
+  constructor(items: CacheJobDetail[], capacity: CacheCapacity, nextCursor: string | null) {
+    this.items = items;
+    this.capacity = capacity;
+    this.nextCursor = nextCursor;
+  }
+
+  static fromText(text: string): CacheJobPage {
+    const reader = JsonReader.fromText(text);
+    const items: CacheJobDetail[] = [];
+    const ids: string[] = [];
+    for (const item of reader.objectArray('items')) {
+      if (items.length >= 100) {
+        throw new ProtocolException('CacheJobPage.items exceeds limit');
+      }
+      const job = CacheJobDetail.fromReader(new JsonReader(item));
+      if (ids.includes(job.id)) {
+        throw new ProtocolException('CacheJobPage.items has duplicate ids');
+      }
+      ids.push(job.id);
+      items.push(job);
+    }
+    return new CacheJobPage(items, CacheCapacity.fromReader(new JsonReader(reader.object('capacity'))),
+      reader.nullableString('next_cursor'));
+  }
+}
+
+/** ProviderState：数据源配置与连通状态。 */
+export class ProviderState {
+  readonly configured: boolean;
+  readonly status: string;
+  readonly lastCheckedAt: string | null;
+  readonly lastErrorCode: string | null;
+
+  constructor(configured: boolean, status: string, lastCheckedAt: string | null,
+    lastErrorCode: string | null) {
+    this.configured = configured;
+    this.status = status;
+    this.lastCheckedAt = lastCheckedAt;
+    this.lastErrorCode = lastErrorCode;
+  }
+
+  static fromReader(reader: JsonReader): ProviderState {
+    const status = reader.string('status');
+    const statuses: string[] = ['unknown', 'available', 'unavailable', 'credentials_invalid',
+      'not_configured'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected provider status: ${status}`);
+    }
+    return new ProviderState(reader.boolean('configured'), status,
+      reader.nullableDateTime('last_checked_at'), reader.nullableString('last_error_code'));
+  }
+}
+
+/** JavdbSettings：对象级 CAS 数据源配置（密码只回显 configured）。 */
+export class JavdbSettings {
+  readonly configured: boolean;
+  readonly status: string;
+  readonly lastCheckedAt: string | null;
+  readonly lastErrorCode: string | null;
+  readonly username: string | null;
+  readonly passwordConfigured: boolean;
+  readonly version: number;
+
+  constructor(configured: boolean, status: string, lastCheckedAt: string | null,
+    lastErrorCode: string | null, username: string | null, passwordConfigured: boolean,
+    version: number) {
+    this.configured = configured;
+    this.status = status;
+    this.lastCheckedAt = lastCheckedAt;
+    this.lastErrorCode = lastErrorCode;
+    this.username = username;
+    this.passwordConfigured = passwordConfigured;
+    this.version = version;
+  }
+
+  static fromReader(reader: JsonReader): JavdbSettings {
+    const base = ProviderState.fromReader(reader);
+    return new JavdbSettings(base.configured, base.status, base.lastCheckedAt, base.lastErrorCode,
+      reader.nullableString('username'), reader.boolean('password_configured'),
+      reader.number('version'));
+  }
+}
+
+/** AiSettings：对象级 CAS AI 配置（API key 只回显 configured）。 */
+export class AiSettings {
+  readonly configured: boolean;
+  readonly status: string;
+  readonly lastCheckedAt: string | null;
+  readonly lastErrorCode: string | null;
+  readonly baseUrl: string | null;
+  readonly model: string | null;
+  readonly timeoutSeconds: number | null;
+  readonly apiKeyConfigured: boolean;
+  readonly version: number;
+
+  constructor(configured: boolean, status: string, lastCheckedAt: string | null,
+    lastErrorCode: string | null, baseUrl: string | null, model: string | null,
+    timeoutSeconds: number | null, apiKeyConfigured: boolean, version: number) {
+    this.configured = configured;
+    this.status = status;
+    this.lastCheckedAt = lastCheckedAt;
+    this.lastErrorCode = lastErrorCode;
+    this.baseUrl = baseUrl;
+    this.model = model;
+    this.timeoutSeconds = timeoutSeconds;
+    this.apiKeyConfigured = apiKeyConfigured;
+    this.version = version;
+  }
+
+  static fromReader(reader: JsonReader): AiSettings {
+    const base = ProviderState.fromReader(reader);
+    const timeout = reader.nullableNumber('timeout_seconds');
+    if (timeout !== null && (timeout < 1 || timeout > 600)) {
+      throw new ProtocolException('AiSettings.timeout_seconds out of range');
+    }
+    return new AiSettings(base.configured, base.status, base.lastCheckedAt, base.lastErrorCode,
+      reader.nullableString('base_url'), reader.nullableString('model'), timeout,
+      reader.boolean('api_key_configured'), reader.number('version'));
+  }
+}
+
+/** MgdbSettings：MGDB 数据源（source_url 仅 GitHub HTTPS 仓库）。 */
+export class MgdbSettings {
+  readonly configured: boolean;
+  readonly sourceUrl: string | null;
+  readonly version: number;
+
+  constructor(configured: boolean, sourceUrl: string | null, version: number) {
+    this.configured = configured;
+    this.sourceUrl = sourceUrl;
+    this.version = version;
+  }
+
+  static fromReader(reader: JsonReader): MgdbSettings {
+    return new MgdbSettings(reader.boolean('configured'),
+      reader.nullableString('source_url'), reader.number('version'));
+  }
+}
+
+/** SyncRunState：30D 增量/全量同步状态。 */
+export class SyncRunState {
+  readonly status: string;
+  readonly importedCount: number;
+  readonly releaseId: string | null;
+  readonly lastSuccessfulAt: string | null;
+  readonly nextScheduledAt: string | null;
+
+  constructor(status: string, importedCount: number, releaseId: string | null,
+    lastSuccessfulAt: string | null, nextScheduledAt: string | null) {
+    this.status = status;
+    this.importedCount = importedCount;
+    this.releaseId = releaseId;
+    this.lastSuccessfulAt = lastSuccessfulAt;
+    this.nextScheduledAt = nextScheduledAt;
+  }
+
+  static fromReader(reader: JsonReader): SyncRunState {
+    const status = reader.string('status');
+    const statuses: string[] = ['never', 'running', 'succeeded', 'failed'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected sync state: ${status}`);
+    }
+    return new SyncRunState(status, reader.number('imported_count'),
+      reader.nullableString('release_id'), reader.nullableDateTime('last_successful_at'),
+      reader.nullableDateTime('next_scheduled_at'));
+  }
+}
+
+/** AvdbSyncStatus：AVdb 同步状态（增量 + 全量）。 */
+export class AvdbSyncStatus {
+  readonly incremental30d: SyncRunState;
+  readonly fullReconcile: SyncRunState;
+
+  constructor(incremental30d: SyncRunState, fullReconcile: SyncRunState) {
+    this.incremental30d = incremental30d;
+    this.fullReconcile = fullReconcile;
+  }
+
+  static fromReader(reader: JsonReader): AvdbSyncStatus {
+    return new AvdbSyncStatus(
+      SyncRunState.fromReader(new JsonReader(reader.object('incremental_30d'))),
+      SyncRunState.fromReader(new JsonReader(reader.object('full_reconcile'))));
+  }
+}
+
+/** Settings：115/JavDB/AI/MGDB 配置与 TTL。 */
+export class Settings {
+  readonly cacheTtlHours: number;
+  readonly readyCacheLimit: number;
+  readonly metadataConcurrency: number;
+  readonly metadataTimeoutSeconds: number;
+  readonly javdb: JavdbSettings;
+  readonly ai: AiSettings;
+  readonly mgdb: MgdbSettings;
+  readonly providers: Map<string, ProviderState>;
+  readonly avdbSync: AvdbSyncStatus;
+
+  constructor(cacheTtlHours: number, readyCacheLimit: number, metadataConcurrency: number,
+    metadataTimeoutSeconds: number, javdb: JavdbSettings, ai: AiSettings, mgdb: MgdbSettings,
+    providers: Map<string, ProviderState>, avdbSync: AvdbSyncStatus) {
+    this.cacheTtlHours = cacheTtlHours;
+    this.readyCacheLimit = readyCacheLimit;
+    this.metadataConcurrency = metadataConcurrency;
+    this.metadataTimeoutSeconds = metadataTimeoutSeconds;
+    this.javdb = javdb;
+    this.ai = ai;
+    this.mgdb = mgdb;
+    this.providers = providers;
+    this.avdbSync = avdbSync;
+  }
+
+  static fromText(text: string): Settings {
+    const reader = JsonReader.fromText(text);
+    const ttl = reader.number('cache_ttl_hours');
+    if (ttl < 1 || ttl > 168 || Math.floor(ttl) !== ttl) {
+      throw new ProtocolException('Settings.cache_ttl_hours out of range');
+    }
+    const readyLimit = reader.number('ready_cache_limit');
+    const concurrency = reader.number('metadata_concurrency');
+    const timeout = reader.number('metadata_timeout_seconds');
+    if (readyLimit !== 20 || concurrency !== 3 || timeout !== 600) {
+      throw new ProtocolException('Settings fixed limits are not 20/3/600');
+    }
+    const providers = new Map<string, ProviderState>();
+    const providersRaw = reader.optionalObject('providers');
+    if (providersRaw !== null) {
+      for (const key of Object.keys(providersRaw)) {
+        providers.set(key, ProviderState.fromReader(new JsonReader(providersRaw[key] as Record<string, Object>)));
+      }
+    }
+    return new Settings(ttl, readyLimit, concurrency, timeout,
+      JavdbSettings.fromReader(new JsonReader(reader.object('javdb'))),
+      AiSettings.fromReader(new JsonReader(reader.object('ai'))),
+      MgdbSettings.fromReader(new JsonReader(reader.object('mgdb'))),
+      providers, AvdbSyncStatus.fromReader(new JsonReader(reader.object('avdb_sync'))));
+  }
+}
+
+/** ConnectionTest：单一目标只读 probe 结果。 */
+export class ConnectionTest {
+  readonly target: string;
+  readonly status: string;
+  readonly errorCode: string | null;
+  readonly elapsedMs: number;
+  readonly checkedAt: string;
+
+  constructor(target: string, status: string, errorCode: string | null, elapsedMs: number,
+    checkedAt: string) {
+    this.target = target;
+    this.status = status;
+    this.errorCode = errorCode;
+    this.elapsedMs = elapsedMs;
+    this.checkedAt = checkedAt;
+  }
+
+  static fromText(text: string): ConnectionTest {
+    return ConnectionTest.fromReader(JsonReader.fromText(text));
+  }
+
+  static fromReader(reader: JsonReader): ConnectionTest {
+    const target = reader.string('target');
+    const targets: string[] = ['cloud115', 'javdb', 'dmm', 'gfriends', 'ai'];
+    if (!targets.includes(target)) {
+      throw new ProtocolException(`unexpected connection target: ${target}`);
+    }
+    const status = reader.string('status');
+    const statuses: string[] = ['available', 'unavailable', 'credentials_invalid', 'not_configured'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected connection status: ${status}`);
+    }
+    return new ConnectionTest(target, status, reader.nullableString('error_code'),
+      reader.number('elapsed_ms'), reader.dateTime('checked_at'));
+  }
+}
+
+/** ComponentDiagnostic：组件状态。 */
+export class ComponentDiagnostic {
+  readonly component: string;
+  readonly status: string;
+  readonly errorCode: string | null;
+  readonly checkedAt: string;
+
+  constructor(component: string, status: string, errorCode: string | null, checkedAt: string) {
+    this.component = component;
+    this.status = status;
+    this.errorCode = errorCode;
+    this.checkedAt = checkedAt;
+  }
+
+  static fromReader(reader: JsonReader): ComponentDiagnostic {
+    const component = reader.string('component');
+    const components: string[] = ['api', 'scheduler', 'worker', 'postgres', 'avdb', 'javdb',
+      'dmm', 'gfriends', 'ai', 'cloud115'];
+    if (!components.includes(component)) {
+      throw new ProtocolException(`unexpected component: ${component}`);
+    }
+    const status = reader.string('status');
+    const statuses: string[] = ['healthy', 'degraded', 'unavailable', 'credentials_invalid', 'unknown'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected component status: ${status}`);
+    }
+    return new ComponentDiagnostic(component, status, reader.nullableString('error_code'),
+      reader.dateTime('checked_at'));
+  }
+}
+
+/** FailureDiagnostic：最近失败条目。 */
+export class FailureDiagnostic {
+  readonly taskType: string;
+  readonly taskId: string;
+  readonly errorCode: string;
+  readonly attemptNo: number;
+  readonly elapsedMs: number;
+  readonly occurredAt: string;
+
+  constructor(taskType: string, taskId: string, errorCode: string, attemptNo: number,
+    elapsedMs: number, occurredAt: string) {
+    this.taskType = taskType;
+    this.taskId = taskId;
+    this.errorCode = errorCode;
+    this.attemptNo = attemptNo;
+    this.elapsedMs = elapsedMs;
+    this.occurredAt = occurredAt;
+  }
+
+  static fromReader(reader: JsonReader): FailureDiagnostic {
+    const taskType = reader.string('task_type');
+    if (taskType !== 'metadata' && taskType !== 'cache' && taskType !== 'sync' &&
+      taskType !== 'credential') {
+      throw new ProtocolException(`unexpected failure task_type: ${taskType}`);
+    }
+    return new FailureDiagnostic(taskType, reader.string('task_id'),
+      reader.string('error_code'), reader.number('attempt_no'), reader.number('elapsed_ms'),
+      reader.dateTime('occurred_at'));
+  }
+}
+
+/** MetadataProgress：元数据总体进度（聚合视图）。 */
+export class MetadataProgress {
+  readonly total: number;
+  readonly queued: number;
+  readonly running: number;
+  readonly completed: number;
+  readonly failed: number;
+  readonly finished: number;
+  readonly currentNumbers: string[];
+
+  constructor(total: number, queued: number, running: number, completed: number, failed: number,
+    finished: number, currentNumbers: string[]) {
+    this.total = total;
+    this.queued = queued;
+    this.running = running;
+    this.completed = completed;
+    this.failed = failed;
+    this.finished = finished;
+    this.currentNumbers = currentNumbers;
+  }
+
+  static fromReader(reader: JsonReader): MetadataProgress {
+    const total = reader.number('total');
+    const queued = reader.number('queued');
+    const running = reader.number('running');
+    const completed = reader.number('completed');
+    const failed = reader.number('failed');
+    const finished = reader.number('finished');
+    if (running < 0 || running > 3) {
+      throw new ProtocolException('MetadataProgress.running out of range');
+    }
+    if (total !== queued + running + completed + failed) {
+      throw new ProtocolException('MetadataProgress totals are inconsistent');
+    }
+    if (finished !== completed + failed) {
+      throw new ProtocolException('MetadataProgress.finished is inconsistent');
+    }
+    const currentNumbers = reader.stringArray('current_numbers');
+    if (currentNumbers.length > 3 || !uniqueNonEmpty(currentNumbers)) {
+      throw new ProtocolException('MetadataProgress.current_numbers is invalid');
+    }
+    if (currentNumbers.length !== running) {
+      throw new ProtocolException('MetadataProgress.current_numbers length mismatch');
+    }
+    return new MetadataProgress(total, queued, running, completed, failed, finished, currentNumbers);
+  }
+}
+
+/** MetadataQueueControl：元数据领取控制。 */
+export class MetadataQueueControl {
+  readonly paused: boolean;
+  readonly queued: number;
+  readonly running: number;
+
+  constructor(paused: boolean, queued: number, running: number) {
+    this.paused = paused;
+    this.queued = queued;
+    this.running = running;
+  }
+
+  static fromText(text: string): MetadataQueueControl {
+    const reader = JsonReader.fromText(text);
+    const running = reader.number('running');
+    if (running < 0 || running > 3) {
+      throw new ProtocolException('MetadataQueueControl.running out of range');
+    }
+    return new MetadataQueueControl(reader.boolean('paused'), reader.number('queued'), running);
+  }
+}
+
+/** Diagnostics：脱敏诊断页数据。 */
+export class Diagnostics {
+  readonly generatedAt: string;
+  readonly components: ComponentDiagnostic[];
+  readonly queues: QueueDiagnostic;
+  readonly metadataProgress: MetadataProgress;
+  readonly recentFailures: FailureDiagnostic[];
+  readonly connectionTests: ConnectionTest[];
+
+  constructor(generatedAt: string, components: ComponentDiagnostic[], queues: QueueDiagnostic,
+    metadataProgress: MetadataProgress, recentFailures: FailureDiagnostic[],
+    connectionTests: ConnectionTest[]) {
+    this.generatedAt = generatedAt;
+    this.components = components;
+    this.queues = queues;
+    this.metadataProgress = metadataProgress;
+    this.recentFailures = recentFailures;
+    this.connectionTests = connectionTests;
+  }
+
+  static fromText(text: string): Diagnostics {
+    const reader = JsonReader.fromText(text);
+    const components: ComponentDiagnostic[] = [];
+    const componentNames: string[] = [];
+    for (const item of reader.objectArray('components')) {
+      if (components.length >= 10) {
+        throw new ProtocolException('Diagnostics.components exceeds limit');
+      }
+      const component = ComponentDiagnostic.fromReader(new JsonReader(item));
+      if (componentNames.includes(component.component)) {
+        throw new ProtocolException('Diagnostics.components has duplicates');
+      }
+      componentNames.push(component.component);
+      components.push(component);
+    }
+    const failures: FailureDiagnostic[] = [];
+    for (const item of reader.objectArray('recent_failures')) {
+      if (failures.length >= 100) {
+        throw new ProtocolException('Diagnostics.recent_failures exceeds limit');
+      }
+      failures.push(FailureDiagnostic.fromReader(new JsonReader(item)));
+    }
+    const tests: ConnectionTest[] = [];
+    const targets: string[] = [];
+    for (const item of reader.objectArray('connection_tests')) {
+      if (tests.length >= 5) {
+        throw new ProtocolException('Diagnostics.connection_tests exceeds limit');
+      }
+      const test = ConnectionTest.fromReader(new JsonReader(item));
+      if (targets.includes(test.target)) {
+        throw new ProtocolException('Diagnostics.connection_tests has duplicates');
+      }
+      targets.push(test.target);
+      tests.push(test);
+    }
+    return new Diagnostics(reader.dateTime('generated_at'), components,
+      QueueDiagnostic.fromReader(new JsonReader(reader.object('queues'))),
+      MetadataProgress.fromReader(new JsonReader(reader.object('metadata_progress'))),
+      failures, tests);
+  }
+}
+
+/** MetadataRetryResult：retry/retry-enrichment 201 响应。 */
+export class MetadataRetryResult {
+  readonly id: string;
+  readonly number: string;
+  readonly status: string;
+  readonly attemptNo: number;
+  readonly requestedStages: string[];
+  readonly retryableStages: string[];
+  readonly createdAt: string;
+
+  constructor(id: string, number: string, status: string, attemptNo: number,
+    requestedStages: string[], retryableStages: string[], createdAt: string) {
+    this.id = id;
+    this.number = number;
+    this.status = status;
+    this.attemptNo = attemptNo;
+    this.requestedStages = requestedStages;
+    this.retryableStages = retryableStages;
+    this.createdAt = createdAt;
+  }
+
+  static fromText(text: string): MetadataRetryResult {
+    const reader = JsonReader.fromText(text);
+    const id = reader.string('id');
+    if (!SOURCE_UUID_PATTERN.test(id)) {
+      throw new ProtocolException('MetadataRetryResult.id is not a uuid');
+    }
+    return new MetadataRetryResult(id, reader.string('number'), reader.string('status'),
+      reader.number('attempt_no'), reader.stringArray('requested_stages'),
+      reader.stringArray('retryable_stages'), reader.dateTime('created_at'));
+  }
+}
+
+/** MetadataStageDto：单阶段执行状态（javdb_core 不可单独重试）。 */
+export class MetadataStageDto {
+  readonly stage: string;
+  readonly status: string;
+  readonly errorCode: string | null;
+
+  constructor(stage: string, status: string, errorCode: string | null) {
+    this.stage = stage;
+    this.status = status;
+    this.errorCode = errorCode;
+  }
+
+  static fromReader(reader: JsonReader): MetadataStageDto {
+    const stage = reader.string('stage');
+    const stages: string[] = ['javdb_core', 'images', 'dmm', 'actor_map', 'gfriends', 'translation'];
+    if (!stages.includes(stage)) {
+      throw new ProtocolException(`unexpected metadata stage: ${stage}`);
+    }
+    const status = reader.string('status');
+    const statuses: string[] = ['pending', 'running', 'succeeded', 'warning', 'failed', 'skipped'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected stage status: ${status}`);
+    }
+    return new MetadataStageDto(stage, status, reader.nullableString('error_code'));
+  }
+}
+
+/** MetadataJobFull：/admin/metadata-jobs 任务（含 retryable_stages 白名单）。 */
+export class MetadataJobFull {
+  readonly id: string;
+  readonly number: string;
+  readonly status: string;
+  readonly attemptNo: number;
+  readonly retryMode: string;
+  readonly requestedStages: string[];
+  readonly retryableStages: string[];
+  readonly stages: MetadataStageDto[];
+  readonly errorCode: string | null;
+  readonly createdAt: string;
+
+  constructor(id: string, number: string, status: string, attemptNo: number, retryMode: string,
+    requestedStages: string[], retryableStages: string[], stages: MetadataStageDto[],
+    errorCode: string | null, createdAt: string) {
+    this.id = id;
+    this.number = number;
+    this.status = status;
+    this.attemptNo = attemptNo;
+    this.retryMode = retryMode;
+    this.requestedStages = requestedStages;
+    this.retryableStages = retryableStages;
+    this.stages = stages;
+    this.errorCode = errorCode;
+    this.createdAt = createdAt;
+  }
+
+  /** 可富化重试：completed_with_warnings 或 failed 且有可选阶段（永不包含 javdb_core）。 */
+  canRetryEnrichment(): boolean {
+    if (this.status !== 'completed_with_warnings' && this.status !== 'failed') {
+      return false;
+    }
+    return this.retryableStages.length > 0;
+  }
+
+  static fromReader(reader: JsonReader): MetadataJobFull {
+    const id = reader.string('id');
+    if (!SOURCE_UUID_PATTERN.test(id)) {
+      throw new ProtocolException('MetadataJobFull.id is not a uuid');
+    }
+    const status = reader.string('status');
+    const statuses: string[] = ['queued', 'running', 'completed', 'completed_with_warnings', 'failed'];
+    if (!statuses.includes(status)) {
+      throw new ProtocolException(`unexpected metadata job status: ${status}`);
+    }
+    const stages: MetadataStageDto[] = [];
+    for (const item of reader.objectArray('stages')) {
+      stages.push(MetadataStageDto.fromReader(new JsonReader(item)));
+    }
+    const retryableStages = reader.stringArray('retryable_stages');
+    const enrichment: string[] = ['images', 'dmm', 'actor_map', 'gfriends', 'translation'];
+    for (const stage of retryableStages) {
+      if (!enrichment.includes(stage)) {
+        throw new ProtocolException(`unexpected retryable stage: ${stage}`);
+      }
+    }
+    return new MetadataJobFull(id, reader.string('number'), status, reader.number('attempt_no'),
+      reader.string('retry_mode'), reader.stringArray('requested_stages'), retryableStages,
+      stages, reader.nullableString('error_code'), reader.dateTime('created_at'));
+  }
+}
+
+/** MetadataJobPage：持久元数据队列快照。 */
+export class MetadataJobPage {
+  readonly items: MetadataJobFull[];
+  readonly nextCursor: string | null;
+
+  constructor(items: MetadataJobFull[], nextCursor: string | null) {
+    this.items = items;
+    this.nextCursor = nextCursor;
+  }
+
+  static fromText(text: string): MetadataJobPage {
+    const reader = JsonReader.fromText(text);
+    const items: MetadataJobFull[] = [];
+    const ids: string[] = [];
+    for (const item of reader.objectArray('items')) {
+      if (items.length >= 100) {
+        throw new ProtocolException('MetadataJobPage.items exceeds limit');
+      }
+      const job = MetadataJobFull.fromReader(new JsonReader(item));
+      if (ids.includes(job.id)) {
+        throw new ProtocolException('MetadataJobPage.items has duplicate ids');
+      }
+      ids.push(job.id);
+      items.push(job);
+    }
+    return new MetadataJobPage(items, reader.nullableString('next_cursor'));
   }
 }

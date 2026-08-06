@@ -59,7 +59,7 @@ class FakeHttpTransport implements HttpTransport {
       `"remote_percent":null,"error_code":null,"media_candidates":[],` +
       `"selected_media_ids":[],"subtitles":[],"created_at":"2026-08-04T00:00:00Z",` +
       `"updated_at":"2026-08-04T00:00:00Z"}],` +
-      `"metadata_jobs":[],"cloud115_binding":{"status":"unbound"},"notifications":[]}`;
+      `"metadata_jobs":[],"cloud115_binding":{"bound":false,"status":"unbound","display_name":null,"cache_root_ready":false,"last_verified_at":null},"notifications":[]}`;
   }
 }
 

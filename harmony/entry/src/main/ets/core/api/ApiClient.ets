@@ -8,8 +8,12 @@
 
 import { http } from '@kit.NetworkKit';
 import {
-  ActorDetail, ActorPage, ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader,
-  MovieDetail, MoviePage, ProtocolException, RankingPage, SearchResult, TokenPair,
+  ActorDetail, ActorPage, ApiErrorBody, ApiException, BootstrapStatus, CacheJobDetail,
+  CacheJobPage,
+  Cloud115Binding, ConnectionTest, Diagnostics, EventSnapshot, JsonReader, MetadataJobPage,
+  MetadataQueueControl,
+  MetadataRetryResult, MovieDetail, MoviePage, ProtocolException, QrSession, RankingPage,
+  SearchResult, Settings, TokenPair,
 } from './ApiModels';
 
 /** 与状态无关的 HTTP 传输层。 */
@@ -524,9 +528,188 @@ export class ApiClient {
       throw this.throwForError(response);
     }
   }
+  /** GET /cloud115/binding：脱敏绑定状态。 */
+  async getCloud115Binding(): Promise<Cloud115Binding> {
+    const response = await this.request('/cloud115/binding', 'GET', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return Cloud115Binding.fromReader(JsonReader.fromText(response.body));
+  }
+
+  /** DELETE /cloud115/binding：解绑（活动缓存任务 409）。 */
+  async deleteCloud115Binding(): Promise<void> {
+    const response = await this.request('/cloud115/binding', 'DELETE', { auth: true });
+    if (response.statusCode !== 204) {
+      throw this.throwForError(response);
+    }
+  }
+
+  /** POST /cloud115/qr-sessions：创建扫码会话（201）。 */
+  async createCloud115QrSession(): Promise<QrSession> {
+    const response = await this.request('/cloud115/qr-sessions', 'POST', { auth: true });
+    if (response.statusCode !== 201) {
+      throw this.throwForError(response);
+    }
+    return QrSession.fromText(response.body);
+  }
+
+  /** GET /cloud115/qr-sessions/{id}：轮询扫码状态。 */
+  async getCloud115QrSession(qrSessionId: string): Promise<QrSession> {
+    const encoded = encodeURIComponent(qrSessionId);
+    const response = await this.request(`/cloud115/qr-sessions/${encoded}`, 'GET', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return QrSession.fromText(response.body);
+  }
+
+  /** POST /cloud115/qr-sessions/{id}/confirm：确认扫码并保存绑定。 */
+  async confirmCloud115QrSession(qrSessionId: string): Promise<Cloud115Binding> {
+    const encoded = encodeURIComponent(qrSessionId);
+    const response = await this.request(`/cloud115/qr-sessions/${encoded}/confirm`, 'POST', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return Cloud115Binding.fromReader(JsonReader.fromText(response.body));
+  }
+
+  /** GET /cache-jobs：分页任务列表 + 容量。 */
+  async listCacheJobs(statuses: string[], cursor: string | null): Promise<CacheJobPage> {
+    const parts: string[] = [];
+    if (statuses.length > 0) {
+      parts.push(`status=${encodeURIComponent(statuses.join(','))}`);
+    }
+    parts.push('limit=24');
+    if (cursor !== null) {
+      parts.push(`cursor=${encodeURIComponent(cursor)}`);
+    }
+    const response = await this.request(`/cache-jobs?${parts.join('&')}`, 'GET', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return CacheJobPage.fromText(response.body);
+  }
+
+  /** POST /cache-jobs/{id}/cancel：取消（二次确认 {confirmed:true}，202 返回新任务）。 */
+  async cancelCacheJob(cacheJobId: string): Promise<CacheJobDetail> {
+    const encoded = encodeURIComponent(cacheJobId);
+    const options: RequestOptions = { auth: true, body: '{"confirmed":true}' };
+    const response = await this.request(`/cache-jobs/${encoded}/cancel`, 'POST', options);
+    if (response.statusCode !== 202) {
+      throw this.throwForError(response);
+    }
+    return CacheJobDetail.fromText(response.body);
+  }
+
+  /** POST /cache-jobs/{id}/cleanup：清理就绪缓存（202 返回新任务）。 */
+  async cleanupCacheJob(cacheJobId: string): Promise<CacheJobDetail> {
+    const encoded = encodeURIComponent(cacheJobId);
+    const options: RequestOptions = { auth: true, body: '' };
+    const response = await this.request(`/cache-jobs/${encoded}/cleanup`, 'POST', options);
+    if (response.statusCode !== 202) {
+      throw this.throwForError(response);
+    }
+    return CacheJobDetail.fromText(response.body);
+  }
+
+  /** GET /admin/diagnostics：脱敏诊断（组件/队列/失败/连接测试）。 */
+  async getDiagnostics(): Promise<Diagnostics> {
+    const response = await this.request('/admin/diagnostics', 'GET', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return Diagnostics.fromText(response.body);
+  }
+
+  /** GET /settings：权威设置（非秘密现值回显）。 */
+  async getSettings(): Promise<Settings> {
+    const response = await this.request('/settings', 'GET', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return Settings.fromText(response.body);
+  }
+
+  /** PATCH /settings：对象级更新（TTL/CAS replace/clear），body 为 JSON 串，响应为权威真相。 */
+  async updateSettings(body: string): Promise<Settings> {
+    const options: RequestOptions = { auth: true, body: body };
+    const response = await this.request('/settings', 'PATCH', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return Settings.fromText(response.body);
+  }
+
+  /** POST /settings/connection-tests：单一目标只读 probe。 */
+  async testConnection(target: string): Promise<ConnectionTest> {
+    const options: RequestOptions = { auth: true, body: JSON.stringify({ 'target': target }) };
+    const response = await this.request('/settings/connection-tests', 'POST', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return ConnectionTest.fromText(response.body);
+  }
+
+  /** POST /settings/mgdb-sync-requests：立即全量同步（202 创建/复用）。 */
+  async requestMgdbFullSync(): Promise<void> {
+    const options: RequestOptions = { auth: true, body: '' };
+    const response = await this.request('/settings/mgdb-sync-requests', 'POST', options);
+    if (response.statusCode !== 202) {
+      throw this.throwForError(response);
+    }
+  }
+
+  /** PUT /admin/metadata-queue：暂停/恢复元数据领取（单一布尔）。 */
+  async setMetadataQueueControl(paused: boolean): Promise<MetadataQueueControl> {
+    const options: RequestOptions = { auth: true, body: JSON.stringify({ 'paused': paused }) };
+    const response = await this.request('/admin/metadata-queue', 'PUT', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return MetadataQueueControl.fromText(response.body);
+  }
+
+  /** GET /admin/metadata-jobs：持久元数据队列（可筛选状态）。 */
+  async listMetadataJobs(status: string | null, cursor: string | null): Promise<MetadataJobPage> {
+    const parts: string[] = [];
+    if (status !== null) {
+      parts.push(`status=${encodeURIComponent(status)}`);
+    }
+    parts.push('limit=24');
+    if (cursor !== null) {
+      parts.push(`cursor=${encodeURIComponent(cursor)}`);
+    }
+    const response = await this.request(`/admin/metadata-jobs?${parts.join('&')}`, 'GET', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return MetadataJobPage.fromText(response.body);
+  }
+
+  /** POST /admin/metadata-jobs/{id}/retry：失败元数据任务重试（201 新 queued attempt）。 */
+  async retryMetadataJob(metadataJobId: string): Promise<MetadataRetryResult> {
+    const encoded = encodeURIComponent(metadataJobId);
+    const response = await this.request(`/admin/metadata-jobs/${encoded}/retry`, 'POST', { auth: true });
+    if (response.statusCode !== 201) {
+      throw this.throwForError(response);
+    }
+    return MetadataRetryResult.fromText(response.body);
+  }
+
+  /** POST /admin/metadata-jobs/{id}/retry-enrichment：显式阶段富化重试（永不跑 javdb_core）。 */
+  async retryMetadataEnrichment(metadataJobId: string, stages: string[]): Promise<MetadataRetryResult> {
+    const encoded = encodeURIComponent(metadataJobId);
+    const options: RequestOptions = { auth: true, body: JSON.stringify({ 'stages': stages }) };
+    const response = await this.request(`/admin/metadata-jobs/${encoded}/retry-enrichment`, 'POST', options);
+    if (response.statusCode !== 201) {
+      throw this.throwForError(response);
+    }
+    return MetadataRetryResult.fromText(response.body);
+  }
 }
 
-/** 空实现占位：错误码常量便于引用。 */
+
 export class ClientErrorCodes {
   static readonly PROTOCOL = 'client_protocol_error';
   static readonly TRANSPORT = 'client_transport_error';

@@ -17,6 +17,10 @@ import { libraryStore } from '../features/library/LibraryStore';
 import { rankingsStore } from '../features/rankings/RankingsStore';
 import { ActorDetailPage } from '../features/actors/ActorDetailPage';
 import { MovieDetailPage } from '../features/movies/MovieDetailPage';
+import { appNotifications } from '../core/notifications/AppNotifications';
+import { SettingsPage } from '../features/settings/SettingsPage';
+import { DiagnosticsPage } from '../features/settings/DiagnosticsPage';
+import { CachePage } from '../features/cache/CachePage';
 import { actorsStore } from '../features/actors/ActorsStore';
 
 /** 播放器占位路由：固定深色背景（AC-062）。 */
@@ -38,20 +42,8 @@ function PlayerRoute() {
 }
 
 @Builder
-function SettingsRoute() {
-  Column() {
-    Text('设置')
-      .fontSize(16)
-      .fontColor($r('app.color.text_primary'))
-    Text('设置功能由 TASK-308 提供')
-      .id('settings_placeholder')
-      .fontSize(12)
-      .fontColor($r('app.color.text_secondary'))
-      .margin({ top: 6 })
-  }
-  .justifyContent(FlexAlign.Center)
-  .width('100%')
-  .height('100%')
+function SettingsRoute(pathStack: NavPathStack) {
+  SettingsPage({ pathStack: pathStack })
 }
 
 /** 模块级路由 builder 使用的 pathStack（由 AppNavigation aboutToAppear 注入）。 */
@@ -67,9 +59,21 @@ export function pageMapBuilder(name: string, param: Object) {
     .backgroundColor($r('app.color.player_background'))
   } else if (name === 'Settings') {
     NavDestination() {
-      SettingsRoute()
+      if (appNavigationPathStack !== null) {
+        SettingsRoute(appNavigationPathStack)
+      }
     }
     .title('设置')
+  } else if (name === 'Diagnostics') {
+    NavDestination() {
+      DiagnosticsPage()
+    }
+    .title('诊断')
+  } else if (name === 'Cache') {
+    NavDestination() {
+      CachePage()
+    }
+    .title('缓存任务')
   } else if (name === 'MovieDetail') {
     NavDestination() {
       if (param instanceof MovieSummary && appNavigationPathStack !== null) {
@@ -135,6 +139,8 @@ export struct AppNavigation {
     libraryStore.attach(authStore.apiClientProvider);
     rankingsStore.attach(authStore.apiClientProvider);
     actorsStore.attach(authStore.apiClientProvider);
+    appNotifications.attach(authStore.snapshotStore);
+    appNotifications.setClient(authStore.apiClientProvider);
   }
 
   aboutToDisappear(): void {
@@ -143,6 +149,8 @@ export struct AppNavigation {
     libraryStore.detach();
     rankingsStore.detach();
     actorsStore.detach();
+    appNotifications.detach();
+    appNotifications.reset();
   }
 
   @Builder
@@ -156,6 +164,9 @@ export struct AppNavigation {
         })
       Blank()
       CacheBadge({ snapshot: authStore.snapshotStore })
+        .onClick(() => {
+          this.pathStack.pushPath({ name: 'Cache' });
+        })
       Text('设置')
         .fontSize(14)
         .fontColor($r('app.color.primary'))

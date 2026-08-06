@@ -14,6 +14,7 @@ import movieDetailTest from './MovieDetail.test';
 import sourceSheetTest from './SourceSheet.test';
 import movieDetailPageTest from './MovieDetailPage.test';
 import catalogImageTest from './CatalogImage.test';
+import settingsCacheTest from './SettingsCache.test';
 
 export default function testsuite() {
   abilityTest();
@@ -32,4 +33,5 @@ export default function testsuite() {
   sourceSheetTest();
   movieDetailPageTest();
   catalogImageTest();
+  settingsCacheTest();
 }

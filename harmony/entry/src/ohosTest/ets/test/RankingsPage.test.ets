@@ -49,7 +49,7 @@ class FakeHttpTransport implements HttpTransport {
       '"queues":{"metadata_queued":0,"metadata_running":0,"metadata_paused":false,' +
       '"cache_queued":0,"cache_running":0,"cache_ready":0},' +
       '"cache_jobs":[],"metadata_jobs":[],' +
-      '"cloud115_binding":{"status":"unbound"},"notifications":[]}';
+      '"cloud115_binding":{"bound":false,"status":"unbound","display_name":null,"cache_root_ready":false,"last_verified_at":null},"notifications":[]}';
   }
 
   static moviesBody(): string {

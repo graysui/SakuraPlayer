@@ -68,7 +68,7 @@ class FakeHttpTransport implements HttpTransport {
       `"queues":{"metadata_queued":0,"metadata_running":0,"metadata_paused":false,` +
       `"cache_queued":${queued},"cache_running":${running},"cache_ready":${ready}},` +
       `"cache_jobs":[],"metadata_jobs":[],` +
-      `"cloud115_binding":{"status":"unbound"},"notifications":[]}`;
+      `"cloud115_binding":{"bound":false,"status":"unbound","display_name":null,"cache_root_ready":false,"last_verified_at":null},"notifications":[]}`;
   }
 
   static searchBody(pending: boolean): string {
