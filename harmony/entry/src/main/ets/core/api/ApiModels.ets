@@ -1913,3 +1913,44 @@ export class MetadataJobPage {
     return new MetadataJobPage(items, reader.nullableString('next_cursor'));
   }
 }
+
+/** PlayRequestResult：/movies/{id}/play-requests 响应（AC-084/087/089/091）。 */
+export class PlayRequestResult {
+  readonly disposition: string;
+  readonly waitDeadline: string | null;
+  readonly cacheJob: CacheJobDetail;
+
+  constructor(disposition: string, waitDeadline: string | null, cacheJob: CacheJobDetail) {
+    this.disposition = disposition;
+    this.waitDeadline = waitDeadline;
+    this.cacheJob = cacheJob;
+  }
+
+  static fromText(text: string): PlayRequestResult {
+    const reader = JsonReader.fromText(text);
+    const disposition = reader.string('disposition');
+    const dispositions: string[] = ['ready', 'started', 'queued', 'reused'];
+    if (!dispositions.includes(disposition)) {
+      throw new ProtocolException(`unexpected play disposition: ${disposition}`);
+    }
+    const deadline = reader.nullableString('wait_deadline');
+    const job = CacheJobDetail.fromReader(new JsonReader(reader.object('cache_job')));
+    if (disposition === 'started') {
+      if (deadline === null) {
+        throw new ProtocolException('started disposition requires wait_deadline');
+      }
+      if (job.status !== 'submitting') {
+        throw new ProtocolException('started disposition requires submitting cache job');
+      }
+    } else if (deadline !== null) {
+      throw new ProtocolException('wait_deadline is only allowed for started');
+    }
+    if (disposition === 'ready' && job.status !== 'ready') {
+      throw new ProtocolException('ready disposition requires ready cache job');
+    }
+    if (disposition === 'queued' && job.status !== 'queued') {
+      throw new ProtocolException('queued disposition requires queued cache job');
+    }
+    return new PlayRequestResult(disposition, deadline, job);
+  }
+}

@@ -21,19 +21,22 @@ import { appNotifications } from '../core/notifications/AppNotifications';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { DiagnosticsPage } from '../features/settings/DiagnosticsPage';
 import { CachePage } from '../features/cache/CachePage';
+import { BlockingWaitPage } from '../features/cache/BlockingWaitPage';
 import { actorsStore } from '../features/actors/ActorsStore';
 
-/** 播放器占位路由：固定深色背景（AC-062）。 */
+/** 播放器占位路由：固定深色背景（AC-062）；接收 cache_job.id + media_id（TASK-310 消费）。 */
 @Builder
-function PlayerRoute() {
+function PlayerRoute(param: Object) {
   Column() {
     Text('播放器')
       .fontSize(16)
       .fontColor('#FFFFFF')
-    Text('播放功能由 TASK-310/311 提供')
-      .fontSize(12)
-      .fontColor('#99FFFFFF')
-      .margin({ top: 6 })
+    if (param instanceof Object) {
+      Text(`任务 ${(param as Record<string, Object>)['cacheJobId']} 就绪，播放器由后续任务提供`)
+        .fontSize(12)
+        .fontColor('#99FFFFFF')
+        .margin({ top: 6 })
+    }
   }
   .justifyContent(FlexAlign.Center)
   .width('100%')
@@ -53,7 +56,7 @@ let appNavigationPathStack: NavPathStack | null = null;
 export function pageMapBuilder(name: string, param: Object) {
   if (name === 'Player') {
     NavDestination() {
-      PlayerRoute()
+      PlayerRoute(param)
     }
     .title('播放器')
     .backgroundColor($r('app.color.player_background'))
@@ -74,6 +77,10 @@ export function pageMapBuilder(name: string, param: Object) {
       CachePage()
     }
     .title('缓存任务')
+  } else if (name === 'BlockingWait') {
+    if (appNavigationPathStack !== null) {
+      BlockingWaitPage({ pathStack: appNavigationPathStack })
+    }
   } else if (name === 'MovieDetail') {
     NavDestination() {
       if (param instanceof MovieSummary && appNavigationPathStack !== null) {

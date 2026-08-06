@@ -22,17 +22,17 @@ provides: [HarmonyOS play request store, full-screen blocking wait, completion n
 
 ## 验收条件
 
-- [ ] 只有用户选来源点击播放才提交，重复点击复用；对应 AC-084、AC-091。
-- [ ] started 全屏锁定，普通返回/Tab/搜索不可操作，只有二次确认取消；60 秒内 ready 自动播放；对应 AC-086、AC-087。
-- [ ] 60 秒后退出等待并提示切换资源，后端继续；对应 AC-088。
-- [ ] queued 立即退出且开始/完成不自动播放；后台完成只通知；对应 AC-089、AC-090、AC-117。
-- [ ] 不提供 2/10 容量调整；对应 AC-085。
+- [x] 只有用户选来源点击播放才提交，重复点击复用；对应 AC-084、AC-091。
+- [x] started 全屏锁定，普通返回/Tab/搜索不可操作，只有二次确认取消；60 秒内 ready 自动播放；对应 AC-086、AC-087。
+- [x] 60 秒后退出等待并提示切换资源，后端继续；对应 AC-088。
+- [x] queued 立即退出且开始/完成不自动播放；后台完成只通知；对应 AC-089、AC-090、AC-117。
+- [x] 不提供 2/10 容量调整；对应 AC-085。
 
 ## Definition of Ready
 
-- [ ] TASK-307 source ID、TASK-308 cache event/notification 可用。
-- [ ] bindContentCover/openCustomDialog API 24 签名已核验，不用 deprecated CustomDialog。
-- [ ] onBackPress/Navigation interception 行为通过 API 24 SDK 签名检查和自动化 UI fixture 验证。
+- [x] TASK-307 source ID、TASK-308 cache event/notification 可用。
+- [x] bindContentCover/openCustomDialog API 24 签名已核验，不用 deprecated CustomDialog。
+- [x] onBackPress/Navigation interception 行为通过 API 24 SDK 签名检查和自动化 UI fixture 验证。
 
 ## 技术上下文
 
@@ -58,9 +58,9 @@ provides: [HarmonyOS play request store, full-screen blocking wait, completion n
 
 ## Definition of Done
 
-- [ ] 播放请求、等待锁、60 秒、排队和通知完成。
-- [ ] 无后台预取或自动播放后台 ready。
-- [ ] Hypium/UiTest 通过。
+- [x] 播放请求、等待锁、60 秒、排队和通知完成。
+- [x] 无后台预取或自动播放后台 ready。
+- [x] Hypium/UiTest 通过。
 
 **依赖**: TASK-307, TASK-308
 

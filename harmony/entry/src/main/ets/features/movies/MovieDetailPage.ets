@@ -13,6 +13,8 @@
 
 import { display, mediaquery } from '@kit.ArkUI';
 import { ComponentContent } from '@kit.ArkUI';
+import { PlayRequestPhase } from '../cache/PlayRequestStore';
+import { PlaybackParam, playRequestStore } from '../cache/playRequestCoordinator';
 import { MovieDetailStatus, MovieDetailStore } from './MovieDetailStore';
 import { ActorSummary, MovieDetail, MovieSource, MovieSummary, PlaybackProgress } from '../../core/api/ApiModels';
 import { authStore } from '../../core/auth/AuthStore';
@@ -47,6 +49,8 @@ export struct MovieDetailPage {
   @State sources: MovieSource[] = [];
   @State sourceCount: number = 0;
   @State selectedSourceId: string | null = null;
+  /** 播放请求一次性监听（页面销毁时移除，避免已销毁页面触发导航）。 */
+  private pendingPlayListener: (() => void) | null = null;
   @State favorite: boolean = false;
   @State favoriteInFlight: boolean = false;
   @State favoriteError: boolean = false;
@@ -78,14 +82,17 @@ export struct MovieDetailPage {
     }
   }
 
-  aboutToDisappear(): void {
-    this.store.removeChangeListener(this.onStoreChanged);
+  aboutToDisappear(): void {    this.store.removeChangeListener(this.onStoreChanged);
     this.store.detach();
     if (this.orientationListener !== null) {
       this.orientationListener.off('change');
       this.orientationListener = null;
     }
     this.closeSheet();
+    if (this.pendingPlayListener !== null) {
+      playRequestStore.removeChangeListener(this.pendingPlayListener);
+      this.pendingPlayListener = null;
+    }
   }
 
   private updatePlotColumns(): void {
@@ -122,6 +129,57 @@ export struct MovieDetailPage {
     }
     this.favoriteInFlight = this.store.favoriteInFlight;
     this.favoriteError = this.store.favoriteError !== null;
+  }
+
+  /** 播放请求：只有用户选来源点击播放才提交（AC-084/091）；重复点击复用（single-flight）。 */
+  private requestPlay(): void {
+    const sourceId = this.selectedSourceId;
+    if (sourceId === null) {
+      return;
+    }
+    const onPhaseChange: () => void = (): void => {
+      const phase = playRequestStore.phase;
+      if (phase === PlayRequestPhase.SUBMITTING) {
+        // 在途：继续等待终态（不能移除监听）
+        return;
+      }
+      playRequestStore.removeChangeListener(onPhaseChange);
+      if (phase === PlayRequestPhase.WAITING) {
+        this.pathStack.pushPath({ name: 'BlockingWait' });
+      } else if (phase === PlayRequestPhase.READY) {
+        const job = playRequestStore.job;
+        if (job !== null) {
+          const playback: PlaybackParam = {
+            cacheJobId: job.id,
+            mediaId: job.selectedMediaIds.length > 0 ? job.selectedMediaIds[0] : null,
+          };
+          this.pathStack.pushPath({ name: 'Player', param: playback });
+        }
+      } else if (phase === PlayRequestPhase.QUEUED) {
+        this.showPlayHint('任务已加入排队，不会自动播放；开始执行或完成时会通知');
+      } else if (phase === PlayRequestPhase.EXISTING) {
+        this.showPlayHint('任务已存在，等待后台完成通知');
+      } else if (phase === PlayRequestPhase.FAILED) {
+        this.showPlayHint('播放请求失败，请重试');
+      }
+    };
+    playRequestStore.attach(authStore.apiClientProvider, authStore.snapshotStore);
+    if (this.pendingPlayListener !== null) {
+      playRequestStore.removeChangeListener(this.pendingPlayListener);
+    }
+    this.pendingPlayListener = onPhaseChange;
+    playRequestStore.addChangeListener(onPhaseChange);
+    playRequestStore.submit(this.movieId, sourceId);
+  }
+
+  private showPlayHint(message: string): void {
+    this.getUIContext().getPromptAction().showDialog({
+      title: '提示',
+      message: message,
+      buttons: [{ text: '知道了', color: $r('app.color.primary') }],
+    }).catch(() => {
+      // 对话框关闭
+    });
   }
 
   private progressLabel(): string {
@@ -419,7 +477,7 @@ export struct MovieDetailPage {
         .opacity(this.selectedSourceId !== null ? 1 : 0.5)
         .enabled(this.selectedSourceId !== null)
         .onClick(() => {
-          // 本任务只输出 source_id（store.selectedSourceId）；播放由后续任务消费
+          this.requestPlay();
         })
     }
     .width('100%')

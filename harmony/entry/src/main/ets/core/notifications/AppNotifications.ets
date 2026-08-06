@@ -16,16 +16,16 @@ import { ApiClient } from '../api/ApiClient';
 /** 通知内容映射（不包含任何秘密/磁力/URL）。 */
 function contentFor(type: string): [string, string] | null {
   if (type === 'cache_started') {
-    return ['缓存任务已开始', '离线任务正在后台处理'];
+    return ['缓存任务开始', '任务正在后台处理，不会自动播放'];
   }
   if (type === 'cache_ready') {
-    return ['缓存任务完成', '影片已可离线播放'];
+    return ['缓存已就绪', '可在缓存页查看并播放'];
   }
   if (type === 'cache_failed') {
-    return ['缓存任务失败', '请在缓存页查看失败原因'];
+    return ['缓存任务失败', '可在缓存页查看失败原因'];
   }
   if (type === 'credential_expired') {
-    return ['115 凭据已失效', '请重新扫码绑定'];
+    return ['115 凭据已失效', '请在设置中重新扫码'];
   }
   return null;
 }

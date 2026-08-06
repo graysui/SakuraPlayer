@@ -12,7 +12,8 @@ import {
   CacheJobPage,
   Cloud115Binding, ConnectionTest, Diagnostics, EventSnapshot, JsonReader, MetadataJobPage,
   MetadataQueueControl,
-  MetadataRetryResult, MovieDetail, MoviePage, ProtocolException, QrSession, RankingPage,
+  MetadataRetryResult, MovieDetail, MoviePage, PlayRequestResult, ProtocolException, QrSession,
+  RankingPage,
   SearchResult, Settings, TokenPair,
 } from './ApiModels';
 
@@ -572,6 +573,24 @@ export class ApiClient {
       throw this.throwForError(response);
     }
     return Cloud115Binding.fromReader(JsonReader.fromText(response.body));
+  }
+
+  /** POST /movies/{id}/play-requests：唯一创建离线任务的入口（Idempotency-Key 幂等）。 */
+  async createPlayRequest(movieId: string, sourceId: string, idempotencyKey: string): Promise<PlayRequestResult> {
+    if (!/^[A-Za-z0-9._~-]{16,128}$/.test(idempotencyKey)) {
+      throw new ProtocolException('idempotency key must be safe ascii 16..128');
+    }
+    const encoded = encodeURIComponent(movieId);
+    const options: RequestOptions = {
+      auth: true,
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({ 'source_id': sourceId }),
+    };
+    const response = await this.request(`/movies/${encoded}/play-requests`, 'POST', options);
+    if (response.statusCode !== 200 && response.statusCode !== 202) {
+      throw this.throwForError(response);
+    }
+    return PlayRequestResult.fromText(response.body);
   }
 
   /** GET /cache-jobs：分页任务列表 + 容量。 */
