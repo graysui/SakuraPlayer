@@ -10,6 +10,10 @@ import rankingsPageTest from './RankingsPage.test';
 import actorsTest from './Actors.test';
 import gfriendsCacheTest from './GfriendsCache.test';
 import actorsPageTest from './ActorsPage.test';
+import movieDetailTest from './MovieDetail.test';
+import sourceSheetTest from './SourceSheet.test';
+import movieDetailPageTest from './MovieDetailPage.test';
+import catalogImageTest from './CatalogImage.test';
 
 export default function testsuite() {
   abilityTest();
@@ -24,4 +28,8 @@ export default function testsuite() {
   actorsTest();
   gfriendsCacheTest();
   actorsPageTest();
+  movieDetailTest();
+  sourceSheetTest();
+  movieDetailPageTest();
+  catalogImageTest();
 }

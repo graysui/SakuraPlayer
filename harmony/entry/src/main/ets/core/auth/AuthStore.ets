@@ -21,6 +21,7 @@ import { EventClient, NetworkWebSocketTransport, WebSocketTransport } from '../e
 import { SnapshotStore } from '../events/SnapshotStore';
 import { SubtitleCache } from '../storage/SubtitleCache';
 import { gfriendsCache } from '../images/GfriendsCache';
+import { catalogImageCache } from '../images/CatalogImageCache';
 
 export enum AuthStatus {
   INITIALIZING,
@@ -179,6 +180,8 @@ export class AuthStore {
       // GFriends 临时图片缓存（cacheDir/gfriends-v1 证明式清理）
       await gfriendsCache.clear();
     }
+    // 认证目录图片内存缓存（退出登录后不得复用旧会话图片）
+    catalogImageCache.clear();
     this.status = this.serverBaseUrl.length > 0 ? AuthStatus.UNAUTHENTICATED : AuthStatus.SERVER_REQUIRED;
   }
 

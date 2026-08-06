@@ -16,6 +16,7 @@ import { LibraryPage } from '../features/library/LibraryPage';
 import { libraryStore } from '../features/library/LibraryStore';
 import { rankingsStore } from '../features/rankings/RankingsStore';
 import { ActorDetailPage } from '../features/actors/ActorDetailPage';
+import { MovieDetailPage } from '../features/movies/MovieDetailPage';
 import { actorsStore } from '../features/actors/ActorsStore';
 
 /** 播放器占位路由：固定深色背景（AC-062）。 */
@@ -71,20 +72,9 @@ export function pageMapBuilder(name: string, param: Object) {
     .title('设置')
   } else if (name === 'MovieDetail') {
     NavDestination() {
-      Column() {
-        Text('影片详情（占位）')
-          .fontSize(14)
-          .fontColor($r('app.color.text_secondary'))
-        if (param instanceof MovieSummary) {
-          Text(`${param.number} ${param.title}`)
-            .fontSize(16)
-            .fontColor($r('app.color.text_primary'))
-            .margin({ top: 8 })
-        }
+      if (param instanceof MovieSummary && appNavigationPathStack !== null) {
+        MovieDetailPage({ movieId: param.id, summary: param, pathStack: appNavigationPathStack })
       }
-      .justifyContent(FlexAlign.Center)
-      .width('100%')
-      .height('100%')
     }
     .title('影片详情')
     .backgroundColor($r('app.color.background'))

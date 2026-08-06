@@ -47,6 +47,7 @@ class RankingDataSource implements IDataSource {
 
 @Component
 export struct RankingsPage {
+  @Require pathStack: NavPathStack;
   private dataSource: RankingDataSource = new RankingDataSource();
   private readonly onStoreChanged: () => void = (): void => this.syncFromStore();
   @State gridColumns: number = 2;
@@ -294,6 +295,9 @@ export struct RankingsPage {
         GridItem() {
           Stack({ alignContent: Alignment.TopStart }) {
             MovieCard({ movie: item.movie })
+              .onClick(() => {
+                this.pathStack.pushPath({ name: 'MovieDetail', param: item.movie });
+              })
             Text(`${item.rank}`)
               .fontSize(10)
               .fontWeight(FontWeight.Bold)

@@ -9,13 +9,13 @@ import { RankingsPage } from '../features/rankings/RankingsPage';
 import { ActorsPage } from '../features/actors/ActorsPage';
 
 @Builder
-function LibraryTabPlaceholder() {
-  LibraryPage()
+function LibraryTabPlaceholder(pathStack: NavPathStack) {
+  LibraryPage({ pathStack: pathStack })
 }
 
 @Builder
-function RankingsTabPlaceholder() {
-  RankingsPage()
+function RankingsTabPlaceholder(pathStack: NavPathStack) {
+  RankingsPage({ pathStack: pathStack })
 }
 
 @Builder
@@ -46,11 +46,11 @@ export struct BottomTabs {
   build() {
     Tabs({ barPosition: BarPosition.End }) {
       TabContent() {
-        LibraryTabPlaceholder()
+        LibraryTabPlaceholder(this.pathStack)
       }
       .tabBar(this.tabBuilder(0, '媒体库', 'sys.symbol.doc'))
       TabContent() {
-        RankingsTabPlaceholder()
+        RankingsTabPlaceholder(this.pathStack)
       }
       .tabBar(this.tabBuilder(1, '排行榜', 'sys.symbol.star'))
       TabContent() {

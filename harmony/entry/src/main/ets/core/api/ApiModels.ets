@@ -589,6 +589,264 @@ export class MoviePage {
   }
 }
 
+/** MovieSource：影片多来源资源（openapi MovieSource；rejected 不可选且不输出 source_id）。 */
+export class MovieSource {
+  readonly id: string;
+  readonly website: string;
+  readonly externalPostId: number;
+  readonly title: string;
+  readonly publishDate: string | null;
+  readonly category: string;
+  readonly labels: string[];
+  readonly resourceSizeMb: number | null;
+  readonly videoFileSizeBytes: number | null;
+  readonly availability: string;
+
+  constructor(id: string, website: string, externalPostId: number, title: string,
+    publishDate: string | null, category: string, labels: string[],
+    resourceSizeMb: number | null, videoFileSizeBytes: number | null, availability: string) {
+    this.id = id;
+    this.website = website;
+    this.externalPostId = externalPostId;
+    this.title = title;
+    this.publishDate = publishDate;
+    this.category = category;
+    this.labels = labels;
+    this.resourceSizeMb = resourceSizeMb;
+    this.videoFileSizeBytes = videoFileSizeBytes;
+    this.availability = availability;
+  }
+
+  /** rejected 永久禁用（不得输出 source_id）。 */
+  isSelectable(): boolean {
+    return this.availability !== 'rejected';
+  }
+
+  static fromReader(reader: JsonReader): MovieSource {
+    const id = reader.string('id');
+    if (!SOURCE_UUID_PATTERN.test(id)) {
+      throw new ProtocolException('MovieSource.id is not a uuid');
+    }
+    const website = reader.string('website');
+    if (website !== 'sehuatang' && website !== 'x1080x') {
+      throw new ProtocolException(`unexpected source website: ${website}`);
+    }
+    const externalPostId = reader.number('external_post_id');
+    if (externalPostId < 1 || Math.floor(externalPostId) !== externalPostId) {
+      throw new ProtocolException('MovieSource.external_post_id must be a positive integer');
+    }
+    const title = reader.string('title');
+    if (title.length === 0) {
+      throw new ProtocolException('MovieSource.title is empty');
+    }
+    const category = reader.string('category');
+    const categories: string[] = ['亚洲有码', '亚洲无码', '中文字幕', '4K原版', '素人有码', 'FC2'];
+    if (!categories.includes(category)) {
+      throw new ProtocolException(`unexpected source category: ${category}`);
+    }
+    const labels = reader.stringArray('labels');
+    if (labels.length > 4 || !uniqueNonEmpty(labels)) {
+      throw new ProtocolException('MovieSource.labels is invalid');
+    }
+    const knownLabels: string[] = ['subtitle', 'cracked', '4k', 'censored'];
+    for (const label of labels) {
+      if (!knownLabels.includes(label)) {
+        throw new ProtocolException(`unexpected source label: ${label}`);
+      }
+    }
+    const sizeMb = reader.nullableNumber('resource_size_mb');
+    if (sizeMb !== null && sizeMb < 0) {
+      throw new ProtocolException('MovieSource.resource_size_mb must be non-negative');
+    }
+    const sizeBytes = reader.nullableNumber('video_file_size_bytes');
+    if (sizeBytes !== null && sizeBytes < 0) {
+      throw new ProtocolException('MovieSource.video_file_size_bytes must be non-negative');
+    }
+    const availability = reader.string('availability');
+    const states: string[] = ['available', 'queued', 'running', 'ready', 'failed', 'rejected'];
+    if (!states.includes(availability)) {
+      throw new ProtocolException(`unexpected source availability: ${availability}`);
+    }
+    return new MovieSource(id, website, externalPostId, title,
+      reader.nullableString('publish_date'), category, labels, sizeMb, sizeBytes, availability);
+  }
+}
+
+/** MovieDetail：/movies/{id} 聚合详情（openapi MovieDetail；metadata_state 非 core_ready 为受限详情）。 */
+export class MovieDetail {
+  readonly id: string;
+  readonly number: string;
+  readonly title: string;
+  readonly titleOriginal: string | null;
+  readonly coverUrl: string | null;
+  readonly publishDate: string | null;
+  readonly labels: string[];
+  readonly favorite: boolean;
+  readonly sourceCount: number;
+  readonly progress: PlaybackProgress | null;
+  readonly metadataState: string;
+  readonly metadataErrorCode: string | null;
+  readonly releaseDate: string | null;
+  readonly maker: string | null;
+  readonly series: string | null;
+  readonly director: string | null;
+  readonly score: number | null;
+  readonly description: string | null;
+  readonly descriptionOriginal: string | null;
+  readonly actors: ActorSummary[];
+  readonly tags: string[];
+  readonly plotImageUrls: string[];
+  readonly sources: MovieSource[];
+
+  constructor(id: string, number: string, title: string, titleOriginal: string | null,
+    coverUrl: string | null, publishDate: string | null, labels: string[],
+    favorite: boolean, sourceCount: number, progress: PlaybackProgress | null,
+    metadataState: string, metadataErrorCode: string | null, releaseDate: string | null,
+    maker: string | null, series: string | null, director: string | null,
+    score: number | null, description: string | null, descriptionOriginal: string | null,
+    actors: ActorSummary[], tags: string[], plotImageUrls: string[],
+    sources: MovieSource[]) {
+    this.id = id;
+    this.number = number;
+    this.title = title;
+    this.titleOriginal = titleOriginal;
+    this.coverUrl = coverUrl;
+    this.publishDate = publishDate;
+    this.labels = labels;
+    this.favorite = favorite;
+    this.sourceCount = sourceCount;
+    this.progress = progress;
+    this.metadataState = metadataState;
+    this.metadataErrorCode = metadataErrorCode;
+    this.releaseDate = releaseDate;
+    this.maker = maker;
+    this.series = series;
+    this.director = director;
+    this.score = score;
+    this.description = description;
+    this.descriptionOriginal = descriptionOriginal;
+    this.actors = actors;
+    this.tags = tags;
+    this.plotImageUrls = plotImageUrls;
+    this.sources = sources;
+  }
+
+  /** 受限详情：不显示收藏按钮、不调用 favorite API；来源选择仍可用。 */
+  isLimited(): boolean {
+    return this.metadataState !== 'core_ready';
+  }
+
+  /** 收藏成功后替换 favorite（保持其他字段不变）。 */
+  withFavorite(enabled: boolean): MovieDetail {
+    return new MovieDetail(this.id, this.number, this.title, this.titleOriginal, this.coverUrl,
+      this.publishDate, this.labels, enabled, this.sourceCount, this.progress,
+      this.metadataState, this.metadataErrorCode, this.releaseDate, this.maker, this.series,
+      this.director, this.score, this.description, this.descriptionOriginal,
+      this.actors, this.tags, this.plotImageUrls, this.sources);
+  }
+
+  private static requireSourceCount(reader: JsonReader): number {
+    const count = reader.number('source_count');
+    if (count < 1 || Math.floor(count) !== count) {
+      throw new ProtocolException('MovieDetail.source_count must be a positive integer');
+    }
+    return count;
+  }
+
+  static fromText(text: string): MovieDetail {
+    const reader = JsonReader.fromText(text);
+    const id = reader.string('id');
+    const labels = reader.stringArray('labels');
+    if (labels.length > 4 || !uniqueNonEmpty(labels)) {
+      throw new ProtocolException('MovieDetail.labels is invalid');
+    }
+    const knownLabels: string[] = ['subtitle', 'cracked', '4k', 'censored'];
+    for (const label of labels) {
+      if (!knownLabels.includes(label)) {
+        throw new ProtocolException(`unexpected movie label: ${label}`);
+      }
+    }
+    const metadataState = reader.string('metadata_state');
+    const states: string[] = ['core_ready', 'queued', 'running', 'failed'];
+    if (!states.includes(metadataState)) {
+      throw new ProtocolException(`unexpected metadata_state: ${metadataState}`);
+    }
+    const metadataErrorCode = reader.nullableString('metadata_error_code');
+    if (metadataErrorCode !== null && metadataState !== 'failed') {
+      throw new ProtocolException('metadata_error_code is only allowed for failed metadata');
+    }
+    const actors: ActorSummary[] = [];
+    const actorIds: string[] = [];
+    for (const item of reader.objectArray('actors')) {
+      if (actors.length >= 100) {
+        throw new ProtocolException('MovieDetail.actors exceeds limit');
+      }
+      const actor = ActorSummary.fromReader(new JsonReader(item));
+      if (actorIds.includes(actor.id)) {
+        throw new ProtocolException('MovieDetail.actors has duplicate ids');
+      }
+      actorIds.push(actor.id);
+      actors.push(actor);
+    }
+    const tags = reader.stringArray('tags');
+    if (tags.length > 100 || !uniqueNonEmpty(tags)) {
+      throw new ProtocolException('MovieDetail.tags is invalid');
+    }
+    const plotImageUrls = reader.stringArray('plot_image_urls');
+    if (plotImageUrls.length > 100 || !uniqueNonEmpty(plotImageUrls)) {
+      throw new ProtocolException('MovieDetail.plot_image_urls is invalid');
+    }
+    const sources: MovieSource[] = [];
+    const sourceIds: string[] = [];
+    for (const item of reader.objectArray('sources')) {
+      if (sources.length >= 100) {
+        throw new ProtocolException('MovieDetail.sources exceeds limit');
+      }
+      const source = MovieSource.fromReader(new JsonReader(item));
+      if (sourceIds.includes(source.id)) {
+        throw new ProtocolException('MovieDetail.sources has duplicate ids');
+      }
+      sourceIds.push(source.id);
+      sources.push(source);
+    }
+    let progress: PlaybackProgress | null = null;
+    if (reader.has('progress') && reader.nullableObject('progress') !== null) {
+      try {
+        progress = PlaybackProgress.fromReader(new JsonReader(reader.object('progress')));
+      } catch (err) {
+        // 进度子对象异常不拖垮详情（降级为无进度）
+        progress = null;
+      }
+    }
+    return new MovieDetail(id, reader.string('number'), reader.string('title'),
+      reader.nullableString('title_original'), reader.nullableString('cover_url'),
+      reader.nullableString('publish_date'), labels,
+      reader.boolean('favorite'), MovieDetail.requireSourceCount(reader), progress,
+      metadataState, metadataErrorCode, reader.nullableString('release_date'),
+      reader.nullableString('maker'), reader.nullableString('series'),
+      reader.nullableString('director'), reader.nullableNumber('score'),
+      reader.nullableString('description'), reader.nullableString('description_original'),
+      actors, tags, plotImageUrls, sources);
+  }
+
+}
+
+/** 严格 UUID 8-4-4-4-12（MovieSource/MovieDetail.id）。 */
+const SOURCE_UUID_PATTERN: RegExp =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/** 字符串数组非空且不重复（集合约束辅助）。 */
+function uniqueNonEmpty(values: string[]): boolean {
+  const seen: string[] = [];
+  for (const value of values) {
+    if (value.length === 0 || seen.includes(value)) {
+      return false;
+    }
+    seen.push(value);
+  }
+  return true;
+}
+
 /** RankingItem：榜单条目（rank 正整数允许间隙；movie 复用 MovieSummary）。 */
 export class RankingItem {
   readonly rank: number;
@@ -730,7 +988,7 @@ export class ActorDetail {
     const reader = JsonReader.fromText(text);
     const summary = ActorSummary.fromReader(reader);
     const galleryUrls = reader.stringArray('gallery_urls');
-    if (galleryUrls.length > 100 || !ActorDetail.uniqueNonEmpty(galleryUrls)) {
+    if (galleryUrls.length > 100 || !uniqueNonEmpty(galleryUrls)) {
       throw new ProtocolException('ActorDetail.gallery_urls is invalid');
     }
     const movies: MovieSummary[] = [];
@@ -742,17 +1000,6 @@ export class ActorDetail {
     }
     return new ActorDetail(summary, reader.nullableString('bio'),
       reader.nullableString('bio_original'), galleryUrls, movies);
-  }
-
-  private static uniqueNonEmpty(values: string[]): boolean {
-    const seen: string[] = [];
-    for (const value of values) {
-      if (value.length === 0 || seen.includes(value)) {
-        return false;
-      }
-      seen.push(value);
-    }
-    return true;
   }
 }
 

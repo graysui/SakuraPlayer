@@ -48,6 +48,7 @@ class MovieDataSource implements IDataSource {
 
 @Component
 export struct LibraryPage {
+  @Require pathStack: NavPathStack;
   private dataSource: MovieDataSource = new MovieDataSource();
   private readonly onStoreChanged: () => void = (): void => this.syncFromStore();
   @State gridColumns: number = 2;
@@ -186,6 +187,9 @@ export struct LibraryPage {
       LazyForEach(this.dataSource, (item: MovieSummary) => {
         GridItem() {
           MovieCard({ movie: item })
+            .onClick(() => {
+              this.pathStack.pushPath({ name: 'MovieDetail', param: item });
+            })
         }
       }, (item: MovieSummary) => item.id)
     }

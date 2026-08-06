@@ -3,7 +3,8 @@ id: TASK-307
 title: "HarmonyOS 影片详情多来源与收藏"
 spec: docs/specs/001-sakuraplayer-v1/2026-07-24--sakuraplayer-v1.md
 lang: general
-status: pending
+status: completed
+completed-at: 2026-08-06
 dependencies: [TASK-304, TASK-306]
 ac-mapping: [AC-031, AC-033, AC-034, AC-035, AC-068, AC-074, AC-077, AC-078]
 imp-requirements: [REQ-007, REQ-013, REQ-015]
@@ -22,16 +23,16 @@ provides: [HarmonyOS movie detail and source selector]
 
 ## 验收条件
 
-- [ ] 展示规格全部影片字段和影片级进度；对应 AC-068、AC-074。
-- [ ] 多来源独立显示并可选择，字幕/破解/4K/有码可同时出现；对应 AC-031、AC-033、AC-034。
-- [ ] 资源大小/真实视频文件大小按状态使用正确名称；对应 AC-035。
-- [ ] 单一收藏，无历史/自定义播放列表入口；对应 AC-077、AC-078。
+- [x] 展示规格全部影片字段和影片级进度；对应 AC-068、AC-074。
+- [x] 多来源独立显示并可选择，字幕/破解/4K/有码可同时出现；对应 AC-031、AC-033、AC-034。
+- [x] 资源大小/真实视频文件大小按状态使用正确名称；对应 AC-035。
+- [x] 单一收藏，无历史/自定义播放列表入口；对应 AC-077、AC-078。
 
 ## Definition of Ready
 
-- [ ] TASK-304 MovieCard、TASK-306 Actor route、MovieDetail API 可用。
-- [ ] source_id 是后续唯一播放输入。
-- [ ] 使用 UIContext.openBindSheet，不使用 deprecated CustomDialog。
+- [x] TASK-304 MovieCard、TASK-306 Actor route、MovieDetail API 可用。
+- [x] source_id 是后续唯一播放输入。
+- [x] 使用 UIContext.openBindSheet，不使用 deprecated CustomDialog。
 
 ## 技术上下文
 
@@ -57,9 +58,17 @@ provides: [HarmonyOS movie detail and source selector]
 
 ## Definition of Done
 
-- [ ] 详情、多来源、收藏和导航完成。
-- [ ] source sheet 使用非 deprecated API。
-- [ ] Hypium/UiTest 通过。
+- [x] 详情、多来源、收藏和导航完成。
+- [x] source sheet 使用非 deprecated API（UIContext.openBindSheet）。
+- [x] Hypium/UiTest 通过。
+
+**实现证据**: `MovieDetailStore.ets`（generation 竞态/收藏在途防重/受限详情不收藏/跨影片清空来源选择）、
+`MovieDetailPage.ets`（连续滚动单面：资料头/受限状态/来源/简介/剧照；播放按钮未选来源禁用；
+进度文案播放/继续播放 N%/已看完）、`SourceSheet.ets`（openBindSheet 选择只产出 source_id；
+rejected 永久禁用；六状态与大小文案按 Windows 契约）、`CatalogImage.ets` +
+`core/images/CatalogImageCache.ets`（认证图片白名单校验/严格 UUID/内存 LRU/退出登录清理）、
+`ApiModels.ets`（MovieDetail/MovieSource 严格 DTO）；ohosTest 模拟器实测 **129/129 全绿**，
+debug/release HAP 构建成功且 `verify-app success`（API 24、INTERNET 最小权限、唯一 EntryAbility）。
 
 **依赖**: TASK-304, TASK-306
 

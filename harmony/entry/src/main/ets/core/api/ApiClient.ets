@@ -9,7 +9,7 @@
 import { http } from '@kit.NetworkKit';
 import {
   ActorDetail, ActorPage, ApiErrorBody, ApiException, BootstrapStatus, EventSnapshot, JsonReader,
-  MoviePage, ProtocolException, RankingPage, SearchResult, TokenPair,
+  MovieDetail, MoviePage, ProtocolException, RankingPage, SearchResult, TokenPair,
 } from './ApiModels';
 
 /** 与状态无关的 HTTP 传输层。 */
@@ -501,6 +501,28 @@ export class ApiClient {
       return new ApiException(error.code, response.statusCode, error.requestId, error.message, error.details);
     }
     return new ApiException('client_protocol_error', response.statusCode, '', '服务端响应格式非法', null);
+  }
+
+  /** GET /movies/{id}：聚合影片详情（无磁力/上游播放 URL）。 */
+  async getMovie(movieId: string): Promise<MovieDetail> {
+    const encoded = encodeURIComponent(movieId);
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/movies/${encoded}`, 'GET', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return MovieDetail.fromText(response.body);
+  }
+
+  /** PUT/DELETE /movies/{id}/favorite：幂等影片收藏切换（204）。 */
+  async setMovieFavorite(movieId: string, enabled: boolean): Promise<void> {
+    const encoded = encodeURIComponent(movieId);
+    const method = enabled ? 'PUT' : 'DELETE';
+    const options: RequestOptions = { auth: true };
+    const response = await this.request(`/movies/${encoded}/favorite`, method, options);
+    if (response.statusCode !== 204) {
+      throw this.throwForError(response);
+    }
   }
 }
 
