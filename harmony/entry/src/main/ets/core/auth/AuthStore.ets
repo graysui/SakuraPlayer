@@ -46,7 +46,7 @@ export class AuthStore {
   private eventClient: EventClient | null = null;
   private snapshot: SnapshotStore | null = null;
   private context: common.Context | null = null;
-  private clientInstanceId: string = '';
+  private clientInstanceIdValue: string = '';
   private testTransport: HttpTransport | null = null;
 
   constructor() {
@@ -59,6 +59,10 @@ export class AuthStore {
 
   get snapshotStore(): SnapshotStore | null {
     return this.snapshot;
+  }
+
+  get clientInstanceId(): string {
+    return this.clientInstanceIdValue;
   }
 
   get apiClientProvider(): ApiClient | null {
@@ -78,7 +82,7 @@ export class AuthStore {
   /** 启动初始化：预生成 client_instance_id，恢复已存基址与会话。 */
   async initialize(context: common.Context): Promise<void> {
     this.context = context;
-    this.clientInstanceId = await this.loadClientInstanceId(context);
+    this.clientInstanceIdValue = await this.loadClientInstanceId(context);
     const saved = await ServerProfileStore.load(context);
     if (saved === null) {
       this.status = AuthStatus.SERVER_REQUIRED;
@@ -134,7 +138,7 @@ export class AuthStore {
     this.busy = true;
     this.clearError();
     try {
-      const pair = await client.bootstrap(token, username, password, this.clientInstanceId);
+      const pair = await client.bootstrap(token, username, password, this.clientInstanceIdValue);
       this.enterAuthenticated(pair);
     } catch (err) {
       this.setError(err);
@@ -149,7 +153,7 @@ export class AuthStore {
     this.busy = true;
     this.clearError();
     try {
-      const pair = await client.login(username, password, this.clientInstanceId);
+      const pair = await client.login(username, password, this.clientInstanceIdValue);
       this.enterAuthenticated(pair);
     } catch (err) {
       this.setError(err);

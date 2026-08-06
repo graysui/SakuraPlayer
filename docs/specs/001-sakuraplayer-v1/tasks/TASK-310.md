@@ -28,16 +28,16 @@ provides: [HarmonyOS AVPlayer surface, fixed UA transport, coalesced seek, playb
 
 ## 验收条件
 
-- [ ] 每次播放新建 12 小时 session，AVPlayer 请求使用固定 HarmonyOS UA 并跟随 `302 no-store`；对应 AC-099、AC-100、AC-102。
-- [ ] 默认原画，取链失败/用户兼容播放使用 HLS，UI 只显示两模式；对应 AC-101、AC-103。
-- [ ] 只使用应用内 AVPlayer，不提供外部播放器或时间轴缩略图；对应 AC-104、AC-106。
-- [ ] seek 请求串行合并，标准进度/倍速/全屏控制可用；对应 AC-105、AC-114。
+- [x] 每次播放新建 12 小时 session，AVPlayer 请求使用固定 HarmonyOS UA 并跟随 `302 no-store`；对应 AC-099、AC-100、AC-102。
+- [x] 默认原画，取链失败/用户兼容播放使用 HLS，UI 只显示两模式；对应 AC-101、AC-103。
+- [x] 只使用应用内 AVPlayer，不提供外部播放器或时间轴缩略图；对应 AC-104、AC-106。
+- [x] seek 请求串行合并，标准进度/倍速/全屏控制可用；对应 AC-105、AC-114。
 
 ## Definition of Ready
 
-- [ ] TASK-309 有 ready job，TASK-109 manifest 契约可用。
-- [ ] TASK-301 已证明 API 24 固定 UA、302、Range、HLS、MKV 的 SDK 签名和 fixture 基线；否则阻断。
-- [ ] AVPlayer/XComponent stateChange/error/seek API 从 SDK 6.1.1(24) 核验。
+- [x] TASK-309 有 ready job，TASK-109 manifest 契约可用。
+- [x] TASK-301 已证明 API 24 固定 UA、302、Range、HLS、MKV 的 SDK 签名和 fixture 基线；否则阻断。
+- [x] AVPlayer/XComponent stateChange/error/seek API 从 SDK 6.1.1(24) 核验。
 
 ## 技术上下文
 
@@ -64,9 +64,9 @@ provides: [HarmonyOS AVPlayer surface, fixed UA transport, coalesced seek, playb
 
 ## Definition of Done
 
-- [ ] AVPlayer、固定 UA、原画/HLS、seek 和控制完成。
-- [ ] 所有网络/媒体 API 均来自 API 24 已验证签名。
-- [ ] API 24 SDK 签名或 fixture 验证失败时任务保持 blocked，而不是通过外部播放器或推测 API 绕过。
+- [x] AVPlayer、固定 UA、原画/HLS、seek 和控制完成。
+- [x] 所有网络/媒体 API 均来自 API 24 已验证签名。
+- [x] API 24 SDK 签名或 fixture 验证失败时任务保持 blocked，而不是通过外部播放器或推测 API 绕过。
 
 **依赖**: TASK-309, TASK-109
 

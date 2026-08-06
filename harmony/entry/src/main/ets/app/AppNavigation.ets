@@ -22,27 +22,8 @@ import { SettingsPage } from '../features/settings/SettingsPage';
 import { DiagnosticsPage } from '../features/settings/DiagnosticsPage';
 import { CachePage } from '../features/cache/CachePage';
 import { BlockingWaitPage } from '../features/cache/BlockingWaitPage';
+import { PlayerPage } from '../features/playback/PlayerPage';
 import { actorsStore } from '../features/actors/ActorsStore';
-
-/** 播放器占位路由：固定深色背景（AC-062）；接收 cache_job.id + media_id（TASK-310 消费）。 */
-@Builder
-function PlayerRoute(param: Object) {
-  Column() {
-    Text('播放器')
-      .fontSize(16)
-      .fontColor('#FFFFFF')
-    if (param instanceof Object) {
-      Text(`任务 ${(param as Record<string, Object>)['cacheJobId']} 就绪，播放器由后续任务提供`)
-        .fontSize(12)
-        .fontColor('#99FFFFFF')
-        .margin({ top: 6 })
-    }
-  }
-  .justifyContent(FlexAlign.Center)
-  .width('100%')
-  .height('100%')
-  .backgroundColor('#0B0C0E')
-}
 
 @Builder
 function SettingsRoute(pathStack: NavPathStack) {
@@ -56,7 +37,15 @@ let appNavigationPathStack: NavPathStack | null = null;
 export function pageMapBuilder(name: string, param: Object) {
   if (name === 'Player') {
     NavDestination() {
-      PlayerRoute(param)
+      if (param instanceof Object && (param as Record<string, Object>)['cacheJobId'] !== undefined &&
+        appNavigationPathStack !== null) {
+        PlayerPage({
+          cacheJobId: String((param as Record<string, Object>)['cacheJobId']),
+          mediaId: (param as Record<string, Object>)['mediaId'] === null ? '' :
+            String((param as Record<string, Object>)['mediaId']),
+          pathStack: appNavigationPathStack,
+        })
+      }
     }
     .title('播放器')
     .backgroundColor($r('app.color.player_background'))

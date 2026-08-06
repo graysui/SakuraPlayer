@@ -1954,3 +1954,188 @@ export class PlayRequestResult {
     return new PlayRequestResult(disposition, deadline, job);
   }
 }
+
+/** PlaybackQueueItem：播放队列项（openapi PlaybackQueueItem；media 解析出 id，sequence 严格递增）。 */
+export class PlaybackQueueItem {
+  readonly sessionId: string;
+  readonly mediaId: string;
+  readonly streamUrl: string;
+  readonly sequenceNo: number;
+
+  constructor(sessionId: string, mediaId: string, streamUrl: string, sequenceNo: number) {
+    this.sessionId = sessionId;
+    this.mediaId = mediaId;
+    this.streamUrl = streamUrl;
+    this.sequenceNo = sequenceNo;
+  }
+
+  static fromReader(reader: JsonReader, sessionId: string, sequenceNo: number): PlaybackQueueItem {
+    if (reader.string('session_id') !== sessionId) {
+      throw new ProtocolException('PlaybackQueueItem.session_id mismatch');
+    }
+    const media = reader.object('media');
+    const mediaIdRaw = media['id'];
+    if (typeof mediaIdRaw !== 'string' || !SOURCE_UUID_PATTERN.test(mediaIdRaw)) {
+      throw new ProtocolException('PlaybackQueueItem.media.id must be a uuid');
+    }
+    const mediaId = mediaIdRaw as string;
+    const streamUrl = reader.string('stream_url');
+    if (streamUrl.length === 0) {
+      throw new ProtocolException('PlaybackQueueItem.stream_url is empty');
+    }
+    return new PlaybackQueueItem(sessionId, mediaId, streamUrl, sequenceNo);
+  }
+}
+
+/** SubtitleOption：字幕选项（openapi SubtitleOption）。 */
+export class SubtitleOption {
+  readonly id: string;
+  readonly mediaId: string | null;
+  readonly name: string;
+  readonly format: string;
+  readonly language: string | null;
+  readonly selectedByDefault: boolean;
+
+  constructor(id: string, mediaId: string | null, name: string, format: string,
+    language: string | null, selectedByDefault: boolean) {
+    this.id = id;
+    this.mediaId = mediaId;
+    this.name = name;
+    this.format = format;
+    this.language = language;
+    this.selectedByDefault = selectedByDefault;
+  }
+
+  static fromReader(reader: JsonReader): SubtitleOption {
+    const id = reader.string('id');
+    if (!SOURCE_UUID_PATTERN.test(id)) {
+      throw new ProtocolException('SubtitleOption.id must be a uuid');
+    }
+    const mediaId = reader.nullableString('media_id');
+    if (mediaId !== null && !SOURCE_UUID_PATTERN.test(mediaId)) {
+      throw new ProtocolException('SubtitleOption.media_id must be a uuid');
+    }
+    const name = reader.string('name');
+    if (name.length === 0) {
+      throw new ProtocolException('SubtitleOption.name is empty');
+    }
+    const format = reader.string('format');
+    const formats: string[] = ['srt', 'ass', 'ssa', 'vtt'];
+    if (!formats.includes(format)) {
+      throw new ProtocolException(`unexpected subtitle format: ${format}`);
+    }
+    return new SubtitleOption(id, mediaId, name, format, reader.nullableString('language'),
+      reader.boolean('selected_by_default'));
+  }
+}
+
+/** PlaybackManifest：POST cache-jobs/{job}/playback-sessions 响应（AC-099/101/102）。 */
+export class PlaybackManifest {
+  readonly sessionId: string;
+  readonly cacheJobId: string;
+  readonly mode: string;
+  readonly platform: string;
+  readonly streamUrl: string;
+  readonly expiresAt: string;
+  readonly subtitleCacheExpiresAt: string;
+  readonly requiredUserAgent: string;
+  readonly embeddedTracksSource: string;
+  readonly mediaQueue: PlaybackQueueItem[];
+  readonly subtitles: SubtitleOption[];
+  readonly progress: PlaybackProgress | null;
+
+  constructor(sessionId: string, cacheJobId: string, mode: string, platform: string,
+    streamUrl: string, expiresAt: string, subtitleCacheExpiresAt: string,
+    requiredUserAgent: string, embeddedTracksSource: string,
+    mediaQueue: PlaybackQueueItem[], subtitles: SubtitleOption[],
+    progress: PlaybackProgress | null) {
+    this.sessionId = sessionId;
+    this.cacheJobId = cacheJobId;
+    this.mode = mode;
+    this.platform = platform;
+    this.streamUrl = streamUrl;
+    this.expiresAt = expiresAt;
+    this.subtitleCacheExpiresAt = subtitleCacheExpiresAt;
+    this.requiredUserAgent = requiredUserAgent;
+    this.embeddedTracksSource = embeddedTracksSource;
+    this.mediaQueue = mediaQueue;
+    this.subtitles = subtitles;
+    this.progress = progress;
+  }
+
+  /** 是否已过期（服务端时间戳；客户端只判断是否重签一次）。 */
+  isExpired(nowMs: number): boolean {
+    const expires = Date.parse(this.expiresAt);
+    if (Number.isNaN(expires)) {
+      return true;
+    }
+    return nowMs > expires;
+  }
+
+  static fromText(text: string): PlaybackManifest {
+    const reader = JsonReader.fromText(text);
+    const sessionId = reader.string('session_id');
+    if (!SOURCE_UUID_PATTERN.test(sessionId)) {
+      throw new ProtocolException('PlaybackManifest.session_id must be a uuid');
+    }
+    const cacheJobId = reader.string('cache_job_id');
+    if (!SOURCE_UUID_PATTERN.test(cacheJobId)) {
+      throw new ProtocolException('PlaybackManifest.cache_job_id must be a uuid');
+    }
+    const mode = reader.string('mode');
+    if (mode !== 'original' && mode !== 'compatibility') {
+      throw new ProtocolException(`unexpected playback mode: ${mode}`);
+    }
+    const platform = reader.string('platform');
+    if (platform !== 'harmonyos') {
+      throw new ProtocolException(`unexpected playback platform: ${platform}`);
+    }
+    const streamUrl = reader.string('stream_url');
+    if (streamUrl.length === 0) {
+      throw new ProtocolException('PlaybackManifest.stream_url is empty');
+    }
+    const userAgent = reader.string('required_user_agent');
+    if (userAgent.length === 0 || userAgent.length > 200 ||
+      /[\u0000-\u001F\u007F]/.test(userAgent)) {
+      throw new ProtocolException('PlaybackManifest.required_user_agent is invalid');
+    }
+    const embeddedTracksSource = reader.string('embedded_tracks_source');
+    if (embeddedTracksSource !== 'client_player') {
+      throw new ProtocolException(`unexpected embedded_tracks_source: ${embeddedTracksSource}`);
+    }
+    const mediaQueue: PlaybackQueueItem[] = [];
+    for (const item of reader.objectArray('media_queue')) {
+      if (mediaQueue.length >= 100) {
+        throw new ProtocolException('PlaybackManifest.media_queue exceeds limit');
+      }
+      const itemReader = new JsonReader(item);
+      const sequenceNo = itemReader.number('sequence_no');
+      if (sequenceNo !== mediaQueue.length + 1) {
+        throw new ProtocolException('PlaybackManifest.media_queue sequence_no must be strictly increasing');
+      }
+      mediaQueue.push(PlaybackQueueItem.fromReader(itemReader, sessionId, sequenceNo));
+    }
+    if (mediaQueue.length === 0) {
+      throw new ProtocolException('PlaybackManifest.media_queue must not be empty');
+    }
+    const subtitles: SubtitleOption[] = [];
+    for (const item of reader.objectArray('subtitles')) {
+      if (subtitles.length >= 100) {
+        throw new ProtocolException('PlaybackManifest.subtitles exceeds limit');
+      }
+      subtitles.push(SubtitleOption.fromReader(new JsonReader(item)));
+    }
+    let progress: PlaybackProgress | null = null;
+    if (reader.has('progress') && reader.nullableObject('progress') !== null) {
+      try {
+        progress = PlaybackProgress.fromReader(new JsonReader(reader.object('progress')));
+      } catch (err) {
+        // 进度子对象异常不拖垮 manifest（降级为无进度）
+        progress = null;
+      }
+    }
+    return new PlaybackManifest(sessionId, cacheJobId, mode, platform, streamUrl,
+      reader.dateTime('expires_at'), reader.dateTime('subtitle_cache_expires_at'),
+      userAgent, embeddedTracksSource, mediaQueue, subtitles, progress);
+  }
+}

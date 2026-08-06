@@ -12,7 +12,8 @@ import {
   CacheJobPage,
   Cloud115Binding, ConnectionTest, Diagnostics, EventSnapshot, JsonReader, MetadataJobPage,
   MetadataQueueControl,
-  MetadataRetryResult, MovieDetail, MoviePage, PlayRequestResult, ProtocolException, QrSession,
+  MetadataRetryResult, MovieDetail, MoviePage, PlaybackManifest, PlayRequestResult,
+  ProtocolException, QrSession,
   RankingPage,
   SearchResult, Settings, TokenPair,
 } from './ApiModels';
@@ -573,6 +574,26 @@ export class ApiClient {
       throw this.throwForError(response);
     }
     return Cloud115Binding.fromReader(JsonReader.fromText(response.body));
+  }
+
+  /** POST /cache-jobs/{id}/playback-sessions：创建 12 小时播放会话（AC-099/101/102）。 */
+  async createPlaybackSession(cacheJobId: string, mediaId: string, mode: string,
+    clientInstanceId: string): Promise<PlaybackManifest> {
+    const encoded = encodeURIComponent(cacheJobId);
+    const options: RequestOptions = {
+      auth: true,
+      body: JSON.stringify({
+        'media_id': mediaId,
+        'mode': mode,
+        'platform': 'harmonyos',
+        'client_instance_id': clientInstanceId,
+      }),
+    };
+    const response = await this.request(`/cache-jobs/${encoded}/playback-sessions`, 'POST', options);
+    if (response.statusCode !== 201) {
+      throw this.throwForError(response);
+    }
+    return PlaybackManifest.fromText(response.body);
   }
 
   /** POST /movies/{id}/play-requests：唯一创建离线任务的入口（Idempotency-Key 幂等）。 */

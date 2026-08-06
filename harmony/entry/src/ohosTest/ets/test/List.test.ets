@@ -17,6 +17,8 @@ import catalogImageTest from './CatalogImage.test';
 import settingsCacheTest from './SettingsCache.test';
 import playRequestStoreTest from './PlayRequestStore.test';
 import blockingWaitPageTest from './BlockingWaitPage.test';
+import seekCoordinatorTest from './SeekCoordinator.test';
+import playerStoreTest from './PlayerStore.test';
 
 export default function testsuite() {
   abilityTest();
@@ -38,4 +40,6 @@ export default function testsuite() {
   settingsCacheTest();
   playRequestStoreTest();
   blockingWaitPageTest();
+  seekCoordinatorTest();
+  playerStoreTest();
 }
