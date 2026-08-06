@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="branding/gpt-image-2-4k-1786007566308-1.png" alt="SakuraPlayer" width="420"/>
-
 # <img src="branding/1786007488656618836-01-c1f68025.png" alt="" width="40" align="center"/> SakuraPlayer
 
 **自己搭建的私人影视库：Windows 播放器 + 私有后端，浏览、缓存、播放一条龙**
