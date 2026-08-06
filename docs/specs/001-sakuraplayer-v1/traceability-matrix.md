@@ -41,7 +41,7 @@
   `test_event_integration.py`、`test_events_snapshot.py`、`test_notifications.py`、`test_recovery.py` 和
   `test_cache_events_snapshot_api.py`；不发布 playback 心跳事件，worker/scheduler 无心跳证据时继续为 unknown。
 - AC-049 至 AC-053 的固定 provider 地址、16/32 MiB 上限、XML/路径安全、周日 05:00 持久入队、独立 current 快照、唯一身份匹配和陈旧 GFriends 资产清理由 [TASK-009 提供方快照安全与重建边界](changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结，并由 TASK-009 实现。
-- AC-054 至 AC-058 的加密配置快照、单字段 JSON、protected 规范化、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结并由 TASK-010 实现；prompt v2、硅基流动 Qwen3.5 非思考 profile、动态输出上限、安全诊断和旧 v1 事实隔离由 [TASK-225 硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结并由 TASK-225 实现。
+- AC-054 至 AC-058 的加密配置快照、单字段 JSON、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结并由 TASK-010 实现；prompt v2、硅基流动 Qwen3.5 非思考 profile、动态输出上限、安全诊断和旧 v1 事实隔离由 [TASK-225 硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结并由 TASK-225 实现；仅标题/影片简介、protected 本地占位、v3 输出瘦身和旧 v1/v2 事实隔离由 [TASK-325 AI 配置恢复、翻译瘦身与 Docker 原地升级](changes/2026-08-06--task-325-ai-settings-translation-docker-upgrade.md) 冻结并由 TASK-325 实现。
 - AC-040/041/055/057/074/122 的详情中文-only 简介、影片级 priority 10 完整重新刮削、活动 attempt 复用和旧翻译事实保护由 [TASK-227 影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结并由 TASK-227 实现。
 - AC-063 至 AC-068、AC-074 至 AC-078 的同来源筛选、稳定键集游标、Phase 1 空状态端口、搜索队列提升、收藏 Schema、安全 DTO 与集合上限由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，并由 TASK-011 实现。
 - AC-063、AC-064、AC-067、AC-068、AC-077 的 Windows DTO 所有权、认证封面、固定桌面几何、筛选 generation、游标恢复和追加失败语义由 [TASK-204 Windows 媒体库客户端边界](changes/2026-07-30--task-204-library-client-boundaries.md) 与 [Windows 媒体库客户端契约](contracts/windows-library-client.md) 冻结；TASK-204 已完成客户端实现，自动证据位于 `library_controller_test.dart`、`library_page_test.dart`、`search_controller_test.dart` 和 `app_bootstrap_test.dart`。
@@ -179,9 +179,9 @@
 | `AC-052` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306` |
 | `AC-053` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306` |
 | `AC-054` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
-| `AC-055` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-227` |
-| `AC-056` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
-| `AC-057` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-227` |
+| `AC-055` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-227`, `TASK-325` |
+| `AC-056` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-325` |
+| `AC-057` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-227`, `TASK-325` |
 | `AC-058` | `[S]` | `REQ-011` | `TASK-014`, `TASK-225` |
 | `AC-059` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
 | `AC-060` | `[I]` | `REQ-012` | `TASK-203`, `TASK-303` |
@@ -243,7 +243,7 @@
 | `AC-116` | `[I]` | `REQ-021` | `TASK-013`, `TASK-112`, `TASK-202`, `TASK-224`, `TASK-302` |
 | `AC-117` | `[I]` | `REQ-021` | `TASK-112`, `TASK-202`, `TASK-209`, `TASK-302`, `TASK-309` |
 | `AC-118` | `[I]` | `REQ-021` | `TASK-112`, `TASK-203`, `TASK-208`, `TASK-303`, `TASK-308` |
-| `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308`, `TASK-315` |
+| `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308`, `TASK-315`, `TASK-325` |
 | `AC-120` | `[I]` | `REQ-022` | `TASK-003`, `TASK-013`, `TASK-208`, `TASK-308`, `TASK-318` |
 | `AC-121` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-218`, `TASK-222`, `TASK-308` |
 | `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-227`, `TASK-308` |
@@ -272,9 +272,10 @@
 | `AC-145` | `[I]` | `REQ-028` | `TASK-319` |
 | `AC-146` | `[I]` | `REQ-028` | `TASK-319` |
 | `AC-147` | `[I]` | `REQ-027` | `TASK-320` |
-| `AC-148` | `[I]` | `REQ-027` | `TASK-321` |
-| `AC-149` | `[I]` | `REQ-027` | `TASK-323` |
+| `AC-148` | `[I]` | `REQ-027` | `TASK-321`, `TASK-325` |
+| `AC-149` | `[I]` | `REQ-027` | `TASK-323`, `TASK-325` |
 | `AC-150` | `[I]` | `REQ-022` | `TASK-324` |
+| `AC-151` | `[I]` | `REQ-027` | `TASK-325` |
 
 TASK-101 的 AC-013/016/017/128/129 映射还受
 [Cloud115 协议就绪边界](changes/2026-07-27--task-101-cloud115-readiness.md) 中
@@ -345,6 +346,11 @@ TASK-324 的 AC-119/150 映射受
 [MGDB 手动同步](changes/2026-08-05--task-324-mgdb-manual-sync.md)、
 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 和
 [REST OpenAPI](contracts/rest-api.openapi.yaml) 约束；它新增 AC-150，当前有效任务总数增至 77。
+
+TASK-325 的 AC-054 至 AC-057、AC-119、AC-148/149/151 映射受
+[TASK-325 AI 配置恢复、翻译瘦身与 Docker 原地升级](changes/2026-08-06--task-325-ai-settings-translation-docker-upgrade.md)、
+[元数据提供方契约](contracts/metadata-providers.md)、[Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)、
+[运行配置契约](contracts/runtime-configuration.md) 和 [GitHub 自动发布契约](contracts/github-release.md) 约束；它新增 AC-151，当前有效任务总数增至 78。
 
 HarmonyOS 的 AC-007/AC-131 工具链、API 24 SDK/构建/fixture 边界受
 [HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md) 约束；该变更撤销 TASK-312 的物理真机门禁，但保留 API 24 编译和 API 签名基线。

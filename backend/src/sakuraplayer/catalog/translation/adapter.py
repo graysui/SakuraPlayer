@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import secrets
 import time
+from collections import Counter
 from dataclasses import dataclass
 from typing import Literal
 from urllib.parse import urlsplit
@@ -15,37 +17,32 @@ from sakuraplayer.catalog.translation.config import AiConfigurationSnapshot
 from sakuraplayer.catalog.translation.guard import (
     ProtectedFields,
     TranslationGuardrailError,
-    require_unchanged_protected,
 )
 
-PROMPT_VERSION = "sakuraplayer-zh-v2"
-_OUTPUT_SCHEMA_EXAMPLE = (
-    '{"schema_version":1,"translated_text":"...","protected":'
-    '{"number":"...","actors":[],"maker":null,"series":null,"tags":[]}}'
-)
+PROMPT_VERSION = "sakuraplayer-zh-v3"
+_OUTPUT_SCHEMA_EXAMPLE = '{"schema_version":1,"translated_text":"..."}'
 SYSTEM_PROMPT = (
     "Translate only the source_text value into Simplified Chinese. Return exactly "
     f"one JSON object with this only allowed shape: {_OUTPUT_SCHEMA_EXAMPLE}. "
-    "Replace translated_text with the translation and copy every protected value "
-    "from the input without changing, omitting, or adding values. Do not return "
-    "kind/source_text, Markdown, code fences, explanations, or any extra fields. "
-    "Never translate identifiers, actor names, maker, series, or tags."
+    "Preserve every placeholder token matching [[SP_XXXXXXXX_0000]] exactly, "
+    "including brackets, spelling, and count. Do not return kind/source_text, "
+    "Markdown, code fences, explanations, or any extra fields."
 )
 MAX_TEXT_CHARACTERS = 32_000
 MAX_REQUEST_BYTES = 512 * 1024
 MAX_RESPONSE_BYTES = 256 * 1024
 MAX_OUTPUT_TOKENS = 65_536
-_OUTPUT_TOKEN_RESERVE = 512
+_OUTPUT_TOKEN_RESERVE = 64
 _MIN_OUTPUT_TOKENS: dict[str, int] = {
-    "movie_title": 1024,
-    "movie_description": 2048,
-    "actor_bio": 2048,
+    "movie_title": 128,
+    "movie_description": 256,
 }
+_PLACEHOLDER_PATTERN = re.compile(r"\[\[SP_[A-F0-9]{8}_[0-9]{4}\]\]")
 _SAFE_TRACE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _SILICONFLOW_HOST = "api.siliconflow.cn"
 _SILICONFLOW_QWEN35_PREFIX = "qwen/qwen3.5-"
 _LOGGER = logging.getLogger(__name__)
-TranslationKind = Literal["movie_title", "movie_description", "actor_bio"]
+TranslationKind = Literal["movie_title", "movie_description"]
 
 
 class TranslationAdapterError(RuntimeError):
@@ -84,14 +81,10 @@ class _RawResponse:
     trace_id: str | None
 
 
-class _ProtectedPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-
-    number: str
-    actors: list[str]
-    maker: str | None
-    series: str | None
-    tags: list[str]
+@dataclass(frozen=True)
+class _ProtectedSource:
+    text: str
+    replacements: tuple[tuple[str, str], ...]
 
 
 class _OutputPayload(BaseModel):
@@ -99,7 +92,6 @@ class _OutputPayload(BaseModel):
 
     schema_version: Literal[1]
     translated_text: str = Field(min_length=1, max_length=MAX_TEXT_CHARACTERS)
-    protected: _ProtectedPayload
 
     @field_validator("translated_text")
     @classmethod
@@ -156,7 +148,8 @@ class OpenAiTranslationAdapter:
     ) -> TranslationResult:
         if not request.source_text or len(request.source_text) > MAX_TEXT_CHARACTERS:
             raise TranslationAdapterError("translation_input_too_large")
-        body = self._body(request, configuration)
+        protected_source = _protect_source(request.source_text, request.protected)
+        body = self._body(request, configuration, protected_source.text)
         encoded = json.dumps(
             body,
             ensure_ascii=True,
@@ -166,24 +159,19 @@ class OpenAiTranslationAdapter:
         if len(encoded) > MAX_REQUEST_BYTES:
             raise TranslationAdapterError("translation_input_too_large")
         started = time.monotonic()
+        raw: _RawResponse | None = None
         try:
             raw = self._post(encoded, configuration)
             output = self._parse(raw)
-            require_unchanged_protected(
-                request.protected,
-                ProtectedFields(
-                    number=output.protected.number,
-                    actors=tuple(output.protected.actors),
-                    maker=output.protected.maker,
-                    series=output.protected.series,
-                    tags=tuple(output.protected.tags),
-                ),
+            translated_text = _restore_protected(
+                output.translated_text,
+                protected_source.replacements,
             )
         except TranslationGuardrailError:
             error = TranslationAdapterError(
                 "translation_guardrail_failed",
                 category="protected_mismatch",
-                trace_id=raw.trace_id,
+                trace_id=raw.trace_id if raw is not None else None,
             )
             self._log_failure(error, started)
             raise error from None
@@ -204,7 +192,7 @@ class OpenAiTranslationAdapter:
         except TranslationAdapterError as error:
             self._log_failure(error, started)
             raise
-        return TranslationResult(translated_text=output.translated_text)
+        return TranslationResult(translated_text=translated_text)
 
     def _post(
         self,
@@ -245,18 +233,12 @@ class OpenAiTranslationAdapter:
     def _body(
         request: TranslationRequest,
         configuration: AiConfigurationSnapshot,
+        source_text: str,
     ) -> dict[str, object]:
         user_payload = {
             "schema_version": 1,
             "kind": request.kind,
-            "source_text": request.source_text,
-            "protected": {
-                "number": request.protected.number,
-                "actors": list(request.protected.actors),
-                "maker": request.protected.maker,
-                "series": request.protected.series,
-                "tags": list(request.protected.tags),
-            },
+            "source_text": source_text,
         }
         body: dict[str, object] = {
             "model": configuration.model,
@@ -274,7 +256,7 @@ class OpenAiTranslationAdapter:
             ],
             "temperature": 0,
             "response_format": {"type": "json_object"},
-            "max_tokens": _output_token_limit(request, user_payload),
+            "max_tokens": _output_token_limit(request.kind, source_text),
         }
         if _uses_siliconflow_qwen35_profile(configuration):
             body["enable_thinking"] = False
@@ -345,27 +327,72 @@ def _uses_siliconflow_qwen35_profile(
     )
 
 
-def _output_token_limit(
-    request: TranslationRequest,
-    user_payload: dict[str, object],
-) -> int:
-    protected_bytes = len(
-        json.dumps(
-            user_payload["protected"],
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode("utf-8")
-    )
-    estimated = (
-        len(request.source_text.encode("utf-8"))
-        + protected_bytes
-        + _OUTPUT_TOKEN_RESERVE
-    )
+def _output_token_limit(kind: TranslationKind, source_text: str) -> int:
+    estimated = ((len(source_text) * 5 + 3) // 4) + _OUTPUT_TOKEN_RESERVE
     return min(
         MAX_OUTPUT_TOKENS,
-        max(_MIN_OUTPUT_TOKENS[request.kind], estimated),
+        max(_MIN_OUTPUT_TOKENS[kind], estimated),
     )
+
+
+def _protect_source(source_text: str, protected: ProtectedFields) -> _ProtectedSource:
+    values = (
+        protected.number,
+        *protected.actors,
+        protected.maker,
+        protected.series,
+        *protected.tags,
+    )
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value is None:
+            continue
+        stripped = value.strip()
+        if not stripped or len(stripped) > len(source_text):
+            continue
+        key = " ".join(stripped.split()).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(stripped)
+    if not candidates:
+        return _ProtectedSource(source_text, ())
+
+    candidates.sort(key=len, reverse=True)
+    patterns = [
+        r"\s+".join(re.escape(part) for part in re.split(r"\s+", value))
+        for value in candidates
+    ]
+    matcher = re.compile("|".join(f"(?:{part})" for part in patterns), re.IGNORECASE)
+    nonce = secrets.token_hex(4).upper()
+    while f"[[SP_{nonce}_" in source_text:
+        nonce = secrets.token_hex(4).upper()
+    replacements: list[tuple[str, str]] = []
+
+    def replace(match: re.Match[str]) -> str:
+        token = f"[[SP_{nonce}_{len(replacements):04d}]]"
+        replacements.append((token, match.group(0)))
+        return token
+
+    text = matcher.sub(replace, source_text)
+    return _ProtectedSource(text, tuple(replacements))
+
+
+def _restore_protected(
+    translated_text: str,
+    replacements: tuple[tuple[str, str], ...],
+) -> str:
+    expected = Counter(token for token, _ in replacements)
+    returned = Counter(_PLACEHOLDER_PATTERN.findall(translated_text))
+    if returned != expected:
+        raise TranslationGuardrailError
+    restored = translated_text
+    for token, value in replacements:
+        restored = restored.replace(token, value)
+    if len(restored) > MAX_TEXT_CHARACTERS:
+        raise TranslationGuardrailError
+    return restored
 
 
 def _safe_trace_id(value: str | None) -> str | None:

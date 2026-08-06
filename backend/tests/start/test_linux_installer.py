@@ -380,7 +380,6 @@ def _prepare_latest_bootstrap(
     package_installer.chmod(0o755)
     package_files = (
         "docker-compose.yml",
-        ".env.example",
         ".release-version",
         "README.md",
         "LICENSE",
@@ -390,6 +389,12 @@ def _prepare_latest_bootstrap(
         package_files += ("install-latest.sh",)
     for name in package_files:
         (package_root / name).write_text("fixture\n", encoding="ascii")
+    (package_root / ".env.example").write_text(
+        "SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:1.2.3\n"
+        "SAKURAPLAYER_PUBLISH_HOST=127.0.0.1\n"
+        "SAKURAPLAYER_API_PORT=8000\n",
+        encoding="ascii",
+    )
     archive = tmp_path / "SakuraPlayer-Docker-1.2.3.tar.gz"
     subprocess.run(
         ["tar", "-czf", str(archive), "-C", str(tmp_path), package_root.name],
@@ -433,7 +438,7 @@ def _run_latest_installer(
     container_secrets: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     target = archive.parent / "deployment"
-    target.mkdir()
+    target.mkdir(exist_ok=True)
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
     env["FAKE_ARCHIVE"] = str(archive)
@@ -485,7 +490,153 @@ def test_latest_installer_downloads_latest_release_without_checksum(
     assert not list(archive.parent.glob("sakuraplayer-install.*"))
 
 
-def test_latest_installer_rejects_unversioned_latest_release(tmp_path: Path) -> None:
+def test_latest_installer_upgrades_official_image_without_touching_state(
+    tmp_path: Path,
+) -> None:
+    archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(tmp_path)
+    target = archive.parent / "deployment"
+    target.mkdir()
+    env_before = (
+        "SAKURAPLAYER_BACKEND_IMAGE=ghcr.io/graysui/sakuraplayer-backend:1.0.2\n"
+        "SAKURAPLAYER_PUBLISH_HOST=192.168.3.245\n"
+        "SAKURAPLAYER_API_PORT=18286\n"
+        "HTTPS_PROXY=http://proxy.example.test:7890\n"
+        "CUSTOM_SETTING=preserve-me\n"
+    )
+    (target / ".env").write_text(env_before, encoding="ascii")
+    (target / "docker-compose.yml").write_text("existing-compose\n", encoding="ascii")
+    (target / "docker-compose.override.yml").write_text(
+        "existing-override\n", encoding="ascii"
+    )
+    for name, value in {
+        "postgres_password.txt": "p" * 43,
+        "settings_key.txt": "s" * 43,
+        "token_key.txt": "t" * 64,
+        "playback_key.txt": "y" * 64,
+        "bootstrap_token.txt": "b" * 64,
+    }.items():
+        path = target / "secrets" / name
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(value, encoding="ascii")
+    data_files = {
+        target / "data" / "postgres" / "PG_VERSION": b"17\n",
+        target / "data" / "catalog-images" / "cover.jpg": b"catalog-image",
+        target / "data" / "provider-cache" / "snapshot.json": b"provider-cache",
+        target / "data" / "app-logs" / "api.log": b"redacted-log",
+    }
+    for path, value in data_files.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(value)
+    secrets_before = _secret_values(target)
+    override_before = (target / "docker-compose.override.yml").read_bytes()
+
+    result = _run_latest_installer(
+        fake_bin,
+        archive,
+        marker,
+        curl_log,
+        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/v1.2.3",
+    )
+
+    assert result.returncode == 0, result.stderr
+    env_after = (target / ".env").read_text(encoding="ascii")
+    assert (
+        "SAKURAPLAYER_BACKEND_IMAGE=ghcr.io/graysui/sakuraplayer-backend:1.2.3"
+        in env_after
+    )
+    assert env_after.replace(":1.2.3\n", ":1.0.2\n", 1) == env_before
+    assert _secret_values(target) == secrets_before
+    assert (target / "docker-compose.override.yml").read_bytes() == override_before
+    for path, value in data_files.items():
+        assert path.read_bytes() == value
+    assert marker.read_text(encoding="ascii") == "package-installer-ran\n"
+
+
+def test_latest_installer_same_version_preserves_env_bytes(tmp_path: Path) -> None:
+    archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(tmp_path)
+    target = archive.parent / "deployment"
+    target.mkdir()
+    env_before = (
+        b"SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:1.2.3\n"
+        b"SAKURAPLAYER_PUBLISH_HOST=192.168.3.245\n"
+        b"SAKURAPLAYER_API_PORT=18286\n"
+    )
+    (target / ".env").write_bytes(env_before)
+
+    result = _run_latest_installer(
+        fake_bin,
+        archive,
+        marker,
+        curl_log,
+        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/v1.2.3",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (target / ".env").read_bytes() == env_before
+
+
+@pytest.mark.parametrize(
+    ("env_text", "error_code"),
+    [
+        (
+            "SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:1.2.4\n",
+            "release_downgrade_refused",
+        ),
+        (
+            "SAKURAPLAYER_BACKEND_IMAGE=example.com/custom/backend:1.0.2\n",
+            "existing_image_unsupported",
+        ),
+        (
+            "SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend@sha256:abc\n",
+            "existing_image_unsupported",
+        ),
+        (
+            "SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:latest\n",
+            "existing_image_unsupported",
+        ),
+        (
+            "SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:01.2.3\n",
+            "existing_image_unsupported",
+        ),
+        ("SAKURAPLAYER_PUBLISH_HOST=127.0.0.1\n", "existing_image_invalid"),
+        (
+            "SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:1.0.2\n"
+            "SAKURAPLAYER_BACKEND_IMAGE=ghcr.io/graysui/sakuraplayer-backend:1.0.2\n",
+            "existing_image_invalid",
+        ),
+    ],
+)
+def test_latest_installer_rejects_unsafe_existing_image_before_release_copy(
+    tmp_path: Path,
+    env_text: str,
+    error_code: str,
+) -> None:
+    archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(tmp_path)
+    target = archive.parent / "deployment"
+    target.mkdir()
+    (target / ".env").write_text(env_text, encoding="ascii")
+    existing_compose = b"existing-compose\n"
+    (target / "docker-compose.yml").write_bytes(existing_compose)
+
+    result = _run_latest_installer(
+        fake_bin,
+        archive,
+        marker,
+        curl_log,
+        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/v1.2.3",
+    )
+
+    assert result.returncode != 0
+    assert error_code in result.stderr
+    assert (target / "docker-compose.yml").read_bytes() == existing_compose
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("release_tag", ["main", "v01.2.3", "v1.02.3", "v1.2.03"])
+def test_latest_installer_rejects_noncanonical_latest_release(
+    tmp_path: Path,
+    release_tag: str,
+) -> None:
     archive, fake_bin, marker, curl_log = _prepare_latest_bootstrap(tmp_path)
 
     result = _run_latest_installer(
@@ -493,7 +644,7 @@ def test_latest_installer_rejects_unversioned_latest_release(tmp_path: Path) -> 
         archive,
         marker,
         curl_log,
-        release_url="https://github.com/graysui/SakuraPlayer/releases/tag/main",
+        release_url=f"https://github.com/graysui/SakuraPlayer/releases/tag/{release_tag}",
     )
 
     assert result.returncode != 0

@@ -117,8 +117,8 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 ### REQ-011 AI 翻译
 
 - **AC-054 `[IMP]`**: 后端支持 OpenAI 兼容接口，可原子配置 `base_url`、加密 `api_key`、`model` 和超时；缺失或非法配置不得访问 provider。硅基流动 Qwen3.5 的非思考 profile 与通用 provider 兼容边界由 [硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结。
-- **AC-055 `[IMP]`**: AI 在元数据可选阶段异步翻译影片标题和简介；演员简介必须区分 Actor Mapping 与 AI 来源，仅在 Actor Mapping 已运行且缺少中文内容时翻译。影片详情简介只展示完成的中文译文，不回退或并列显示原文，详见 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md)。
-- **AC-056 `[IMP]`**: 番号、演员姓名、厂商、系列和标签必须进入结构化 protected 区，AI 返回缺失、增加或改写这些字段时拒绝译文。
+- **AC-055 `[IMP]`**: AI 在元数据可选阶段只异步翻译影片标题和影片简介，不翻译演员简介；历史演员 AI 译文保留，Actor Mapping 继续提供可用中文简介。影片详情简介只展示完成的中文译文，不回退或并列显示原文，详见 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 和 [TASK-325 AI 配置恢复、翻译瘦身与 Docker 原地升级](changes/2026-08-06--task-325-ai-settings-translation-docker-upgrade.md)。
+- **AC-056 `[IMP]`**: AI 请求不得携带番号、演员姓名、厂商、系列或标签原值；这些值实际出现在当前标题或简介时由后端本地替换为无业务含义占位符，响应占位符缺失、增加、重复或改写时拒绝译文，通过后再本地恢复。
 - **AC-057 `[IMP]`**: 原文、译文、来源内容摘要、模型、提示版本和付费派发事实必须持久化；同一 owner/source/model/prompt 业务键最多自动派发一次，来源未变化时不得自动重复付费翻译。完整协议和未知结果语义由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结；prompt v2 与旧 v1 事实隔离由 [硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结。
 - **AC-058 `[SEF]`**: AI 不可用时，已完成核心元数据的影片仍可浏览和播放。
 
@@ -232,7 +232,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-022 管理员设置与诊断
 
-- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、MGDB 数据源、缓存期限、同步状态和连接测试；五个连接目标必须执行真实只读 probe，未配置、凭据无效与上游不可用不得混淆；同步状态同时显示持久统计中的已导入总数；JavDB/AI/MGDB 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie、API key 与磁力只返回配置状态或不返回；Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
+- **AC-119 `[IMP]`**: 客户端设置页管理 115、JavDB、AI、MGDB 数据源、缓存期限、同步状态和连接测试；五个连接目标必须执行真实只读 probe，未配置、凭据无效与上游不可用不得混淆；同步状态同时显示持久统计中的已导入总数；JavDB/AI/MGDB 以对象级版本 CAS 更新，非敏感现值可回显，密码、Cookie、API key 与磁力只返回配置状态或不返回；AI replace 成功后和客户端重启时必须从权威 GET 恢复当前非秘密配置，Windows 表单和秘密生命周期由 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md) 约束。
 - **AC-120 `[IMP]`**: 主密钥等启动级机密只能由 Docker Secret 或环境变量提供，不得通过客户端修改。
 - **AC-121 `[IMP]`**: 诊断页显示脱敏后的缓存失败、真实连接测试、元数据总体进度、失败数量和持久暂停状态；元数据主视图只显示聚合计数与当前最多 3 个刮削番号，不铺开逐任务列表；没有持久心跳证据的跨进程状态必须显示 unknown，不得伪造健康或以缺少 probe 冒充上游不可用；Windows DTO 与布局遵循 [Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)。
 - **AC-122 `[IMP]`**: 管理员可暂停或恢复元数据新任务领取、查看并手动重试失败元数据任务、从影片详情显式重新刮削当前番号，对 `completed_with_warnings` 显式重试失败或缺失的可选富化阶段，取消排队或运行中的离线任务，并清理就绪缓存；暂停不中断运行中任务，恢复不创建或自动重试任务；富化重试不得自动重跑 JavDB 核心或付费 AI，Windows 操作白名单与显式阶段选择由 [TASK-208 Windows 设置与缓存客户端边界](changes/2026-07-30--task-208-settings-cache-client-boundaries.md) 和 [影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结。
@@ -283,6 +283,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 - **AC-147 `[IMP]`**: Linux 新手入口支持一条 `curl | bash` 命令自动解析最新正式 `vX.Y.Z` Release、下载对应 Docker 部署包、临时解压并调用包内安装器；不要求用户手动下载、解压或执行 SHA-256 校验，非法版本、下载失败和归档布局异常必须在 Compose 启动前失败并清理临时目录。
 - **AC-148 `[IMP]`**: Linux `install-latest.sh` 默认把发布文件、`.env`、`secrets/` 和 bootstrap token 持久化到执行命令时的当前目录；首次交互安装可从 `/dev/tty` 选择合法 IPv4 发布地址和 `1..65535` API 端口，直接回车或无 TTY 使用 `127.0.0.1:8000`，已有 `.env` 保持原值，临时目录不得承载运行配置。
 - **AC-149 `[IMP]`**: Linux Docker 的 PostgreSQL、永久图片、上游缓存和脱敏日志必须分别绑定到安装目录下的 `data/postgres/`、`data/catalog-images/`、`data/provider-cache/` 和 `data/app-logs/`；从旧版 named volume 升级时，一键安装必须在 Compose 启动前复制对应数据到这些目录，并将当前 `postgres_password.txt` 同步到既有数据库角色后再执行迁移，原 named volume 不得被自动删除。
+- **AC-151 `[IMP]`**: 在现有安装目录重跑 Linux 一键入口必须把受支持的官方完整 SemVer 镜像原地升级到当前 Release，同时保留 `.env` 非镜像配置、secret、bind 数据、PostgreSQL、加密设置和已刮削目录；相同版本幂等，降级、自定义、本地、digest、latest、缺失或重复镜像配置必须在覆盖发布文件前拒绝，安装器不得执行 `down -v` 或删除旧 named volume。
 
 ## 12. 非功能要求
 
@@ -322,4 +323,4 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ## 14. 发布门禁
 
-Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-150 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。
+Windows v1 只有在 AC-001 至 AC-130、AC-133 至 AC-151 中适用于 Windows/后端的 `[IMP]` 项通过自动验证，且 AC-130 真实 115 检查全部通过后才能发布。HarmonyOS 工作只有在 Windows v1 门禁完成且 TASK-301 的 API 24 SDK 签名、构建和 fixture 基线通过后才能开始；不设置 API 24 物理真机连接门禁，AC-133 至 AC-135 的共享安全行为不得在鸿蒙端降级。GitHub 自动发布遵循 [GitHub 自动发布契约](contracts/github-release.md)。

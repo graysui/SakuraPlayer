@@ -150,16 +150,6 @@ class TranslationService:
                         protected=protected,
                     )
                 )
-            items.extend(
-                _WorkItem(
-                    owner_type="actor_bio",
-                    owner_id=actor.id,
-                    source_text=actor.bio_original,
-                    protected=protected,
-                )
-                for actor in actors
-                if actor.bio_original and actor.bio_zh_source != "actor_mapping"
-            )
             return tuple(items)
 
     def _translate_item(
@@ -351,31 +341,20 @@ class TranslationService:
         *,
         current: datetime,
     ) -> None:
-        if item.owner_type in {"movie_title", "movie_description"}:
-            movie = session.get(Movie, item.owner_id, with_for_update=True)
-            if movie is None:
-                return
-            source_field = (
-                "title_original"
-                if item.owner_type == "movie_title"
-                else "description_original"
-            )
-            translated_field = (
-                "title_zh" if item.owner_type == "movie_title" else "description_zh"
-            )
-            if getattr(movie, source_field) == item.source_text:
-                setattr(movie, translated_field, translated_text)
-                movie.updated_at = current
+        movie = session.get(Movie, item.owner_id, with_for_update=True)
+        if movie is None:
             return
-        actor = session.get(Actor, item.owner_id, with_for_update=True)
-        if (
-            actor is not None
-            and actor.bio_original == item.source_text
-            and actor.bio_zh_source != "actor_mapping"
-        ):
-            actor.bio_zh = translated_text
-            actor.bio_zh_source = "ai"
-            actor.updated_at = current
+        source_field = (
+            "title_original"
+            if item.owner_type == "movie_title"
+            else "description_original"
+        )
+        translated_field = (
+            "title_zh" if item.owner_type == "movie_title" else "description_zh"
+        )
+        if getattr(movie, source_field) == item.source_text:
+            setattr(movie, translated_field, translated_text)
+            movie.updated_at = current
 
     @staticmethod
     def _require_dispatched(

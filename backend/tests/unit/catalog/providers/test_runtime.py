@@ -142,7 +142,6 @@ def fake_client(
                                     {
                                         "schema_version": 1,
                                         "translated_text": f"ZH:{user['source_text']}",
-                                        "protected": user["protected"],
                                     }
                                 )
                             },

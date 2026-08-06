@@ -115,10 +115,10 @@ cd /vol1/1000/docker/Sakuraplayer
 curl -fsSL https://raw.githubusercontent.com/graysui/SakuraPlayer/main/backend/install-latest.sh | bash
 ```
 
-安装脚本会自动生成五个独立的强随机 secret、创建发布版 `.env`、拉取固定版本镜像，并等待 PostgreSQL、迁移、API、Worker 和 Scheduler 健康。首次输入的 host/port 会写入当前目录的 `.env`；已有 `.env` 会保留原值，不会再次询问。数据库、图片、缓存和日志会保存到当前目录的 `data/` 子目录，不会落到 Docker 系统卷目录。它不会在终端显示 secret，只会告诉你初始化口令文件的位置。重复执行 `./install.sh` 会复用原文件，不会重置数据库密码或加密密钥。
+安装脚本会自动生成五个独立的强随机 secret、创建发布版 `.env`、拉取固定版本镜像，并等待 PostgreSQL、迁移、API、Worker 和 Scheduler 健康。首次输入的 host/port 会写入当前目录的 `.env`；已有 `.env` 不会再次询问。数据库、图片、缓存和日志会保存到当前目录的 `data/` 子目录，不会落到 Docker 系统卷目录。它不会在终端显示 secret，只会告诉你初始化口令文件的位置。重复执行同一条 `curl | bash` 命令即可原地升级：脚本只把现有 Docker Hub 或 GHCR 官方完整版本镜像更新到最新 Release，保留 registry、host/port、代理和其他配置，不会重置数据库密码、加密密钥、PostgreSQL、设置或已刮削数据。
 
 > [!NOTE]
-> 该命令需要 Linux 主机预装 Docker Engine、Docker Compose v2、curl、OpenSSL 和 `flock`（Ubuntu/Debian 的 `util-linux` 包）。脚本会把 `.env`、`secrets/`、发布文件和 `data/` 写入执行命令时的当前目录；首次交互运行时会询问 `SAKURAPLAYER_PUBLISH_HOST` 与 `SAKURAPLAYER_API_PORT`，直接回车使用 `127.0.0.1:8000`。旧版发布包的 named volume 会在启动前复制到当前目录的 `data/`，原卷不会自动删除。如果需要离线部署或人工审查发布资产，仍可从 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest) 手动下载归档，使用同目录的 `./install.sh`；正式 Release 仍提供 `.sha256` 文件供高级用户选择校验。
+> 该命令需要 Linux 主机预装 Docker Engine、Docker Compose v2、curl、OpenSSL 和 `flock`（Ubuntu/Debian 的 `util-linux` 包）。脚本会把 `.env`、`secrets/`、发布文件和 `data/` 写入执行命令时的当前目录；首次交互运行时会询问 `SAKURAPLAYER_PUBLISH_HOST` 与 `SAKURAPLAYER_API_PORT`，直接回车使用 `127.0.0.1:8000`。旧版发布包的 named volume 会在启动前复制到当前目录的 `data/`，原卷不会自动删除。升级不执行 `down -v`；如果 `.env` 使用自定义、本地、digest、`latest`、重复镜像行，或最新 Release 低于已安装版本，脚本会在覆盖发布文件前停止，避免猜测操作者意图。如果需要离线部署或人工审查发布资产，仍可从 [SakuraPlayer Releases](https://github.com/graysui/SakuraPlayer/releases/latest) 手动下载归档，使用同目录的 `./install.sh`；正式 Release 仍提供 `.sha256` 文件供高级用户选择校验。
 
 新版本发布前，也可以从当前源码使用同一个安装器：
 
@@ -139,7 +139,7 @@ SAKURAPLAYER_PUBLISH_HOST=192.168.1.50
 SAKURAPLAYER_API_PORT=8000
 ```
 
-请把 `192.168.1.50` 换成 Linux 服务器自己的地址；也可以在首次一键安装的提示中输入这两个值。已有 `.env` 不会被一键脚本覆盖。不要填写 `0.0.0.0`，也不要在路由器上把 8000 端口映射到公网；公网访问必须使用 HTTPS 反向代理或可信加密 VPN。
+请把 `192.168.1.50` 换成 Linux 服务器自己的地址；也可以在首次一键安装的提示中输入这两个值。升级时已有 `.env` 只更新受支持的官方后端镜像版本行，地址、端口和其他配置保持不变。不要填写 `0.0.0.0`，也不要在路由器上把 8000 端口映射到公网；公网访问必须使用 HTTPS 反向代理或可信加密 VPN。
 
 #### 查看初始化口令
 

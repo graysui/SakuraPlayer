@@ -134,6 +134,7 @@ class SettingsController extends Notifier<SettingsState> {
             model: model,
             timeoutSeconds: timeoutSeconds,
           ),
+      reloadAuthoritative: true,
     );
   }
 
@@ -143,6 +144,7 @@ class SettingsController extends Notifier<SettingsState> {
     return _mutate(
       'ai',
       () => ref.read(settingsGatewayProvider).clearAi(current.ai.version),
+      reloadAuthoritative: true,
     );
   }
 
@@ -236,19 +238,29 @@ class SettingsController extends Notifier<SettingsState> {
 
   Future<void> _mutate(
     String key,
-    Future<SettingsDto> Function() operation,
-  ) async {
+    Future<SettingsDto> Function() operation, {
+    bool reloadAuthoritative = false,
+  }) async {
     if (state.settings == null || state.inFlight.contains(key)) return;
     final generation = _generation;
     state = state.copyWith(inFlight: {...state.inFlight, key}, errorCode: null);
     try {
-      final settings = await operation();
+      var settings = await operation();
+      if (generation != _generation) return;
+      String? reloadError;
+      if (reloadAuthoritative) {
+        try {
+          settings = await ref.read(settingsGatewayProvider).getSettings();
+        } on ApiException catch (error) {
+          reloadError = error.code;
+        }
+      }
       if (generation != _generation) return;
       state = state.copyWith(
         status: SettingsStatus.ready,
         settings: settings,
         inFlight: {...state.inFlight}..remove(key),
-        errorCode: null,
+        errorCode: reloadError,
       );
     } on ApiException catch (error) {
       if (generation != _generation) return;

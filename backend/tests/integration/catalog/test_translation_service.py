@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import os
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
-from threading import Event, Lock
 
 import pytest
 from sqlalchemy import create_engine, select, text
@@ -22,7 +20,6 @@ from sakuraplayer.catalog.translation.config import (
 )
 from sakuraplayer.catalog.translation.service import (
     TranslationService,
-    TranslationServiceError,
 )
 from sakuraplayer.identity.crypto import InMemorySecretKeyProvider, SecretCipher
 from sakuraplayer.identity.secrets import EncryptedSettingRepository
@@ -67,22 +64,6 @@ def database_url() -> str:
         admin_engine.dispose()
 
 
-class BlockingAdapter:
-    def __init__(self) -> None:
-        self.entered = Event()
-        self.release = Event()
-        self._lock = Lock()
-        self.calls = 0
-
-    def translate(self, request, configuration):
-        with self._lock:
-            self.calls += 1
-        self.entered.set()
-        if not self.release.wait(5):
-            raise AssertionError("translation test release timed out")
-        return TranslationResult(translated_text="共享演员简介")
-
-
 class ImmediateAdapter:
     def __init__(self) -> None:
         self.calls = 0
@@ -92,7 +73,7 @@ class ImmediateAdapter:
         return TranslationResult(translated_text="合成中文标题")
 
 
-def test_shared_actor_is_dispatched_at_most_once_across_movie_workers(
+def test_actor_biography_is_not_dispatched_across_movie_workers(
     database_url: str,
 ) -> None:
     upgrade_database(database_url, ALEMBIC_INI)
@@ -163,7 +144,7 @@ def test_shared_actor_is_dispatched_at_most_once_across_movie_workers(
         ),
         expected_version=0,
     )
-    adapter = BlockingAdapter()
+    adapter = ImmediateAdapter()
     services = [
         TranslationService(
             session_factory=factory,
@@ -174,30 +155,23 @@ def test_shared_actor_is_dispatched_at_most_once_across_movie_workers(
         for _ in claims
     ]
     try:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            first = pool.submit(services[0].execute, claims[0])
-            assert adapter.entered.wait(5)
-            second = pool.submit(services[1].execute, claims[1])
-            with pytest.raises(TranslationServiceError) as blocked:
-                second.result(timeout=5)
-            assert blocked.value.code == "translation_result_unavailable"
-            assert adapter.calls == 1
-            adapter.release.set()
-            first.result(timeout=5)
+        for service, claim in zip(services, claims, strict=True):
+            assert claim is not None
+            service.execute(claim)
 
         with factory() as session:
             records = list(session.scalars(select(TranslationRecord)))
             persisted_actor = session.get(Actor, actor.id)
-        assert len(records) == 1
-        assert records[0].status == "completed"
+        assert records == []
+        assert adapter.calls == 0
         assert persisted_actor is not None
-        assert persisted_actor.bio_zh == "共享演员简介"
+        assert persisted_actor.bio_zh is None
+        assert persisted_actor.bio_zh_source is None
     finally:
-        adapter.release.set()
         engine.dispose()
 
 
-def test_v2_dispatch_preserves_all_legacy_v1_failure_facts(
+def test_v3_dispatch_preserves_all_legacy_v1_and_v2_failure_facts(
     database_url: str,
 ) -> None:
     upgrade_database(database_url, ALEMBIC_INI)
@@ -213,16 +187,46 @@ def test_v2_dispatch_preserves_all_legacy_v1_failure_facts(
         created_at=NOW,
         updated_at=NOW,
     )
+    legacy_specs = (
+        (
+            "movie_title",
+            movie.id,
+            "Synthetic title",
+            "sakuraplayer-zh-v1",
+            "unknown",
+        ),
+        (
+            "movie_title",
+            movie.id,
+            "Synthetic title",
+            "sakuraplayer-zh-v2",
+            "rejected",
+        ),
+        (
+            "movie_description",
+            uuid.uuid4(),
+            "Legacy description",
+            "sakuraplayer-zh-v1",
+            "rejected",
+        ),
+        (
+            "actor_bio",
+            uuid.uuid4(),
+            "Legacy biography",
+            "sakuraplayer-zh-v2",
+            "dispatched",
+        ),
+    )
     legacy_rows = [
         TranslationRecord(
             id=uuid.uuid4(),
             owner_type=owner_type,
-            owner_id=movie.id if index == 0 else uuid.uuid4(),
+            owner_id=owner_id,
             source_text=source_text,
             source_hash=sha256(source_text.encode("utf-8")).hexdigest(),
             translated_text=None,
             model="fixture-model",
-            prompt_version="sakuraplayer-zh-v1",
+            prompt_version=prompt_version,
             status=status,
             claim_token=uuid.uuid4() if status == "dispatched" else None,
             claim_expires_at=None,
@@ -239,13 +243,7 @@ def test_v2_dispatch_preserves_all_legacy_v1_failure_facts(
             created_at=NOW - timedelta(minutes=1),
             updated_at=NOW - timedelta(minutes=1),
         )
-        for index, (owner_type, source_text, status) in enumerate(
-            (
-                ("movie_title", "Synthetic title", "unknown"),
-                ("movie_description", "Legacy description", "rejected"),
-                ("actor_bio", "Legacy biography", "dispatched"),
-            )
-        )
+        for owner_type, owner_id, source_text, prompt_version, status in legacy_specs
     ]
     with factory.begin() as session:
         session.add(movie)
@@ -299,10 +297,12 @@ def test_v2_dispatch_preserves_all_legacy_v1_failure_facts(
         assert [row.status for row in persisted_legacy if row is not None] == [
             "unknown",
             "rejected",
+            "rejected",
             "dispatched",
         ]
         assert [row.failure_code for row in persisted_legacy if row is not None] == [
             "translation_upstream_error",
+            "translation_guardrail_failed",
             "translation_guardrail_failed",
             None,
         ]

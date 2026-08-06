@@ -160,7 +160,7 @@ def service(factory, config_store, adapter) -> TranslationService:
     )
 
 
-def test_service_translates_movie_fields_and_only_missing_actor_bio() -> None:
+def test_service_translates_only_movie_title_and_description() -> None:
     engine, factory, movie, actor, _, claim, config_store = context()
     adapter = FakeAdapter()
     try:
@@ -169,7 +169,6 @@ def test_service_translates_movie_fields_and_only_missing_actor_bio() -> None:
         assert [item.kind for item in adapter.requests] == [
             "movie_title",
             "movie_description",
-            "actor_bio",
         ]
         with factory() as session:
             persisted_movie = session.get(Movie, movie.id)
@@ -179,9 +178,9 @@ def test_service_translates_movie_fields_and_only_missing_actor_bio() -> None:
         assert persisted_movie.title_zh == "ZH:Fixture title"
         assert persisted_movie.description_zh == "ZH:Fixture description"
         assert persisted_actor is not None
-        assert persisted_actor.bio_zh == "ZH:Actor A biography"
-        assert persisted_actor.bio_zh_source == "ai"
-        assert len(records) == 3
+        assert persisted_actor.bio_zh is None
+        assert persisted_actor.bio_zh_source is None
+        assert len(records) == 2
         assert all(record.status == "completed" for record in records)
     finally:
         engine.dispose()
@@ -195,7 +194,7 @@ def test_completed_records_are_reused_without_new_provider_calls() -> None:
         translation.execute(claim)
         translation.execute(claim)
 
-        assert len(adapter.requests) == 3
+        assert len(adapter.requests) == 2
     finally:
         engine.dispose()
 
@@ -218,7 +217,7 @@ def test_api_key_rotation_keeps_completed_business_key_reusable() -> None:
 
         translation.execute(claim)
 
-        assert len(adapter.requests) == 3
+        assert len(adapter.requests) == 2
     finally:
         engine.dispose()
 
@@ -236,8 +235,8 @@ def test_missing_configuration_fails_before_provider_call() -> None:
         engine.dispose()
 
 
-def test_existing_mapping_bio_skips_actor_translation() -> None:
-    engine, factory, _, _, _, claim, config_store = context(actor_has_chinese_bio=True)
+def test_actor_biographies_never_enter_ai_translation() -> None:
+    engine, factory, _, _, _, claim, config_store = context()
     adapter = FakeAdapter()
     try:
         service(factory, config_store, adapter).execute(claim)
@@ -258,14 +257,14 @@ def test_one_failed_item_does_not_stop_other_translation_items() -> None:
             service(factory, config_store, adapter).execute(claim)
 
         assert error.value.code == "translation_upstream_error"
-        assert len(adapter.requests) == 3
+        assert len(adapter.requests) == 2
         with factory() as session:
             persisted_movie = session.get(Movie, movie.id)
             persisted_actor = session.get(Actor, actor.id)
         assert persisted_movie is not None and persisted_movie.title_zh is None
         assert persisted_movie.description_zh == "ZH:Fixture description"
         assert persisted_actor is not None
-        assert persisted_actor.bio_zh == "ZH:Actor A biography"
+        assert persisted_actor.bio_zh is None
     finally:
         engine.dispose()
 
@@ -278,12 +277,12 @@ def test_unknown_business_key_is_not_dispatched_again() -> None:
         with pytest.raises(TranslationServiceError) as first:
             translation.execute(claim)
         assert first.value.code == "translation_upstream_error"
-        assert len(adapter.requests) == 3
+        assert len(adapter.requests) == 2
 
         with pytest.raises(TranslationServiceError) as repeated:
             translation.execute(claim)
         assert repeated.value.code == "translation_result_unavailable"
-        assert len(adapter.requests) == 3
+        assert len(adapter.requests) == 2
         with factory() as session:
             title_record = session.scalar(
                 select(TranslationRecord).where(
@@ -295,7 +294,7 @@ def test_unknown_business_key_is_not_dispatched_again() -> None:
         engine.dispose()
 
 
-def test_v2_business_key_does_not_mutate_or_retry_legacy_v1_failure() -> None:
+def test_v3_business_key_does_not_mutate_or_retry_legacy_v1_failure() -> None:
     engine, factory, movie, _, _, claim, config_store = context()
     source_text = "Fixture title"
     legacy_id = uuid.uuid4()
@@ -371,7 +370,7 @@ def test_expired_undispatched_reservation_can_be_safely_reclaimed() -> None:
     try:
         service(factory, config_store, adapter).execute(claim)
 
-        assert len(adapter.requests) == 3
+        assert len(adapter.requests) == 2
         with factory() as session:
             title_record = session.scalar(
                 select(TranslationRecord).where(
@@ -437,7 +436,7 @@ def test_new_source_replaces_only_previous_ai_translation() -> None:
         assert persisted_movie is not None
         assert persisted_movie.title_zh == "ZH:Updated title"
         assert persisted_actor is not None
-        assert persisted_actor.bio_zh == "ZH:Updated actor biography"
-        assert persisted_actor.bio_zh_source == "ai"
+        assert persisted_actor.bio_zh is None
+        assert persisted_actor.bio_zh_source is None
     finally:
         engine.dispose()

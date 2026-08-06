@@ -1,14 +1,14 @@
 # SakuraPlayer v1 新会话交接
 
-**更新时间**: 2026-08-05
+**更新时间**: 2026-08-06
 
-**当前阶段**: TASK-307 completed：HarmonyOS 影片详情多来源与收藏。下一任务 TASK-308。
+**当前阶段**: TASK-325 completed：AI 配置恢复、翻译瘦身与 Docker 原地升级。下一任务 TASK-326。
 
 ## 1. 当前成果
 
 - 功能规格包含 150 条验收条件，需求到任务的映射见 `traceability-matrix.md`。
 - 技术计划采用 FastAPI、PostgreSQL、Docker、Flutter Windows 和 HarmonyOS API 24 原生客户端。
-- 77 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
+- 78 个有效任务覆盖后端元数据、115 缓存播放、Windows、HarmonyOS、运行修复和独立发布工作；另保留 1 个已撤销的 TASK-312 历史记录。
 - OpenAPI、WebSocket、错误码、115 端口、元数据提供方、运行配置和 AVdb 数据源契约均在 `contracts/`。
 - Windows 真实 115 门禁通过后，才建立 HarmonyOS 最小 Stage 工程；API 24 SDK 签名、构建和 fixture 基线通过后才实施鸿蒙业务功能，不要求连接物理真机。
 - TASK-001 已交付 Python/FastAPI 后端骨架、显式 Alembic 迁移、Schema 启动门禁、五服务 Compose、四个持久化数据目录和内部健康检查。
@@ -229,6 +229,7 @@
 - TASK-322 已确认 GitHub `v1.0.1` 旧归档缺少 `install-latest.sh`，并让当前引导器兼容该历史资产；新归档仍严格要求并复制完整发布文件。定向 Linux 测试为 `38 passed`。
 - TASK-323 已修复首次 host/port 输入写回安装目录 `.env`、新 Compose 使用 `data/` bind mount、旧 named volume 复制迁移，以及旧数据库角色密码与宿主 PostgreSQL secret 不一致导致的迁移失败；密码修复命令显式使用 `.env` 的 PostgreSQL 角色和数据库，不再连接可能不存在的默认 `postgres` 角色。远程引导器 Docker 依赖改为按需调用，并修复 Bash SQL 输出与多目录创建语法。此前 Linux 安装器回归为 `18 passed`；最新角色连接修复按用户要求未执行测试，待飞牛 NAS 实测。
 - TASK-324 已交付受认证 MGDB `full_reconcile` 手动请求、活动请求复用与终态审计保留、Windows“立即全量同步”按钮和中文反馈；保存来源与周期同步语义不变。Final 同时修复 PostgreSQL 初始化临时服务器误报健康、测试 bind 数据隔离和一次性 migrate 重启边界。
+- TASK-325 已交付 Windows AI replace 后权威 GET 与重启配置恢复、只发送影片标题/简介的 `sakuraplayer-zh-v3` 本地 protected 占位协议、停止新建演员简介 AI 事实，以及官方 SemVer Docker 镜像原地升级；升级保留 `.env` 非镜像项、`secrets/`、`data/`、PostgreSQL 设置和已刮削数据。Fast 全绿；Final 唯一失败为既有 TASK-011 影片列表 p95 在主机高负载下为 613.8ms，用户明确接受该性能例外并要求不重跑。
 - TASK-304 已交付 HarmonyOS 媒体库：六分类/四标签/来源/可播放/大小/收藏组合筛选、默认 `publish_date_desc`、游标分页按 movie ID 去重、422 `validation_failed` 游标失效恢复、`favorite=true` 收藏浏览、进度按钮（未播放/继续 N%/已看完）、LazyForEach movie ID 键控网格、mediaquery 横竖屏响应式列数，以及空/加载/失败/追加失败状态。
 - TASK-304 模拟器实测 ohosTest 39/39 通过（含新增 LibraryStore 7 项 JsUnit 与 LibraryPage 2 项 UiTest）；debug/release HAP 构建与 `verify-app success` 签名校验通过；并行只读审计 P0/P1 已修复（favorite 变更即刷新、游标 422 恢复、@Reusable、旋转响应、INVALID/加载态通知、progress 解析降级）。审计 P2 记录：追加全量 reload 与 O(n²) 去重在 24/页规模可接受；UiTest 无法可靠触发 bindSheet 关闭手势，sheet 关闭由生产 onDismiss 覆盖。
 - TASK-305 已交付 HarmonyOS 日/周/月/TOP250 排行榜：只读后端 `/api/v1/rankings` 本地不可变快照、四榜单 segmented 切换、TOP250 总榜 + 服务端 `available_years` 年份 Select、`synced_at` 本地快照时间、Refresh 下拉刷新、rank 角标 + MovieCard 复用、竖屏 2/横屏 3 列响应式网格，以及空/加载/失败/不可用/追加失败互不冒充的状态区；503 `ranking_snapshot_unavailable` 仅固定 reason 进入不可用态（credentials_*/never_synced/sync_failed 中文文案），未知 reason 或非 503 回落普通失败。
@@ -241,9 +242,9 @@
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-307 completed；HarmonyOS 影片详情、多来源选择与收藏完成。
-- **最近绿色快速门禁**: 后端自包含 `914 passed, 11 deselected`；宿主 Docker 契约、Ruff 和 Windows 15 项聚焦/236 项完整测试均通过，`flutter analyze` 零问题。
-- **最终门禁状态**: HarmonyOS ohosTest 模拟器实测 93/93 通过；debug/release HAP 构建成功，`verify-app success`；完整 Compose 通过 `914` 项自包含与 `129` 项 PostgreSQL integration/E2E，迁移、四服务健康、认证 canary、秘密日志、重启、ready 降级恢复和资源清理全部完成。
+- **当前任务门禁阶段**: TASK-325 completed；性能门禁例外已由用户明确接受，下一步定位 GFriends 女优资料链路。
+- **最近绿色快速门禁**: 后端自包含 `927 passed, 11 deselected`；宿主 Docker 契约、scoped Ruff、Windows 237 项完整测试和 `flutter analyze` 均通过。
+- **最终门禁状态**: 自包含 `931 passed, 11 deselected`；PostgreSQL integration/E2E 128 项通过，既有 TASK-011 影片列表 p95 613.8ms 未满足 500ms 门禁。用户明确接受该性能例外并要求不重跑；临时 Compose 资源已清理。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -260,8 +261,8 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322、TASK-323、TASK-324、TASK-301、TASK-302、TASK-303、TASK-304、TASK-305、TASK-306、TASK-307。
-- **下一任务**: TASK-308；TASK-307 已 completed，依赖满足。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322、TASK-323、TASK-324、TASK-325、TASK-301、TASK-302、TASK-303、TASK-304、TASK-305、TASK-306、TASK-307。
+- **下一任务**: TASK-326；定位并修复 GFriends 女优映射、头像、简介和写真链路。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。
 

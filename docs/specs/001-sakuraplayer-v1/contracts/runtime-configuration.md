@@ -61,14 +61,14 @@ API、migrate、worker、scheduler 必须引用相同的 `SAKURAPLAYER_BACKEND_I
 
 - 从脚本自身目录定位 `docker-compose.yml`、`.env.example` 和 `.release-version`，不依赖调用者当前目录。
 - 只在 `.env` 缺失时由模板原子创建，并把后端镜像固定为 `docker.io/graysui/sakuraplayer-backend:X.Y.Z`；已存在 `.env` 视为操作者配置，不自动覆盖。
-- 远程 `install-latest.sh` 首次安装把发布文件、`.env`、`secrets/` 和 `data/` 持久化到执行命令时的当前目录；下载和解压中间文件才允许留在临时目录。首次交互运行可选择合法 IPv4 发布地址和 `1..65535` API 端口，直接回车或无 TTY 时使用 `127.0.0.1:8000`，并把选择写入 `.env`；已有 `.env` 不询问且保留原值。旧归档使用 `sakuraplayer_*` named volume 时，安装器在 Compose 启动前复制到对应 `data/` 子目录且不删除旧卷。
+- 远程 `install-latest.sh` 首次安装把发布文件、`.env`、`secrets/` 和 `data/` 持久化到执行命令时的当前目录；下载和解压中间文件才允许留在临时目录。首次交互运行可选择合法 IPv4 发布地址和 `1..65535` API 端口，直接回车或无 TTY 时使用 `127.0.0.1:8000`，并把选择写入 `.env`。已有 `.env` 不询问；只允许把单一 Docker Hub/GHCR 官方完整 SemVer 镜像行升级到当前 Release 并保留 registry，其他行保持不变。相同版本不改写 `.env`；降级、自定义、本地、digest、`latest`、缺失或重复镜像行在发布文件覆盖前拒绝。旧归档使用 `sakuraplayer_*` named volume 时，安装器在 Compose 启动前复制到对应 `data/` 子目录且不删除旧卷。
 - 以 `umask 077` 创建 `secrets/`，五个文件分别使用 32、32、48、48、48 个 CSPRNG 字节编码为无 padding Base64URL；文件名和 Compose 引用保持现有契约。
 - 生成前获取单实例文件锁；拒绝 secret 目录/文件符号链接、非普通文件、错误长度、非规范字符或用途复用。有效既有文件保持内容不变，只允许把目录/文件权限收紧到 `0700/0600`。
 - 新文件先写同目录临时文件、验证后原子安装；中断或 Compose 失败不得删除或重新生成已完成的 secret，重复执行可安全恢复。
 - 标准输出和错误只包含稳定阶段、非敏感错误、默认访问地址和 `bootstrap_token.txt` 路径，不得输出任何 secret 值、摘要、长度以外的派生材料或完整数据库 DSN。
 - 启动顺序固定为 `docker compose config`、`pull`、准备/同步 PostgreSQL 凭据、`up -d --no-build --wait`；成功以 Compose 健康条件为准，默认发布地址仍为 `127.0.0.1`。已有数据库必须先同步当前 `postgres_password.txt` 对应的角色密码，避免旧数据库与新 secret 不一致导致迁移认证失败。
 
-源码仓库中的 `backend/install.sh` 可从 `windows/pubspec.yaml` 推导当前完整 SemVer；正式部署包必须带严格 `X.Y.Z` 的 `.release-version`，不依赖 Git、Flutter 源码或 `latest` 标签。安装脚本不负责备份、升级、在线密钥轮换、证书签发或公网暴露。
+源码仓库中的 `backend/install.sh` 可从 `windows/pubspec.yaml` 推导当前完整 SemVer；正式部署包必须带严格 `X.Y.Z` 的 `.release-version`，不依赖 Git、Flutter 源码或 `latest` 标签。包内 `install.sh` 不负责升级既有 `.env`；远程 `install-latest.sh` 只负责上述官方 SemVer 原地升级。两者都不负责备份、在线密钥轮换、证书签发或公网暴露。
 
 ## 5. 管理员可修改配置
 
@@ -81,7 +81,7 @@ API、migrate、worker、scheduler 必须引用相同的 `SAKURAPLAYER_BACKEND_I
 
 115 Cookie 只通过扫码流程写入。DMM、演员映射和 GFriends 使用冻结的公共地址，不接受客户端任意 URL。MGDB 只接受契约规定的 GitHub 仓库 URL；JavDB host 只允许由受控部署环境设置，客户端设置 API 不提供修改入口。
 
-TASK-010 将 AI 四字段以单个 key `ai.configuration` 的 AES-GCM JSON 载荷保存并使用版本 CAS 原子更新，避免 provider 地址、模型和 key 来自不同配置版本。`base_url` 是不含 `/v1` 尾段的绝对 `http/https` provider root，最长 2048 字符，不得包含 userinfo、query 或 fragment；尾部 `/` 在保存前移除。`model` 为 1..255 字符，`api_key` 为 1..8192 UTF-8 字节，`timeout_seconds` 为 1..600。TASK-013 的设置 API 解密后只回显 base_url/model/timeout 和 `api_key_configured`，不回显 key。
+TASK-010 将 AI 四字段以单个 key `ai.configuration` 的 AES-GCM JSON 载荷保存并使用版本 CAS 原子更新，避免 provider 地址、模型和 key 来自不同配置版本。`base_url` 是不含 `/v1` 尾段的绝对 `http/https` provider root，最长 2048 字符，不得包含 userinfo、query 或 fragment；尾部 `/` 在保存前移除。`model` 为 1..255 字符，`api_key` 为 1..8192 UTF-8 字节，`timeout_seconds` 为 1..600。TASK-013 的设置 API 解密后只回显 base_url/model/timeout 和 `api_key_configured`，不回显 key；Windows replace 后和页面重建时以权威 GET 恢复这些非秘密值。
 
 TASK-009 固定公共地址：
 

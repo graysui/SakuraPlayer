@@ -59,7 +59,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
 
   void _syncFields(SettingsDto value) {
     final signature =
-        '${value.mgdb.version}:${value.javdb.version}:${value.ai.version}:${value.cacheTtlHours}';
+        '${value.cacheTtlHours}|'
+        '${value.mgdb.version}:${value.mgdb.configured}:${value.mgdb.sourceUrl}|'
+        '${value.javdb.version}:${value.javdb.configured}:${value.javdb.username}|'
+        '${value.ai.version}:${value.ai.configured}:${value.ai.baseUrl}:'
+        '${value.ai.model}:${value.ai.timeoutSeconds}:'
+        '${value.ai.apiKeyConfigured}';
     if (_loadedSignature == signature) return;
     _loadedSignature = signature;
     _ttl.text = '${value.cacheTtlHours}';

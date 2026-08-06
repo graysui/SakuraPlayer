@@ -304,6 +304,60 @@ void main() {
   });
 
   testWidgets(
+    'AI replacement reloads authoritative settings and survives page restart',
+    (tester) async {
+      tester.view.physicalSize = const Size(1100, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final gateway = _AiReloadGateway();
+
+      Future<void> showSettings() => tester.pumpWidget(
+        ProviderScope(
+          overrides: [settingsGatewayProvider.overrideWithValue(gateway)],
+          child: const MaterialApp(home: Scaffold(body: SettingsPage())),
+        ),
+      );
+
+      await showSettings();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('服务配置'));
+      await tester.pumpAndSettle();
+      expect(_fieldText(tester, 'Base URL'), 'https://initial-ai.test');
+      expect(_fieldText(tester, '模型'), 'initial-model');
+
+      _setFieldText(tester, 'Base URL', 'https://replacement-ai.test');
+      _setFieldText(tester, '模型', 'replacement-model');
+      _setFieldText(tester, '超时（秒）', '75');
+      _setFieldText(tester, '新 API key', 'replacement-secret');
+      final replaceButton = find.text('替换配置').last;
+      await tester.ensureVisible(replaceButton);
+      await tester.tap(replaceButton);
+      await tester.pumpAndSettle();
+
+      expect(gateway.replaceCalls, 1);
+      expect(gateway.settingsLoads, 2);
+      expect(_fieldText(tester, 'Base URL'), 'https://replacement-ai.test');
+      expect(_fieldText(tester, '模型'), 'replacement-model');
+      expect(_fieldText(tester, '超时（秒）'), '75');
+      expect(_fieldText(tester, '新 API key'), isEmpty);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      await showSettings();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('服务配置'));
+      await tester.pumpAndSettle();
+
+      expect(gateway.settingsLoads, 3);
+      expect(_fieldText(tester, 'Base URL'), 'https://replacement-ai.test');
+      expect(_fieldText(tester, '模型'), 'replacement-model');
+      expect(_fieldText(tester, '超时（秒）'), '75');
+      expect(_fieldText(tester, '新 API key'), isEmpty);
+    },
+  );
+
+  testWidgets(
     'diagnostics shows aggregate metadata progress without job list',
     (tester) async {
       final gateway = _DiagnosticsGateway();
@@ -439,6 +493,17 @@ void main() {
     expect(gateway.controlRequests, <bool>[true, false]);
     expect(find.text('暂停刮削'), findsOneWidget);
   });
+}
+
+Finder _field(String label) => find.byWidgetPredicate(
+  (widget) => widget is TextField && widget.decoration?.labelText == label,
+);
+
+String _fieldText(WidgetTester tester, String label) =>
+    tester.widget<TextField>(_field(label)).controller?.text ?? '';
+
+void _setFieldText(WidgetTester tester, String label, String value) {
+  tester.widget<TextField>(_field(label)).controller?.text = value;
 }
 
 const _qrId = '00000000-0000-4000-8000-000000000208';
@@ -609,6 +674,52 @@ class _SettingsPageGateway implements SettingsGateway {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _AiReloadGateway extends _SettingsPageGateway {
+  int settingsLoads = 0;
+  int replaceCalls = 0;
+  String baseUrl = 'https://initial-ai.test';
+  String model = 'initial-model';
+  int timeoutSeconds = 60;
+  int version = 1;
+
+  SettingsDto _settings() {
+    final json = _settingsJson();
+    json['ai'] = <String, Object?>{
+      ...(json['ai']! as Map<String, Object?>),
+      'configured': true,
+      'base_url': baseUrl,
+      'model': model,
+      'timeout_seconds': timeoutSeconds,
+      'api_key_configured': true,
+      'version': version,
+    };
+    return SettingsDto.fromJson(json);
+  }
+
+  @override
+  Future<SettingsDto> getSettings() async {
+    settingsLoads++;
+    return _settings();
+  }
+
+  @override
+  Future<SettingsDto> replaceAi({
+    required int expectedVersion,
+    required String baseUrl,
+    required String apiKey,
+    required String model,
+    required int timeoutSeconds,
+  }) async {
+    replaceCalls++;
+    final patchResponse = _settings();
+    this.baseUrl = baseUrl;
+    this.model = model;
+    this.timeoutSeconds = timeoutSeconds;
+    version++;
+    return patchResponse;
+  }
 }
 
 class _ManualSyncGateway extends _SettingsPageGateway {

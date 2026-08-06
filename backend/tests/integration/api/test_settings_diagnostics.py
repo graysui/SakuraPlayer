@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from sakuraplayer.api.app import create_app
 from sakuraplayer.api.diagnostics import DiagnosticsService
-from sakuraplayer.api.settings import ProbeResult, SettingsService
+from sakuraplayer.api.settings import ProbeResult, SettingsPatchInput, SettingsService
 from sakuraplayer.catalog.models import MetadataJob, MetadataStage
 from sakuraplayer.catalog.providers.javdb import EncryptedJavdbCredentialStore
 from sakuraplayer.catalog.translation.adapter import TranslationAdapterError
@@ -29,6 +29,54 @@ from sakuraplayer.resources.sync_service import AvdbSyncQueue
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=timezone.utc)
 BOOTSTRAP_TOKEN = b"bootstrap-token-with-at-least-32-bytes"
+
+
+def test_ai_configuration_survives_recreated_settings_service() -> None:
+    engine = create_engine("sqlite+pysqlite://")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+
+    def create_settings() -> SettingsService:
+        repository = EncryptedSettingRepository(
+            factory,
+            SecretCipher(SettingsSecretKeyProvider(key_id="v1", key=b"s" * 32)),
+            now=lambda: NOW,
+        )
+        return SettingsService(
+            factory,
+            repository,
+            EncryptedJavdbCredentialStore(repository),
+            EncryptedAiConfigurationStore(repository),
+            EncryptedAvdbSourceStore(repository),
+            now=lambda: NOW,
+        )
+
+    try:
+        replaced = create_settings().patch(
+            SettingsPatchInput.model_validate(
+                {
+                    "ai": {
+                        "action": "replace",
+                        "expected_version": 0,
+                        "base_url": "https://replacement-ai.example.test/root",
+                        "api_key": "replacement-private-key",
+                        "model": "replacement-model",
+                        "timeout_seconds": 75,
+                    }
+                }
+            )
+        )
+        assert replaced.ai.version == 1
+
+        reloaded = create_settings().get()
+        assert reloaded.ai.base_url == "https://replacement-ai.example.test/root"
+        assert reloaded.ai.model == "replacement-model"
+        assert reloaded.ai.timeout_seconds == 75
+        assert reloaded.ai.api_key_configured is True
+        assert reloaded.ai.version == 1
+        assert "replacement-private-key" not in reloaded.model_dump_json()
+    finally:
+        engine.dispose()
 
 
 def test_settings_cas_connection_tests_and_diagnostics_are_secret_safe() -> None:

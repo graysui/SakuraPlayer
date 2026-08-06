@@ -76,6 +76,7 @@ Windows 页面任务可在 Cloud115 后端开发期间使用 OpenAPI fixture 并
 | [TASK-322](tasks/TASK-322.md) | 兼容缺少远程引导器的旧版 Linux Docker 归档 | TASK-321 | 兼容已发布旧归档并保持新归档严格白名单 |
 | [TASK-323](tasks/TASK-323.md) | Linux Docker 数据目录与配置兼容修复 | TASK-322 | 固化 bind mount、写回网络配置并兼容旧数据库/数据卷 |
 | [TASK-324](tasks/TASK-324.md) | MGDB 手动全量同步 | TASK-215,TASK-315 | 后端受认证入队与 Windows 同步状态按钮 |
+| [TASK-325](tasks/TASK-325.md) | AI 配置恢复、翻译瘦身与 Docker 原地升级 | TASK-208,TASK-225,TASK-323 | Windows 配置恢复、title/description-only v3 与持久部署升级 |
 
 ## 4. 质量门禁
 

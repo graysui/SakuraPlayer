@@ -6,12 +6,16 @@ umask 077
 REPOSITORY="graysui/SakuraPlayer"
 RELEASES_LATEST_URL="https://github.com/${REPOSITORY}/releases/latest"
 CURRENT_TEMP_DIR=""
+STAGED_ENV_FILE=""
 TARGET_DIR=""
 SAKURAPLAYER_INSTALLER_PUBLISH_HOST=""
 SAKURAPLAYER_INSTALLER_API_PORT=""
 NETWORK_CONFIG_SELECTED=0
 
 cleanup_temp() {
+  if [[ -n "$STAGED_ENV_FILE" && -f "$STAGED_ENV_FILE" ]]; then
+    rm -f -- "$STAGED_ENV_FILE"
+  fi
   if [[ -n "$CURRENT_TEMP_DIR" && -d "$CURRENT_TEMP_DIR" ]]; then
     rm -rf -- "$CURRENT_TEMP_DIR"
   fi
@@ -57,6 +61,25 @@ validate_port() {
   ((10#$value >= 1 && 10#$value <= 65535))
 }
 
+compare_semver() {
+  local left="$1"
+  local right="$2"
+  local left_parts right_parts index
+  IFS=. read -r -a left_parts <<<"$left"
+  IFS=. read -r -a right_parts <<<"$right"
+  for index in 0 1 2; do
+    if ((10#${left_parts[$index]} < 10#${right_parts[$index]})); then
+      printf '%s' -1
+      return
+    fi
+    if ((10#${left_parts[$index]} > 10#${right_parts[$index]})); then
+      printf '%s' 1
+      return
+    fi
+  done
+  printf '%s' 0
+}
+
 select_network_config() {
   local host port current_host current_port
   if [[ -e "$TARGET_DIR/.env" || -L "$TARGET_DIR/.env" ]]; then
@@ -97,7 +120,7 @@ resolve_latest_tag() {
       -o /dev/null -w '%{url_effective}' "$RELEASES_LATEST_URL"
   )"
   release_url="${release_url%/}"
-  if [[ ! "$release_url" =~ ^https://github\.com/graysui/SakuraPlayer/releases/tag/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  if [[ ! "$release_url" =~ ^https://github\.com/graysui/SakuraPlayer/releases/tag/(v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$ ]]; then
     fail "release_version_invalid" "GitHub latest release did not resolve to a canonical vX.Y.Z tag"
   fi
   tag="${BASH_REMATCH[1]}"
@@ -170,6 +193,7 @@ download_and_run() {
       fail "install_dir_unsafe" "Installation directory contains an unsafe deployment file"
     fi
   done
+  stage_target_env "$version" "$package_dir/.env.example"
   for package_file in "${package_files[@]}"; do
     package_path="$package_dir/$package_file"
     target_path="$TARGET_DIR/$package_file"
@@ -181,7 +205,7 @@ download_and_run() {
     chmod "$mode" "$target_path"
   done
 
-  prepare_target_env "$version"
+  apply_staged_env
   recover_running_secrets
   prepare_data_bind_mounts
 
@@ -198,29 +222,69 @@ download_and_run() {
     /bin/bash "$TARGET_DIR/install.sh" "$@"
 }
 
-prepare_target_env() {
+stage_target_env() {
   local version="$1"
+  local template_file="$2"
   local env_file="$TARGET_DIR/.env"
-  local source_file="$env_file"
-  local temporary
+  local image image_prefix current_version comparison line
+  local image_lines=()
 
-  if [[ "$NETWORK_CONFIG_SELECTED" != 1 ]]; then
-    return
-  fi
   if [[ -L "$env_file" || ( -e "$env_file" && ! -f "$env_file" ) ]]; then
     fail "install_dir_unsafe" "Installation .env path is unsafe"
   fi
-  if [[ ! -f "$env_file" ]]; then
-    source_file="$TARGET_DIR/.env.example"
+  if [[ -f "$env_file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%$'\r'}"
+      case "$line" in
+        SAKURAPLAYER_BACKEND_IMAGE=*)
+          image_lines+=("${line#SAKURAPLAYER_BACKEND_IMAGE=}")
+          ;;
+      esac
+    done <"$env_file"
+    if [[ ${#image_lines[@]} -ne 1 ]]; then
+      fail "existing_image_invalid" "Existing .env must contain exactly one backend image setting"
+    fi
+    image="${image_lines[0]}"
+    if [[ ! "$image" =~ ^((docker\.io|ghcr\.io)/graysui/sakuraplayer-backend):((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$ ]]; then
+      fail "existing_image_unsupported" "Existing backend image is not a supported official SemVer image"
+    fi
+    image_prefix="${BASH_REMATCH[1]}"
+    current_version="${BASH_REMATCH[3]}"
+    comparison="$(compare_semver "$current_version" "$version")"
+    if [[ "$comparison" == 1 ]]; then
+      fail "release_downgrade_refused" "The latest Release is older than the installed backend image"
+    fi
+    if [[ "$comparison" == 0 ]]; then
+      return
+    fi
+    STAGED_ENV_FILE="$(mktemp "$TARGET_DIR/.env.upgrade.XXXXXX")"
+    sed "s|^SAKURAPLAYER_BACKEND_IMAGE=.*$|SAKURAPLAYER_BACKEND_IMAGE=$image_prefix:$version|" \
+      "$env_file" >"$STAGED_ENV_FILE"
+  else
+    [[ "$NETWORK_CONFIG_SELECTED" == 1 ]] ||
+      fail "existing_image_invalid" "Existing installation is missing .env"
+    STAGED_ENV_FILE="$(mktemp "$TARGET_DIR/.env.install.XXXXXX")"
+    sed -e 's/\r$//' \
+      -e "s|^SAKURAPLAYER_BACKEND_IMAGE=.*$|SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:$version|" \
+      -e "s|^SAKURAPLAYER_PUBLISH_HOST=.*$|SAKURAPLAYER_PUBLISH_HOST=$SAKURAPLAYER_INSTALLER_PUBLISH_HOST|" \
+      -e "s|^SAKURAPLAYER_API_PORT=.*$|SAKURAPLAYER_API_PORT=$SAKURAPLAYER_INSTALLER_API_PORT|" \
+      "$template_file" >"$STAGED_ENV_FILE"
+    grep -Fx "SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:$version" "$STAGED_ENV_FILE" >/dev/null ||
+      fail "release_archive_invalid" "SakuraPlayer Docker release environment template is invalid"
+    grep -Fx "SAKURAPLAYER_PUBLISH_HOST=$SAKURAPLAYER_INSTALLER_PUBLISH_HOST" "$STAGED_ENV_FILE" >/dev/null ||
+      fail "release_archive_invalid" "SakuraPlayer Docker release environment template is invalid"
+    grep -Fx "SAKURAPLAYER_API_PORT=$SAKURAPLAYER_INSTALLER_API_PORT" "$STAGED_ENV_FILE" >/dev/null ||
+      fail "release_archive_invalid" "SakuraPlayer Docker release environment template is invalid"
   fi
-  temporary="$(mktemp "$TARGET_DIR/.env.tmp.XXXXXX")"
-  sed -e 's/\r$//' \
-    -e "s|^SAKURAPLAYER_BACKEND_IMAGE=.*$|SAKURAPLAYER_BACKEND_IMAGE=docker.io/graysui/sakuraplayer-backend:$version|" \
-    -e "s|^SAKURAPLAYER_PUBLISH_HOST=.*$|SAKURAPLAYER_PUBLISH_HOST=$SAKURAPLAYER_INSTALLER_PUBLISH_HOST|" \
-    -e "s|^SAKURAPLAYER_API_PORT=.*$|SAKURAPLAYER_API_PORT=$SAKURAPLAYER_INSTALLER_API_PORT|" \
-    "$source_file" >"$temporary"
-  chmod 600 "$temporary"
-  mv -f -- "$temporary" "$env_file"
+  chmod 600 "$STAGED_ENV_FILE"
+}
+
+apply_staged_env() {
+  if [[ -z "$STAGED_ENV_FILE" ]]; then
+    return
+  fi
+  mv -f -- "$STAGED_ENV_FILE" "$TARGET_DIR/.env"
+  STAGED_ENV_FILE=""
 }
 
 prepare_data_bind_mounts() {
@@ -381,6 +445,7 @@ main() {
   require_command mv
   require_command find
   require_command grep
+  require_command sed
 
   resolve_target_dir
   select_network_config
