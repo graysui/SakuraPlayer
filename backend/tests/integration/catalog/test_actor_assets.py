@@ -118,6 +118,152 @@ def test_provider_snapshot_migration_and_current_indexes(database_url: str) -> N
     engine.dispose()
 
 
+def test_upgrade_queues_one_repair_without_overwriting_existing_catalog(
+    database_url: str,
+) -> None:
+    config = Config(str(ALEMBIC_INI))
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+    command.downgrade(config, "0021_metadata_worker_control")
+    engine = create_engine(database_url, hide_parameters=True)
+    actor_id = uuid.uuid4()
+    failed_request_id = uuid.uuid4()
+    gfriends_snapshot_id = uuid.uuid4()
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO actor "
+                "(id, javdb_id, name_ja, name_zh, bio_original, bio_zh, gender, "
+                "created_at, updated_at) VALUES "
+                "(:id, 'upgrade-actor', 'Actor One', NULL, NULL, NULL, "
+                "'unknown', :now, :now)"
+            ),
+            {"id": actor_id, "now": NOW},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO gfriends_snapshot "
+                "(id, sha256, byte_size, relative_path, status, fetched_at, "
+                "activated_at) VALUES "
+                "(:id, :sha256, 1, 'metadata/gfriends/existing.json', "
+                "'current', :now, :now)"
+            ),
+            {"id": gfriends_snapshot_id, "sha256": "f" * 64, "now": NOW},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO provider_snapshot_request "
+                "(id, scheduled_for, status, claim_owner, claim_token, "
+                "claim_expires_at, attempt_count, created_at, completed_at, "
+                "failure_code) VALUES "
+                "(:id, :scheduled_for, 'failed', NULL, NULL, NULL, 1, :now, "
+                ":now, 'provider_snapshot_invalid')"
+            ),
+            {
+                "id": failed_request_id,
+                "scheduled_for": NOW - timedelta(days=1),
+                "now": NOW,
+            },
+        )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    command.upgrade(config, "head")
+
+    engine = create_engine(database_url, hide_parameters=True)
+    with engine.connect() as connection:
+        requests = list(
+            connection.execute(
+                text(
+                    "SELECT id, status, attempt_count FROM provider_snapshot_request "
+                    "ORDER BY scheduled_for"
+                )
+            )
+        )
+        actor = connection.execute(
+            text("SELECT javdb_id, name_ja FROM actor WHERE id = :id"),
+            {"id": actor_id},
+        ).one()
+        gfriends_current = connection.scalar(
+            text(
+                "SELECT id FROM gfriends_snapshot "
+                "WHERE id = :id AND status = 'current'"
+            ),
+            {"id": gfriends_snapshot_id},
+        )
+    assert [(str(row.id), row.status, row.attempt_count) for row in requests] == [
+        (str(failed_request_id), "failed", 1),
+        ("03260000-0000-4000-8000-000000000001", "queued", 0),
+    ]
+    assert actor == ("upgrade-actor", "Actor One")
+    assert gfriends_current == gfriends_snapshot_id
+    engine.dispose()
+
+
+@pytest.mark.parametrize("complete_snapshots", (False, True))
+def test_upgrade_does_not_duplicate_active_or_complete_snapshot_state(
+    database_url: str,
+    complete_snapshots: bool,
+) -> None:
+    config = Config(str(ALEMBIC_INI))
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+    command.downgrade(config, "0021_metadata_worker_control")
+    engine = create_engine(database_url, hide_parameters=True)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    expected_request_ids: set[uuid.UUID] = set()
+    with factory.begin() as session:
+        if complete_snapshots:
+            session.add_all(
+                (
+                    ActorMappingSnapshot(
+                        id=uuid.uuid4(),
+                        sha256="a" * 64,
+                        byte_size=1,
+                        relative_path="metadata/actor_mapping/current.xml",
+                        status="current",
+                        fetched_at=NOW,
+                        activated_at=NOW,
+                    ),
+                    GfriendsSnapshot(
+                        id=uuid.uuid4(),
+                        sha256="b" * 64,
+                        byte_size=1,
+                        relative_path="metadata/gfriends/current.json",
+                        status="current",
+                        fetched_at=NOW,
+                        activated_at=NOW,
+                    ),
+                )
+            )
+        else:
+            active_request_id = uuid.uuid4()
+            expected_request_ids.add(active_request_id)
+            session.add(
+                ProviderSnapshotRequest(
+                    id=active_request_id,
+                    scheduled_for=NOW,
+                    status="queued",
+                    claim_owner=None,
+                    claim_token=None,
+                    claim_expires_at=None,
+                    attempt_count=0,
+                    created_at=NOW,
+                    completed_at=None,
+                    failure_code=None,
+                )
+            )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+
+    engine = create_engine(database_url, hide_parameters=True)
+    with engine.connect() as connection:
+        request_ids = set(
+            connection.scalars(text("SELECT id FROM provider_snapshot_request"))
+        )
+    assert request_ids == expected_request_ids
+    engine.dispose()
+
+
 def test_postgres_queue_reclaims_expired_claim_and_fences_old_token(
     database_url: str,
 ) -> None:

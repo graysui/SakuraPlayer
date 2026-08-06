@@ -9,7 +9,9 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from sakuraplayer.catalog.models import (
+    Actor,
     ActorMappingSnapshot,
+    GfriendsActorAsset,
     GfriendsSnapshot,
     ProviderSnapshotRequest,
 )
@@ -406,5 +408,75 @@ def test_refresh_service_keeps_failed_source_and_independently_activates_other(
     assert service.registry.current("gfriends").snapshot_id != (
         gfriends_current.snapshot_id
     )
+    client.close()
+    engine.dispose()
+
+
+def test_refresh_service_reapplies_same_snapshots_to_actors_added_later(
+    tmp_path: Path,
+) -> None:
+    engine, factory = _factory()
+    fixture_root = Path(__file__).resolve().parents[2] / "fixtures" / "catalog"
+    payloads = {
+        ACTOR_MAPPING_SOURCE.url: (fixture_root / "actor_mapping.xml").read_bytes(),
+        GFRIENDS_SOURCE.url: (fixture_root / "gfriends.json").read_bytes(),
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=payloads[str(request.url)], request=request)
+
+    current = datetime(2026, 8, 6, 3, 0, tzinfo=timezone.utc)
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    service = ProviderSnapshotRefreshService(
+        factory,
+        http_client=client,
+        cache_root=tmp_path,
+        now=lambda: current,
+    )
+
+    initial = service.refresh_all()
+    actor_snapshot = service.registry.current("actor_mapping")
+    gfriends_snapshot = service.registry.current("gfriends")
+    assert initial.failures == ()
+    assert actor_snapshot is not None
+    assert gfriends_snapshot is not None
+    with factory.begin() as session:
+        session.add(
+            Actor(
+                id=uuid.uuid4(),
+                javdb_id="actor-added-after-snapshot",
+                name_ja="Actor One",
+                name_zh=None,
+                bio_original=None,
+                bio_zh=None,
+                gender="unknown",
+                created_at=current,
+                updated_at=current,
+            )
+        )
+
+    repair = service.refresh_all()
+
+    assert repair.failures == ()
+    assert service.registry.current("actor_mapping").snapshot_id == (
+        actor_snapshot.snapshot_id
+    )
+    assert service.registry.current("gfriends").snapshot_id == (
+        gfriends_snapshot.snapshot_id
+    )
+    with factory() as session:
+        actor = session.scalar(select(Actor))
+        assets = list(
+            session.scalars(
+                select(GfriendsActorAsset).order_by(GfriendsActorAsset.position)
+            )
+        )
+    assert actor is not None
+    assert actor.name_zh == "演员一"
+    assert actor.bio_zh == "演员一简介"
+    assert [(asset.asset_kind, asset.position) for asset in assets] == [
+        ("profile", 0),
+        ("gallery", 1),
+    ]
     client.close()
     engine.dispose()

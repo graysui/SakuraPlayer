@@ -108,7 +108,7 @@ SakuraPlayer 是一个单用户私有视频目录与播放工具。它将 AVdb �
 
 ### REQ-010 演员映射与 GFriends
 
-- **AC-049 `[IMP]`**: 后端每周刷新 `actor-mapping.xml` 和 GFriends `Filetree.json`，失败时继续使用最近一次成功缓存；首次部署没有任何持久快照事实时立即幂等排入一次初始刷新。
+- **AC-049 `[IMP]`**: 后端每周刷新 `actor-mapping.xml` 和 GFriends `Filetree.json`，失败时继续使用最近一次成功缓存；首次部署没有任何持久快照事实时立即幂等排入一次初始刷新；旧部署快照缺失恢复和真实 `verified=0|1` 值域由 [TASK-326 GFriends 女优资料恢复](changes/2026-08-06--task-326-gfriends-actor-profile-recovery.md) 冻结。
 - **AC-050 `[IMP]`**: 演员映射保存中文名、日文名、权威别名和可用简介，不把用户搜索词写入别名。
 - **AC-051 `[IMP]`**: GFriends 同时提供头像和写真图库，但只有唯一、明确的姓名或别名匹配才能关联；歧义匹配必须丢弃，Windows 客户端只消费后端关联结果和精确 URL 边界由 [TASK-206 Windows 女优客户端边界](changes/2026-07-30--task-206-actors-client-boundaries.md) 冻结；持久证据 URL 到客户端安全 URL 的规范化由 [真实目录响应兼容与可选元数据状态](changes/2026-08-02--catalog-response-compatibility.md) 冻结。
 - **AC-052 `[IMP]`**: GFriends 只持久化索引和 URL，图片按需进入客户端缓存，不镜像全部图片；Windows 下载并发、取消、大小和文件缓存遵循 [Windows 女优客户端契约](contracts/windows-actors-client.md)。

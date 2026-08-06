@@ -87,7 +87,7 @@ def _parse_entry(element) -> ActorMappingEntry:
         not values["tmdb_id"].isdigit() or len(values["tmdb_id"]) > 32
     ):
         raise ActorMappingProblem
-    if "verified" in values and values["verified"] != "1":
+    if "verified" in values and values["verified"] not in {"0", "1"}:
         raise ActorMappingProblem
     aliases: dict[str, str] = {}
     candidates = (

@@ -87,15 +87,15 @@ store_movie_images(movie_id, cover_url, plot_urls) -> ImageResult list
 ## 4. Actor Mapping 与 GFriends
 
 - 固定地址、下载和解析边界由 [TASK-009 提供方快照安全与重建边界](../changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结；地址不接受运行配置覆盖。
-- scheduler 每周日 05:00 `Asia/Shanghai` 只持久入队 `provider_snapshots_weekly`；没有任何 request 且任一 current snapshot 缺失的首次部署会立即幂等入队一次。worker claim 后执行外部下载。重复调度 slot 幂等，明确失败不自动创建新请求。
+- scheduler 每周日 05:00 `Asia/Shanghai` 只持久入队 `provider_snapshots_weekly`；没有任何 request 且任一 current snapshot 缺失的首次部署会立即幂等入队一次。worker claim 后执行外部下载。重复调度 slot 幂等，明确失败不自动创建新请求。TASK-326 升级迁移仅在任一 current 缺失且没有 queued/claimed 请求时补入一个确定性 repair 请求，迁移本身不访问网络。
 - Actor Mapping/Filetree 正文最多 16/32 MiB，最多三跳且每跳重新验证固定 HTTPS URL。文件完成大小、结构、SHA-256、同目录临时写和 `fsync` 后才原子激活。
 - 两个来源独立保留最近成功快照；单源失败不替换该源 current，也不回滚另一个已验证成功快照。
-- Actor Mapping 根节点只允许无属性的 `actor` 与 `actor-blacklist` 分组；`actor` 必须非空，blacklist 可以为空。非空 blacklist 条目按 `actor/a` 的同一严格白名单校验但不进入映射结果；未知分组、字段、子节点或仅 blacklist 的文件继续拒绝。
+- Actor Mapping 根节点只允许无属性的 `actor` 与 `actor-blacklist` 分组；`actor` 必须非空，blacklist 可以为空。非空 blacklist 条目按 `actor/a` 的同一严格白名单校验但不进入映射结果；可选 `verified` 只接受上游布尔枚举字符串 `0|1` 且不参与身份信任，未知分组、字段、子节点、其他 `verified` 值或仅 blacklist 的文件继续拒绝。
 - Actor Mapping 使用 defusedxml 0.7.1，拒绝 DTD、实体和网络。只用当前 JavDB 名称及 `authority=javdb` 别名匹配既有 Actor；只有唯一 Actor 命中才保存中文名、可用中文简介和 mapping 别名，禁止按姓名创建或合并身份。
 - mapping 别名使用与 JavDB 相同的 casefold/空白折叠规则。成功重建全量替换 `authority=actor_mapping` 派生行，保留 JavDB 别名；同一演员同一规范名已由 JavDB 保存时不重复写入。
 - Filetree 只接受 `Content/<目录>/<别名文件名> -> <图片文件名>?t=<数字>`。受校验路径段与固定 Content 基址构造最终 URL，不接受绝对路径、scheme、斜杠、反斜杠或 `.`/`..` 段。
 - GFriends 名称对演员当前中日文名和全部权威别名建立 `normalized_alias -> actor_ids` 多值索引；只在恰好命中一个 Actor 且同一最终 URL 不跨 Actor 时关联。
-- 每个演员按 URL 排序后首张为 `profile`、其余为 `gallery`。成功重建原子替换全部 GFriends 派生资产，使删除、URL 改动和唯一变歧义不会留下陈旧行。
+- 每个演员按 URL 排序后首张为 `profile`、其余为 `gallery`。成功重建原子替换全部 GFriends 派生资产，使删除、URL 改动和唯一变歧义不会留下陈旧行；相同快照摘要的 repair 也重新应用 Actor Mapping 与 GFriends 派生数据，以覆盖快照首次激活后才入库的既有 Actor。
 - 服务端只保存快照索引证据与唯一匹配后的 GFriends URL，不下载 Content 图片；目录 API 只把固定 Content URL 投影给客户端，并移除 Filetree 允许的单个数字 `t` query，其他非法资产按单图缺失隔离。客户端按需进入独立临时缓存，永久 `catalog_image` 生命周期不受影响。
 - 影片 `actor_map/gfriends` stage 只检查相应 current 快照存在；从未成功时记录 `provider_snapshot_unavailable` warning，不在每个影片子进程重复解析全量文件。
 

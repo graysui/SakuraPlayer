@@ -50,6 +50,15 @@ def test_actor_mapping_accepts_current_empty_blacklist_group() -> None:
     assert [entry.name_ja for entry in entries] == ["Actor"]
 
 
+def test_actor_mapping_accepts_observed_unverified_boolean_value() -> None:
+    entries = parse_actor_mapping(
+        b'<actor-mapping><actor><a jp="Actor" zh_cn="Actor" zh_tw="Actor" '
+        b'keyword="Actor" verified="0" /></actor></actor-mapping>'
+    )
+
+    assert [entry.name_ja for entry in entries] == ["Actor"]
+
+
 def test_actor_alias_normalization_is_shared_casefold_and_whitespace() -> None:
     assert normalize_actor_alias("  ACTOR\t One  ") == "actor one"
     assert normalize_actor_alias("　演员　一　") == "演员 一"
@@ -71,6 +80,8 @@ def test_actor_mapping_rejects_dtd_and_external_entity() -> None:
         b'keyword="A" unexpected="x" /></actor></actor-mapping>',
         b'<actor-mapping><actor><a jp="" zh_cn="A" zh_tw="A" '
         b'keyword="A" /></actor></actor-mapping>',
+        b'<actor-mapping><actor><a jp="Actor" zh_cn="Actor" zh_tw="Actor" '
+        b'keyword="Actor" verified="2" /></actor></actor-mapping>',
         b'<actor-mapping><actor><a jp="Actor" zh_cn="Actor" zh_tw="Actor" '
         b'keyword="Actor" /></actor><actor-blacklist><a jp="Blocked" '
         b'zh_cn="Blocked" zh_tw="Blocked" keyword="Blocked" '

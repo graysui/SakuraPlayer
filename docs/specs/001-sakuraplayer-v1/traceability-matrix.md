@@ -40,7 +40,7 @@
   冻结；TASK-112 已实现 0020 Schema、事务事件/通知、快照/角标、诊断、操作和有界恢复，自动证据位于
   `test_event_integration.py`、`test_events_snapshot.py`、`test_notifications.py`、`test_recovery.py` 和
   `test_cache_events_snapshot_api.py`；不发布 playback 心跳事件，worker/scheduler 无心跳证据时继续为 unknown。
-- AC-049 至 AC-053 的固定 provider 地址、16/32 MiB 上限、XML/路径安全、周日 05:00 持久入队、独立 current 快照、唯一身份匹配和陈旧 GFriends 资产清理由 [TASK-009 提供方快照安全与重建边界](changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结，并由 TASK-009 实现。
+- AC-049 至 AC-053 的固定 provider 地址、16/32 MiB 上限、XML/路径安全、周日 05:00 持久入队、独立 current 快照、唯一身份匹配和陈旧 GFriends 资产清理由 [TASK-009 提供方快照安全与重建边界](changes/2026-07-26--task-009-provider-snapshot-boundaries.md) 冻结，并由 TASK-009 实现；真实 `verified=0|1` 兼容、旧部署一次性 repair 和相同摘要重建由 [TASK-326 GFriends 女优资料恢复](changes/2026-08-06--task-326-gfriends-actor-profile-recovery.md) 冻结并由 TASK-326 修复。
 - AC-054 至 AC-058 的加密配置快照、单字段 JSON、owner 作用域幂等键和付费派发事实由 [TASK-010 翻译协议与付费幂等边界](changes/2026-07-26--task-010-translation-safety-boundaries.md) 冻结并由 TASK-010 实现；prompt v2、硅基流动 Qwen3.5 非思考 profile、动态输出上限、安全诊断和旧 v1 事实隔离由 [TASK-225 硅基流动 Qwen 翻译协议兼容](changes/2026-08-02--siliconflow-qwen-translation-compatibility.md) 冻结并由 TASK-225 实现；仅标题/影片简介、protected 本地占位、v3 输出瘦身和旧 v1/v2 事实隔离由 [TASK-325 AI 配置恢复、翻译瘦身与 Docker 原地升级](changes/2026-08-06--task-325-ai-settings-translation-docker-upgrade.md) 冻结并由 TASK-325 实现。
 - AC-040/041/055/057/074/122 的详情中文-only 简介、影片级 priority 10 完整重新刮削、活动 attempt 复用和旧翻译事实保护由 [TASK-227 影片详情中文简介与重新刮削](changes/2026-08-03--movie-detail-chinese-description-rescrape.md) 冻结并由 TASK-227 实现。
 - AC-063 至 AC-068、AC-074 至 AC-078 的同来源筛选、稳定键集游标、Phase 1 空状态端口、搜索队列提升、收藏 Schema、安全 DTO 与集合上限由 [TASK-011 目录查询与补全确定性边界](changes/2026-07-26--task-011-catalog-query-boundaries.md) 冻结，并由 TASK-011 实现。
@@ -173,11 +173,11 @@
 | `AC-046` | `[I]` | `REQ-009` | `TASK-008`, `TASK-012`, `TASK-205`, `TASK-216`, `TASK-305` |
 | `AC-047` | `[I]` | `REQ-009` | `TASK-008`, `TASK-223` |
 | `AC-048` | `[I]` | `REQ-009` | `TASK-008`, `TASK-223` |
-| `AC-049` | `[I]` | `REQ-010` | `TASK-009`, `TASK-217` |
-| `AC-050` | `[I]` | `REQ-010` | `TASK-009` |
-| `AC-051` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306` |
-| `AC-052` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306` |
-| `AC-053` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306` |
+| `AC-049` | `[I]` | `REQ-010` | `TASK-009`, `TASK-217`, `TASK-326` |
+| `AC-050` | `[I]` | `REQ-010` | `TASK-009`, `TASK-326` |
+| `AC-051` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306`, `TASK-326` |
+| `AC-052` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-222`, `TASK-223`, `TASK-306`, `TASK-326` |
+| `AC-053` | `[I]` | `REQ-010` | `TASK-009`, `TASK-206`, `TASK-306`, `TASK-326` |
 | `AC-054` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225` |
 | `AC-055` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-227`, `TASK-325` |
 | `AC-056` | `[I]` | `REQ-011` | `TASK-010`, `TASK-225`, `TASK-325` |
@@ -351,6 +351,10 @@ TASK-325 的 AC-054 至 AC-057、AC-119、AC-148/149/151 映射受
 [TASK-325 AI 配置恢复、翻译瘦身与 Docker 原地升级](changes/2026-08-06--task-325-ai-settings-translation-docker-upgrade.md)、
 [元数据提供方契约](contracts/metadata-providers.md)、[Windows 设置与缓存客户端契约](contracts/windows-settings-cache-client.md)、
 [运行配置契约](contracts/runtime-configuration.md) 和 [GitHub 自动发布契约](contracts/github-release.md) 约束；它新增 AC-151，当前有效任务总数增至 78。
+
+TASK-326 的 AC-049 至 AC-053 映射受
+[TASK-326 GFriends 女优资料恢复](changes/2026-08-06--task-326-gfriends-actor-profile-recovery.md)
+和 [元数据提供方契约](contracts/metadata-providers.md) 约束；它修复既有 AC，不新增产品 AC。
 
 HarmonyOS 的 AC-007/AC-131 工具链、API 24 SDK/构建/fixture 边界受
 [HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md) 约束；该变更撤销 TASK-312 的物理真机门禁，但保留 API 24 编译和 API 签名基线。
