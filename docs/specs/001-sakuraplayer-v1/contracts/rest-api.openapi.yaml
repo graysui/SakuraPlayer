@@ -189,7 +189,7 @@ paths:
         - name: sort
           in: query
           description: >-
-            Publish-date sorts use MAX(publish_date) among qualifying sources,
+            Publish-date sorts use the movie release date (Movie.release_date),
             keep null last, and use movie_id as the stable tie-breaker.
           schema:
             type: string

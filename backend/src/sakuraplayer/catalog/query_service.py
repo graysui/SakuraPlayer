@@ -232,21 +232,7 @@ class CatalogQueryService:
             ]
             if not visible:
                 return []
-            visible_ids = tuple(movie.id for movie in visible)
-            publish_dates = {
-                movie_id: publish_date
-                for movie_id, publish_date in session.execute(
-                    select(
-                        ResourceSource.movie_id,
-                        func.max(ResourceSource.publish_date),
-                    )
-                    .where(
-                        ResourceSource.movie_id.in_(visible_ids),
-                        ResourceSource.identification_status.in_(_ACTIVE_SOURCE_STATES),
-                    )
-                    .group_by(ResourceSource.movie_id)
-                )
-            }
+            publish_dates = {movie.id: movie.release_date for movie in visible}
             return self._movie_summaries(
                 session,
                 visible,
@@ -274,17 +260,13 @@ class CatalogQueryService:
 
         source_conditions = _source_conditions(normalized)
         qualifying_sources = (
-            select(
-                ResourceSource.movie_id.label("movie_id"),
-                func.max(ResourceSource.publish_date).label("publish_key"),
-            )
+            select(ResourceSource.movie_id.label("movie_id"))
             .where(*source_conditions)
             .group_by(ResourceSource.movie_id)
             .subquery()
         )
-        publish_key = qualifying_sources.c.publish_key
         statement = (
-            select(Movie, publish_key.label("publish_key"))
+            select(Movie)
             .where(Movie.catalog_state == "core_ready")
             .join(qualifying_sources, qualifying_sources.c.movie_id == Movie.id)
         )
@@ -297,23 +279,22 @@ class CatalogQueryService:
                 filters=normalized,
                 cursor=cursor,
                 limit=limit,
-                publish_key=publish_key,
                 source_conditions=source_conditions,
             )
             visible = rows[:limit]
             items = self._movie_summaries(
                 session,
                 [row[0] for row in visible],
-                publish_dates={row[0].id: row[1] for row in visible},
+                publish_dates={row[0].id: row[0].release_date for row in visible},
                 favorite_ids=favorite_ids,
             )
 
         next_cursor = None
         if len(rows) > limit and visible:
-            last_movie, last_key = visible[-1]
+            last_movie = visible[-1][0]
             next_cursor = _encode_movie_cursor(
                 normalized,
-                _movie_cursor_key(normalized, last_movie, last_key),
+                _movie_cursor_key(normalized, last_movie),
                 last_movie.id,
             )
         return MoviePage(items=items, next_cursor=next_cursor)
@@ -326,7 +307,6 @@ class CatalogQueryService:
         filters: MovieFilters,
         cursor: str | None,
         limit: int,
-        publish_key,
         source_conditions: list[Any],
     ) -> list[Any]:
         use_availability_filter = filters.playable is not None and not isinstance(
@@ -338,7 +318,6 @@ class CatalogQueryService:
                 statement,
                 cursor=cursor,
                 filters=filters,
-                publish_key=publish_key,
             ).limit(limit + 1)
             return list(session.execute(query))
 
@@ -349,7 +328,6 @@ class CatalogQueryService:
                 statement,
                 cursor=scan_cursor,
                 filters=filters,
-                publish_key=publish_key,
             ).limit(MAX_PAGE_SIZE)
             scanned = list(session.execute(query))
             if not scanned:
@@ -366,10 +344,10 @@ class CatalogQueryService:
                         break
             if len(matched) > limit or len(scanned) < MAX_PAGE_SIZE:
                 break
-            last_movie, last_key = scanned[-1]
+            last_movie = scanned[-1][0]
             scan_cursor = _encode_movie_cursor(
                 filters,
-                _movie_cursor_key(filters, last_movie, last_key),
+                _movie_cursor_key(filters, last_movie),
                 last_movie.id,
             )
         return matched
@@ -408,10 +386,7 @@ class CatalogQueryService:
                 or 0
             )
             source_views = self._source_views(session, sources)
-            publish_date = max(
-                (source.publish_date for source in sources if source.publish_date),
-                default=None,
-            )
+            publish_date = movie.release_date
             if movie.catalog_state != "core_ready":
                 job = session.scalar(
                     select(MetadataJob)
@@ -543,7 +518,11 @@ class CatalogQueryService:
             )
         if favorite:
             statement = statement.where(Actor.id.in_(favorite_ids))
-        signature = {"favorite": favorite, "q": normalized_query, "v": 1}
+        signature: dict[str, object] = {
+            "favorite": favorite,
+            "q": normalized_query,
+            "v": 1,
+        }
         cursor_values = _decode_cursor(cursor, expected=signature, keys={"key", "id"})
         if cursor_values is not None:
             key = cursor_values["key"]
@@ -922,16 +901,8 @@ class CatalogQueryService:
         if not movie_ids:
             return {}
         return {
-            movie_id: publish_date
-            for movie_id, publish_date in session.execute(
-                select(ResourceSource.movie_id, func.max(ResourceSource.publish_date))
-                .where(
-                    ResourceSource.movie_id.in_(movie_ids),
-                    ResourceSource.identification_status.in_(_ACTIVE_SOURCE_STATES),
-                )
-                .group_by(ResourceSource.movie_id)
-            )
-            if movie_id is not None
+            movie.id: movie.release_date
+            for movie in session.scalars(select(Movie).where(Movie.id.in_(movie_ids)))
         }
 
 
@@ -1032,7 +1003,6 @@ def _apply_movie_cursor(
     *,
     cursor: str | None,
     filters: MovieFilters,
-    publish_key,
 ) -> Select:
     signature = _movie_signature(filters)
     cursor_values = _decode_cursor(cursor, expected=signature, keys={"id", "key"})
@@ -1063,32 +1033,32 @@ def _apply_movie_cursor(
         movie_id = uuid.UUID(cursor_values["id"])
         if key is None:
             id_condition = Movie.id < movie_id if descending else Movie.id > movie_id
-            statement = statement.where(publish_key.is_(None), id_condition)
+            statement = statement.where(Movie.release_date.is_(None), id_condition)
         elif descending:
             statement = statement.where(
                 or_(
-                    publish_key < key,
-                    publish_key.is_(None),
-                    (publish_key == key) & (Movie.id < movie_id),
+                    Movie.release_date < key,
+                    Movie.release_date.is_(None),
+                    (Movie.release_date == key) & (Movie.id < movie_id),
                 )
             )
         else:
             statement = statement.where(
                 or_(
-                    publish_key > key,
-                    publish_key.is_(None),
-                    (publish_key == key) & (Movie.id > movie_id),
+                    Movie.release_date > key,
+                    Movie.release_date.is_(None),
+                    (Movie.release_date == key) & (Movie.id > movie_id),
                 )
             )
     if descending:
         return statement.order_by(
-            publish_key.is_(None),
-            publish_key.desc(),
+            Movie.release_date.is_(None),
+            Movie.release_date.desc(),
             Movie.id.desc(),
         )
     return statement.order_by(
-        publish_key.is_(None),
-        publish_key.asc(),
+        Movie.release_date.is_(None),
+        Movie.release_date.asc(),
         Movie.id.asc(),
     )
 
@@ -1107,11 +1077,10 @@ def _encode_movie_cursor(
 def _movie_cursor_key(
     filters: MovieFilters,
     movie: Movie,
-    publish_key: date | None,
 ) -> date | str | None:
     if filters.sort == "number_asc":
         return movie.normalized_number
-    return publish_key
+    return movie.release_date
 
 
 def _movie_signature(filters: MovieFilters) -> dict[str, object]:
@@ -1189,7 +1158,7 @@ def _labels_by_source(
     session,
     sources: list[ResourceSource],
 ) -> dict[uuid.UUID, list[str]]:
-    labels = {source.id: [] for source in sources}
+    labels: dict[uuid.UUID, list[str]] = {source.id: [] for source in sources}
     if not sources:
         return labels
     for item in session.scalars(

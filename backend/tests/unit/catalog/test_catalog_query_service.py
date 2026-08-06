@@ -103,6 +103,8 @@ def test_movie_filters_are_correlated_to_one_source_and_cursor_is_query_bound(
     first = _movie("ABP-001")
     second = _movie("ABP-002")
     hidden = _movie("ABP-003", state="raw_only")
+    first.release_date = date(2026, 7, 21)
+    second.release_date = date(2026, 7, 19)
     first_subtitle = _source(
         first,
         1,
@@ -846,6 +848,8 @@ def test_movie_summaries_by_ids_preserves_order_and_hides_ineligible_movies(
     second = _movie("ABP-071")
     raw = _movie("ABP-072", state="raw_only")
     no_source = _movie("ABP-073")
+    first.release_date = date(2026, 7, 20)
+    second.release_date = date(2026, 7, 21)
     with factory.begin() as session:
         session.add_all(
             [

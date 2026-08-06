@@ -9,7 +9,7 @@
 ## 1. API 所有权与查询
 
 - TASK-204 在 `windows/lib/features/library/data/movies_api.dart` 实现 `MovieSummary`、`PlaybackProgress`、`MoviePage`、筛选和 Movies gateway；TASK-203 只提供 `/app/library` Shell route。
-- 每页固定 `limit=24`，默认 `sort=publish_date_desc`。
+- 每页固定 `limit=24`，默认 `sort=publish_date_desc`；"发布日期"排序与卡片展示日期均为影片发行日期（`Movie.release_date`），NULL 排最后（REQ-CHG-329 修订 AC-064 的来源发帖日期语义）。
 - `categories` 和 `labels` 去重后使用逗号分隔值；空集合不发送。可选参数名严格为 `source_website`、`playable`、`min_resource_size_mb`、`max_resource_size_mb`、`favorite`、`sort` 和 `cursor`。
 - 客户端不重新判断 `core_ready`，不按来源重复卡片，不在本地拼接来源条件。后端返回一个 `MovieSummary` 就渲染一张卡片。
 - `cover_url` 必须匹配 `/api/v1/catalog/images/{uuid}`，转换为现有 API client 的 `catalog/images/{uuid}` 安全相对路径并携带认证读取。null、格式非法或字节读取失败都显示同尺寸占位图。
