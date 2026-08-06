@@ -5,10 +5,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 def test_provider_snapshot_repair_migration_is_linear_and_deterministic() -> None:
     migration = (
-        BACKEND_ROOT
-        / "alembic"
-        / "versions"
-        / "0022_provider_snapshot_repair.py"
+        BACKEND_ROOT / "alembic" / "versions" / "0022_provider_snapshot_repair.py"
     )
 
     assert migration.exists()
@@ -28,10 +25,7 @@ def test_provider_snapshot_repair_migration_is_linear_and_deterministic() -> Non
 
 def test_provider_snapshot_repair_migration_only_removes_its_queue_fact() -> None:
     source = (
-        BACKEND_ROOT
-        / "alembic"
-        / "versions"
-        / "0022_provider_snapshot_repair.py"
+        BACKEND_ROOT / "alembic" / "versions" / "0022_provider_snapshot_repair.py"
     ).read_text(encoding="utf-8")
 
     assert "DELETE FROM provider_snapshot_request" in source

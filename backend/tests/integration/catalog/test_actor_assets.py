@@ -185,8 +185,7 @@ def test_upgrade_queues_one_repair_without_overwriting_existing_catalog(
         ).one()
         gfriends_current = connection.scalar(
             text(
-                "SELECT id FROM gfriends_snapshot "
-                "WHERE id = :id AND status = 'current'"
+                "SELECT id FROM gfriends_snapshot WHERE id = :id AND status = 'current'"
             ),
             {"id": gfriends_snapshot_id},
         )
