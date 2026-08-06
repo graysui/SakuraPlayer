@@ -66,13 +66,38 @@ def test_ai_configuration_round_trip_is_atomic_and_secret_safe() -> None:
 
 
 @pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://ai.example.test/v1",
+        "https://ai.example.test/zen/go/v1",
+        "https://ai.example.test/root/v1/",
+    ],
+)
+def test_ai_configuration_accepts_v1_suffix_base_url(base_url: str) -> None:
+    engine, _, _, store = store_context()
+    try:
+        saved = store.save(
+            AiConfiguration(
+                base_url=base_url,
+                api_key="private-fixture-key",
+                model="fixture-model",
+                timeout_seconds=45,
+            ),
+            expected_version=0,
+        )
+        assert saved.base_url == base_url.rstrip("/")
+        assert store.load() == saved
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize(
     "configuration",
     [
         AiConfiguration("relative", "key", "model", 60),
         AiConfiguration("ftp://ai.example.test", "key", "model", 60),
         AiConfiguration("https://user@ai.example.test", "key", "model", 60),
         AiConfiguration("https://ai.example.test?q=1", "key", "model", 60),
-        AiConfiguration("https://ai.example.test/v1", "key", "model", 60),
         AiConfiguration("https://ai.example.test", "", "model", 60),
         AiConfiguration("https://ai.example.test", "key", "", 60),
         AiConfiguration("https://ai.example.test", "key", "model", 0),

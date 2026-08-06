@@ -286,6 +286,31 @@ def test_connection_probe_only_reads_models(status: int, expected: str | None) -
     assert seen[0].headers["Authorization"] == "Bearer private-fixture-key"
 
 
+def test_v1_suffix_base_url_translates_without_duplicate_v1_prefix() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(outbound: httpx.Request) -> httpx.Response:
+        seen.append(outbound)
+        return chat_response(response_content())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        OpenAiTranslationAdapter(client).translate(
+            request(),
+            configuration(base_url="https://ai.example.test/zen/go/v1"),
+        )
+        OpenAiTranslationAdapter(client).probe(
+            configuration(base_url="https://ai.example.test/zen/go/v1"),
+        )
+    finally:
+        client.close()
+
+    assert [str(item.url) for item in seen] == [
+        "https://ai.example.test/zen/go/v1/chat/completions",
+        "https://ai.example.test/zen/go/v1/models",
+    ]
+
+
 @pytest.mark.parametrize(
     ("handler", "code", "category"),
     [

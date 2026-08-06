@@ -128,7 +128,7 @@ class OpenAiTranslationAdapter:
         try:
             with self._http_client.stream(
                 "GET",
-                f"{configuration.base_url}/v1/models",
+                _endpoint(configuration.base_url, "models"),
                 headers={"Authorization": f"Bearer {configuration.api_key}"},
                 timeout=min(configuration.timeout_seconds, 30),
             ) as response:
@@ -199,7 +199,7 @@ class OpenAiTranslationAdapter:
         body: bytes,
         configuration: AiConfigurationSnapshot,
     ) -> _RawResponse:
-        endpoint = f"{configuration.base_url}/v1/chat/completions"
+        endpoint = _endpoint(configuration.base_url, "chat/completions")
         with self._http_client.stream(
             "POST",
             endpoint,
@@ -309,6 +309,13 @@ class OpenAiTranslationAdapter:
         if error.trace_id is not None:
             parts.append(f"trace_id={error.trace_id}")
         _LOGGER.warning(" ".join(parts))
+
+
+def _endpoint(base_url: str, path: str) -> str:
+    normalized = base_url.rstrip("/")
+    if urlsplit(normalized).path.rstrip("/").endswith("/v1"):
+        return f"{normalized}/{path}"
+    return f"{normalized}/v1/{path}"
 
 
 def _uses_siliconflow_qwen35_profile(

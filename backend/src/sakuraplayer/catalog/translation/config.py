@@ -58,7 +58,6 @@ class _ConfigurationPayload(BaseModel):
             or parsed.password is not None
             or parsed.query
             or parsed.fragment
-            or parsed.path.rstrip("/").endswith("/v1")
         ):
             raise ValueError("invalid AI base URL")
         return normalized

@@ -81,7 +81,7 @@ API、migrate、worker、scheduler 必须引用相同的 `SAKURAPLAYER_BACKEND_I
 
 115 Cookie 只通过扫码流程写入。DMM、演员映射和 GFriends 使用冻结的公共地址，不接受客户端任意 URL。MGDB 只接受契约规定的 GitHub 仓库 URL；JavDB host 只允许由受控部署环境设置，客户端设置 API 不提供修改入口。
 
-TASK-010 将 AI 四字段以单个 key `ai.configuration` 的 AES-GCM JSON 载荷保存并使用版本 CAS 原子更新，避免 provider 地址、模型和 key 来自不同配置版本。`base_url` 是不含 `/v1` 尾段的绝对 `http/https` provider root，最长 2048 字符，不得包含 userinfo、query 或 fragment；尾部 `/` 在保存前移除。`model` 为 1..255 字符，`api_key` 为 1..8192 UTF-8 字节，`timeout_seconds` 为 1..600。TASK-013 的设置 API 解密后只回显 base_url/model/timeout 和 `api_key_configured`，不回显 key；Windows replace 后和页面重建时以权威 GET 恢复这些非秘密值。
+TASK-010 将 AI 四字段以单个 key `ai.configuration` 的 AES-GCM JSON 载荷保存并使用版本 CAS 原子更新，避免 provider 地址、模型和 key 来自不同配置版本。`base_url` 是绝对 `http/https` provider root，最长 2048 字符，不得包含 userinfo、query 或 fragment；尾部 `/` 在保存前移除。`base_url` 可带 `/v1` 尾段也可不带，两种形态等价：带 `/v1` 尾段时直接作为 OpenAI 兼容 API 版本前缀（chat completions 端点 `{base_url}/chat/completions`、models 端点 `{base_url}/models`），不带时请求自动追加 `/v1`（REQ-CHG-323/324 修订 REQ-CHG-075）。`model` 为 1..255 字符，`api_key` 为 1..8192 UTF-8 字节，`timeout_seconds` 为 1..600。TASK-013 的设置 API 解密后只回显 base_url/model/timeout 和 `api_key_configured`，不回显 key；Windows replace 后和页面重建时以权威 GET 恢复这些非秘密值。
 
 TASK-009 固定公共地址：
 
