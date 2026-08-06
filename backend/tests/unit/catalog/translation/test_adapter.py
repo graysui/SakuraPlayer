@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 
 import httpx
 import pytest
 
 from sakuraplayer.catalog.translation.adapter import (
-    MAX_REQUEST_BYTES,
     MAX_RESPONSE_BYTES,
     PROMPT_VERSION,
     SYSTEM_PROMPT,
@@ -17,7 +15,6 @@ from sakuraplayer.catalog.translation.adapter import (
     TranslationRequest,
 )
 from sakuraplayer.catalog.translation.config import AiConfigurationSnapshot
-from sakuraplayer.catalog.translation.guard import ProtectedFields
 
 
 def configuration(
@@ -38,13 +35,6 @@ def request() -> TranslationRequest:
     return TranslationRequest(
         kind="movie_title",
         source_text="Fixture Original Title",
-        protected=ProtectedFields(
-            number="ABP-123",
-            actors=("Actor One", "Actor Two"),
-            maker="Fixture Maker",
-            series=None,
-            tags=("Drama", "Featured"),
-        ),
     )
 
 
@@ -102,7 +92,7 @@ def test_adapter_uses_frozen_prompt_and_strict_single_field_json() -> None:
         client.close()
 
     assert result.translated_text == "夹具中文标题"
-    assert PROMPT_VERSION == "sakuraplayer-zh-v3"
+    assert PROMPT_VERSION == "sakuraplayer-zh-v4"
     assert len(seen) == 1
     outbound = seen[0]
     assert str(outbound.url) == "https://ai.example.test/root/v1/chat/completions"
@@ -113,10 +103,11 @@ def test_adapter_uses_frozen_prompt_and_strict_single_field_json() -> None:
     assert body["response_format"] == {"type": "json_object"}
     assert body["max_tokens"] == 128
     assert "enable_thinking" not in body
+    assert "thinking" not in body
     assert body["messages"][0] == {"role": "system", "content": SYSTEM_PROMPT}
     assert '"schema_version":1' in SYSTEM_PROMPT
     assert '"translated_text":"..."' in SYSTEM_PROMPT
-    assert "placeholder" in SYSTEM_PROMPT
+    assert "[[SP_" not in SYSTEM_PROMPT
     assert "kind/source_text" in SYSTEM_PROMPT
     assert "Markdown" in SYSTEM_PROMPT
     user = json.loads(body["messages"][1]["content"])
@@ -125,13 +116,9 @@ def test_adapter_uses_frozen_prompt_and_strict_single_field_json() -> None:
         "kind": "movie_title",
         "source_text": "Fixture Original Title",
     }
-    assert b"ABP-123" not in outbound.content
-    assert b"Actor One" not in outbound.content
-    assert b"Fixture Maker" not in outbound.content
-    assert b"Drama" not in outbound.content
 
 
-def test_protected_values_are_replaced_locally_and_restored_after_translation() -> None:
+def test_source_text_is_sent_verbatim_without_protection() -> None:
     seen_user: dict[str, object] = {}
 
     def handler(outbound: httpx.Request) -> httpx.Response:
@@ -140,26 +127,25 @@ def test_protected_values_are_replaced_locally_and_restored_after_translation() 
         seen_user.update(user)
         sanitized = user["source_text"]
         assert isinstance(sanitized, str)
-        assert "ABP-123" not in sanitized
-        assert "Actor One" not in sanitized
-        assert "Fixture Maker" not in sanitized
-        assert "Drama" not in sanitized
-        assert len(re.findall(r"\[\[SP_[A-F0-9]{8}_[0-9]{4}\]\]", sanitized)) == 4
+        assert "ABP-123" in sanitized
+        assert "Actor One" in sanitized
+        assert "Fixture Maker" in sanitized
+        assert "Drama" in sanitized
+        assert "[[SP_" not in sanitized
         return chat_response(
             response_content(
                 translated_text=sanitized.replace("Original Title", "中文标题")
             )
         )
 
-    protected_request = TranslationRequest(
+    raw_request = TranslationRequest(
         kind="movie_title",
         source_text="ABP-123 Actor One Fixture Maker Drama Original Title",
-        protected=request().protected,
     )
     client = httpx.Client(transport=httpx.MockTransport(handler))
     try:
         result = OpenAiTranslationAdapter(client).translate(
-            protected_request,
+            raw_request,
             configuration(),
         )
     finally:
@@ -190,6 +176,72 @@ def test_siliconflow_qwen35_profile_disables_thinking() -> None:
 
     body = json.loads(seen[0].content)
     assert body["enable_thinking"] is False
+    assert "thinking" not in body
+
+
+@pytest.mark.parametrize(
+    ("base_url", "model"),
+    [
+        ("https://opencode.ai/zen/go/v1", "deepseek-v4-flash"),
+        ("https://opencode.ai/zen/go/v1", "DEEPSEEK-V4-PRO"),
+        ("https://OPENCODE.AI/zen/v1", "deepseek-v4-flash"),
+    ],
+)
+def test_opencode_deepseek_v4_profile_disables_thinking(
+    base_url: str,
+    model: str,
+) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(outbound: httpx.Request) -> httpx.Response:
+        seen.append(outbound)
+        return chat_response(response_content())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        OpenAiTranslationAdapter(client).translate(
+            request(),
+            configuration(base_url=base_url, model=model),
+        )
+    finally:
+        client.close()
+
+    body = json.loads(seen[0].content)
+    assert body["thinking"] == {"type": "disabled"}
+    assert "enable_thinking" not in body
+
+
+@pytest.mark.parametrize(
+    ("base_url", "model"),
+    [
+        ("https://opencode.ai/zen/go/v1", "kimi-k3"),
+        ("https://opencode.ai.evil.test", "deepseek-v4-flash"),
+        ("https://api.siliconflow.cn", "deepseek-v4-flash"),
+        ("https://ai.example.test", "deepseek-v4-flash"),
+    ],
+)
+def test_non_opencode_deepseek_v4_profile_gets_no_thinking_extension(
+    base_url: str,
+    model: str,
+) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(outbound: httpx.Request) -> httpx.Response:
+        seen.append(outbound)
+        return chat_response(response_content())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        OpenAiTranslationAdapter(client).translate(
+            request(),
+            configuration(base_url=base_url, model=model),
+        )
+    finally:
+        client.close()
+
+    body = json.loads(seen[0].content)
+    assert "thinking" not in body
+    assert "enable_thinking" not in body
 
 
 @pytest.mark.parametrize(
@@ -232,12 +284,10 @@ def test_output_token_limit_grows_for_long_descriptions() -> None:
     short_description = TranslationRequest(
         kind="movie_description",
         source_text="Short fixture description",
-        protected=request().protected,
     )
     long_description = TranslationRequest(
         kind="movie_description",
         source_text="\u65e5" * 32_000,
-        protected=request().protected,
     )
     client = httpx.Client(transport=httpx.MockTransport(handler))
     try:
@@ -385,7 +435,7 @@ def test_v1_suffix_base_url_translates_without_duplicate_v1_prefix() -> None:
             "output_schema",
         ),
         (
-            lambda request: chat_response(response_content(protected={})),
+            lambda request: chat_response(response_content(extra_field=1)),
             "translation_guardrail_failed",
             "output_schema",
         ),
@@ -418,47 +468,6 @@ def test_adapter_maps_http_and_schema_failures_to_stable_codes(
     assert str(error.value) == code
 
 
-@pytest.mark.parametrize("mutation", ["missing", "duplicate", "forged", "changed"])
-def test_protected_placeholder_mismatch_has_a_distinct_safe_category(
-    mutation: str,
-) -> None:
-    protected_request = TranslationRequest(
-        kind="movie_title",
-        source_text="ABP-123 Fixture title",
-        protected=request().protected,
-    )
-
-    def handler(outbound: httpx.Request) -> httpx.Response:
-        body = json.loads(outbound.content)
-        user = json.loads(body["messages"][1]["content"])
-        sanitized = user["source_text"]
-        token = re.search(r"\[\[SP_[A-F0-9]{8}_[0-9]{4}\]\]", sanitized)
-        assert token is not None
-        translated = sanitized
-        if mutation == "missing":
-            translated = translated.replace(token.group(), "")
-        elif mutation == "duplicate":
-            translated = f"{translated} {token.group()}"
-        elif mutation == "forged":
-            translated = f"{translated} [[SP_DEADBEEF_9999]]"
-        else:
-            translated = translated.replace(token.group(), token.group().lower())
-        return chat_response(response_content(translated_text=translated))
-
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    try:
-        with pytest.raises(TranslationAdapterError) as error:
-            OpenAiTranslationAdapter(client).translate(
-                protected_request,
-                configuration(),
-            )
-    finally:
-        client.close()
-
-    assert error.value.code == "translation_guardrail_failed"
-    assert error.value.category == "protected_mismatch"
-
-
 def test_failure_log_contains_only_safe_diagnostics(caplog) -> None:
     trace_id = "safe-trace-123"
     client = httpx.Client(
@@ -473,7 +482,6 @@ def test_failure_log_contains_only_safe_diagnostics(caplog) -> None:
     sensitive_request = TranslationRequest(
         kind="movie_title",
         source_text="do-not-log-source",
-        protected=request().protected,
     )
     try:
         with caplog.at_level(logging.WARNING):
@@ -555,7 +563,6 @@ def test_oversize_source_is_rejected_before_network() -> None:
     oversized = TranslationRequest(
         kind="movie_description",
         source_text="x" * 32001,
-        protected=request().protected,
     )
     client = httpx.Client(transport=httpx.MockTransport(handler))
     try:
@@ -566,36 +573,3 @@ def test_oversize_source_is_rejected_before_network() -> None:
 
     assert error.value.code == "translation_input_too_large"
     assert calls == 0
-
-
-def test_unused_large_protected_payload_is_not_sent_to_provider() -> None:
-    calls = 0
-
-    def handler(outbound: httpx.Request) -> httpx.Response:
-        nonlocal calls
-        calls += 1
-        assert b"x" * 1024 not in outbound.content
-        return chat_response(response_content())
-
-    oversized = TranslationRequest(
-        kind="movie_title",
-        source_text="short source",
-        protected=ProtectedFields(
-            number="ABP-123",
-            actors=("x" * MAX_REQUEST_BYTES,),
-            maker=None,
-            series=None,
-            tags=(),
-        ),
-    )
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    try:
-        result = OpenAiTranslationAdapter(client).translate(
-            oversized,
-            configuration(),
-        )
-    finally:
-        client.close()
-
-    assert result.translated_text == "夹具中文标题"
-    assert calls == 1

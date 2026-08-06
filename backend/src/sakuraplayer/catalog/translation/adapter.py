@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-import secrets
 import time
-from collections import Counter
 from dataclasses import dataclass
 from typing import Literal
 from urllib.parse import urlsplit
@@ -14,19 +12,14 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from sakuraplayer.catalog.translation.config import AiConfigurationSnapshot
-from sakuraplayer.catalog.translation.guard import (
-    ProtectedFields,
-    TranslationGuardrailError,
-)
 
-PROMPT_VERSION = "sakuraplayer-zh-v3"
+PROMPT_VERSION = "sakuraplayer-zh-v4"
 _OUTPUT_SCHEMA_EXAMPLE = '{"schema_version":1,"translated_text":"..."}'
 SYSTEM_PROMPT = (
     "Translate only the source_text value into Simplified Chinese. Return exactly "
     f"one JSON object with this only allowed shape: {_OUTPUT_SCHEMA_EXAMPLE}. "
-    "Preserve every placeholder token matching [[SP_XXXXXXXX_0000]] exactly, "
-    "including brackets, spelling, and count. Do not return kind/source_text, "
-    "Markdown, code fences, explanations, or any extra fields."
+    "Do not return kind/source_text, Markdown, code fences, explanations, or any "
+    "extra fields."
 )
 MAX_TEXT_CHARACTERS = 32_000
 MAX_REQUEST_BYTES = 512 * 1024
@@ -37,10 +30,11 @@ _MIN_OUTPUT_TOKENS: dict[str, int] = {
     "movie_title": 128,
     "movie_description": 256,
 }
-_PLACEHOLDER_PATTERN = re.compile(r"\[\[SP_[A-F0-9]{8}_[0-9]{4}\]\]")
 _SAFE_TRACE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _SILICONFLOW_HOST = "api.siliconflow.cn"
 _SILICONFLOW_QWEN35_PREFIX = "qwen/qwen3.5-"
+_OPENCODE_HOST = "opencode.ai"
+_OPENCODE_DEEPSEEK_V4_PREFIX = "deepseek-v4-"
 _LOGGER = logging.getLogger(__name__)
 TranslationKind = Literal["movie_title", "movie_description"]
 
@@ -67,7 +61,6 @@ class TranslationAdapterError(RuntimeError):
 class TranslationRequest:
     kind: TranslationKind
     source_text: str
-    protected: ProtectedFields
 
 
 @dataclass(frozen=True)
@@ -79,12 +72,6 @@ class TranslationResult:
 class _RawResponse:
     content: bytes
     trace_id: str | None
-
-
-@dataclass(frozen=True)
-class _ProtectedSource:
-    text: str
-    replacements: tuple[tuple[str, str], ...]
 
 
 class _OutputPayload(BaseModel):
@@ -148,8 +135,7 @@ class OpenAiTranslationAdapter:
     ) -> TranslationResult:
         if not request.source_text or len(request.source_text) > MAX_TEXT_CHARACTERS:
             raise TranslationAdapterError("translation_input_too_large")
-        protected_source = _protect_source(request.source_text, request.protected)
-        body = self._body(request, configuration, protected_source.text)
+        body = self._body(request, configuration, request.source_text)
         encoded = json.dumps(
             body,
             ensure_ascii=True,
@@ -163,18 +149,7 @@ class OpenAiTranslationAdapter:
         try:
             raw = self._post(encoded, configuration)
             output = self._parse(raw)
-            translated_text = _restore_protected(
-                output.translated_text,
-                protected_source.replacements,
-            )
-        except TranslationGuardrailError:
-            error = TranslationAdapterError(
-                "translation_guardrail_failed",
-                category="protected_mismatch",
-                trace_id=raw.trace_id if raw is not None else None,
-            )
-            self._log_failure(error, started)
-            raise error from None
+            translated_text = output.translated_text
         except httpx.TimeoutException:
             error = TranslationAdapterError(
                 "translation_upstream_error",
@@ -260,6 +235,8 @@ class OpenAiTranslationAdapter:
         }
         if _uses_siliconflow_qwen35_profile(configuration):
             body["enable_thinking"] = False
+        if _uses_opencode_deepseek_v4_profile(configuration):
+            body["thinking"] = {"type": "disabled"}
         return body
 
     @staticmethod
@@ -318,6 +295,22 @@ def _endpoint(base_url: str, path: str) -> str:
     return f"{normalized}/v1/{path}"
 
 
+def _uses_opencode_deepseek_v4_profile(
+    configuration: AiConfigurationSnapshot,
+) -> bool:
+    try:
+        hostname = urlsplit(configuration.base_url).hostname
+    except ValueError:
+        return False
+    return (
+        hostname is not None
+        and hostname.casefold() == _OPENCODE_HOST
+        and configuration.model.strip()
+        .casefold()
+        .startswith(_OPENCODE_DEEPSEEK_V4_PREFIX)
+    )
+
+
 def _uses_siliconflow_qwen35_profile(
     configuration: AiConfigurationSnapshot,
 ) -> bool:
@@ -340,66 +333,6 @@ def _output_token_limit(kind: TranslationKind, source_text: str) -> int:
         MAX_OUTPUT_TOKENS,
         max(_MIN_OUTPUT_TOKENS[kind], estimated),
     )
-
-
-def _protect_source(source_text: str, protected: ProtectedFields) -> _ProtectedSource:
-    values = (
-        protected.number,
-        *protected.actors,
-        protected.maker,
-        protected.series,
-        *protected.tags,
-    )
-    candidates: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        if value is None:
-            continue
-        stripped = value.strip()
-        if not stripped or len(stripped) > len(source_text):
-            continue
-        key = " ".join(stripped.split()).casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        candidates.append(stripped)
-    if not candidates:
-        return _ProtectedSource(source_text, ())
-
-    candidates.sort(key=len, reverse=True)
-    patterns = [
-        r"\s+".join(re.escape(part) for part in re.split(r"\s+", value))
-        for value in candidates
-    ]
-    matcher = re.compile("|".join(f"(?:{part})" for part in patterns), re.IGNORECASE)
-    nonce = secrets.token_hex(4).upper()
-    while f"[[SP_{nonce}_" in source_text:
-        nonce = secrets.token_hex(4).upper()
-    replacements: list[tuple[str, str]] = []
-
-    def replace(match: re.Match[str]) -> str:
-        token = f"[[SP_{nonce}_{len(replacements):04d}]]"
-        replacements.append((token, match.group(0)))
-        return token
-
-    text = matcher.sub(replace, source_text)
-    return _ProtectedSource(text, tuple(replacements))
-
-
-def _restore_protected(
-    translated_text: str,
-    replacements: tuple[tuple[str, str], ...],
-) -> str:
-    expected = Counter(token for token, _ in replacements)
-    returned = Counter(_PLACEHOLDER_PATTERN.findall(translated_text))
-    if returned != expected:
-        raise TranslationGuardrailError
-    restored = translated_text
-    for token, value in replacements:
-        restored = restored.replace(token, value)
-    if len(restored) > MAX_TEXT_CHARACTERS:
-        raise TranslationGuardrailError
-    return restored
 
 
 def _safe_trace_id(value: str | None) -> str | None:

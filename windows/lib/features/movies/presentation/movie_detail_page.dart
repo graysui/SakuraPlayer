@@ -130,9 +130,7 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
                       _sectionTitle(context, '简介'),
                       const SizedBox(height: 8),
                       Text(
-                        detail.description?.trim().isNotEmpty == true
-                            ? detail.description!
-                            : '暂无中文简介',
+                        _descriptionText(detail),
                       ),
                     ],
                   ),
@@ -159,6 +157,18 @@ class _MovieDetailPageState extends ConsumerState<MovieDetailPage> {
         );
       },
     );
+  }
+
+  String _descriptionText(MovieDetailDto detail) {
+    final translated = detail.description?.trim();
+    if (translated != null && translated.isNotEmpty) {
+      return translated;
+    }
+    final original = detail.descriptionOriginal?.trim();
+    if (original != null && original.isNotEmpty) {
+      return '$original（原文）';
+    }
+    return '暂无简介';
   }
 
   Widget _cover(MovieDetailDto detail, {required bool narrow}) => SizedBox(

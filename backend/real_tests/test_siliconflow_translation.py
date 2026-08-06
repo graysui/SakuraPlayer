@@ -11,7 +11,6 @@ from sakuraplayer.catalog.translation.adapter import (
     TranslationRequest,
 )
 from sakuraplayer.catalog.translation.config import AiConfigurationSnapshot
-from sakuraplayer.catalog.translation.guard import ProtectedFields
 
 
 def test_siliconflow_qwen35_translates_one_synthetic_text() -> None:
@@ -32,13 +31,6 @@ def test_siliconflow_qwen35_translates_one_synthetic_text() -> None:
     request = TranslationRequest(
         kind="movie_description",
         source_text="A quiet summer story",
-        protected=ProtectedFields(
-            number="TEST-225",
-            actors=("Synthetic Actor",),
-            maker="Synthetic Maker",
-            series=None,
-            tags=("Synthetic Tag",),
-        ),
     )
 
     with httpx.Client() as client:

@@ -75,6 +75,11 @@ class FakeHttpTransport implements HttpTransport {
       '"publish_date":null,"category":"亚洲无码","labels":["cracked","4k"],' +
       '"resource_size_mb":null,"video_file_size_bytes":3221225472,"availability":"rejected"}]}';
   }
+
+  static movieDetailBodyWithoutTranslation(): string {
+    return FakeHttpTransport.movieDetailBody().replace('"description":"这是中文简介"', '"description":null')
+      .replace('"description_original":"en"', '"description_original":"原文简介"');
+  }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -99,6 +104,7 @@ async function waitForText(text: string, timeoutMs: number): Promise<boolean> {
 export default function movieDetailPageTest() {
   describe('MovieDetailPageTest', () => {
     let uiTestSkipped: boolean = false;
+    let fake: FakeHttpTransport | null = null;
 
     beforeAll(async (done: Function) => {
       const appContext = AbilityDelegatorRegistry.getAbilityDelegator().getAppContext();
@@ -110,7 +116,7 @@ export default function movieDetailPageTest() {
         return;
       }
       catalogImageCache.clear();
-      const fake = new FakeHttpTransport();
+      fake = new FakeHttpTransport();
       fake.routes.set('/auth/bootstrap', new QueuedResponse(200, FakeHttpTransport.bootstrapBody(true)));
       fake.routes.set('/auth/login', new QueuedResponse(200, FakeHttpTransport.tokenBody()));
       fake.routes.set('/events/snapshot', new QueuedResponse(200, FakeHttpTransport.snapshotBody()));
@@ -166,6 +172,34 @@ export default function movieDetailPageTest() {
       expect('progress=' + progress).assertEqual('progress=true');
       const date = await waitForText('日期：2026-01-02', 3000);
       expect('date=' + date).assertEqual('date=true');
+      done();
+    });
+
+    it('movie_detail_falls_back_to_original_description', 30, async (done: Function) => {
+      if (uiTestSkipped || fake === null) {
+        done();
+        return;
+      }
+      const driver = Driver.create();
+      // 从详情页返回列表，再以“译文缺失”的详情响应进入
+      await driver.pressBack();
+      await sleep(800);
+      fake.routes.set('/movies/m1',
+        new QueuedResponse(200, FakeHttpTransport.movieDetailBodyWithoutTranslation()));
+      const card = await driver.findComponent(ON.text('媒体库示例'));
+      expect(card != null).assertTrue();
+      if (card === null) {
+        done();
+        return;
+      }
+      const bounds = await card.getBounds();
+      await driver.click(Math.floor((bounds.left + bounds.right) / 2),
+        Math.floor((bounds.top + bounds.bottom) / 2));
+      const fallback = await waitForText('原文简介（原文）', 6000);
+      expect('fallback=' + fallback).assertEqual('fallback=true');
+      const emptyPlaceholder = await waitForText('暂无中文简介', 1500);
+      expect('no old placeholder=' + emptyPlaceholder).assertEqual('no old placeholder=false');
+      fake.routes.set('/movies/m1', new QueuedResponse(200, FakeHttpTransport.movieDetailBody()));
       done();
     });
 

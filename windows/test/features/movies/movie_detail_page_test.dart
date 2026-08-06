@@ -134,6 +134,29 @@ void main() {
     expect(find.text('已加入最高优先级刮削队列'), findsOneWidget);
   });
 
+  testWidgets('detail falls back to original description when translation missing', (
+    tester,
+  ) async {
+    final gateway = _MovieGateway(
+      _detail(description: null, descriptionOriginal: '日本語紹介'),
+    );
+    await _pumpPage(tester, gateway: gateway);
+
+    expect(find.text('日本語紹介（原文）'), findsOneWidget);
+    expect(find.text('暂无中文简介'), findsNothing);
+  });
+
+  testWidgets('detail shows empty placeholder when both descriptions missing', (
+    tester,
+  ) async {
+    final gateway = _MovieGateway(
+      _detail(description: null, descriptionOriginal: null),
+    );
+    await _pumpPage(tester, gateway: gateway);
+
+    expect(find.text('暂无简介'), findsOneWidget);
+  });
+
   testWidgets('ready source never falls back to AVdb size', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -254,6 +277,8 @@ MovieSourceDto _source(
 
 MovieDetailDto _detail({
   String title = '测试影片',
+  String? description = '中文简介',
+  String? descriptionOriginal = '日本語紹介',
   List<String> plotImageUrls = const <String>[],
   String metadataState = 'core_ready',
   String? metadataErrorCode,
@@ -280,8 +305,8 @@ MovieDetailDto _detail({
   'series': '测试系列',
   'director': '测试导演',
   'score': 8.5,
-  'description': '中文简介',
-  'description_original': '日本語紹介',
+  'description': description,
+  'description_original': descriptionOriginal,
   'actors': <Object?>[
     <String, Object?>{
       'id': actorId,

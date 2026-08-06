@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
-from typing import Protocol
+from typing import Literal, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,13 +16,7 @@ from sakuraplayer.catalog.core_import import (
     require_active_metadata_claim,
 )
 from sakuraplayer.catalog.metadata_queue import MetadataClaim
-from sakuraplayer.catalog.models import (
-    Actor,
-    MovieActor,
-    MovieTag,
-    Tag,
-    TranslationRecord,
-)
+from sakuraplayer.catalog.models import TranslationRecord
 from sakuraplayer.catalog.translation.adapter import (
     MAX_TEXT_CHARACTERS,
     PROMPT_VERSION,
@@ -35,7 +29,6 @@ from sakuraplayer.catalog.translation.config import (
     EncryptedAiConfigurationStore,
     TranslationConfigurationError,
 )
-from sakuraplayer.catalog.translation.guard import ProtectedFields
 from sakuraplayer.resources.models import Movie
 
 _RESERVATION_LEASE = timedelta(seconds=30)
@@ -57,10 +50,9 @@ class TranslationAdapter(Protocol):
 
 @dataclass(frozen=True)
 class _WorkItem:
-    owner_type: str
+    owner_type: Literal["movie_title", "movie_description"]
     owner_id: uuid.UUID
     source_text: str
-    protected: ProtectedFields
 
 
 @dataclass(frozen=True)
@@ -106,31 +98,6 @@ class TranslationService:
             movie = session.get(Movie, claim.movie_id)
             if movie is None or movie.catalog_state != "core_ready":
                 raise TranslationServiceError("metadata_core_not_committed")
-            actors = list(
-                session.scalars(
-                    select(Actor)
-                    .join(MovieActor, MovieActor.actor_id == Actor.id)
-                    .where(MovieActor.movie_id == movie.id)
-                    .order_by(MovieActor.position)
-                )
-            )
-            tags = tuple(
-                session.scalars(
-                    select(Tag.name)
-                    .join(MovieTag, MovieTag.tag_id == Tag.id)
-                    .where(MovieTag.movie_id == movie.id)
-                    .order_by(Tag.name)
-                )
-            )
-            protected = ProtectedFields(
-                number=movie.normalized_number,
-                actors=tuple(
-                    actor.name_ja or actor.name_zh or actor.javdb_id for actor in actors
-                ),
-                maker=movie.maker,
-                series=movie.series,
-                tags=tags,
-            )
             items: list[_WorkItem] = []
             if movie.title_original:
                 items.append(
@@ -138,7 +105,6 @@ class TranslationService:
                         owner_type="movie_title",
                         owner_id=movie.id,
                         source_text=movie.title_original,
-                        protected=protected,
                     )
                 )
             if movie.description_original:
@@ -147,7 +113,6 @@ class TranslationService:
                         owner_type="movie_description",
                         owner_id=movie.id,
                         source_text=movie.description_original,
-                        protected=protected,
                     )
                 )
             return tuple(items)
@@ -172,7 +137,6 @@ class TranslationService:
                 TranslationRequest(
                     kind=item.owner_type,
                     source_text=item.source_text,
-                    protected=item.protected,
                 ),
                 configuration,
             )

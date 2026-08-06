@@ -43,6 +43,7 @@ export struct MovieDetailPage {
   @State tags: string[] = [];
   @State actors: ActorSummary[] = [];
   @State description: string | null = null;
+  @State descriptionOriginal: string | null = null;
   @State sources: MovieSource[] = [];
   @State sourceCount: number = 0;
   @State selectedSourceId: string | null = null;
@@ -108,6 +109,7 @@ export struct MovieDetailPage {
       this.tags = detail.tags;
       this.actors = detail.actors;
       this.description = detail.description;
+      this.descriptionOriginal = detail.descriptionOriginal;
       this.sources = detail.sources;
       this.sourceCount = detail.sourceCount;
       this.selectedSourceId = this.store.selectedSourceId;
@@ -501,8 +503,14 @@ export struct MovieDetailPage {
           .fontColor($r('app.color.text_primary'))
           .lineHeight(22)
           .width('100%')
+      } else if (this.descriptionOriginal !== null && this.descriptionOriginal.length > 0) {
+        Text(`${this.descriptionOriginal}（原文）`)
+          .fontSize(14)
+          .fontColor($r('app.color.text_primary'))
+          .lineHeight(22)
+          .width('100%')
       } else {
-        Text('暂无中文简介')
+        Text('暂无简介')
           .fontSize(13)
           .fontColor($r('app.color.text_secondary'))
           .width('100%')
