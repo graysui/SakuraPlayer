@@ -210,7 +210,7 @@
 | `AC-083` | `[I]` | `REQ-017` | `TASK-103`, `TASK-315` |
 | `AC-084` | `[I]` | `REQ-017` | `TASK-103`, `TASK-104`, `TASK-209`, `TASK-309` |
 | `AC-085` | `[I]` | `REQ-017` | `TASK-103`, `TASK-209`, `TASK-309` |
-| `AC-086` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309`, `TASK-327` |
+| `AC-086` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309`, `TASK-327`, `TASK-328` |
 | `AC-087` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309` |
 | `AC-088` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309` |
 | `AC-089` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309` |
@@ -221,7 +221,7 @@
 | `AC-094` | `[I]` | `REQ-018` | `TASK-107`, `TASK-208`, `TASK-308` |
 | `AC-095` | `[I]` | `REQ-018` | `TASK-107` |
 | `AC-096` | `[I]` | `REQ-018` | `TASK-107` |
-| `AC-097` | `[I]` | `REQ-018` | `TASK-104`, `TASK-107`, `TASK-327` |
+| `AC-097` | `[I]` | `REQ-018` | `TASK-104`, `TASK-107`, `TASK-327`, `TASK-328` |
 | `AC-098` | `[I]` | `REQ-018` | `TASK-107` |
 | `AC-099` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
 | `AC-100` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
@@ -246,7 +246,7 @@
 | `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308`, `TASK-315`, `TASK-325` |
 | `AC-120` | `[I]` | `REQ-022` | `TASK-003`, `TASK-013`, `TASK-208`, `TASK-308`, `TASK-318` |
 | `AC-121` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-218`, `TASK-222`, `TASK-308` |
-| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-227`, `TASK-308` |
+| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-227`, `TASK-308`, `TASK-328` |
 | `AC-123` | `[I]` | `REQ-023` | `TASK-001`, `TASK-317`, `TASK-318` |
 | `AC-124` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-125` | `[I]` | `REQ-023` | `TASK-001` |
@@ -363,3 +363,9 @@ TASK-327 的 AC-086/AC-097 映射受
 [取消不确定离线提交必须收敛](changes/2026-08-07--cancel-submit-uncertain-convergence.md) 中
 REQ-CHG-330 约束并修订 REQ-CHG-273：用户确认取消 `submit_uncertain` 后取消必须收敛，
 无唯一远端匹配时进入受管清理 `cleaning` 而非回到 `submit_uncertain`；它修复既有 AC，不新增产品 AC，当前有效任务总数增至 79。
+
+TASK-328 的 AC-086/AC-097/AC-122 映射受
+[缓存清理删除韧性、poll 目录定位与客户端转圈修复](changes/2026-08-07--cache-cleanup-delete-resilience.md) 中
+REQ-CHG-331 至 REQ-CHG-333 约束：删除互斥忙（990009/990019/990005）映射 `cloud115_operation_busy`
+并退避重试、"已删除"类 errno 幂等成功、poll 按 `(info_hash, task_cid)` 定位、Windows 在途状态刷新后清除；
+它修复既有 AC，不新增产品 AC，当前有效任务总数增至 80。

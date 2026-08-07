@@ -160,6 +160,59 @@ def test_expired_claim_recovery_confirms_prior_delete_by_task_not_found() -> Non
     assert _status(factory, job_id) == "cleaned"
 
 
+def test_busy_delete_is_retried_with_backoff_then_succeeds(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sakuraplayer.cloud_cache.cleanup._BUSY_RETRY_DELAY",
+        timedelta(seconds=0),
+    )
+    factory, job_id = _context()
+    fake = FakeCloud115(
+        directory_infos=[_root(), _task()],
+        delete_results=[
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+            None,
+        ],
+    )
+
+    assert _worker(factory, fake).run_once(worker_id="cleanup-1") == "worked"
+
+    assert [call.operation for call in fake.calls].count("delete_managed_entries") == 3
+    assert _status(factory, job_id) == "cleaned"
+
+
+def test_persistent_busy_delete_fails_after_retries(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sakuraplayer.cloud_cache.cleanup._BUSY_RETRY_DELAY",
+        timedelta(seconds=0),
+    )
+    factory, job_id = _context()
+    fake = FakeCloud115(
+        directory_infos=[_root(), _task()],
+        delete_results=[
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+        ],
+    )
+
+    _worker(factory, fake).run_once(worker_id="cleanup-1")
+
+    assert _status(factory, job_id) == "cleanup_failed"
+
+
+def test_delete_missing_target_is_idempotent_success() -> None:
+    factory, job_id = _context()
+    fake = FakeCloud115(
+        directory_infos=[_root(), _task()],
+        delete_results=[Cloud115Problem("cloud115_file_not_found")],
+    )
+
+    _worker(factory, fake).run_once(worker_id="cleanup-1")
+
+    assert _status(factory, job_id) == "cleaned"
+
+
 def _worker(factory, fake: FakeCloud115) -> CleanupWorker:
     return CleanupWorker(CleanupQueue(factory, now=lambda: NOW), _scope(fake))
 

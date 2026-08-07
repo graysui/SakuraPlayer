@@ -36,11 +36,17 @@ from sakuraplayer.cloud_cache.ports.cloud115 import (
     RemoteFile,
 )
 
-_AUTH_ERRNOS = frozenset({99, 911, 50003, 50004, 99999, 990009, 990017, 20130827})
+_AUTH_ERRNOS = frozenset({99, 911, 50003, 50004, 99999, 990017, 20130827})
 _NOT_FOUND_ERRNOS = frozenset({20121, 20125, 990002, 4100003, 4100008})
 _MEMBERSHIP_ERRNOS = frozenset({406})
 _OFFLINE_QUOTA_ERRNOS = frozenset({10004, 10008})
-_REQUEST_ERRNOS = frozenset({990005})
+# p115client 参考：115 删除/还原/移动互斥串行，操作未完成或账号有类似任务正在处理时返回这些
+# errno（EBUSY 语义），需要短暂退避重试而非视为协议或认证错误。
+_BUSY_ERRNOS = frozenset({990009, 990019, 990005})
+# “文件（夹）不存在或已删除”类 errno（p115client 视为 ENOENT），删除/取消目标已不存在时幂等成功。
+_DELETE_MISSING_ERRNOS = frozenset(
+    {231011, 20013, 20018, 31003, 50015, 70005, 70008, 90008, 430004, 800001}
+)
 _PROTOCOL_HOSTS = frozenset(
     {
         "115.com",
@@ -919,6 +925,14 @@ class Cloud115Adapter:
             return Cloud115Problem("cloud115_hls_membership_required")
         if errno in _OFFLINE_QUOTA_ERRNOS:
             return Cloud115Problem("cloud115_offline_quota_exceeded")
+        if errno in _BUSY_ERRNOS:
+            return Cloud115Problem("cloud115_operation_busy")
+        if errno in _DELETE_MISSING_ERRNOS:
+            codes = {
+                "delete": "cloud115_file_not_found",
+                "offline_cancel": "cloud115_offline_task_not_found",
+            }
+            return Cloud115Problem(codes.get(operation, "cloud115_protocol_error"))
         if errno in _NOT_FOUND_ERRNOS:
             codes = {
                 "directory": "cloud115_directory_not_found",
@@ -931,8 +945,6 @@ class Cloud115Adapter:
                 "delete": "cloud115_file_not_found",
             }
             return Cloud115Problem(codes.get(operation, "cloud115_protocol_error"))
-        if errno in _REQUEST_ERRNOS and operation == "offline_submit":
-            return Cloud115Problem("cloud115_protocol_error")
         return Cloud115Problem("cloud115_protocol_error")
 
     @staticmethod

@@ -27,6 +27,7 @@
 - 13 个状态文案固定为：`queued=排队中`、`submitting=正在提交`、`offlining=离线中`、`submit_uncertain=提交待确认`、`resolving=解析文件`、`awaiting_selection=待选文件`、`ready=可播放`、`cancelling=正在取消`、`cleaning=正在清理`、`cleanup_failed=清理失败`、`failed=任务失败`、`cleaned=已清理`、`detached=已失联`。
 - 取消只对 `queued/submitting/offlining/submit_uncertain/resolving` 显示，必须先弹出二次确认，再发送 `{confirmed:true}`；不得先发送 false 试探。重复点击在途时禁用，202 后以响应替换当前项。
 - 清理只对 `awaiting_selection/ready/cleanup_failed` 显示。`cache_active_lease` 保留原任务并提示正在播放；`cache_ownership_mismatch` 显示已失联且不得建议删除其他目录；普通失败保留列表和重试动作。
+- "一键清理所有缓存"（REQ-CHG-334）只对 `awaiting_selection/ready/cleanup_failed` 任务生效，二次确认后逐个串行请求（不并发），单个失败不中断其余，在途期间按钮禁用，完成后以响应真相更新列表；没有任何可清理任务时不显示按钮。
 - `cancelling/cleaning` 不提供重复操作；`failed/cleaned/detached` 只读。TASK-208 不实现媒体选择、播放请求、自动播放、速度/并发设置或磁力展示。
 
 ## 4. 设置、秘密与连接测试

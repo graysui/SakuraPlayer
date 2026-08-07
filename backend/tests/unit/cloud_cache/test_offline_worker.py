@@ -129,6 +129,27 @@ def test_offline_reported_total_is_quota_not_task_count(context) -> None:
     assert (job.status, float(job.remote_percent)) == ("resolving", 100.0)
 
 
+def test_poll_scopes_by_task_directory_ignoring_same_hash_elsewhere(context) -> None:
+    factory, source_port, play = context
+    job_id = _create_started(factory, play)
+    remote_hash = "d" * 40
+    _mark_offlining(factory, job_id, remote_hash)
+    fake = FakeCloud115(
+        offline_submissions=[OfflineSubmission(remote_hash)],
+        offline_pages=[
+            _page(
+                _snapshot(remote_hash, OfflineStatus.RUNNING, 5.0, task_cid="other-dir"),
+                _snapshot(remote_hash, OfflineStatus.COMPLETED, 100.0),
+            )
+        ],
+    )
+    worker = _worker(factory, source_port, fake)
+
+    assert worker.run_once(worker_id="worker-a") == "worked"
+    job = _job(factory, job_id)
+    assert (job.status, float(job.remote_percent)) == ("resolving", 100.0)
+
+
 @pytest.mark.parametrize("matched", [True, False])
 def test_submit_uncertain_reconciles_without_automatic_resubmit(
     context, matched
@@ -627,8 +648,8 @@ def _snapshot(
     )
 
 
-def _page(snapshot: OfflineTaskSnapshot | None) -> OfflineTaskPage:
-    tasks = () if snapshot is None else (snapshot,)
+def _page(*snapshots: OfflineTaskSnapshot | None) -> OfflineTaskPage:
+    tasks = tuple(snapshot for snapshot in snapshots if snapshot is not None)
     return OfflineTaskPage(
         page=1,
         page_count=1,

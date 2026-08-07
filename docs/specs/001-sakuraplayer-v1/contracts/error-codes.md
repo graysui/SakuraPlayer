@@ -117,6 +117,7 @@
 | 409 | `cloud115_offline_quota_exceeded` | 115 月度离线配额不足；不自动重试 |
 | 404 | `cloud115_offline_task_not_found` | 远端离线任务明确不存在；调用方按本地状态决定幂等收敛 |
 | 404 | `cloud115_file_not_found` | 115 文件明确不存在；不得由 transport failure 推断 |
+| 409 | `cloud115_operation_busy` | 115 删除/还原/移动互斥或账号有类似任务处理中（errno 990009/990019/990005）；调用方短暂退避重试 |
 | 413 | `cloud115_small_file_too_large` | 小文件超过调用方字节上限；不继续读取 |
 | 409 | `cloud115_rebind_has_active_jobs` | 有活动任务时禁止重绑 |
 | 404 | `cloud115_qr_session_not_found` | QR 会话不存在或 API 重启后已丢失，客户端重新创建 |
@@ -134,7 +135,7 @@
 | 502 | `cloud115_offline_failed` | 115 普通离线失败；原因不确定，不永久拒绝来源 |
 | 任务 | `cloud115_submit_uncertain` | 离线提交结果无法确认；禁止自动重复提交，确认取消后进入受管清理 |
 | 422 | `source_permanently_unavailable` | 失效/违规/无法离线；创建拒绝标记 |
-| 500 | `cache_cleanup_failed` | 删除未确认成功，容量不释放；维护或手动 cleanup 可创建新 attempt 重试 |
+| 500 | `cache_cleanup_failed` | 删除未确认成功，容量不释放；维护或手动 cleanup 可创建新 attempt 重试（`cloud115_operation_busy` 已由 worker 退避重试吸收） |
 
 ## 6. 播放与字幕
 

@@ -99,6 +99,7 @@ class CacheController extends Notifier<CachePageState> {
       errorCode: null,
       isAppending: false,
       actionErrors: const {},
+      inFlightIds: const {},
     );
     try {
       final page = await ref.read(cacheGatewayProvider).listJobs();
@@ -198,7 +199,11 @@ class CacheController extends Notifier<CachePageState> {
       final updated = await ref
           .read(cacheGatewayProvider)
           .selectMedia(jobId, selectedIds);
-      if (generation != _generation) return null;
+      if (generation != _generation) {
+        // 列表已被刷新重建，丢弃过期响应，但必须解除按钮在途状态。
+        state = state.copyWith(inFlightIds: {...state.inFlightIds}..remove(jobId));
+        return null;
+      }
       if (updated.id != jobId ||
           updated.status != 'ready' ||
           !listEquals(updated.selectedMediaIds, selectedIds)) {
@@ -215,13 +220,34 @@ class CacheController extends Notifier<CachePageState> {
       );
       return updated;
     } on ApiException catch (error) {
-      if (generation == _generation) {
-        state = state.copyWith(
-          inFlightIds: {...state.inFlightIds}..remove(jobId),
-          actionErrors: {...state.actionErrors, jobId: error.code},
-        );
-      }
+      state = state.copyWith(
+        inFlightIds: {...state.inFlightIds}..remove(jobId),
+        actionErrors: generation == _generation
+            ? {...state.actionErrors, jobId: error.code}
+            : state.actionErrors,
+      );
       return null;
+    }
+  }
+
+  bool _cleanupAllRunning = false;
+
+  /// 一键清理所有可清理的缓存任务：只对 awaiting_selection/ready/cleanup_failed 生效，
+  /// 逐个串行请求（天然规避 115 删除互斥），单个失败不中断其余。
+  Future<void> cleanupAll() async {
+    // 防重入：列表刷新会清空 inFlightIds 使按钮复活，标志位保证批量过程唯一。
+    if (_cleanupAllRunning || state.inFlightIds.isNotEmpty) return;
+    _cleanupAllRunning = true;
+    try {
+      final ids = state.items
+          .where((item) => canCleanupCacheStatus(item.status))
+          .map((item) => item.id)
+          .toList(growable: false);
+      for (final id in ids) {
+        await _act(id, confirmed: true, cleanup: true);
+      }
+    } finally {
+      _cleanupAllRunning = false;
     }
   }
 
@@ -257,7 +283,11 @@ class CacheController extends Notifier<CachePageState> {
           cleanup
               ? await ref.read(cacheGatewayProvider).cleanup(jobId)
               : await ref.read(cacheGatewayProvider).cancel(jobId);
-      if (generation != _generation) return;
+      if (generation != _generation) {
+        // 列表已被刷新重建，丢弃过期响应，但必须解除按钮在途状态。
+        state = state.copyWith(inFlightIds: {...state.inFlightIds}..remove(jobId));
+        return;
+      }
       final items = state.items
           .map((value) => value.id == updated.id ? updated : value)
           .toList(growable: false);
@@ -266,10 +296,11 @@ class CacheController extends Notifier<CachePageState> {
         inFlightIds: {...state.inFlightIds}..remove(jobId),
       );
     } on ApiException catch (error) {
-      if (generation != _generation) return;
       state = state.copyWith(
         inFlightIds: {...state.inFlightIds}..remove(jobId),
-        actionErrors: {...state.actionErrors, jobId: error.code},
+        actionErrors: generation == _generation
+            ? {...state.actionErrors, jobId: error.code}
+            : state.actionErrors,
       );
     }
   }

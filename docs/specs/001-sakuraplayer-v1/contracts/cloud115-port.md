@@ -116,13 +116,13 @@ resolver 在遍历前后重新验证任务目录仍是缓存根的直接子目�
 | 凭据探活 | `cloud115_protocol_error`; alive/expired/unavailable 是正常三态结果 |
 | find/create directory | `cloud115_credentials_expired`, `cloud115_directory_not_found`, `cloud115_directory_ambiguous`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
 | directory info / recursive files | `cloud115_credentials_expired`, `cloud115_directory_not_found`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
-| submit offline | `cloud115_credentials_expired`, `cloud115_source_unavailable`, `cloud115_offline_quota_exceeded`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_submit_uncertain`, `cloud115_protocol_error` |
+| submit offline | `cloud115_credentials_expired`, `cloud115_source_unavailable`, `cloud115_offline_quota_exceeded`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_submit_uncertain`, `cloud115_operation_busy`, `cloud115_protocol_error` |
 | list offline | `cloud115_credentials_expired`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
-| cancel offline | `cloud115_credentials_expired`, `cloud115_offline_task_not_found`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
+| cancel offline | `cloud115_credentials_expired`, `cloud115_offline_task_not_found`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_operation_busy`, `cloud115_protocol_error` |
 | original | `cloud115_credentials_expired`, `cloud115_file_not_found`, `cloud115_rate_limited`, `cloud115_original_unavailable`, `cloud115_unavailable`, `cloud115_protocol_error` |
 | HLS | `cloud115_credentials_expired`, `cloud115_file_not_found`, `cloud115_rate_limited`, `cloud115_hls_membership_required`, `cloud115_hls_not_ready`, `cloud115_hls_unavailable`, `cloud115_unavailable`, `cloud115_protocol_error` |
 | small file | `cloud115_credentials_expired`, `cloud115_file_not_found`, `cloud115_original_unavailable`, `cloud115_small_file_too_large`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
-| managed delete | `cloud115_credentials_expired`, `cloud115_file_not_found`, `cache_ownership_mismatch`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
+| managed delete | `cloud115_credentials_expired`, `cloud115_file_not_found`, `cache_ownership_mismatch`, `cloud115_operation_busy`, `cloud115_rate_limited`, `cloud115_unavailable`, `cloud115_protocol_error` |
 
 网络连接、5xx 和无法判定的非业务 HTTP 失败映射 `cloud115_unavailable`；HTTP 429 映射
 `cloud115_rate_limited` 并仅保留有界非负 `Retry-After` 秒数。非法/未知 errno、字段缺失、

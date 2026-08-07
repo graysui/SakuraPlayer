@@ -144,11 +144,14 @@ class CacheOfflineWorker:
         self._queue.save_submission(current, submission.info_hash)
 
     async def _poll(self, claim: CacheJobClaim, cloud: Cloud115Port) -> None:
-        if claim.remote_info_hash is None:
+        if claim.remote_info_hash is None or claim.task_dir_cid is None:
             raise Cloud115Problem("cloud115_protocol_error")
         matched = await self._find_unique(
             cloud,
-            lambda task: task.info_hash == claim.remote_info_hash,
+            lambda task: (
+                task.info_hash == claim.remote_info_hash
+                and task.task_cid == claim.task_dir_cid
+            ),
         )
         if matched is None:
             raise Cloud115Problem("cloud115_offline_task_not_found")
@@ -258,6 +261,7 @@ class CacheOfflineWorker:
             "cloud115_unavailable",
             "cloud115_rate_limited",
             "cloud115_credentials_expired",
+            "cloud115_operation_busy",
         }:
             seconds = error.retry_after_seconds or 5
             self._queue.defer(claim, error.code, delay=timedelta(seconds=seconds))

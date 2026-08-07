@@ -35,6 +35,10 @@ from sakuraplayer.cloud_cache.ports.cloud115 import Cloud115Port, Cloud115Proble
 from sakuraplayer.playback.models import PlaybackLease, PlaybackSession
 
 DEFAULT_CLEANUP_CLAIM_LEASE = timedelta(minutes=2)
+# 115 删除/还原/移动互斥串行（p115client 参考）：目录删除响应时后台可能仍在执行，
+# 后续删除返回 cloud115_operation_busy，短暂退避重试即可收敛。
+_BUSY_RETRIES = 3
+_BUSY_RETRY_DELAY = timedelta(seconds=5)
 _MATERIALIZED = (
     CacheJobStatus.AWAITING_SELECTION.value,
     CacheJobStatus.READY.value,
@@ -443,18 +447,8 @@ class CleanupWorker:
                 if not task_is_owned(claim, task):
                     self._queue.detach(claim, ownership_evidence=evidence)
                     return
-                try:
-                    await cloud.delete_managed_entries(
-                        (claim.task_dir_cid,), claim.cache_root_cid
-                    )
-                except Cloud115Problem as error:
-                    if error.code == "cloud115_file_not_found":
-                        self._queue.succeed(
-                            claim,
-                            ownership_evidence={**evidence, "delete_missing": True},
-                        )
-                        return
-                    raise
+                if await self._delete_with_busy_retry(claim, cloud, evidence):
+                    return
                 self._queue.succeed(claim, ownership_evidence=evidence)
         except Cloud115Problem as error:
             if error.code == "cloud115_directory_not_found":
@@ -468,6 +462,35 @@ class CleanupWorker:
                     failure_code=error.code,
                     ownership_evidence=evidence,
                 )
+
+    async def _delete_with_busy_retry(
+        self,
+        claim: CleanupClaim,
+        cloud: Cloud115Port,
+        evidence: dict[str, object],
+    ) -> bool:
+        """返回 True 表示删除步骤已幂等终结（远端目标已不存在），调用方不再重复 succeed。"""
+        for attempt in range(1, _BUSY_RETRIES + 1):
+            try:
+                await cloud.delete_managed_entries(
+                    (claim.task_dir_cid,), claim.cache_root_cid
+                )
+                return False
+            except Cloud115Problem as error:
+                if error.code == "cloud115_file_not_found":
+                    # 远端目标已不存在：证明式幂等成功。
+                    self._queue.succeed(
+                        claim,
+                        ownership_evidence={**evidence, "delete_missing": True},
+                    )
+                    return True
+                if (
+                    error.code == "cloud115_operation_busy"
+                    and attempt < _BUSY_RETRIES
+                ):
+                    await asyncio.sleep(_BUSY_RETRY_DELAY.total_seconds())
+                    continue
+                raise
 
 
 def _active_lease_exists(cache_job_id, current: datetime):

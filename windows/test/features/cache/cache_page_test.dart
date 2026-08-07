@@ -151,6 +151,60 @@ void main() {
     },
   );
 
+  test(
+    'refresh during in-flight action clears spinner state',
+    () async {
+      final gateway = _CacheGateway();
+      final container = ProviderContainer(
+        overrides: [cacheGatewayProvider.overrideWithValue(gateway)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(cacheControllerProvider.notifier);
+      await controller.loadInitial();
+
+      // 发起取消并保持请求在途。
+      final pending = controller.cancel(_jobId, confirmed: true);
+      expect(
+        container.read(cacheControllerProvider).inFlightIds,
+        contains(_jobId),
+      );
+
+      // 列表刷新（generation 变化）后按钮不得残留转圈状态。
+      await controller.refresh();
+      expect(container.read(cacheControllerProvider).inFlightIds, isEmpty);
+
+      // 迟到的在途响应被丢弃且不复活转圈状态。
+      gateway.completeCancel(_job('cancelling'));
+      await pending;
+      expect(container.read(cacheControllerProvider).inFlightIds, isEmpty);
+    },
+  );
+
+  test(
+    'cleanupAll serially cleans only cleanable jobs',
+    () async {
+      final gateway = _CleanupAllGateway();
+      final container = ProviderContainer(
+        overrides: [cacheGatewayProvider.overrideWithValue(gateway)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(cacheControllerProvider.notifier);
+      await controller.loadInitial();
+
+      await controller.cleanupAll();
+
+      expect(gateway.cleanupCalls, 2);
+      expect(container.read(cacheControllerProvider).inFlightIds, isEmpty);
+      final byId = <String, String>{
+        for (final item in container.read(cacheControllerProvider).items)
+          item.id: item.status,
+      };
+      expect(byId[_jobId], 'queued');
+      expect(byId[_CleanupAllGateway.readyJobId], 'cleaning');
+      expect(byId[_CleanupAllGateway.failedJobId], 'cleaning');
+    },
+  );
+
   testWidgets('page shows fixed capacity and confirms cancellation', (
     tester,
   ) async {
@@ -177,6 +231,8 @@ void main() {
       tester.getSize(find.byKey(const ValueKey('cache-job-$_jobId'))).height,
       greaterThanOrEqualTo(96),
     );
+    // 没有可清理任务时不显示一键清理按钮。
+    expect(find.text('一键清理'), findsNothing);
     await tester.tap(find.byTooltip('取消任务'));
     await tester.pumpAndSettle();
     expect(find.text('取消缓存任务？'), findsOneWidget);
@@ -185,6 +241,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.cancelCalls, 1);
     expect(find.text('正在取消'), findsOneWidget);
+  });
+
+  testWidgets('one-click cleanup confirms and cleans all cleanable jobs', (
+    tester,
+  ) async {
+    final gateway = _CleanupAllGateway();
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [cacheGatewayProvider.overrideWithValue(gateway)],
+        child: const MaterialApp(home: Scaffold(body: CachePage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('一键清理'), findsOneWidget);
+    await tester.tap(find.text('一键清理'));
+    await tester.pumpAndSettle();
+    expect(find.text('清理所有缓存？'), findsOneWidget);
+    await tester.tap(find.text('确认'));
+    await tester.pumpAndSettle();
+    expect(gateway.cleanupCalls, 2);
   });
 
   testWidgets('candidate selection submits full group before explicit play', (
@@ -326,8 +407,54 @@ class _WidgetCacheGateway implements CacheGateway {
       throw UnimplementedError();
 }
 
-class _SelectionCacheGateway implements CacheGateway {
-  List<String> selectedIds = const [];
+class _CleanupAllGateway implements CacheGateway {
+  int cleanupCalls = 0;
+  static const readyJobId = '00000000-0000-4000-8000-000000000209';
+  static const failedJobId = '00000000-0000-4000-8000-000000000210';
+
+  @override
+  Future<CacheJobPageDto> listJobs({
+    Set<String> statuses = const <String>{},
+    String? cursor,
+  }) async => CacheJobPageDto.fromJson(<String, Object?>{
+    'items': <Object?>[
+      _jobJson(), // queued，不可清理
+      _jobJson()
+        ..['id'] = readyJobId
+        ..['status'] = 'ready',
+      _jobJson()
+        ..['id'] = failedJobId
+        ..['status'] = 'cleanup_failed',
+    ],
+    'capacity': <String, Object?>{
+      'running': 0,
+      'running_limit': 2,
+      'queued': 1,
+      'queued_limit': 10,
+      'ready': 2,
+      'ready_limit': 20,
+    },
+    'next_cursor': null,
+  });
+
+  @override
+  Future<CacheJobDto> cleanup(String jobId) async {
+    cleanupCalls++;
+    return CacheJobDto.fromJson(
+      _jobJson()
+        ..['id'] = jobId
+        ..['status'] = 'cleaning',
+    );
+  }
+
+  @override
+  Future<CacheJobDto> cancel(String jobId) => throw UnimplementedError();
+  @override
+  Future<CacheJobDto> selectMedia(String jobId, List<String> mediaIds) =>
+      throw UnimplementedError();
+}
+
+class _SelectionCacheGateway implements CacheGateway {  List<String> selectedIds = const [];
 
   Map<String, Object?> get _selectionJob =>
       _jobJson()

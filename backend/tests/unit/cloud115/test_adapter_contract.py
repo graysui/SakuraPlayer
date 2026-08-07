@@ -36,13 +36,52 @@ def test_offline_submit_known_not_found_errno_has_precise_stable_code(
     assert "upstream body" not in str(problem)
 
 
-def test_offline_submit_generic_request_errno_is_protocol_error() -> None:
+def test_offline_submit_busy_request_errno_is_operation_busy() -> None:
     problem = Cloud115Adapter._payload_problem(
         {"state": False, "errno": 990005, "error": "generic request"},
         "offline_submit",
     )
 
-    assert problem.code == "cloud115_protocol_error"
+    assert problem.code == "cloud115_operation_busy"
+
+
+@pytest.mark.parametrize(
+    "errno",
+    [990009, 990019, 990005],
+)
+def test_delete_busy_errno_is_operation_busy(errno: int) -> None:
+    problem = Cloud115Adapter._payload_problem(
+        {"state": False, "errno": errno, "error": "operation pending"},
+        "delete",
+    )
+
+    assert problem.code == "cloud115_operation_busy"
+
+
+@pytest.mark.parametrize(
+    "errno",
+    [231011, 20013, 20018, 31003, 50015, 70005, 70008, 90008, 430004, 800001],
+)
+def test_delete_missing_errno_is_file_not_found(errno: int) -> None:
+    problem = Cloud115Adapter._payload_problem(
+        {"state": False, "errno": errno, "error": "target already removed"},
+        "delete",
+    )
+
+    assert problem.code == "cloud115_file_not_found"
+
+
+@pytest.mark.parametrize(
+    "errno",
+    [231011, 20013, 90008, 430004],
+)
+def test_offline_cancel_missing_errno_is_offline_task_not_found(errno: int) -> None:
+    problem = Cloud115Adapter._payload_problem(
+        {"state": False, "errno": errno, "error": "task already removed"},
+        "offline_cancel",
+    )
+
+    assert problem.code == "cloud115_offline_task_not_found"
 
 
 @pytest.mark.parametrize("status", [400, 422])

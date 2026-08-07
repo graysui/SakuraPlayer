@@ -46,6 +46,25 @@ class _CachePageState extends ConsumerState<CachePage> {
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                       ),
+                      if (state.items.any(
+                        (value) => canCleanupCacheStatus(value.status),
+                      ))
+                        TextButton.icon(
+                          onPressed:
+                              state.inFlightIds.isEmpty &&
+                                      state.status != CachePageStatus.loading
+                                  ? () => _confirm(
+                                      context,
+                                      title: '清理所有缓存？',
+                                      message: '将清理全部可清理的缓存任务及其云端目录。',
+                                      action: () => ref
+                                          .read(cacheControllerProvider.notifier)
+                                          .cleanupAll(),
+                                    )
+                                  : null,
+                          icon: const Icon(Icons.cleaning_services, size: 18),
+                          label: const Text('一键清理'),
+                        ),
                       IconButton(
                         onPressed:
                             state.status == CachePageStatus.loading
