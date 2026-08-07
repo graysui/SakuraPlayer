@@ -484,10 +484,7 @@ class CleanupWorker:
                         ownership_evidence={**evidence, "delete_missing": True},
                     )
                     return True
-                if (
-                    error.code == "cloud115_operation_busy"
-                    and attempt < _BUSY_RETRIES
-                ):
+                if error.code == "cloud115_operation_busy" and attempt < _BUSY_RETRIES:
                     await asyncio.sleep(_BUSY_RETRY_DELAY.total_seconds())
                     continue
                 raise

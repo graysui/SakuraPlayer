@@ -138,7 +138,9 @@ def test_poll_scopes_by_task_directory_ignoring_same_hash_elsewhere(context) -> 
         offline_submissions=[OfflineSubmission(remote_hash)],
         offline_pages=[
             _page(
-                _snapshot(remote_hash, OfflineStatus.RUNNING, 5.0, task_cid="other-dir"),
+                _snapshot(
+                    remote_hash, OfflineStatus.RUNNING, 5.0, task_cid="other-dir"
+                ),
                 _snapshot(remote_hash, OfflineStatus.COMPLETED, 100.0),
             )
         ],
