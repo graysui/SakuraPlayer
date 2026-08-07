@@ -508,23 +508,6 @@ class CacheJobClaimQueue:
             session.flush()
             return self._claim(job)
 
-    def restore_submit_uncertain(self, claim: CacheJobClaim) -> None:
-        current = self._utc_now()
-        with self._session_factory.begin() as session:
-            job = self._claimed_job(session, claim, current=current)
-            self._apply_state(job, CacheJobStatus.SUBMIT_UNCERTAIN)
-            self._clear_claim(job)
-            job.failure_code = "cloud115_submit_uncertain"
-            job.failure_detail = None
-            job.failure_stage = CacheJobStatus.CANCELLING.value
-            job.updated_at = current
-            if self._event_publisher is not None:
-                self._event_publisher.publish_cache(
-                    session,
-                    job,
-                    event_type="cache.job.updated.v1",
-                )
-
     def fail(self, claim: CacheJobClaim, code: str) -> None:
         current = self._utc_now()
         with self._session_factory.begin() as session:

@@ -788,10 +788,10 @@ queued -> running -> completed
 
 ```text
 queued -> submitting -> offlining -> resolving -> awaiting_selection -> ready
-                     \-> submit_uncertain --(confirmed cancel/reconcile)--> cancelling
+                     \-> submit_uncertain --(confirmed cancel)--> cancelling
                                       resolving ---------------------> ready
 
-queued/submitting/offlining/resolving -> cancelling -> cleaning -> cleaned
+queued/submitting/offlining/submit_uncertain/resolving -> cancelling -> cleaning -> cleaned
 ready -------------------------------> cleaning -> cleaned
 任一非终态 --------------------------> failed
 cleaning ----------------------------> cleanup_failed
@@ -812,7 +812,8 @@ cleaning ----------------------------> cleanup_failed
 queued/running/ready 类别，防止通过取消绕过上限；进入 `cleaning` 后归入 ready，只有终态
 使用 released。`started` 是公开响应 disposition，不是持久状态。
 `submit_uncertain` 不由自动 worker 领取；显式取消可重新进入 `cancelling` 做一次只读对账，
-仍无远端证据时回到不确定状态。
+仍无远端证据时进入受管清理 `cleaning`（REQ-CHG-330），由证明式删除终结并释放运行名额，
+不再回到不确定状态。`cancelling` 不回退 `submit_uncertain`。
 
 ### 10.3 影片进度
 

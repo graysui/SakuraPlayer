@@ -24,7 +24,7 @@ provides: [timely Cloud115 offline confirmation, compatible offline status parsi
 
 - [x] 离线仍在进行时的下一次确认间隔不超过 2 秒，cache worker 空闲等待不再叠加 5 秒固定延迟。
 - [x] 115 数字/字符串等价状态和已批准字段别名正确归一化；未知状态仍稳定失败，不猜测完成。
-- [x] `submit_uncertain` 只安全对账，不重复提交；无唯一匹配时取消仍回到 `submit_uncertain`。
+- [x] `submit_uncertain` 只安全对账，不重复提交；无唯一匹配时取消进入受管清理 `cleaning`（由 [TASK-327 取消不确定离线提交必须收敛](../changes/2026-08-07--cancel-submit-uncertain-convergence.md) 的 REQ-CHG-330 修订）。
 - [x] `11c8de8b` 类 offlining 协议失败和 `394a1904` 类 submit uncertain 行为有脱敏回归测试覆盖。
 - [x] 不改变 2/10 容量、claim fencing、60 秒客户端观察、迟到 ready 通知和默认无真实 115 测试边界。
 

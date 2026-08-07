@@ -184,8 +184,9 @@ hostname、无 userinfo，并限制最多 3 跳。普通日志只记录稳定操
 
 取消只按 `info_hash` 调用上游，并固定 `delete_source_files=False`。远端明确不存在映射
 `cloud115_offline_task_not_found`；调用方结合本地状态决定是否视为幂等完成。
-没有 `info_hash` 的不确定提交在显式取消时只做一次分页对账；仍找不到不能伪装成已取消，
-必须回到 `submit_uncertain`。
+没有 `info_hash` 的不确定提交在显式取消时只做一次分页对账；仍找不到时进入受管清理
+`cleaning`（REQ-CHG-330），由证明式删除记录证据并终结，不伪装成已取消，也不回到
+`submit_uncertain`。
 
 离线任务处于 `queued/running` 时，worker 的下一次状态观察目标间隔不超过 2 秒；该目标不
 改变 Cloud115Port 的 HTTP 超时、限流退避或提交不确定语义。状态确认完成后仍由 resolving

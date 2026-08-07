@@ -132,7 +132,7 @@
 | 409 | `cache_active_lease` | 正在播放，拒绝立即清理 |
 | 409 | `cache_ownership_mismatch` | 账号/root/task/parent/owner 任一证明不成立，标记 detached，不删除或追踪新位置 |
 | 502 | `cloud115_offline_failed` | 115 普通离线失败；原因不确定，不永久拒绝来源 |
-| 任务 | `cloud115_submit_uncertain` | 离线提交结果无法确认；禁止自动重复提交，等待人工重新操作 |
+| 任务 | `cloud115_submit_uncertain` | 离线提交结果无法确认；禁止自动重复提交，确认取消后进入受管清理 |
 | 422 | `source_permanently_unavailable` | 失效/违规/无法离线；创建拒绝标记 |
 | 500 | `cache_cleanup_failed` | 删除未确认成功，容量不释放；维护或手动 cleanup 可创建新 attempt 重试 |
 

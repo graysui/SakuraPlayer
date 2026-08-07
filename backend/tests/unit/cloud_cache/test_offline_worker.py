@@ -463,7 +463,7 @@ def test_cancel_during_claimed_mkdir_records_directory_before_cleaning(context) 
     assert "submit_offline" not in [call.operation for call in fake.calls]
 
 
-def test_uncertain_cancel_without_match_returns_to_uncertain(context) -> None:
+def test_uncertain_cancel_without_match_converges_to_cleaning(context) -> None:
     factory, source_port, play = context
     job_id = _create_started(factory, play)
     fake = FakeCloud115(
@@ -479,11 +479,38 @@ def test_uncertain_cancel_without_match_returns_to_uncertain(context) -> None:
 
     assert worker.run_once(worker_id="worker-a") == "worked"
     job = _job(factory, job_id)
-    assert (job.status, job.failure_code) == (
-        "submit_uncertain",
-        "cloud115_submit_uncertain",
-    )
+    # REQ-CHG-330: 确认取消后取消必须收敛，进入受管清理而非回到 submit_uncertain。
+    assert (job.status, job.cleanup_reason) == ("cleaning", "cancelled")
     assert [call.operation for call in fake.calls].count("submit_offline") == 1
+    assert "cancel_offline" not in [call.operation for call in fake.calls]
+    # 收敛后任务不再被自动 worker 领取，运行名额释放。
+    assert worker.run_once(worker_id="worker-a") == "idle"
+    assert _job(factory, job_id).status == "cleaning"
+
+
+def test_uncertain_cancel_with_match_cancels_remote_then_cleans(context) -> None:
+    factory, source_port, play = context
+    job_id = _create_started(factory, play)
+    remote_hash = "c" * 40
+    fake = FakeCloud115(
+        directories=[
+            RemoteDirectory("task-cid", "root-fixture", _task_name(factory, job_id))
+        ],
+        offline_submissions=[Cloud115Problem("cloud115_submit_uncertain")],
+        offline_pages=[
+            _page(None),
+            _page(_snapshot(remote_hash, OfflineStatus.RUNNING, 10.0)),
+        ],
+        cancel_results=[None],
+    )
+    worker = _worker(factory, source_port, fake)
+    assert worker.run_once(worker_id="worker-a") == "worked"
+    CancellationService(factory, now=lambda: NOW).request(job_id, confirmed=True)
+
+    assert worker.run_once(worker_id="worker-a") == "worked"
+    job = _job(factory, job_id)
+    assert (job.status, job.cleanup_reason) == ("cleaning", "cancelled")
+    assert fake.calls[-1].operation == "cancel_offline"
 
 
 def test_expired_claim_is_fenced_from_late_worker_write(context) -> None:

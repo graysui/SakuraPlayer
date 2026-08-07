@@ -106,7 +106,6 @@ _LEGAL_TRANSITIONS = {
     CacheJobStatus.CANCELLING: frozenset(
         {
             CacheJobStatus.CLEANING,
-            CacheJobStatus.SUBMIT_UNCERTAIN,
             CacheJobStatus.FAILED,
             CacheJobStatus.DETACHED,
         }

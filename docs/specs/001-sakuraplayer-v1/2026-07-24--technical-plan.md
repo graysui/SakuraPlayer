@@ -215,9 +215,9 @@ queued
        |                 |-> awaiting_selection -> ready
        |                 \-> ready (可自动识别主视频)
        \-> submit_uncertain -> cancelling
-                                \-> submit_uncertain (对账仍无唯一匹配，不自动重提)
+                                \-> cleaning (确认取消后对账仍无唯一匹配，进入受管清理)
 
-queued/submitting/offlining/resolving -> cancelling -> cleaning -> cleaned
+queued/submitting/offlining/submit_uncertain/resolving -> cancelling -> cleaning -> cleaned
 任一执行态 -> failed
 ready -> cleaning -> cleaned
 cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
@@ -231,7 +231,8 @@ cleaning -> cleanup_failed -> cleaning (仅手动或维护重试)
 - 60 秒只由客户端倒计时。倒计时结束不写任务失败状态。
 - worker 提交前创建任务目录。115 返回的 `info_hash` 与本地任务 ID 分开保存。
 - worker 在外部提交前持久化 `submit_started_at`；结果不确定且对账无唯一匹配时进入
-  `submit_uncertain`，保留 running 容量并禁止自动重提。
+  `submit_uncertain`，保留 running 容量并禁止自动重提。用户确认取消后取消必须收敛：
+  对账仍无唯一匹配时进入受管清理 `cleaning`（REQ-CHG-330），不再回到 `submit_uncertain`。
 - 完成后按 [TASK-105 媒体解析确定性边界](changes/2026-07-27--task-105-media-resolution-determinism.md)
   有界递归枚举视频和字幕；视频最低 256 MiB（包含边界），白名单、广告/样片词元、连续分段、
   可解释评分和保守自动选择规则由固定 fixture 验证。

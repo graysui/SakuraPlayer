@@ -210,7 +210,7 @@
 | `AC-083` | `[I]` | `REQ-017` | `TASK-103`, `TASK-315` |
 | `AC-084` | `[I]` | `REQ-017` | `TASK-103`, `TASK-104`, `TASK-209`, `TASK-309` |
 | `AC-085` | `[I]` | `REQ-017` | `TASK-103`, `TASK-209`, `TASK-309` |
-| `AC-086` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309` |
+| `AC-086` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309`, `TASK-327` |
 | `AC-087` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309` |
 | `AC-088` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309` |
 | `AC-089` | `[I]` | `REQ-017` | `TASK-104`, `TASK-209`, `TASK-309` |
@@ -221,7 +221,7 @@
 | `AC-094` | `[I]` | `REQ-018` | `TASK-107`, `TASK-208`, `TASK-308` |
 | `AC-095` | `[I]` | `REQ-018` | `TASK-107` |
 | `AC-096` | `[I]` | `REQ-018` | `TASK-107` |
-| `AC-097` | `[I]` | `REQ-018` | `TASK-104`, `TASK-107` |
+| `AC-097` | `[I]` | `REQ-018` | `TASK-104`, `TASK-107`, `TASK-327` |
 | `AC-098` | `[I]` | `REQ-018` | `TASK-107` |
 | `AC-099` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
 | `AC-100` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
@@ -358,3 +358,8 @@ TASK-326 的 AC-049 至 AC-053 映射受
 
 HarmonyOS 的 AC-007/AC-131 工具链、API 24 SDK/构建/fixture 边界受
 [HarmonyOS 工具链基线变更](changes/2026-08-04--harmony-baseline-and-device-gate.md) 约束；该变更撤销 TASK-312 的物理真机门禁，但保留 API 24 编译和 API 签名基线。
+
+TASK-327 的 AC-086/AC-097 映射受
+[取消不确定离线提交必须收敛](changes/2026-08-07--cancel-submit-uncertain-convergence.md) 中
+REQ-CHG-330 约束并修订 REQ-CHG-273：用户确认取消 `submit_uncertain` 后取消必须收敛，
+无唯一远端匹配时进入受管清理 `cleaning` 而非回到 `submit_uncertain`；它修复既有 AC，不新增产品 AC，当前有效任务总数增至 79。

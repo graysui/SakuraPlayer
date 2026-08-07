@@ -6,7 +6,10 @@ from contextlib import AbstractAsyncContextManager
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
-from sakuraplayer.cloud_cache.domain.cache_job import CacheJobStatus
+from sakuraplayer.cloud_cache.domain.cache_job import (
+    CacheJobStatus,
+    InvalidCacheJobTransition,
+)
 from sakuraplayer.cloud_cache.failure_classifier import classify_cloud_problem
 from sakuraplayer.cloud_cache.ports.cloud115 import (
     Cloud115Port,
@@ -58,6 +61,11 @@ class CacheOfflineWorker:
         try:
             asyncio.run(self._process(claim))
         except CacheJobClaimLost:
+            return "worked"
+        except InvalidCacheJobTransition:
+            # 取消竞态防御：worker 处理期间任务被用户并发取消导致状态机已推进
+            # （如 CANCELLING），本 claim 的写入被拒绝。任务仍留在可领取状态，
+            # 由后续 claim 的 _cancel 收敛到 cleaning，不击穿 worker 调度循环。
             return "worked"
         return "worked"
 
@@ -165,7 +173,10 @@ class CacheOfflineWorker:
                 return
             matched = await self._find_by_task_directory(cloud, current.task_dir_cid)
             if matched is None:
-                self._queue.restore_submit_uncertain(current)
+                # REQ-CHG-330: 确认取消后取消必须收敛——无唯一远端匹配时进入受管清理
+                # (cleaning)，由 TASK-107 证明式删除终结并释放运行名额，不再回到
+                # submit_uncertain（避免取消死循环永久占用 running 名额）。
+                self._queue.complete_cancel(current)
                 return
             current = self._queue.save_cancel_target(current, matched.info_hash)
         assert current.remote_info_hash is not None

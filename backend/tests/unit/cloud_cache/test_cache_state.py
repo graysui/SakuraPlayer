@@ -51,7 +51,6 @@ LEGAL_TRANSITIONS = {
     },
     CacheJobStatus.CANCELLING: {
         CacheJobStatus.CLEANING,
-        CacheJobStatus.SUBMIT_UNCERTAIN,
         CacheJobStatus.FAILED,
         CacheJobStatus.DETACHED,
     },
