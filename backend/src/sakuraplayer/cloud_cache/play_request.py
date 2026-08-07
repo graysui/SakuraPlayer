@@ -57,6 +57,8 @@ def _unique_task_dir_name(session: Session, binding_id: uuid.UUID) -> str:
         )
         if exists is None:
             return candidate
+
+
 _ACTIVE_STATUSES = (
     "queued",
     "submitting",
