@@ -200,6 +200,11 @@ export default function appNavigationTest() {
       await authStore.configureServer('http://127.0.0.1:8000');
       await authStore.submitLogin('admin', 'pw');
       // 等待 Index 切换到 AppNavigation
+            // TASK-313: entry UI 已渲染 UiTest 才能找到媒体库（登录后拉起，共享 authStore）
+      await AbilityDelegatorRegistry.getAbilityDelegator().startAbility({
+        bundleName: 'com.sakuraplayer.app',
+        abilityName: 'EntryAbility',
+      });
       await new Promise<void>((resolve) => setTimeout(resolve, 1500));
       done();
     });

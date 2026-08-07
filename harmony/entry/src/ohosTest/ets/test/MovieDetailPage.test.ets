@@ -128,6 +128,11 @@ export default function movieDetailPageTest() {
       await authStore.initialize(appContext);
       await authStore.configureServer('http://127.0.0.1:8000');
       await authStore.submitLogin('admin', 'pw');
+            // TASK-313: entry UI 已渲染 UiTest 才能找到媒体库（登录后拉起，共享 authStore）
+      await AbilityDelegatorRegistry.getAbilityDelegator().startAbility({
+        bundleName: 'com.sakuraplayer.app',
+        abilityName: 'EntryAbility',
+      });
       await sleep(1500);
       done();
     });

@@ -28,17 +28,17 @@ provides: [HarmonyOS E2E suite, cross-platform state evidence]
 
 ## 验收条件
 
-- [ ] Fake E2E 完成登录、三导航、搜索、榜单、女优、详情、多来源、等待、播放器、字幕、进度、设置和清理。
-- [ ] Windows 与 HarmonyOS 使用同一账号时目录、收藏、任务和播放进度一致；对应 `[SEF]` AC-003。
-- [ ] 单个可选元数据源、AI 或 GFriends 故障不影响已有目录、排行榜快照和 115 播放；对应 `[SEF]` AC-132。
-- [ ] TASK-301、TASK-310、TASK-311 的 AC-131 SDK 签名和 fixture 证据可查；若 SDK 或播放实现改变，必须重新执行受影响的自动化检查。
-- [ ] 首次连接覆盖后端地址测试、bootstrap token、登录以及换地址后的 Asset Store/字幕/快照清理；对应 AC-133 至 AC-135。
+- [x] Fake E2E 完成登录、三导航、搜索、榜单、女优、详情、多来源、等待、播放器、字幕、进度、设置和清理。
+- [x] Windows 与 HarmonyOS 使用同一账号时目录、收藏、任务和播放进度一致；对应 `[SEF]` AC-003。
+- [x] 单个可选元数据源、AI 或 GFriends 故障不影响已有目录、排行榜快照和 115 播放；对应 `[SEF]` AC-132。
+- [x] TASK-301、TASK-310、TASK-311 的 AC-131 SDK 签名和 fixture 证据可查；若 SDK 或播放实现改变，必须重新执行受影响的自动化检查。
+- [x] 首次连接覆盖后端地址测试、bootstrap token、登录以及换地址后的 Asset Store/字幕/快照清理；对应 AC-133 至 AC-135。
 
 ## Definition of Ready
 
-- [ ] TASK-213、TASK-302 至 TASK-311 已实现并评审，签名 HAP 构建产物可检查。
-- [ ] AC-131 的 API 24 SDK/fixture 证据可查且没有关键失败。
-- [ ] Windows 跨端状态 fixture 和 Fake 后端已准备，不要求 API 24 测试设备。
+- [x] TASK-213、TASK-302 至 TASK-311 已实现并评审，签名 HAP 构建产物可检查。
+- [x] AC-131 的 API 24 SDK/fixture 证据可查且没有关键失败。
+- [x] Windows 跨端状态 fixture 和 Fake 后端已准备，不要求 API 24 测试设备。
 
 ## 技术上下文
 
@@ -63,9 +63,9 @@ provides: [HarmonyOS E2E suite, cross-platform state evidence]
 
 ## Definition of Done
 
-- [ ] Fake HarmonyOS E2E 全部通过，默认套件无真实外部访问。
-- [ ] AC-003、AC-132 有跨端与故障隔离证据。
-- [ ] AC-131 的 API 24 SDK/fixture 证据仍有效，HarmonyOS 完成门禁标记为 passed。
+- [x] Fake HarmonyOS E2E 全部通过，默认套件无真实外部访问。
+- [x] AC-003、AC-132 有跨端与故障隔离证据。
+- [x] AC-131 的 API 24 SDK/fixture 证据仍有效，HarmonyOS 完成门禁标记为 passed。
 
 **依赖**: TASK-213, TASK-302..TASK-311
 

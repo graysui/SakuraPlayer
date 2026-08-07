@@ -1,0 +1,144 @@
+{
+  "movies": [
+    {
+      "id": "m1",
+      "number": "ABC-001",
+      "title": "跨端目录影片一",
+      "title_original": null,
+      "cover_url": null,
+      "publish_date": "2026-01-01",
+      "labels": ["subtitle"],
+      "favorite": true,
+      "source_count": 2,
+      "progress": { "position_seconds": 90, "duration_seconds": 150, "completed": false, "version": 3 }
+    },
+    {
+      "id": "m2",
+      "number": "DEF-002",
+      "title": "跨端目录影片二",
+      "title_original": null,
+      "cover_url": null,
+      "publish_date": "2026-01-02",
+      "labels": [],
+      "favorite": false,
+      "source_count": 1,
+      "progress": { "position_seconds": 0, "duration_seconds": 0, "completed": true, "version": 5 }
+    },
+    {
+      "id": "m3",
+      "number": "GHI-003",
+      "title": "跨端目录影片三",
+      "title_original": null,
+      "cover_url": null,
+      "publish_date": null,
+      "labels": ["4k"],
+      "favorite": false,
+      "source_count": 0,
+      "progress": null
+    }
+  ],
+  "rankings": [
+    {
+      "board": "daily",
+      "items": [
+        {
+          "rank": 1,
+          "movie": {
+            "id": "m1",
+            "number": "ABC-001",
+            "title": "跨端目录影片一",
+            "title_original": null,
+            "cover_url": null,
+            "publish_date": "2026-01-01",
+            "labels": ["subtitle"],
+            "favorite": true,
+            "source_count": 2,
+            "progress": { "position_seconds": 90, "duration_seconds": 150, "completed": false, "version": 3 }
+          }
+        }
+      ],
+      "next_cursor": null
+    },
+    {
+      "board": "top250",
+      "items": [
+        {
+          "rank": 1,
+          "movie": {
+            "id": "m2",
+            "number": "DEF-002",
+            "title": "跨端目录影片二",
+            "title_original": null,
+            "cover_url": null,
+            "publish_date": "2026-01-02",
+            "labels": [],
+            "favorite": false,
+            "source_count": 1,
+            "progress": { "position_seconds": 0, "duration_seconds": 0, "completed": true, "version": 5 }
+          }
+        }
+      ],
+      "next_cursor": null
+    }
+  ],
+  "actors": [
+    {
+      "id": "a1",
+      "display_name": "跨端女优一",
+      "name_ja": "アクター1",
+      "name_zh": "跨端女优一",
+      "aliases": ["别名一"],
+      "profile_url": null,
+      "favorite": true
+    },
+    {
+      "id": "a2",
+      "display_name": "跨端女优二",
+      "name_ja": "アクター2",
+      "name_zh": "跨端女优二",
+      "aliases": [],
+      "profile_url": null,
+      "favorite": false
+    }
+  ],
+  "favorites": {
+    "movie_ids": ["m1"],
+    "actor_ids": ["a1"]
+  },
+  "cache_jobs": [
+    {
+      "id": "10000000-0000-0000-0000-0000000000c1",
+      "movie_id": "m1",
+      "source_id": "10000000-0000-0000-0000-000000000001",
+      "status": "ready",
+      "remote_percent": 100,
+      "error_code": null,
+      "media_candidates": [],
+      "selected_media_ids": [],
+      "subtitles": [],
+      "ready_at": "2026-08-06T00:00:00Z",
+      "expires_at": "2026-08-07T00:00:00Z",
+      "created_at": "2026-08-05T00:00:00Z",
+      "updated_at": "2026-08-06T00:00:00Z"
+    },
+    {
+      "id": "10000000-0000-0000-0000-0000000000c2",
+      "movie_id": "m2",
+      "source_id": "10000000-0000-0000-0000-000000000002",
+      "status": "cleaned",
+      "remote_percent": null,
+      "error_code": null,
+      "media_candidates": [],
+      "selected_media_ids": [],
+      "subtitles": [],
+      "ready_at": null,
+      "expires_at": null,
+      "created_at": "2026-08-05T00:00:00Z",
+      "updated_at": "2026-08-06T00:00:00Z"
+    }
+  ],
+  "progress": [
+    { "movie_id": "m1", "position_seconds": 90, "duration_seconds": 150, "completed": false, "version": 3 },
+    { "movie_id": "m2", "position_seconds": 0, "duration_seconds": 0, "completed": true, "version": 5 }
+  ]
+}

@@ -1,3 +1,4 @@
+import e2ePreflightTest from './E2EPreflight.test';
 import abilityTest from './Ability.test';
 import scaffoldTest from './Scaffold.test';
 import apiClientTest from './ApiClient.test';
@@ -22,8 +23,12 @@ import playerStoreTest from './PlayerStore.test';
 import subtitleCacheTest from './SubtitleCache.test';
 import trackStoreTest from './TrackStore.test';
 import progressStoreTest from './ProgressStore.test';
+import crossPlatformStateTest from './CrossPlatformState.test';
+import failureIsolationTest from './FailureIsolation.test';
+import harmonyUserJourneyTest from './HarmonyUserJourney.test';
 
 export default function testsuite() {
+  e2ePreflightTest();
   abilityTest();
   scaffoldTest();
   apiClientTest();
@@ -48,4 +53,7 @@ export default function testsuite() {
   subtitleCacheTest();
   trackStoreTest();
   progressStoreTest();
+  crossPlatformStateTest();
+  failureIsolationTest();
+  harmonyUserJourneyTest();
 }
