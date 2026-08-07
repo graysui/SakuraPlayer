@@ -91,14 +91,19 @@ def api_context(database_url: str):
             yield client, factory, Path(image_directory)
 
 
-def _movie(number: str, *, state: str = "core_ready") -> Movie:
+def _movie(
+    number: str,
+    *,
+    state: str = "core_ready",
+    release_date: date = date(2026, 1, 1),
+) -> Movie:
     return Movie(
         id=uuid.uuid4(),
         normalized_number=number,
         raw_numbers=[number],
         title_original=f"Needle title {number}",
         title_zh=f"Translated {number}",
-        release_date=date(2026, 1, 1),
+        release_date=release_date,
         catalog_state=state,
         created_at=NOW,
         updated_at=NOW,
@@ -150,7 +155,7 @@ def test_postgres_catalog_filters_cursor_details_and_images_are_safe(
     api_context,
 ) -> None:
     client, factory, image_root = api_context
-    first = _movie("ABP-101")
+    first = _movie("ABP-101", release_date=date(2026, 1, 2))
     second = _movie("ABP-102")
     hidden = _movie("ABP-103", state="raw_only")
     first_subtitle = _source(
