@@ -204,8 +204,8 @@
 | `AC-077` | `[I]` | `REQ-015` | `TASK-011`, `TASK-204`, `TASK-206`, `TASK-207`, `TASK-304`, `TASK-306`, `TASK-307` |
 | `AC-078` | `[I]` | `REQ-015` | `TASK-011`, `TASK-207`, `TASK-307` |
 | `AC-079` | `[I]` | `REQ-016` | `TASK-102` |
-| `AC-080` | `[I]` | `REQ-016` | `TASK-102` |
-| `AC-081` | `[I]` | `REQ-016` | `TASK-102` |
+| `AC-080` | `[I]` | `REQ-016` | `TASK-102`, `TASK-330` |
+| `AC-081` | `[I]` | `REQ-016` | `TASK-102`, `TASK-330` |
 | `AC-082` | `[I]` | `REQ-016` | `TASK-102` |
 | `AC-083` | `[I]` | `REQ-017` | `TASK-103`, `TASK-315` |
 | `AC-084` | `[I]` | `REQ-017` | `TASK-103`, `TASK-104`, `TASK-209`, `TASK-309` |
@@ -375,3 +375,8 @@ TASK-329 的 AC-097/AC-122 映射受
 REQ-CHG-335 约束并修订 REQ-CHG-332：`cloud115_operation_busy` 不再转 `cleanup_failed`，
 保持 `cleaning`、释放 claim 按 `updated_at` 轮转重试直到 115 删除队列完成后收敛；
 它修复既有 AC，不新增产品 AC，当前有效任务总数增至 81。
+
+TASK-330 的 AC-080/AC-081 映射受
+[缓存任务目录名缩短为 10 字符内无连字符](changes/2026-08-07--cache-task-dir-short-name.md) 中
+REQ-CHG-336 约束：新建任务目录名由 `cache-<32hex>` 改为 10 字符十六进制短名，
+既有任务不迁移；它修复既有 AC，不新增产品 AC，当前有效任务总数增至 82。

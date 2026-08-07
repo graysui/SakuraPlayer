@@ -529,7 +529,7 @@ superseded 快照。空或全无效候选不激活，新同步失败不改变 cu
 | `account_key` | varchar(128) | 创建时快照 | AC-080/081 |
 | `cache_root_cid` | varchar(64) | 创建时快照 | AC-080/081 |
 | `task_dir_cid` | varchar(64) | 提交前创建，可空 | AC-080/081 |
-| `task_dir_name` | varchar(128) | 随机且不可由标题控制 | `(derived)` |
+| `task_dir_name` | varchar(128) | 随机且不可由标题控制；新建任务为 10 字符十六进制短名（REQ-CHG-336） | `(derived)` |
 | `remote_info_hash` | varchar(128) | 115 远端任务 ID，可空 | `(derived)` |
 | `submit_started_at` | timestamptz | 可空；外部提交前持久化，非空后禁止自动重提 | `(derived)` |
 | `remote_percent` | numeric(5,2) | 0..100 | `(derived)` |

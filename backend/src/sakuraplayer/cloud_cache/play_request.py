@@ -39,6 +39,24 @@ from sakuraplayer.resources.source_submission import (
 )
 
 _IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9._~-]{16,128}$")
+
+
+def _unique_task_dir_name(session: Session, binding_id: uuid.UUID) -> str:
+    """生成同 binding（115 根目录）下唯一的短任务目录名（10 位 hex、无连字符）。
+
+    短名（40 bit 熵）碰撞概率低但非零；`find_or_create_directory` 对同名目录静默复用，
+    碰撞会导致两个任务写入同一 115 目录，故创建时按 binding 查重并重试。
+    """
+    while True:
+        candidate = uuid.uuid4().hex[:10]
+        exists = session.scalar(
+            select(CacheJob.id).where(
+                CacheJob.binding_id == binding_id,
+                CacheJob.task_dir_name == candidate,
+            )
+        )
+        if exists is None:
+            return candidate
 _ACTIVE_STATUSES = (
     "queued",
     "submitting",
@@ -214,7 +232,7 @@ class PlayRequestService:
                 capacity_class=capacity_class,
                 account_key=binding.account_key,
                 cache_root_cid=binding.cache_root_cid,
-                task_dir_name=f"cache-{uuid.uuid4().hex}",
+                task_dir_name=_unique_task_dir_name(session, binding.id),
                 remote_percent=0,
                 created_at=now,
                 updated_at=now,

@@ -159,6 +159,26 @@ def test_fixed_two_running_and_ten_queued_then_queue_full(context) -> None:
         )
 
 
+def test_new_job_task_dir_name_is_short_hex_without_dashes(context) -> None:
+    factory, service, _ = context
+    movie_id, source_id = _sources(factory)[0]
+
+    created = service.create(
+        movie_id=movie_id,
+        source_id=source_id,
+        idempotency_key=_key(99),
+    )
+
+    assert created.disposition == "started"
+    with factory() as session:
+        job = session.get(CacheJob, created.job.id)
+        assert job is not None
+        name = job.task_dir_name
+        assert len(name) == 10
+        assert "-" not in name
+        assert all(c in "0123456789abcdef" for c in name)
+
+
 def test_same_source_with_different_keys_reuses_job_and_persists_both_requests(
     context,
 ) -> None:
