@@ -2,9 +2,9 @@
 
 **更新时间**: 2026-08-07
 
-**当前阶段**: TASK-328 completed：缓存清理删除韧性（REQ-CHG-331/332：115 删除互斥忙
-`cloud115_operation_busy` 退避重试、"已删除"幂等成功）、offline poll 按 `(info_hash, task_cid)` 目录定位
-（REQ-CHG-333）、Windows 一键清理所有缓存（REQ-CHG-334）与 in-flight 转圈修复。
+**当前阶段**: TASK-329 completed：清理 busy 不失败（REQ-CHG-335 修订 REQ-CHG-332）——
+`cloud115_operation_busy` 保持 `cleaning`、释放 claim 按 `updated_at` 轮转重试（上限
+`_BUSY_MAX_ATTEMPTS=60`），不再因 115 删除互斥繁忙批量 `cleanup_failed`。
 下一步 TASK-314（HarmonyOS 客户端清理，可选）。
 
 ## 1. 当前成果
@@ -251,13 +251,12 @@
 
 ## 1.1 当前任务门禁状态
 
-- **当前任务门禁阶段**: TASK-328 completed；Focused 139+30、Windows 10 项、Fast `956 passed, 11 deselected`；
-  Final 通过，PostgreSQL integration/E2E 全绿。
-- **最近绿色快速门禁**: 后端自包含 `956 passed, 11 deselected`；Ruff 全仓 check、`flutter analyze`、
-  `git diff --check` 通过；Windows 缓存页测试 10 项通过。
-- **最终门禁状态**: 自包含 `956 passed, 11 deselected`；PostgreSQL integration/E2E 全绿（Final 通过）；
-  既有 TASK-011 影片列表 p95 613.8ms 未满足 500ms 门禁，用户已明确接受该性能例外并要求不重跑；
-  临时 Compose 资源已清理。
+- **当前任务门禁阶段**: TASK-329 completed；Focused 11、Fast `958 passed, 11 deselected`；
+  busy 轮转重试修复完成（未重跑完整 Compose，记录例外：仅领域逻辑与单测，无 Schema 变化）。
+- **最近绿色快速门禁**: 后端自包含 `958 passed, 11 deselected`；Ruff 全仓 check、`git diff --check` 通过。
+- **最终门禁状态**: 自包含 `958 passed, 11 deselected`；最近一次完整 Final 为 v1.0.6 发布（PostgreSQL
+  integration/E2E 全绿）；既有 TASK-011 影片列表 p95 613.8ms 未满足 500ms 门禁，用户已明确接受
+  该性能例外并要求不重跑；临时 Compose 资源已清理。
 - **执行流程**: 采用 [统一实施与验证工作流](implementation-workflow.md)，先 Focused/Fast，再只读审计，最后 Final；不使用 Superpowers 插件或 `superpowers:*` 技能，复杂任务继续使用 `planning-with-files-zh`。
 
 ## 2. Git 状态基线
@@ -274,7 +273,7 @@ fcf8bdf 文档：拆分 SakuraPlayer v1 实施任务与追踪矩阵
 
 ## 3. 恢复状态
 
-- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322、TASK-323、TASK-324、TASK-325、TASK-301、TASK-302、TASK-303、TASK-304、TASK-305、TASK-306、TASK-307、TASK-308、TASK-326、TASK-309、TASK-310、TASK-311、TASK-313、TASK-327、TASK-328。
+- **已完成任务**: TASK-001、TASK-002、TASK-003、TASK-004、TASK-005、TASK-006、TASK-007、TASK-008、TASK-009、TASK-010、TASK-011、TASK-012、TASK-013、TASK-014、TASK-015、TASK-101、TASK-102、TASK-103、TASK-104、TASK-105、TASK-106、TASK-107、TASK-108、TASK-109、TASK-110、TASK-111、TASK-112、TASK-113、TASK-114、TASK-201、TASK-202、TASK-203、TASK-204、TASK-205、TASK-206、TASK-207、TASK-208、TASK-209、TASK-210、TASK-211、TASK-212、TASK-213、TASK-214、TASK-215、TASK-216、TASK-217、TASK-218、TASK-219、TASK-220、TASK-221、TASK-222、TASK-223、TASK-224、TASK-225、TASK-226、TASK-227、TASK-315、TASK-316、TASK-317、TASK-318、TASK-319、TASK-320、TASK-321、TASK-322、TASK-323、TASK-324、TASK-325、TASK-301、TASK-302、TASK-303、TASK-304、TASK-305、TASK-306、TASK-307、TASK-308、TASK-326、TASK-309、TASK-310、TASK-311、TASK-313、TASK-327、TASK-328、TASK-329。
 - **下一任务**: TASK-314（HarmonyOS 客户端清理 specs-code-cleanup，可选；依赖 TASK-313）。
 - **当前阻塞项**: 无。Python 3.10.16、Ruff 0.16.0 和测试依赖由锁定 Docker test image 提供，不依赖宿主 Python。
 - **未完成外部门禁**: TASK-317 首发外部门禁和 TASK-213/AC-130 Windows 真实 115 门禁已完成；HarmonyOS 不再设置 API 24 物理真机外部门禁。

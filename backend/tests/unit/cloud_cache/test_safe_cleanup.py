@@ -181,10 +181,129 @@ def test_busy_delete_is_retried_with_backoff_then_succeeds(monkeypatch) -> None:
     assert _status(factory, job_id) == "cleaned"
 
 
-def test_persistent_busy_delete_fails_after_retries(monkeypatch) -> None:
+def test_persistent_busy_delete_releases_claim_and_retries_until_success(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(
         "sakuraplayer.cloud_cache.cleanup._BUSY_RETRY_DELAY",
         timedelta(seconds=0),
+    )
+    factory, job_id = _context()
+    busy = FakeCloud115(
+        directory_infos=[_root(), _task()],
+        delete_results=[
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+        ],
+    )
+
+    # 第一轮：3 次短退避耗尽后释放 claim，任务保持 cleaning（不转 cleanup_failed）。
+    _worker(factory, busy).run_once(worker_id="cleanup-1")
+    assert _status(factory, job_id) == "cleaning"
+    with factory() as session:
+        job = session.get(CacheJob, job_id)
+        assert job.claim_owner is None
+
+    # 115 删除队列恢复：重新 claim 后删除成功，任务证明式终结。
+    recovered = FakeCloud115(
+        directory_infos=[_root(), _task()],
+        delete_results=[None],
+    )
+    _worker(factory, recovered).run_once(worker_id="cleanup-1")
+    assert _status(factory, job_id) == "cleaned"
+
+    with factory() as session:
+        attempts = tuple(
+            session.scalars(
+                select(CacheCleanupAttempt)
+                .where(CacheCleanupAttempt.cache_job_id == job_id)
+                .order_by(CacheCleanupAttempt.attempt_no)
+            )
+        )
+        assert [(item.attempt_no, item.status) for item in attempts] == [
+            (1, "failed"),
+            (2, "succeeded"),
+        ]
+
+
+def test_delete_missing_target_is_idempotent_success() -> None:
+    factory, job_id = _context()
+    fake = FakeCloud115(
+        directory_infos=[_root(), _task()],
+        delete_results=[Cloud115Problem("cloud115_file_not_found")],
+    )
+
+    _worker(factory, fake).run_once(worker_id="cleanup-1")
+
+    assert _status(factory, job_id) == "cleaned"
+
+
+def test_busy_release_rotates_across_multiple_jobs(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sakuraplayer.cloud_cache.cleanup._BUSY_RETRY_DELAY",
+        timedelta(seconds=0),
+    )
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    job_a = _job_with(factory, "task-a", "cache-a")
+    job_b = _job_with(factory, "task-b", "cache-b")
+    clock = {"now": NOW}
+    queue = CleanupQueue(factory, now=lambda: clock["now"])
+    assert queue.request(job_a).status == "cleaning"
+    clock["now"] += timedelta(seconds=1)
+    assert queue.request(job_b).status == "cleaning"
+    fake = FakeCloud115(
+        directory_infos=[
+            _root(),
+            _task("task-a", "cache-a"),
+            _root(),
+            _task("task-b", "cache-b"),
+        ],
+        delete_results=[
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+            Cloud115Problem("cloud115_operation_busy"),
+        ],
+    )
+    worker = CleanupWorker(queue, _scope(fake))
+
+    # 第一轮 claim job_a（updated_at 最早），busy 重试耗尽后 release 排到队尾。
+    clock["now"] += timedelta(seconds=2)
+    assert worker.run_once(worker_id="cleanup-1") == "worked"
+    # 第二轮 claim job_b（updated_at 早于刚释放的 job_a）。
+    clock["now"] += timedelta(seconds=2)
+    assert worker.run_once(worker_id="cleanup-1") == "worked"
+
+    # 两个 busy 任务都保持 cleaning 且释放 claim，attempt 记录 busy 码以区分真实失败。
+    with factory() as session:
+        for job_id in (job_a, job_b):
+            job = session.get(CacheJob, job_id)
+            assert job.status == "cleaning"
+            assert job.claim_owner is None
+        attempts = tuple(session.scalars(select(CacheCleanupAttempt)))
+        assert sorted(
+            (a.cache_job_id, a.status, a.failure_code) for a in attempts
+        ) == sorted(
+            [
+                (job_a, "failed", "cloud115_operation_busy"),
+                (job_b, "failed", "cloud115_operation_busy"),
+            ]
+        )
+
+
+def test_busy_over_max_attempts_fails_after_rotation(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sakuraplayer.cloud_cache.cleanup._BUSY_RETRY_DELAY",
+        timedelta(seconds=0),
+    )
+    monkeypatch.setattr(
+        "sakuraplayer.cloud_cache.cleanup._BUSY_MAX_ATTEMPTS",
+        1,
     )
     factory, job_id = _context()
     fake = FakeCloud115(
@@ -199,18 +318,6 @@ def test_persistent_busy_delete_fails_after_retries(monkeypatch) -> None:
     _worker(factory, fake).run_once(worker_id="cleanup-1")
 
     assert _status(factory, job_id) == "cleanup_failed"
-
-
-def test_delete_missing_target_is_idempotent_success() -> None:
-    factory, job_id = _context()
-    fake = FakeCloud115(
-        directory_infos=[_root(), _task()],
-        delete_results=[Cloud115Problem("cloud115_file_not_found")],
-    )
-
-    _worker(factory, fake).run_once(worker_id="cleanup-1")
-
-    assert _status(factory, job_id) == "cleaned"
 
 
 def _worker(factory, fake: FakeCloud115) -> CleanupWorker:
@@ -229,6 +336,11 @@ def _context() -> tuple[sessionmaker, uuid.UUID]:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
+    job_id = _job_with(factory, "task-cid", "cache-task")
+    return factory, job_id
+
+
+def _job_with(factory: sessionmaker, task_cid: str, task_name: str) -> uuid.UUID:
     job_id = uuid.uuid4()
     with factory.begin() as session:
         session.add(
@@ -241,8 +353,8 @@ def _context() -> tuple[sessionmaker, uuid.UUID]:
                 capacity_class="ready",
                 account_key="account",
                 cache_root_cid="root-cid",
-                task_dir_cid="task-cid",
-                task_dir_name="cache-task",
+                task_dir_cid=task_cid,
+                task_dir_name=task_name,
                 remote_percent=100,
                 ready_at=NOW - timedelta(days=2),
                 last_accessed_at=NOW - timedelta(days=2),
@@ -251,7 +363,7 @@ def _context() -> tuple[sessionmaker, uuid.UUID]:
                 updated_at=NOW - timedelta(days=2),
             )
         )
-    return factory, job_id
+    return job_id
 
 
 def _root() -> DirectoryInfo:
@@ -263,11 +375,14 @@ def _root() -> DirectoryInfo:
     )
 
 
-def _task() -> DirectoryInfo:
+def _task(
+    cid: str = "task-cid",
+    name: str = "cache-task",
+) -> DirectoryInfo:
     return DirectoryInfo(
-        cid="task-cid",
+        cid=cid,
         parent_cid="root-cid",
-        name="cache-task",
+        name=name,
         path=(DirectoryBreadcrumb("root-cid", "SakuraPlayer-Cache"),),
     )
 

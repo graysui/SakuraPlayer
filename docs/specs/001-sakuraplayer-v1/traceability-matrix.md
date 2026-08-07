@@ -221,7 +221,7 @@
 | `AC-094` | `[I]` | `REQ-018` | `TASK-107`, `TASK-208`, `TASK-308` |
 | `AC-095` | `[I]` | `REQ-018` | `TASK-107` |
 | `AC-096` | `[I]` | `REQ-018` | `TASK-107` |
-| `AC-097` | `[I]` | `REQ-018` | `TASK-104`, `TASK-107`, `TASK-327`, `TASK-328` |
+| `AC-097` | `[I]` | `REQ-018` | `TASK-104`, `TASK-107`, `TASK-327`, `TASK-328`, `TASK-329` |
 | `AC-098` | `[I]` | `REQ-018` | `TASK-107` |
 | `AC-099` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
 | `AC-100` | `[I]` | `REQ-019` | `TASK-108`, `TASK-210`, `TASK-310` |
@@ -246,7 +246,7 @@
 | `AC-119` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-308`, `TASK-315`, `TASK-325` |
 | `AC-120` | `[I]` | `REQ-022` | `TASK-003`, `TASK-013`, `TASK-208`, `TASK-308`, `TASK-318` |
 | `AC-121` | `[I]` | `REQ-022` | `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-216`, `TASK-217`, `TASK-218`, `TASK-222`, `TASK-308` |
-| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-227`, `TASK-308`, `TASK-328` |
+| `AC-122` | `[I]` | `REQ-022` | `TASK-007`, `TASK-013`, `TASK-112`, `TASK-208`, `TASK-215`, `TASK-218`, `TASK-222`, `TASK-227`, `TASK-308`, `TASK-328`, `TASK-329` |
 | `AC-123` | `[I]` | `REQ-023` | `TASK-001`, `TASK-317`, `TASK-318` |
 | `AC-124` | `[I]` | `REQ-023` | `TASK-001` |
 | `AC-125` | `[I]` | `REQ-023` | `TASK-001` |
@@ -366,6 +366,12 @@ REQ-CHG-330 约束并修订 REQ-CHG-273：用户确认取消 `submit_uncertain` 
 
 TASK-328 的 AC-086/AC-097/AC-122 映射受
 [缓存清理删除韧性、poll 目录定位与客户端转圈修复](changes/2026-08-07--cache-cleanup-delete-resilience.md) 中
-REQ-CHG-331 至 REQ-CHG-333 约束：删除互斥忙（990009/990019/990005）映射 `cloud115_operation_busy`
-并退避重试、"已删除"类 errno 幂等成功、poll 按 `(info_hash, task_cid)` 定位、Windows 在途状态刷新后清除；
-它修复既有 AC，不新增产品 AC，当前有效任务总数增至 80。
+REQ-CHG-331 至 REQ-CHG-334 约束：删除互斥忙（990009/990019/990005）映射 `cloud115_operation_busy`
+并退避重试、"已删除"类 errno 幂等成功、poll 按 `(info_hash, task_cid)` 定位、Windows 在途状态刷新后清除
+并新增一键清理；它修复既有 AC，不新增产品 AC，当前有效任务总数增至 80。
+
+TASK-329 的 AC-097/AC-122 映射受
+[清理 busy 不失败、释放 claim 轮转重试](changes/2026-08-07--cleanup-busy-release-retry.md) 中
+REQ-CHG-335 约束并修订 REQ-CHG-332：`cloud115_operation_busy` 不再转 `cleanup_failed`，
+保持 `cleaning`、释放 claim 按 `updated_at` 轮转重试直到 115 删除队列完成后收敛；
+它修复既有 AC，不新增产品 AC，当前有效任务总数增至 81。

@@ -39,6 +39,9 @@ DEFAULT_CLEANUP_CLAIM_LEASE = timedelta(minutes=2)
 # 后续删除返回 cloud115_operation_busy，短暂退避重试即可收敛。
 _BUSY_RETRIES = 3
 _BUSY_RETRY_DELAY = timedelta(seconds=5)
+# busy 轮转重试上限：超过后转 cleanup_failed 供用户可见并手动重试，防止 115 删除队列
+# 长期不收敛时任务永久占 cleaning/就绪容量。
+_BUSY_MAX_ATTEMPTS = 60
 _MATERIALIZED = (
     CacheJobStatus.AWAITING_SELECTION.value,
     CacheJobStatus.READY.value,
@@ -60,6 +63,7 @@ class CleanupClaimLost(RuntimeError):
 class CleanupClaim:
     job_id: uuid.UUID
     attempt_id: uuid.UUID
+    attempt_no: int
     binding_id: uuid.UUID
     account_key: str
     cache_root_cid: str
@@ -327,6 +331,23 @@ class CleanupQueue:
                     },
                 )
 
+    def release(self, claim: CleanupClaim) -> None:
+        """保持任务 cleaning、清除 claim、把 updated_at 置为当前时间，并终结本轮 attempt。
+
+        claim_next 对 CLEANING 任务按 updated_at ASC 排序，刚释放的任务排到队尾，
+        实现多个 busy 任务公平轮转；attempt 以 `cloud115_operation_busy` 记为 failed，
+        与真实失败区分并保留重试证据，下次 claim 直接新建 attempt。
+        """
+        current = self._now()
+        with self._session_factory.begin() as session:
+            job, attempt = self._claimed(session, claim, current)
+            _clear_claim(job)
+            attempt.status = "failed"
+            attempt.failure_code = "cloud115_operation_busy"
+            attempt.finished_at = current
+            job.updated_at = current
+            session.flush()
+
     def detach(
         self,
         claim: CleanupClaim,
@@ -456,6 +477,18 @@ class CleanupWorker:
                     claim,
                     ownership_evidence=ownership_evidence(claim),
                 )
+            elif error.code == "cloud115_operation_busy":
+                # 115 删除/还原/移动互斥繁忙（p115client 参考）：暂时性错误，不立即 fail。
+                # 保持 cleaning、释放 claim 按 updated_at 轮转，由后续 claim 继续重试；
+                # 超过轮转上限（115 队列长期不收敛）才转 cleanup_failed 供用户干预。
+                if claim.attempt_no >= _BUSY_MAX_ATTEMPTS:
+                    self._queue.fail(
+                        claim,
+                        failure_code="cache_cleanup_failed",
+                        ownership_evidence=evidence,
+                    )
+                else:
+                    self._queue.release(claim)
             else:
                 self._queue.fail(
                     claim,
@@ -536,6 +569,7 @@ def _claim(job: CacheJob, attempt: CacheCleanupAttempt) -> CleanupClaim:
     return CleanupClaim(
         job_id=job.id,
         attempt_id=attempt.id,
+        attempt_no=attempt.attempt_no,
         binding_id=job.binding_id,
         account_key=job.account_key,
         cache_root_cid=job.cache_root_cid,
