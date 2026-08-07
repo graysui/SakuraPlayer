@@ -19,6 +19,9 @@ import playRequestStoreTest from './PlayRequestStore.test';
 import blockingWaitPageTest from './BlockingWaitPage.test';
 import seekCoordinatorTest from './SeekCoordinator.test';
 import playerStoreTest from './PlayerStore.test';
+import subtitleCacheTest from './SubtitleCache.test';
+import trackStoreTest from './TrackStore.test';
+import progressStoreTest from './ProgressStore.test';
 
 export default function testsuite() {
   abilityTest();
@@ -42,4 +45,7 @@ export default function testsuite() {
   blockingWaitPageTest();
   seekCoordinatorTest();
   playerStoreTest();
+  subtitleCacheTest();
+  trackStoreTest();
+  progressStoreTest();
 }

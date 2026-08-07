@@ -68,6 +68,7 @@ export class SnapshotStore {
   private lastEventId: string | null = null;
   private readonly seenEventIds: string[] = [];
   private readonly cacheJobs: Map<string, CacheJob> = new Map();
+  private readonly cacheCleanedListeners: ((cacheJobId: string) => void)[] = [];
   private readonly metadataJobIds: string[] = [];
   private readonly notifications: Map<string, Notification> = new Map();
   private readonly resourceVersions: Map<string, number> = new Map();
@@ -85,6 +86,20 @@ export class SnapshotStore {
 
   get cursor(): string | null {
     return this.lastEventId;
+  }
+
+  /** cache.job.cleaned.v1：订阅者执行字幕按 job 清理（TASK-311 接线）。 */
+  addCacheCleanedListener(listener: (cacheJobId: string) => void): void {
+    if (!this.cacheCleanedListeners.includes(listener)) {
+      this.cacheCleanedListeners.push(listener);
+    }
+  }
+
+  removeCacheCleanedListener(listener: (cacheJobId: string) => void): void {
+    const index = this.cacheCleanedListeners.indexOf(listener);
+    if (index >= 0) {
+      this.cacheCleanedListeners.splice(index, 1);
+    }
   }
 
   get cacheJobList(): CacheJob[] {
@@ -191,7 +206,14 @@ export class SnapshotStore {
         if (base === undefined) {
           return false;
         }
-        this.cacheJobs.set(base.id, CacheJob.mergePatch(base, new JsonReader(resource)));
+        const updated = CacheJob.mergePatch(base, new JsonReader(resource));
+        this.cacheJobs.set(base.id, updated);
+        if (updated.status === 'cleaned' && base.status !== 'cleaned') {
+          // 任务被清理：通知订阅者按 job 删除字幕副本（AC-110）
+          for (const listener of this.cacheCleanedListeners) {
+            listener(base.id);
+          }
+        }
         return true;
       }
       if (envelope.stream === 'notification') {

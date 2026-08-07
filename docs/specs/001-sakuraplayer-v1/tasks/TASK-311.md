@@ -28,17 +28,17 @@ provides: [HarmonyOS subtitle cache, track controls, progress heartbeat]
 
 ## 验收条件
 
-- [ ] 枚举内嵌字幕/音轨并提供字幕、音轨、倍速、全屏、进度；对应 AC-107、AC-114。
-- [ ] srt/ass/ssa/vtt 下载到 app cacheDir，同名优先、多个切换，失败不阻止视频；对应 AC-108、AC-109。
-- [ ] cache cleaned/logout/local expiry 删除对应副本；对应 AC-110。
-- [ ] 影片级进度跨端、自动续播无选择框、95%/2min 完成后从头；对应 AC-111 至 AC-113。
-- [ ] 卡片/播放按钮状态更新；对应 AC-068。
+- [x] 枚举内嵌字幕/音轨并提供字幕、音轨、倍速、全屏、进度；对应 AC-107、AC-114。
+- [x] srt/ass/ssa/vtt 下载到 app cacheDir，同名优先、多个切换，失败不阻止视频；对应 AC-108、AC-109。
+- [x] cache cleaned/logout/local expiry 删除对应副本；对应 AC-110。
+- [x] 影片级进度跨端、自动续播无选择框、95%/2min 完成后从头；对应 AC-111 至 AC-113。
+- [x] 卡片/播放按钮状态更新；对应 AC-068。
 
 ## Definition of Ready
 
-- [ ] TASK-310 API 24 fixture player checks 通过，TASK-110/111 后端契约可用。
-- [ ] AC-131 已通过 SDK 签名和 fixture 证明 MKV + ASS；若缺少官方 external subtitle API 则阻断。
-- [ ] cacheDir 文件名只使用 subtitle UUID，避免路径穿越。
+- [x] TASK-310 API 24 fixture player checks 通过，TASK-110/111 后端契约可用。
+- [x] AC-131 已通过 SDK 签名和 fixture 证明 MKV + ASS；若缺少官方 external subtitle API 则阻断。
+- [x] cacheDir 文件名只使用 subtitle UUID，避免路径穿越。
 - [x] heartbeat/flush 与 expected-version 冲突处理由 TASK-111 变更规格确定。
 
 ## 技术上下文
@@ -67,9 +67,9 @@ provides: [HarmonyOS subtitle cache, track controls, progress heartbeat]
 
 ## Definition of Done
 
-- [ ] 字幕、轨道、倍速、进度和生命周期完成。
-- [ ] 私有缓存无额外权限且 listener 无泄漏。
-- [ ] 关键 AVPlayer 能力有 API 24 SDK 签名和自动化 fixture 证据，不要求真实设备证据。
+- [x] 字幕、轨道、倍速、进度和生命周期完成。
+- [x] 私有缓存无额外权限且 listener 无泄漏。
+- [x] 关键 AVPlayer 能力有 API 24 SDK 签名和自动化 fixture 证据，不要求真实设备证据。
 
 **依赖**: TASK-310, TASK-110, TASK-111
 

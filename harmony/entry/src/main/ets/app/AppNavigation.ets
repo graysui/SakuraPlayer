@@ -22,6 +22,7 @@ import { SettingsPage } from '../features/settings/SettingsPage';
 import { DiagnosticsPage } from '../features/settings/DiagnosticsPage';
 import { CachePage } from '../features/cache/CachePage';
 import { BlockingWaitPage } from '../features/cache/BlockingWaitPage';
+import { SubtitleCache } from '../core/storage/SubtitleCache';
 import { PlayerPage } from '../features/playback/PlayerPage';
 import { actorsStore } from '../features/actors/ActorsStore';
 
@@ -127,11 +128,22 @@ export struct AppNavigation {
   private pathStack: NavPathStack = new NavPathStack();
   @State showSearch: boolean = false;
 
+  private readonly onCacheCleaned: (cacheJobId: string) => void = (cacheJobId: string): void => {
+    // cache.job.cleaned.v1：按 job 删除字幕副本（AC-110；不影响永久图片缓存）
+    SubtitleCache.removeForJob(getContext(this), cacheJobId).catch(() => {
+      // 清理失败忽略
+    });
+  };
+
   aboutToAppear(): void {
     // 模块级路由 builder 需要 pathStack 转发（ActorDetail 内关联影片 push）
     appNavigationPathStack = this.pathStack;
     // 挂接全局搜索与媒体库/排行榜/女优到认证客户端与事件快照
     searchStore.attach(authStore.apiClientProvider, authStore.snapshotStore);
+    const snapshot = authStore.snapshotStore;
+    if (snapshot !== null) {
+      snapshot.addCacheCleanedListener(this.onCacheCleaned);
+    }
     libraryStore.attach(authStore.apiClientProvider);
     rankingsStore.attach(authStore.apiClientProvider);
     actorsStore.attach(authStore.apiClientProvider);

@@ -151,12 +151,12 @@ export default function playRequestStoreTest() {
 
   it('timeout_after_60s_exits_without_cancel_api', 0, async () => {
     const fixture = new Fixture();
-    fixture.routePlay(202, playResult('started', 'submitting', deadlineIn(1)));
+    fixture.routePlay(202, playResult('started', 'submitting', deadlineIn(2)));
     fixture.store.submit(MOVIE_ID, SOURCE_ID);
     await sleep(200);
     expect(fixture.store.phase).assertEqual(PlayRequestPhase.WAITING);
-    // 等 deadline 过（1s）
-    await sleep(1500);
+    // 等 deadline 过（2s；慢模拟器余量）
+    await sleep(3000);
     expect(fixture.store.phase).assertEqual(PlayRequestPhase.TIMED_OUT);
     expect(fixture.store.remainingSeconds).assertEqual(0);
     // 未调用任何取消 API

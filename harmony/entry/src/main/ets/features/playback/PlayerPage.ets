@@ -11,6 +11,10 @@
 import { window } from '@kit.ArkUI';
 import { authStore } from '../../core/auth/AuthStore';
 import { PlaybackMode, PlayerPhase, PlayerStore } from './PlayerStore';
+import { SubtitleCache } from '../../core/storage/SubtitleCache';
+import { TrackInfo, TrackStore } from './TrackStore';
+import { ProgressStore } from './ProgressStore';
+import { SubtitleOption } from '../../core/api/ApiModels';
 import { AVPlayerAdapter, AdapterCallbacks } from './AVPlayerAdapter';
 import { PlaybackParam } from '../cache/playRequestCoordinator';
 
@@ -22,11 +26,16 @@ export struct PlayerPage {
 
   private xcompController: XComponentController = new XComponentController();
   private store: PlayerStore = new PlayerStore();
+  private trackStore: TrackStore = new TrackStore();
+  private progressStore: ProgressStore = new ProgressStore();
   private readonly onStoreChanged: () => void = (): void => this.syncFromStore();
+  private readonly onTracksChanged: () => void = (): void => this.syncTracks();
+  private readonly onProgressChanged: () => void = (): void => this.syncProgress();
   private screenOn: boolean = false;
   private orientationLandscape: boolean = false;
   private surfaceLoaded: boolean = false;
   private pageVisible: boolean = true;
+  private adapterRef: AVPlayerAdapter | null = null;
 
   @State phase: PlayerPhase = PlayerPhase.IDLE;
   @State mode: PlaybackMode = PlaybackMode.ORIGINAL;
@@ -38,6 +47,15 @@ export struct PlayerPage {
   @State surfaceReady: boolean = false;
   @State speedMenuOpen: boolean = false;
   @State modeMenuOpen: boolean = false;
+  @State trackMenuOpen: boolean = false;
+  @State embeddedSubtitles: TrackInfo[] = [];
+  @State audioTracks: TrackInfo[] = [];
+  @State externalSubtitles: SubtitleOption[] = [];
+  @State selectedExternalId: string | null = null;
+  @State selectedEmbeddedIndex: number | null = null;
+  @State selectedAudioIndex: number | null = null;
+  @State subtitleError: string | null = null;
+  @State progressCompleted: boolean = false;
 
   aboutToAppear(): void {
     this.store.addChangeListener(this.onStoreChanged);
@@ -46,20 +64,44 @@ export struct PlayerPage {
 
   aboutToDisappear(): void {
     this.store.removeChangeListener(this.onStoreChanged);
+    this.trackStore.removeChangeListener(this.onTracksChanged);
+    this.progressStore.removeChangeListener(this.onProgressChanged);
+    this.progressStore.flush().catch(() => {
+      // flush 失败：停止仍继续
+    });
+    this.progressStore.stop();
     this.store.dispose();
     this.restoreWindow();
   }
 
-  /** 页面隐藏：暂停播放并恢复 keepScreenOn（不申请后台长时播放能力）。 */
+  private syncTracks(): void {
+    this.embeddedSubtitles = this.trackStore.embeddedSubtitles;
+    this.audioTracks = this.trackStore.audioTracks;
+    this.externalSubtitles = this.trackStore.externalSubtitles;
+    this.selectedExternalId = this.trackStore.selectedExternalId;
+    this.selectedEmbeddedIndex = this.trackStore.selectedEmbeddedIndex;
+    this.selectedAudioIndex = this.trackStore.selectedAudioIndex;
+    this.subtitleError = this.trackStore.subtitleError;
+  }
+
+  private syncProgress(): void {
+    this.progressCompleted = this.progressStore.completed;
+  }
+
+  /** 页面隐藏：暂停播放 + 停心跳 flush + 恢复 keepScreenOn（不申请后台长时播放能力）。 */
   onPageHide(): void {
     this.pageVisible = false;
     this.store.pause();
+    this.progressStore.pause();
     this.restoreWindow();
   }
 
   onPageShow(): void {
     this.pageVisible = true;
     // 回前台不自动恢复播放（用户显式操作）；fullscreen 状态由 store 保留
+    if (this.store.phase === PlayerPhase.PLAYING) {
+      this.progressStore.resume();
+    }
   }
 
   private syncFromStore(): void {
@@ -74,6 +116,29 @@ export struct PlayerPage {
   }
 
   /** XComponent surface 就绪：创建 adapter + store 接线 + 进入播放（防重入）。 */
+  /** prepared 后：刷新轨道 + 启动 15 秒心跳 + 字幕本地过期清理。 */
+  private onPlayerPrepared(): void {
+    const session = this.store.session;
+    if (session !== null) {
+      // P1-1：同时保留 adapter 与 manifest（attach(null) 会令轨道枚举全灭）
+      this.trackStore.attach(this.adapterRef, session);
+      this.trackStore.refreshTracks(getContext(this), authStore.apiClientProvider).catch(() => {
+        // 轨道加载失败不阻止播放
+      });
+      // P2-1：进度关联 movie_id（不是 cache_job_id）
+      this.progressStore.attach(authStore.apiClientProvider, session.sessionId, this.mediaId,
+        authStore.clientInstanceId);
+      this.progressStore.start(session.progress);
+      // P1-2：本地副本服务端上限到期（subtitle_cache_expires_at）清理
+      const expiresMs = Date.parse(session.subtitleCacheExpiresAt);
+      if (Number.isNaN(expiresMs) || Date.now() > expiresMs) {
+        SubtitleCache.removeExpired(getContext(this)).catch(() => {
+          // 清理失败忽略
+        });
+      }
+    }
+  }
+
   private onSurfaceLoad(): void {
     if (this.surfaceLoaded) {
       return;
@@ -85,6 +150,7 @@ export struct PlayerPage {
         // 页面隐藏时不得自动开始播放（无后台长时播放能力）
         if (this.pageVisible) {
           this.store.onSurfacePrepared();
+          this.onPlayerPrepared();
         }
       },
       (err: Error): void => {
@@ -92,12 +158,17 @@ export struct PlayerPage {
       },
       (positionMs: number, durationMs: number): void => {
         this.store.onSurfaceTimeUpdate(positionMs, durationMs);
+        this.progressStore.setLatestProgress(positionMs, durationMs);
       },
       (): void => {
         this.store.onSurfaceCompleted();
       }));
+    this.adapterRef = adapter;
     this.store.attach(authStore.apiClientProvider, authStore.serverBaseUrl, adapter,
       authStore.clientInstanceId);
+    this.trackStore.attach(adapter, null);
+    this.trackStore.addChangeListener(this.onTracksChanged);
+    this.progressStore.addChangeListener(this.onProgressChanged);
     this.store.enter(this.cacheJobId, this.mediaId);
   }
 
@@ -112,6 +183,16 @@ export struct PlayerPage {
       return `${h}:${mm}:${ss}`;
     }
     return `${mm}:${ss}`;
+  }
+
+  private onPausePressed(): void {
+    this.store.togglePlayPause();
+    if (this.store.phase === PlayerPhase.PAUSED) {
+      // P1-4：暂停停心跳 + flush（避免心跳 playing=true 重新续租）
+      this.progressStore.pause();
+    } else if (this.store.phase === PlayerPhase.PLAYING) {
+      this.progressStore.resume();
+    }
   }
 
   private toggleFullscreen(): void {
@@ -175,7 +256,7 @@ export struct PlayerPage {
         .enabled(this.phase === PlayerPhase.PLAYING || this.phase === PlayerPhase.PAUSED ||
           this.phase === PlayerPhase.COMPLETED)
         .onClick(() => {
-          this.store.togglePlayPause();
+          this.onPausePressed();
         })
       Text(this.formatTime(this.positionMs))
         .fontSize(12)
@@ -217,6 +298,82 @@ export struct PlayerPage {
     .width('100%')
     .height(44)
     .padding({ left: 8, right: 8 })
+  }
+
+  @Builder
+  trackMenu() {
+    if (this.trackMenuOpen) {
+      Column({ space: 2 }) {
+        Text('字幕')
+          .fontSize(12)
+          .fontColor('#CCFFFFFF')
+          .width(160)
+        Button(this.selectedEmbeddedIndex === null && this.selectedExternalId === null ? '无字幕 ✓' : '无字幕')
+          .fontSize(13)
+          .fontColor('#FFFFFF')
+          .backgroundColor('#33000000')
+          .width(160)
+          .height(34)
+          .onClick(() => {
+            this.trackStore.deselectSubtitle();
+            this.trackMenuOpen = false;
+          })
+        ForEach(this.embeddedSubtitles, (track: TrackInfo) => {
+          Button(this.selectedEmbeddedIndex === track.index ? `${track.label} ✓` : track.label)
+            .fontSize(13)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#33000000')
+            .width(160)
+            .height(34)
+            .onClick(() => {
+              this.trackStore.selectEmbedded(track);
+              this.trackMenuOpen = false;
+            })
+        }, (track: TrackInfo) => `embedded-${track.index}`)
+        ForEach(this.externalSubtitles, (sub: SubtitleOption) => {
+          Button(this.selectedExternalId === sub.id ? `${sub.name} ✓` : sub.name)
+            .fontSize(13)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#33000000')
+            .width(160)
+            .height(34)
+            .onClick(() => {
+              this.trackStore.selectExternal(getContext(this), authStore.apiClientProvider, sub).catch(() => {
+                // 字幕切换失败不阻止视频
+              });
+              this.trackMenuOpen = false;
+            })
+        }, (sub: SubtitleOption) => `external-${sub.id}`)
+        if (this.audioTracks.length > 0) {
+          Text('音轨')
+            .fontSize(12)
+            .fontColor('#CCFFFFFF')
+            .width(160)
+        }
+        ForEach(this.audioTracks, (track: TrackInfo) => {
+          Button(this.selectedAudioIndex === track.index ? `${track.label} ✓` : track.label)
+            .fontSize(13)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#33000000')
+            .width(160)
+            .height(34)
+            .onClick(() => {
+              this.trackStore.selectAudio(track);
+              this.trackMenuOpen = false;
+            })
+        }, (track: TrackInfo) => `audio-${track.index}`)
+        if (this.subtitleError !== null) {
+          Text('字幕加载失败，不影响播放')
+            .fontSize(11)
+            .fontColor('#FFB4A0')
+            .width(160)
+        }
+      }
+      .padding(6)
+      .backgroundColor('#99000000')
+      .borderRadius(8)
+      .position({ x: 100, y: 10 })
+    }
   }
 
   @Builder
@@ -331,6 +488,17 @@ export struct PlayerPage {
         .onClick(() => {
           this.modeMenuOpen = !this.modeMenuOpen;
           this.speedMenuOpen = false;
+          this.trackMenuOpen = false;
+        })
+      Button('轨道')
+        .fontSize(13)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#33FFFFFF')
+        .height(36)
+        .onClick(() => {
+          this.trackMenuOpen = !this.trackMenuOpen;
+          this.speedMenuOpen = false;
+          this.modeMenuOpen = false;
         })
     }
     .width('100%')
@@ -363,6 +531,7 @@ export struct PlayerPage {
       })
       this.speedMenu()
       this.modeMenu()
+      this.trackMenu()
     }
     .width('100%')
     .height('100%')

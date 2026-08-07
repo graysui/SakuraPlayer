@@ -12,8 +12,9 @@ import {
   CacheJobPage,
   Cloud115Binding, ConnectionTest, Diagnostics, EventSnapshot, JsonReader, MetadataJobPage,
   MetadataQueueControl,
-  MetadataRetryResult, MovieDetail, MoviePage, PlaybackManifest, PlayRequestResult,
-  ProtocolException, QrSession,
+  MetadataRetryResult, MovieDetail, MoviePage, PlaybackHeartbeatResult, PlaybackManifest,
+  PlaybackProgress,
+  PlayRequestResult, ProgressUpdateBody, ProtocolException, QrSession, SOURCE_UUID_PATTERN,
   RankingPage,
   SearchResult, Settings, TokenPair,
 } from './ApiModels';
@@ -574,6 +575,60 @@ export class ApiClient {
       throw this.throwForError(response);
     }
     return Cloud115Binding.fromReader(JsonReader.fromText(response.body));
+  }
+
+  /** PUT /playback/sessions/{id}/heartbeat：15 秒心跳（playing=true 续租 + 可选进度 CAS；
+   *  playing=false 结束 lease，AC-111/TASK-111 契约）。 */
+  async heartbeatPlaybackSession(sessionId: string, clientInstanceId: string,
+    progress: string | null, playing: boolean): Promise<PlaybackHeartbeatResult> {
+    const encoded = encodeURIComponent(sessionId);
+    const body: Record<string, Object> = {
+      'client_instance_id': clientInstanceId,
+      'playing': playing,
+    };
+    if (progress !== null) {
+      body['progress'] = JSON.parse(progress) as Object;
+    }
+    const options: RequestOptions = {
+      auth: true,
+      body: JSON.stringify(body),
+    };
+    const response = await this.request(`/playback/sessions/${encoded}/heartbeat`, 'PUT', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return PlaybackHeartbeatResult.fromText(response.body);
+  }
+
+  /** PUT /movies/{id}/progress：影片级进度 expected-version CAS（TASK-111 契约）。 */
+  async updateMovieProgress(movieId: string, progress: ProgressUpdateBody): Promise<PlaybackProgress> {
+    const encoded = encodeURIComponent(movieId);
+    const options: RequestOptions = {
+      auth: true,
+      body: JSON.stringify({
+        'position_seconds': progress.positionSeconds,
+        'duration_seconds': progress.durationSeconds,
+        'version': progress.version,
+      }),
+    };
+    const response = await this.request(`/movies/${encoded}/progress`, 'PUT', options);
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return PlaybackProgress.fromReader(JsonReader.fromText(response.body));
+  }
+
+  /** GET /playback/subtitles/{id}：下载已授权外置字幕文本（AC-108；TASK-110 契约）。 */
+  async downloadSubtitle(subtitleId: string): Promise<string> {
+    if (!SOURCE_UUID_PATTERN.test(subtitleId)) {
+      throw new ProtocolException('subtitle id must be a uuid');
+    }
+    const encoded = encodeURIComponent(subtitleId);
+    const response = await this.request(`/playback/subtitles/${encoded}`, 'GET', { auth: true });
+    if (response.statusCode !== 200) {
+      throw this.throwForError(response);
+    }
+    return response.body;
   }
 
   /** POST /cache-jobs/{id}/playback-sessions：创建 12 小时播放会话（AC-099/101/102）。 */

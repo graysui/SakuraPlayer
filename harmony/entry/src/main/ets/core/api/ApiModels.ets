@@ -858,7 +858,7 @@ export class MovieDetail {
 }
 
 /** 严格 UUID 8-4-4-4-12（MovieSource/MovieDetail.id）。 */
-const SOURCE_UUID_PATTERN: RegExp =
+export const SOURCE_UUID_PATTERN: RegExp =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /** 字符串数组非空且不重复（集合约束辅助）。 */
@@ -2137,5 +2137,49 @@ export class PlaybackManifest {
     return new PlaybackManifest(sessionId, cacheJobId, mode, platform, streamUrl,
       reader.dateTime('expires_at'), reader.dateTime('subtitle_cache_expires_at'),
       userAgent, embeddedTracksSource, mediaQueue, subtitles, progress);
+  }
+}
+
+/** PlaybackHeartbeatResult：PUT /playback/sessions/{id}/heartbeat 响应（TASK-111）。 */
+export class PlaybackHeartbeatResult {
+  readonly leaseExpiresAt: string | null;
+  readonly progress: PlaybackProgress | null;
+
+  constructor(leaseExpiresAt: string | null, progress: PlaybackProgress | null) {
+    this.leaseExpiresAt = leaseExpiresAt;
+    this.progress = progress;
+  }
+
+  static fromText(text: string): PlaybackHeartbeatResult {
+    const reader = JsonReader.fromText(text);
+    const lease = reader.nullableDateTime('lease_expires_at');
+    let progress: PlaybackProgress | null = null;
+    if (reader.has('progress') && reader.nullableObject('progress') !== null) {
+      try {
+        progress = PlaybackProgress.fromReader(new JsonReader(reader.object('progress')));
+      } catch (err) {
+        progress = null;
+      }
+    }
+    return new PlaybackHeartbeatResult(lease, progress);
+  }
+}
+
+/** ProgressUpdateBody：PUT /movies/{id}/progress 请求体（expected-version CAS）。 */
+export class ProgressUpdateBody {
+  readonly positionSeconds: number;
+  readonly durationSeconds: number | null;
+  readonly version: number;
+
+  constructor(positionSeconds: number, durationSeconds: number | null, version: number) {
+    this.positionSeconds = positionSeconds;
+    this.durationSeconds = durationSeconds;
+    this.version = version;
+  }
+
+  /** 未知时长用 null（契约：不能使用 0）。 */
+  static fromPlayback(positionSeconds: number, durationSeconds: number | null,
+    expectedVersion: number): ProgressUpdateBody {
+    return new ProgressUpdateBody(positionSeconds, durationSeconds, expectedVersion);
   }
 }

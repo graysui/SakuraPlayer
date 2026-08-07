@@ -10,6 +10,7 @@
 import { BusinessError } from '@kit.BasicServicesKit';
 import { media } from '@kit.MediaKit';
 import { PlayerSurface } from './PlayerStore';
+import { TrackInfo, TrackSource } from './TrackStore';
 import { SeekCallbacks, SeekCoordinator } from './SeekCoordinator';
 
 /** 适配器事件回调（PlayerPage 注入，转发到 PlayerStore）。 */
@@ -29,7 +30,7 @@ export class AdapterCallbacks {
   }
 }
 
-export class AVPlayerAdapter implements PlayerSurface {
+export class AVPlayerAdapter implements PlayerSurface, TrackSource {
   private player: media.AVPlayer | null = null;
   private readonly surfaceId: string;
   private readonly callbacks: AdapterCallbacks;
@@ -107,6 +108,53 @@ export class AVPlayerAdapter implements PlayerSurface {
       // prepare resolve 后真实状态已 prepared（事件可能未派发）；续播 seek 经协调器
       this.seekCoordinator.request(startPositionMs);
     }
+  }
+
+  /** 枚举音视频/字幕轨道（prepared/playing/paused 后）。 */
+  async getTracks(): Promise<TrackInfo[]> {
+    const player = this.player;
+    if (player === null) {
+      return new Array<TrackInfo>();
+    }
+    const descs = await player.getTrackDescription();
+    const result: TrackInfo[] = [];
+    for (let i = 0; i < descs.length; i++) {
+      const rawType = descs[i][media.MediaDescriptionKey.MD_KEY_TRACK_TYPE];
+      const type = typeof rawType === 'number' ? rawType as number : -1;
+      if (type === media.MediaType.MEDIA_TYPE_AUD) {
+        result.push(new TrackInfo(i, 'audio', `音轨 ${result.length + 1}`));
+      } else if (type === media.MediaType.MEDIA_TYPE_SUBTITLE) {
+        result.push(new TrackInfo(i, 'subtitle', `字幕 ${result.length + 1}`));
+      } else if (type === media.MediaType.MEDIA_TYPE_VID) {
+        result.push(new TrackInfo(i, 'video', '视频'));
+      }
+    }
+    return result;
+  }
+
+  async selectTrack(index: number): Promise<void> {
+    const player = this.player;
+    if (player === null) {
+      return;
+    }
+    await player.selectTrack(index);
+  }
+
+  async deselectTrack(index: number): Promise<void> {
+    const player = this.player;
+    if (player === null) {
+      return;
+    }
+    await player.deselectTrack(index);
+  }
+
+  /** 外置字幕（本地缓存文件 URL；API 24 签名已核验）。 */
+  async addSubtitle(url: string): Promise<void> {
+    const player = this.player;
+    if (player === null) {
+      return;
+    }
+    await player.addSubtitleFromUrl(url);
   }
 
   play(): void {
